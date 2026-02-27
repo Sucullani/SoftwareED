@@ -1,13 +1,19 @@
 """
 MeshCanvas: Canvas interactivo compartido para visualizar la malla FEM.
 Soporta zoom, pan, nodos, elementos, cargas, restricciones,
-y visualizacion de resultados con mapa de colores (jet).
+visualizacion de resultados con gradiente suave (jet) e isolineas.
 """
 
 import tkinter as tk
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 import numpy as np
+
+try:
+    from PIL import Image, ImageTk
+    HAS_PIL = True
+except ImportError:
+    HAS_PIL = False
 
 from config.settings import (
     CANVAS_BG_COLOR, CANVAS_GRID_COLOR, CANVAS_NODE_COLOR,
@@ -32,7 +38,7 @@ class MeshCanvas(ttk.Frame):
         self.highlighted_element = None
 
         # Estado de resultados
-        self.result_values = None   # {node_id: float}
+        self.result_values = None
         self.result_label = ""
         self.result_vmin = 0.0
         self.result_vmax = 1.0
@@ -48,6 +54,11 @@ class MeshCanvas(ttk.Frame):
         self.show_loads = True
         self.show_constraints = True
         self.show_mesh_edges = True
+
+        # Gradiente e isolineas
+        self._gradient_photo = None  # referencia PIL para evitar GC
+        self.show_isolines = False
+        self.isoline_count = 10
 
         # ─── Toolbar ────────────────────────────────────────────────────
         toolbar = ttk.Frame(self)
@@ -68,7 +79,6 @@ class MeshCanvas(ttk.Frame):
             command=self.clear_results, width=16
         ).pack(side=RIGHT, padx=2)
 
-        # Coordenadas del mouse
         self.coord_label = ttk.Label(
             toolbar, text="x: --  y: --",
             font=("Consolas", 8), foreground="#888"
@@ -99,7 +109,6 @@ class MeshCanvas(ttk.Frame):
     # ═════════════════════════════════════════════════════════════════════
 
     def _jet_color(self, t):
-        """Jet colormap: 0=azul, 0.25=cian, 0.5=verde, 0.75=amarillo, 1=rojo."""
         t = max(0.0, min(1.0, t))
         if t < 0.25:
             r, g, b = 0, t / 0.25, 1.0
@@ -112,7 +121,6 @@ class MeshCanvas(ttk.Frame):
         return f"#{int(r*255):02x}{int(g*255):02x}{int(b*255):02x}"
 
     def _value_to_color(self, value):
-        """Convierte un valor al color jet basado en vmin/vmax."""
         if self.result_vmax == self.result_vmin:
             t = 0.5
         else:
@@ -124,19 +132,16 @@ class MeshCanvas(ttk.Frame):
     # ═════════════════════════════════════════════════════════════════════
 
     def world_to_screen(self, x, y):
-        """Coordenadas del mundo -> pantalla."""
         sx = x * self.scale + self.offset_x
         sy = -y * self.scale + self.offset_y
         return sx, sy
 
     def screen_to_world(self, sx, sy):
-        """Coordenadas de pantalla -> mundo."""
         x = (sx - self.offset_x) / self.scale
         y = -(sy - self.offset_y) / self.scale
         return x, y
 
     def _get_node_screen_pos(self, nid):
-        """Retorna posicion de pantalla de un nodo (con deformada si activa)."""
         node = self.project.nodes.get(nid)
         if node is None:
             return 0, 0
@@ -148,8 +153,21 @@ class MeshCanvas(ttk.Frame):
                 y += self.deform_scale * self.displacements[idx + 1]
         return self.world_to_screen(x, y)
 
+    def _get_node_world_deformed(self, nid):
+        """Coordenadas mundo del nodo con deformacion aplicada."""
+        node = self.project.nodes.get(nid)
+        if node is None:
+            return 0, 0
+        x, y = node.x, node.y
+        if self.show_deformed and self.displacements is not None:
+            idx = 2 * (nid - 1)
+            if idx + 1 < len(self.displacements):
+                x += self.deform_scale * self.displacements[idx]
+                y += self.deform_scale * self.displacements[idx + 1]
+        return x, y
+
     # ═════════════════════════════════════════════════════════════════════
-    # DIBUJO
+    # DIBUJO PRINCIPAL
     # ═════════════════════════════════════════════════════════════════════
 
     def redraw(self):
@@ -157,9 +175,12 @@ class MeshCanvas(ttk.Frame):
         self.canvas.delete("all")
         self._draw_grid()
 
-        # Si deformada, dibujar malla original transparente
         if self.show_deformed and self.displacements is not None:
             self._draw_original_mesh_ghost()
+
+        # Gradiente suave de resultados (debajo de aristas)
+        if self.result_values:
+            self._draw_gradient_elements()
 
         self._draw_elements()
         self._draw_nodes()
@@ -172,13 +193,17 @@ class MeshCanvas(ttk.Frame):
         self._draw_highlight()
 
         if self.result_values:
+            if self.show_isolines:
+                self._draw_isolines()
             self._draw_colorbar()
 
-        # Ejes de referencia
         self._draw_axes()
 
+    # ═════════════════════════════════════════════════════════════════════
+    # GRILLA, EJES, GHOST
+    # ═════════════════════════════════════════════════════════════════════
+
     def _draw_grid(self):
-        """Grilla de fondo sutil."""
         w = self.canvas.winfo_width()
         h = self.canvas.winfo_height()
         if w <= 1 or h <= 1:
@@ -186,7 +211,6 @@ class MeshCanvas(ttk.Frame):
         spacing = max(30, int(50 * self.scale))
         if spacing > 200:
             spacing = 200
-
         for i in range(-20, 60):
             sx = i * spacing + (self.offset_x % spacing)
             if 0 <= sx <= w:
@@ -201,12 +225,9 @@ class MeshCanvas(ttk.Frame):
                 )
 
     def _draw_axes(self):
-        """Dibuja ejes X,Y en la esquina inferior izquierda."""
         margin = 40
         length = 35
         bx, by = margin, self.canvas.winfo_height() - margin
-
-        # Eje X
         self.canvas.create_line(
             bx, by, bx + length, by, fill="#ef5350", width=2, arrow=tk.LAST
         )
@@ -214,7 +235,6 @@ class MeshCanvas(ttk.Frame):
             bx + length + 8, by, text="X", fill="#ef5350",
             font=("Segoe UI", 9, "bold"), anchor=W
         )
-        # Eje Y
         self.canvas.create_line(
             bx, by, bx, by - length, fill="#4fc3f7", width=2, arrow=tk.LAST
         )
@@ -224,7 +244,6 @@ class MeshCanvas(ttk.Frame):
         )
 
     def _draw_original_mesh_ghost(self):
-        """Dibuja la malla original como lineas punteadas (cuando se muestra deformada)."""
         for elem in self.project.elements.values():
             coords = []
             valid = True
@@ -237,34 +256,312 @@ class MeshCanvas(ttk.Frame):
                 coords.extend([sx, sy])
             if not valid or len(coords) < 8:
                 continue
-            coords.extend(coords[:2])  # cerrar
+            coords.extend(coords[:2])
             self.canvas.create_line(
                 *coords, fill="#444466", width=1, dash=(3, 5)
             )
 
+    # ═════════════════════════════════════════════════════════════════════
+    # GRADIENTE SUAVE (PIL pixel-perfect con mapeo bilineal inverso)
+    # ═════════════════════════════════════════════════════════════════════
+
+    def _jet_rgb_vectorized(self, t):
+        """Jet colormap vectorizado para numpy arrays."""
+        t = np.clip(t, 0, 1)
+        r = np.zeros_like(t)
+        g = np.zeros_like(t)
+        b = np.zeros_like(t)
+        m1 = t < 0.25
+        m2 = (t >= 0.25) & (t < 0.5)
+        m3 = (t >= 0.5) & (t < 0.75)
+        m4 = t >= 0.75
+        g[m1] = t[m1] / 0.25; b[m1] = 1.0
+        g[m2] = 1.0; b[m2] = 1.0 - (t[m2] - 0.25) / 0.25
+        r[m3] = (t[m3] - 0.5) / 0.25; g[m3] = 1.0
+        r[m4] = 1.0; g[m4] = 1.0 - (t[m4] - 0.75) / 0.25
+        return r, g, b
+
+    def _draw_gradient_elements(self):
+        """Renderiza gradiente pixel-perfect con PIL + mapeo bilineal inverso."""
+        if not HAS_PIL:
+            self._draw_gradient_polygons()
+            return
+
+        w = int(self.canvas.winfo_width())
+        h = int(self.canvas.winfo_height())
+        if w <= 1 or h <= 1:
+            return
+
+        img = np.zeros((h, w, 4), dtype=np.uint8)
+
+        for elem in self.project.elements.values():
+            nids = elem.node_ids[:4]
+            if not all(nid in self.project.nodes and nid in self.result_values
+                       for nid in nids):
+                continue
+
+            nc = []
+            nv = []
+            for nid in nids:
+                x, y = self._get_node_world_deformed(nid)
+                nc.append((x, y))
+                nv.append(self.result_values[nid])
+
+            # Bounding box en pantalla
+            spts = [self.world_to_screen(c[0], c[1]) for c in nc]
+            sx_min = max(0, int(min(p[0] for p in spts)) - 2)
+            sx_max = min(w - 1, int(max(p[0] for p in spts)) + 2)
+            sy_min = max(0, int(min(p[1] for p in spts)) - 2)
+            sy_max = min(h - 1, int(max(p[1] for p in spts)) + 2)
+            if sx_min >= sx_max or sy_min >= sy_max:
+                continue
+
+            # Grilla de pixeles → coordenadas mundo
+            cols = np.arange(sx_min, sx_max + 1)
+            rows = np.arange(sy_min, sy_max + 1)
+            PX, PY = np.meshgrid(cols, rows)
+            WX = (PX - self.offset_x) / self.scale
+            WY = -(PY - self.offset_y) / self.scale
+
+            # Mapeo bilineal inverso: P(s,t) = P0(1-s)(1-t)+P1·s(1-t)+P2·st+P3(1-s)t
+            x0, y0 = nc[0]; x1, y1 = nc[1]
+            x2, y2 = nc[2]; x3, y3 = nc[3]
+            Ex, Ey = x1 - x0, y1 - y0
+            Fx, Fy = x3 - x0, y3 - y0
+            Gx, Gy = x0 - x1 + x2 - x3, y0 - y1 + y2 - y3
+            Hx = WX - x0
+            Hy = WY - y0
+
+            # Ecuacion cuadratica: a·s² + b·s + c = 0
+            a_val = Gx * Fy - Gy * Fx  # escalar (constante del elemento)
+            b_arr = (Ex * Fy - Ey * Fx) + Hx * Gy - Hy * Gx
+            c_arr = Hx * Ey - Hy * Ex
+
+            s = np.full_like(WX, np.nan)
+            if abs(a_val) < 1e-12:
+                # Caso lineal (paralelogramo/rectangulo)
+                valid = np.abs(b_arr) > 1e-12
+                s[valid] = -c_arr[valid] / b_arr[valid]
+            else:
+                disc = b_arr * b_arr - 4 * a_val * c_arr
+                valid = disc >= 0
+                sqrt_d = np.sqrt(np.maximum(disc, 0))
+                s1 = (-b_arr + sqrt_d) / (2 * a_val)
+                s2 = (-b_arr - sqrt_d) / (2 * a_val)
+                ok1 = valid & (s1 >= -0.01) & (s1 <= 1.01)
+                ok2 = valid & (s2 >= -0.01) & (s2 <= 1.01)
+                s[ok1] = np.clip(s1[ok1], 0, 1)
+                s[ok2 & ~ok1] = np.clip(s2[ok2 & ~ok1], 0, 1)
+
+            # Calcular t a partir de s
+            denom_x = Fx + s * Gx
+            denom_y = Fy + s * Gy
+            t = np.full_like(s, np.nan)
+            use_x = np.abs(denom_x) >= np.abs(denom_y)
+            mx = use_x & (np.abs(denom_x) > 1e-12)
+            my = (~use_x) & (np.abs(denom_y) > 1e-12)
+            t[mx] = (Hx[mx] - s[mx] * Ex) / denom_x[mx]
+            t[my] = (Hy[my] - s[my] * Ey) / denom_y[my]
+
+            # Mascara de pixeles dentro del elemento
+            eps = 0.001
+            inside = (np.isfinite(s) & np.isfinite(t) &
+                      (s >= -eps) & (s <= 1 + eps) &
+                      (t >= -eps) & (t <= 1 + eps))
+            if not np.any(inside):
+                continue
+
+            # Coordenadas naturales ξ,η ∈ [-1, 1]
+            xi = np.clip(2 * s - 1, -1, 1)
+            eta = np.clip(2 * t - 1, -1, 1)
+
+            # Interpolacion con funciones de forma Q4
+            vals = ((1 - xi) * (1 - eta) / 4 * nv[0] +
+                    (1 + xi) * (1 - eta) / 4 * nv[1] +
+                    (1 + xi) * (1 + eta) / 4 * nv[2] +
+                    (1 - xi) * (1 + eta) / 4 * nv[3])
+
+            # Jet colormap vectorizado
+            vrange = max(self.result_vmax - self.result_vmin, 1e-15)
+            t_color = np.clip((vals - self.result_vmin) / vrange, 0, 1)
+            rc, gc, bc = self._jet_rgb_vectorized(t_color)
+
+            # Pintar pixeles en la imagen
+            iy = PY[inside].astype(int)
+            ix = PX[inside].astype(int)
+            img[iy, ix, 0] = (rc[inside] * 255).astype(np.uint8)
+            img[iy, ix, 1] = (gc[inside] * 255).astype(np.uint8)
+            img[iy, ix, 2] = (bc[inside] * 255).astype(np.uint8)
+            img[iy, ix, 3] = 255
+
+        # Mostrar imagen en el canvas (1 solo item)
+        pil_img = Image.fromarray(img, 'RGBA')
+        self._gradient_photo = ImageTk.PhotoImage(pil_img)
+        self.canvas.create_image(0, 0, anchor=NW, image=self._gradient_photo)
+
+    def _draw_gradient_polygons(self):
+        """Fallback: gradiente con sub-poligonos si PIL no esta disponible."""
+        n = 10
+        for elem in self.project.elements.values():
+            nids = elem.node_ids[:4]
+            if not all(nid in self.project.nodes and nid in self.result_values
+                       for nid in nids):
+                continue
+            nc = []
+            nv = []
+            for nid in nids:
+                x, y = self._get_node_world_deformed(nid)
+                nc.append((x, y))
+                nv.append(self.result_values[nid])
+            for i in range(n):
+                xi0 = -1 + 2 * i / n
+                xi1 = -1 + 2 * (i + 1) / n
+                for j in range(n):
+                    eta0 = -1 + 2 * j / n
+                    eta1 = -1 + 2 * (j + 1) / n
+                    corners = [(xi0, eta0), (xi1, eta0),
+                               (xi1, eta1), (xi0, eta1)]
+                    pts = []
+                    val_sum = 0.0
+                    for xi, eta in corners:
+                        N = [(1 - xi) * (1 - eta) / 4,
+                             (1 + xi) * (1 - eta) / 4,
+                             (1 + xi) * (1 + eta) / 4,
+                             (1 - xi) * (1 + eta) / 4]
+                        x = sum(N[k] * nc[k][0] for k in range(4))
+                        y = sum(N[k] * nc[k][1] for k in range(4))
+                        v = sum(N[k] * nv[k] for k in range(4))
+                        sx, sy = self.world_to_screen(x, y)
+                        pts.extend([sx, sy])
+                        val_sum += v
+                    color = self._value_to_color(val_sum / 4)
+                    self.canvas.create_polygon(*pts, fill=color, outline="")
+
+    # ═════════════════════════════════════════════════════════════════════
+    # ISOLINEAS (Marching Squares)
+    # ═════════════════════════════════════════════════════════════════════
+
+    def _draw_isolines(self):
+        """Dibuja curvas de nivel usando marching squares por elemento."""
+        if not self.result_values:
+            return
+
+        n_levels = self.isoline_count
+        levels = np.linspace(self.result_vmin, self.result_vmax,
+                             n_levels + 2)[1:-1]
+
+        # Tabla marching squares: caso -> [(edge_a, edge_b), ...]
+        seg_table = {
+            1: [(0, 3)], 2: [(0, 1)], 3: [(1, 3)], 4: [(1, 2)],
+            5: [(0, 3), (1, 2)], 6: [(0, 2)], 7: [(2, 3)],
+            8: [(2, 3)], 9: [(0, 2)], 10: [(0, 1), (2, 3)],
+            11: [(1, 2)], 12: [(1, 3)], 13: [(0, 1)], 14: [(0, 3)],
+        }
+
+        n_grid = 16
+        for elem in self.project.elements.values():
+            nids = elem.node_ids[:4]
+            if not all(nid in self.project.nodes and nid in self.result_values
+                       for nid in nids):
+                continue
+
+            nc = []
+            nv = []
+            for nid in nids:
+                x, y = self._get_node_world_deformed(nid)
+                nc.append((x, y))
+                nv.append(self.result_values[nid])
+
+            # Crear grilla de coordenadas/valores
+            xi_arr = np.linspace(-1, 1, n_grid)
+            eta_arr = np.linspace(-1, 1, n_grid)
+            gx = np.zeros((n_grid, n_grid))
+            gy = np.zeros((n_grid, n_grid))
+            gv = np.zeros((n_grid, n_grid))
+
+            for ci in range(n_grid):
+                xi = xi_arr[ci]
+                for cj in range(n_grid):
+                    eta = eta_arr[cj]
+                    N = [(1 - xi) * (1 - eta) / 4,
+                         (1 + xi) * (1 - eta) / 4,
+                         (1 + xi) * (1 + eta) / 4,
+                         (1 - xi) * (1 + eta) / 4]
+                    gx[cj, ci] = sum(N[k] * nc[k][0] for k in range(4))
+                    gy[cj, ci] = sum(N[k] * nc[k][1] for k in range(4))
+                    gv[cj, ci] = sum(N[k] * nv[k] for k in range(4))
+
+            for level in levels:
+                for ci in range(n_grid - 1):
+                    for cj in range(n_grid - 1):
+                        v00 = gv[cj, ci]
+                        v10 = gv[cj, ci + 1]
+                        v11 = gv[cj + 1, ci + 1]
+                        v01 = gv[cj + 1, ci]
+
+                        case = 0
+                        if v00 >= level: case |= 1
+                        if v10 >= level: case |= 2
+                        if v11 >= level: case |= 4
+                        if v01 >= level: case |= 8
+
+                        if case == 0 or case == 15 or case not in seg_table:
+                            continue
+
+                        x00, y00 = gx[cj, ci], gy[cj, ci]
+                        x10, y10 = gx[cj, ci+1], gy[cj, ci+1]
+                        x11, y11 = gx[cj+1, ci+1], gy[cj+1, ci+1]
+                        x01, y01 = gx[cj+1, ci], gy[cj+1, ci]
+
+                        # Puntos de cruce por arista
+                        edge_pts = {}
+                        pairs = [
+                            (0, v00, x00, y00, v10, x10, y10),
+                            (1, v10, x10, y10, v11, x11, y11),
+                            (2, v11, x11, y11, v01, x01, y01),
+                            (3, v01, x01, y01, v00, x00, y00),
+                        ]
+                        for eid, va, xa, ya, vb, xb, yb in pairs:
+                            if (va >= level) != (vb >= level):
+                                dv = vb - va
+                                t = (level - va) / dv if abs(dv) > 1e-15 else 0.5
+                                t = max(0.0, min(1.0, t))
+                                edge_pts[eid] = (
+                                    xa + t * (xb - xa),
+                                    ya + t * (yb - ya)
+                                )
+
+                        for ea, eb in seg_table[case]:
+                            if ea in edge_pts and eb in edge_pts:
+                                px1, py1 = edge_pts[ea]
+                                px2, py2 = edge_pts[eb]
+                                s1x, s1y = self.world_to_screen(px1, py1)
+                                s2x, s2y = self.world_to_screen(px2, py2)
+                                self.canvas.create_line(
+                                    s1x, s1y, s2x, s2y,
+                                    fill="white", width=1.2
+                                )
+
+    # ═════════════════════════════════════════════════════════════════════
+    # ELEMENTOS, NODOS, CARGAS, RESTRICCIONES
+    # ═════════════════════════════════════════════════════════════════════
+
     def _draw_elements(self):
-        """Dibuja los elementos de la malla con colores si hay resultados."""
+        """Dibuja aristas y etiquetas de elementos."""
         for elem in self.project.elements.values():
             coords = []
             valid = True
-            elem_values = []
             for nid in elem.node_ids[:4]:
                 if nid not in self.project.nodes:
                     valid = False
                     break
                 sx, sy = self._get_node_screen_pos(nid)
                 coords.extend([sx, sy])
-                if self.result_values and nid in self.result_values:
-                    elem_values.append(self.result_values[nid])
-
             if not valid or len(coords) < 8:
                 continue
 
-            # Color del elemento
+            # Sin relleno — el gradiente maneja el color
             fill_color = ""
-            if self.result_values and elem_values:
-                avg_val = np.mean(elem_values)
-                fill_color = self._value_to_color(avg_val)
 
             outline_color = CANVAS_ELEMENT_COLOR
             if self.highlighted_element == elem.id:
@@ -277,14 +574,12 @@ class MeshCanvas(ttk.Frame):
                 outline=edge_color,
                 fill=fill_color,
                 width=2 if self.highlighted_element == elem.id else 1.5,
-                stipple="" if fill_color else "",
             )
 
-            # Etiqueta del elemento en el centro
             if self.show_elem_labels:
                 cx = sum(coords[::2]) / 4
                 cy = sum(coords[1::2]) / 4
-                text_color = "#222" if fill_color else "#aaaaaa"
+                text_color = "#222" if self.result_values else "#aaaaaa"
                 self.canvas.create_text(
                     cx, cy, text=str(elem.id),
                     fill=text_color,
@@ -293,7 +588,6 @@ class MeshCanvas(ttk.Frame):
                 )
 
     def _draw_nodes(self):
-        """Dibuja los nodos."""
         r = CANVAS_NODE_RADIUS
         for nid, node in self.project.nodes.items():
             sx, sy = self._get_node_screen_pos(nid)
@@ -310,7 +604,6 @@ class MeshCanvas(ttk.Frame):
             )
 
             if self.show_node_labels:
-                # Valor de resultado o ID
                 if self.result_values and nid in self.result_values:
                     label = f"{nid}: {self.result_values[nid]:.2f}"
                 else:
@@ -323,7 +616,6 @@ class MeshCanvas(ttk.Frame):
                 )
 
     def _draw_loads(self):
-        """Dibuja flechas para las cargas nodales."""
         arrow_len = 40
         for load in self.project.nodal_loads.values():
             node = self.project.nodes.get(load.node_id)
@@ -360,7 +652,6 @@ class MeshCanvas(ttk.Frame):
                 )
 
     def _draw_constraints(self):
-        """Dibuja simbolos de restriccion."""
         size = 12
         for bc in self.project.boundary_conditions.values():
             node = self.project.nodes.get(bc.node_id)
@@ -369,7 +660,6 @@ class MeshCanvas(ttk.Frame):
             sx, sy = self._get_node_screen_pos(bc.node_id)
 
             if bc.is_fixed:
-                # Triangulo (empotramiento)
                 self.canvas.create_polygon(
                     sx, sy + size,
                     sx - size, sy + size * 2,
@@ -403,7 +693,6 @@ class MeshCanvas(ttk.Frame):
                 )
 
     def _draw_highlight(self):
-        """Resaltado del nodo seleccionado."""
         if self.highlighted_node:
             if self.highlighted_node in self.project.nodes:
                 sx, sy = self._get_node_screen_pos(self.highlighted_node)
@@ -414,7 +703,6 @@ class MeshCanvas(ttk.Frame):
                 )
 
     def _draw_colorbar(self):
-        """Dibuja barra de colores vertical en el canvas."""
         w = self.canvas.winfo_width()
         h = self.canvas.winfo_height()
         if w < 100 or h < 100:
@@ -435,13 +723,11 @@ class MeshCanvas(ttk.Frame):
                 fill=color, outline=""
             )
 
-        # Borde
         self.canvas.create_rectangle(
             x0, y0, x0 + bar_w, y0 + bar_h,
             outline="#aaa", width=1
         )
 
-        # Etiquetas de valores
         n_labels = 5
         for i in range(n_labels + 1):
             t = 1.0 - i / n_labels
@@ -452,7 +738,6 @@ class MeshCanvas(ttk.Frame):
                 fill="white", font=("Consolas", 7), anchor=tk.E
             )
 
-        # Titulo
         self.canvas.create_text(
             x0 + bar_w / 2, y0 - 12, text=self.result_label,
             fill="white", font=("Segoe UI", 8, "bold"), anchor=tk.S
@@ -487,15 +772,11 @@ class MeshCanvas(ttk.Frame):
         self.redraw()
 
     def _on_mouse_move(self, event):
-        """Muestra coordenadas del mundo al mover el mouse."""
         wx, wy = self.screen_to_world(event.x, event.y)
         self.coord_label.config(text=f"x: {wx:.2f}  y: {wy:.2f}")
 
     def _on_click(self, event):
-        """Click izquierdo: seleccionar nodo o elemento mas cercano."""
         wx, wy = self.screen_to_world(event.x, event.y)
-
-        # Buscar nodo mas cercano
         min_dist = float("inf")
         closest_node = None
         for nid, node in self.project.nodes.items():
@@ -506,7 +787,7 @@ class MeshCanvas(ttk.Frame):
                 min_dist = dist
                 closest_node = nid
 
-        threshold = 15 / self.scale  # umbral en coord mundo
+        threshold = 15 / self.scale
         if closest_node and min_dist < threshold:
             self.highlight_node(closest_node)
             self.main_window.set_status(
@@ -516,7 +797,6 @@ class MeshCanvas(ttk.Frame):
             )
             return
 
-        # Buscar elemento (punto dentro de poligono)
         for elem in self.project.elements.values():
             nids = elem.node_ids[:4]
             pts = []
@@ -534,14 +814,14 @@ class MeshCanvas(ttk.Frame):
                 return
 
     def _point_in_quad(self, px, py, pts):
-        """Verifica si un punto esta dentro de un cuadrilatero."""
         n = len(pts)
         inside = False
         j = n - 1
         for i in range(n):
             xi, yi = pts[i]
             xj, yj = pts[j]
-            if ((yi > py) != (yj > py)) and (px < (xj - xi) * (py - yi) / (yj - yi + 1e-15) + xi):
+            if ((yi > py) != (yj > py)) and \
+               (px < (xj - xi) * (py - yi) / (yj - yi + 1e-15) + xi):
                 inside = not inside
             j = i
         return inside
@@ -561,12 +841,6 @@ class MeshCanvas(ttk.Frame):
         self.redraw()
 
     def set_result_values(self, values, label="Resultado"):
-        """Activa la visualizacion de resultados con mapa de colores.
-
-        Parametros:
-            values: dict {node_id: float} con valores en cada nodo.
-            label: etiqueta para la barra de colores.
-        """
         self.result_values = values
         self.result_label = label
         vals = list(values.values())
@@ -577,12 +851,6 @@ class MeshCanvas(ttk.Frame):
         self.redraw()
 
     def set_deformed(self, displacements, scale=1.0):
-        """Activa la visualizacion de malla deformada.
-
-        Parametros:
-            displacements: numpy array con desplazamientos u.
-            scale: factor de escala para la deformacion.
-        """
         self.displacements = displacements
         if displacements is not None:
             max_disp = np.max(np.abs(displacements))
@@ -604,18 +872,23 @@ class MeshCanvas(ttk.Frame):
             self.deform_scale = 0
         self.redraw()
 
+    def set_isolines(self, show, count=10):
+        """Activa/desactiva isolineas con el numero de niveles."""
+        self.show_isolines = show
+        self.isoline_count = count
+        self.redraw()
+
     def clear_results(self):
-        """Limpia la visualizacion de resultados."""
         self.result_values = None
         self.result_label = ""
         self.show_deformed = False
         self.displacements = None
         self.deform_scale = 0
+        self.show_isolines = False
         self.redraw()
         self.main_window.set_status("Resultados limpiados.")
 
     def fit_view(self):
-        """Ajusta la vista para mostrar todo el modelo."""
         if not self.project.nodes:
             self.scale = 1.0
             w = self.canvas.winfo_width()

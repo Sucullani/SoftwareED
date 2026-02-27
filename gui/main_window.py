@@ -504,7 +504,8 @@ class MainWindow:
         elif tab_index == 1:
             self.proc_tab.refresh()
         elif tab_index == 2:
-            self.post_tab.refresh()
+            # Auto-resolver al entrar a Post-Proceso
+            self.post_tab.auto_solve()
 
         # El canvas siempre es MeshCanvas, solo redibujar
         self.mesh_canvas.redraw()

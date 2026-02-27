@@ -1,7 +1,8 @@
 """
 PostProcessTab: Panel izquierdo de Post-Proceso.
-Organizado en sub-pestanas: Resolver, Resultados, Visualizacion.
-Usa el MeshCanvas compartido (mismo canvas que Pre-Proceso y Proceso).
+Se resuelve automaticamente al activar la pestana.
+Radio buttons actualizan la visualizacion en tiempo real.
+Usa el MeshCanvas compartido con gradiente e isolineas.
 """
 
 import tkinter as tk
@@ -12,7 +13,7 @@ import numpy as np
 
 
 class PostProcessTab:
-    """Panel de Post-Proceso con pestanas para resolver, resultados y visualizacion."""
+    """Panel de Post-Proceso con auto-solve y visualizacion reactiva."""
 
     def __init__(self, parent, project, main_window):
         self.project = project
@@ -26,93 +27,141 @@ class PostProcessTab:
         self._build_panel()
 
     def _build_panel(self):
-        """Construye el panel con un Notebook de sub-pestanas."""
+        """Construye el panel con sub-pestanas."""
         self.notebook = ttk.Notebook(self.frame, bootstyle="danger")
         self.notebook.pack(fill=BOTH, expand=YES)
 
-        # Sub-tab 1: Resolver
-        self.solve_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.solve_frame, text="  Resolver  ")
-        self._build_solve_tab()
-
-        # Sub-tab 2: Resultados
-        self.results_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.results_frame, text="  Resultados  ")
-        self._build_results_tab()
-
-        # Sub-tab 3: Visualizacion
+        # Sub-tab 1: Visualizacion
         self.viz_frame = ttk.Frame(self.notebook)
         self.notebook.add(self.viz_frame, text="  Visualización  ")
         self._build_visualization_tab()
 
+        # Sub-tab 2: Resultados numericos
+        self.results_frame = ttk.Frame(self.notebook)
+        self.notebook.add(self.results_frame, text="  Resultados  ")
+        self._build_results_tab()
+
     # ═════════════════════════════════════════════════════════════════════
-    # SUB-TAB 1: RESOLVER
+    # SUB-TAB: VISUALIZACION
     # ═════════════════════════════════════════════════════════════════════
 
-    def _build_solve_tab(self):
-        """Contenido de la pestana Resolver."""
-        container = ttk.Frame(self.solve_frame)
-        container.pack(fill=BOTH, expand=YES, padx=5, pady=5)
-
-        # Header
-        ttk.Label(
-            container, text="Análisis FEM",
-            font=("Segoe UI", 11, "bold"),
-        ).pack(anchor=W, padx=10, pady=(10, 3))
-
-        # Info del modelo
-        self.model_info = ttk.Label(
-            container,
-            text="Cargue un modelo para comenzar.",
-            font=("Segoe UI", 9), foreground="#888", wraplength=360,
+    def _build_visualization_tab(self):
+        """Controles de visualizacion con auto-update."""
+        # Scroll container
+        scroll_canvas = tk.Canvas(self.viz_frame, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(self.viz_frame, orient=VERTICAL,
+                                  command=scroll_canvas.yview)
+        container = ttk.Frame(scroll_canvas)
+        container.bind(
+            "<Configure>",
+            lambda e: scroll_canvas.configure(scrollregion=scroll_canvas.bbox("all"))
         )
-        self.model_info.pack(padx=15, pady=3, anchor=W)
+        scroll_canvas.create_window((0, 0), window=container, anchor=NW)
+        scroll_canvas.configure(yscrollcommand=scrollbar.set)
+        scrollbar.pack(side=RIGHT, fill=Y)
+        scroll_canvas.pack(side=LEFT, fill=BOTH, expand=YES)
 
-        # Boton Resolver
-        ttk.Button(
-            container, text="  RESOLVER  K · u = F  ",
-            bootstyle="success", command=self._on_solve,
-        ).pack(pady=10, padx=10, fill=X)
+        # ─── Estado del analisis ─────────────────────────────────────────
+        self.status_frame = ttk.Labelframe(container, text="Estado del Análisis",
+                                           bootstyle="success")
+        self.status_frame.pack(fill=X, padx=10, pady=(10, 5))
 
-        # Estado
         self.solve_status = ttk.Label(
-            container, text="Estado: Sin resolver",
+            self.status_frame, text="Estado: Sin resolver",
             font=("Segoe UI", 10, "bold"), foreground="#ffa726",
         )
-        self.solve_status.pack(padx=15, pady=3, anchor=W)
+        self.solve_status.pack(padx=10, pady=5, anchor=W)
 
-        # Separador
-        ttk.Separator(container).pack(fill=X, padx=10, pady=8)
-
-        # Info detallada del resultado
-        ttk.Label(
-            container, text="Resumen de la Solución",
-            font=("Segoe UI", 10, "bold"),
-        ).pack(anchor=W, padx=10, pady=(5, 3))
-
-        self.solve_info = ttk.Label(
-            container, text="",
-            font=("Consolas", 8), foreground="#aaa",
-            justify=LEFT, wraplength=360,
+        self.model_info = ttk.Label(
+            self.status_frame, text="",
+            font=("Consolas", 8), foreground="#aaa", wraplength=360,
         )
-        self.solve_info.pack(padx=15, pady=3, anchor=W, fill=X)
+        self.model_info.pack(padx=10, pady=(0, 5), anchor=W)
+
+        # ─── Tipo de Resultado ───────────────────────────────────────────
+        result_frame = ttk.Labelframe(container, text="Tipo de Resultado",
+                                      bootstyle="danger")
+        result_frame.pack(fill=X, padx=10, pady=5)
+
+        self.result_var = tk.StringVar(value="VM")
+
+        results = [
+            ("Desplazamiento Ux", "Ux"),
+            ("Desplazamiento Uy", "Uy"),
+            ("Magnitud |U|", "Umag"),
+            ("Esfuerzo Normal σx", "Sx"),
+            ("Esfuerzo Normal σy", "Sy"),
+            ("Esfuerzo Cortante τxy", "Txy"),
+            ("Esfuerzo Principal σ1", "S1"),
+            ("Esfuerzo Principal σ2", "S2"),
+            ("Von Mises", "VM"),
+        ]
+
+        for text, value in results:
+            ttk.Radiobutton(
+                result_frame, text=text, value=value,
+                variable=self.result_var, bootstyle="danger",
+                command=self._on_result_changed,
+            ).pack(anchor=W, padx=15, pady=1)
+
+        # ─── Opciones de Deformada ───────────────────────────────────────
+        deform_frame = ttk.Labelframe(container, text="Malla Deformada",
+                                      bootstyle="info")
+        deform_frame.pack(fill=X, padx=10, pady=5)
+
+        self.show_deformed_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(
+            deform_frame, text="Mostrar malla deformada",
+            variable=self.show_deformed_var, bootstyle="round-toggle",
+            command=self._on_result_changed,
+        ).pack(anchor=W, padx=15, pady=5)
+
+        scale_row = ttk.Frame(deform_frame)
+        scale_row.pack(fill=X, padx=15, pady=(0, 5))
+        ttk.Label(scale_row, text="Factor de escala:").pack(side=LEFT)
+        self.scale_var = tk.DoubleVar(value=1.0)
+        scale_entry = ttk.Entry(scale_row, textvariable=self.scale_var, width=8)
+        scale_entry.pack(side=LEFT, padx=5)
+        scale_entry.bind("<Return>", lambda e: self._on_result_changed())
+
+        # ─── Opciones de Isolineas ───────────────────────────────────────
+        iso_frame = ttk.Labelframe(container, text="Isolíneas / Curvas de Nivel",
+                                   bootstyle="warning")
+        iso_frame.pack(fill=X, padx=10, pady=5)
+
+        self.show_isolines_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(
+            iso_frame, text="Mostrar isolíneas",
+            variable=self.show_isolines_var, bootstyle="round-toggle",
+            command=self._on_result_changed,
+        ).pack(anchor=W, padx=15, pady=5)
+
+        count_row = ttk.Frame(iso_frame)
+        count_row.pack(fill=X, padx=15, pady=(0, 5))
+        ttk.Label(count_row, text="Número de niveles:").pack(side=LEFT)
+        self.isoline_count_var = tk.IntVar(value=10)
+        iso_spin = ttk.Spinbox(
+            count_row, from_=3, to=30, width=5,
+            textvariable=self.isoline_count_var,
+            command=self._on_result_changed,
+        )
+        iso_spin.pack(side=LEFT, padx=5)
+        iso_spin.bind("<Return>", lambda e: self._on_result_changed())
 
     # ═════════════════════════════════════════════════════════════════════
-    # SUB-TAB 2: RESULTADOS (Tabla)
+    # SUB-TAB: RESULTADOS NUMERICOS
     # ═════════════════════════════════════════════════════════════════════
 
     def _build_results_tab(self):
-        """Contenido de la pestana Resultados."""
+        """Tabla de resultados numericos."""
         container = ttk.Frame(self.results_frame)
         container.pack(fill=BOTH, expand=YES, padx=5, pady=5)
 
-        # Header
         ttk.Label(
             container, text="Tabla de Resultados Numéricos",
             font=("Segoe UI", 11, "bold"),
         ).pack(anchor=W, padx=10, pady=(10, 5))
 
-        # Selector de tipo
         sel_frame = ttk.Frame(container)
         sel_frame.pack(fill=X, padx=10, pady=5)
 
@@ -129,7 +178,6 @@ class PostProcessTab:
             command=self._update_table
         ).pack(side=LEFT, padx=5)
 
-        # Tabla
         table_frame = ttk.Frame(container)
         table_frame.pack(fill=BOTH, expand=YES, padx=10, pady=5)
 
@@ -151,106 +199,34 @@ class PostProcessTab:
         scrollbar = ttk.Scrollbar(table_frame, orient=VERTICAL,
                                   command=self.results_tree.yview)
         self.results_tree.configure(yscrollcommand=scrollbar.set)
-
         self.results_tree.pack(fill=BOTH, expand=YES, side=LEFT)
         scrollbar.pack(fill=Y, side=RIGHT)
 
     # ═════════════════════════════════════════════════════════════════════
-    # SUB-TAB 3: VISUALIZACION
+    # AUTO-SOLVE (se llama al activar la pestana Post-Proceso)
     # ═════════════════════════════════════════════════════════════════════
 
-    def _build_visualization_tab(self):
-        """Contenido de la pestana Visualizacion."""
-        container = ttk.Frame(self.viz_frame)
-        container.pack(fill=BOTH, expand=YES, padx=5, pady=5)
-
-        # Header
-        ttk.Label(
-            container, text="Visualización de Resultados",
-            font=("Segoe UI", 11, "bold"),
-        ).pack(anchor=W, padx=10, pady=(10, 3))
-
-        ttk.Label(
-            container,
-            text="Seleccione el tipo de resultado y presione\n"
-                 "'Visualizar' para ver el mapa de colores en el canvas.",
-            font=("Segoe UI", 9), foreground="#aaa", wraplength=380,
-        ).pack(anchor=W, padx=15, pady=(0, 8))
-
-        # Selector de resultado
-        ttk.Label(
-            container, text="Tipo de Resultado",
-            font=("Segoe UI", 10, "bold"),
-        ).pack(anchor=W, padx=10, pady=(5, 3))
-
-        self.result_var = tk.StringVar(value="VM")
-        results = [
-            ("Desplazamiento Ux", "Ux"),
-            ("Desplazamiento Uy", "Uy"),
-            ("Magnitud |U|", "Umag"),
-            ("Esfuerzo Normal σx", "Sx"),
-            ("Esfuerzo Normal σy", "Sy"),
-            ("Esfuerzo Cortante τxy", "Txy"),
-            ("Esfuerzo Principal σ1", "S1"),
-            ("Esfuerzo Principal σ2", "S2"),
-            ("Von Mises", "VM"),
-        ]
-
-        for text, value in results:
-            ttk.Radiobutton(
-                container, text=text, value=value,
-                variable=self.result_var, bootstyle="danger",
-            ).pack(anchor=W, padx=20, pady=1)
-
-        # Separador
-        ttk.Separator(container).pack(fill=X, padx=10, pady=8)
-
-        # Opciones de deformacion
-        ttk.Label(
-            container, text="Opciones de Deformada",
-            font=("Segoe UI", 10, "bold"),
-        ).pack(anchor=W, padx=10, pady=(5, 3))
-
-        self.show_deformed_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(
-            container, text="Mostrar malla deformada",
-            variable=self.show_deformed_var, bootstyle="round-toggle",
-        ).pack(anchor=W, padx=20, pady=2)
-
-        scale_row = ttk.Frame(container)
-        scale_row.pack(fill=X, padx=20, pady=2)
-        ttk.Label(scale_row, text="Factor de escala:").pack(side=LEFT)
-        self.scale_var = tk.DoubleVar(value=1.0)
-        ttk.Entry(scale_row, textvariable=self.scale_var, width=8).pack(side=LEFT, padx=5)
-
-        # Separador
-        ttk.Separator(container).pack(fill=X, padx=10, pady=8)
-
-        # Botones de accion
-        ttk.Button(
-            container, text="  Visualizar en Malla  ",
-            bootstyle="danger", command=self._visualize_result,
-        ).pack(pady=5, padx=10, fill=X)
-
-        ttk.Button(
-            container, text="  Limpiar Resultados  ",
-            bootstyle="warning-outline", command=self._clear_results,
-        ).pack(pady=3, padx=10, fill=X)
-
-    # ═════════════════════════════════════════════════════════════════════
-    # RESOLVER
-    # ═════════════════════════════════════════════════════════════════════
-
-    def _on_solve(self):
-        """Ejecuta el analisis FEM completo."""
+    def auto_solve(self):
+        """Resuelve automaticamente si hay modelo valido y no esta resuelto."""
         if not self.project.elements:
-            messagebox.showwarning("Aviso", "No hay elementos. Defina el modelo.")
-            return
-        if not self.project.boundary_conditions:
-            messagebox.showwarning("Aviso", "No hay condiciones de contorno.")
+            self.solve_status.config(
+                text="Sin modelo — defina nodos y elementos",
+                foreground="#ef5350"
+            )
             return
 
-        self.solve_status.config(text="Estado: Resolviendo...", foreground="#4fc3f7")
+        if not self.project.boundary_conditions:
+            self.solve_status.config(
+                text="Sin restricciones — defina condiciones de contorno",
+                foreground="#ef5350"
+            )
+            return
+
+        # Si ya esta resuelto, solo actualizar display
+        if self.solution is not None and self.project.is_solved:
+            return
+
+        self.solve_status.config(text="Resolviendo...", foreground="#4fc3f7")
         self.frame.update_idletasks()
 
         try:
@@ -258,7 +234,9 @@ class PostProcessTab:
             from fem.stress import compute_all_stresses
 
             self.solution = solve_system(self.project)
-            _, self.nodal_stresses = compute_all_stresses(self.project, self.solution)
+            _, self.nodal_stresses = compute_all_stresses(
+                self.project, self.solution
+            )
 
             self.project.is_solved = True
             self.project.displacements = self.solution["u"]
@@ -273,44 +251,37 @@ class PostProcessTab:
             max_uy = max(abs(u[i]) for i in range(1, len(u), 2))
 
             info = (
-                f"GDL totales: {len(u)}\n"
-                f"GDL libres: {len(self.solution['free_dofs'])}\n"
-                f"GDL restringidos: {len(restrained)}\n\n"
-                f"Max |Ux|: {max_ux:.6e}\n"
-                f"Max |Uy|: {max_uy:.6e}\n\n"
-                "Reacciones:\n"
+                f"GDL: {len(u)} total, "
+                f"{len(self.solution['free_dofs'])} libres, "
+                f"{len(restrained)} restringidos\n"
+                f"Max |Ux|: {max_ux:.4e}   Max |Uy|: {max_uy:.4e}"
             )
-            for dof in restrained:
-                nid = dof // 2 + 1
-                comp = "Rx" if dof % 2 == 0 else "Ry"
-                info += f"  N{nid} {comp}: {R[dof]:.2f}\n"
-
-            self.solve_info.config(text=info)
-            self.solve_status.config(text="Estado: RESUELTO ✓", foreground="#81c784")
-            self.main_window.set_status("Análisis completado. Visualice resultados.")
+            self.model_info.config(text=info)
+            self.solve_status.config(
+                text="✓ RESUELTO — Seleccione resultado para visualizar",
+                foreground="#81c784"
+            )
+            self.main_window.set_status("Análisis completado automáticamente.")
             self.main_window._update_status_info()
 
-            # Auto-visualizar Von Mises en el canvas compartido
-            self.result_var.set("VM")
-            self._visualize_result()
+            # Auto-visualizar Von Mises
+            self._on_result_changed()
             self._update_table()
 
-            # Ir a la pestana de Visualizacion
-            self.notebook.select(2)
-
         except Exception as e:
-            self.solve_status.config(text="Estado: ERROR ✗", foreground="#ef5350")
-            self.solve_info.config(text=str(e))
+            self.solve_status.config(
+                text=f"✗ Error: {str(e)[:60]}",
+                foreground="#ef5350"
+            )
             messagebox.showerror("Error al resolver", str(e))
 
     # ═════════════════════════════════════════════════════════════════════
-    # VISUALIZACION EN CANVAS COMPARTIDO (MeshCanvas)
+    # VISUALIZACION REACTIVA (auto-update al cambiar radio buttons)
     # ═════════════════════════════════════════════════════════════════════
 
-    def _visualize_result(self):
-        """Envia valores de resultado al MeshCanvas compartido."""
+    def _on_result_changed(self):
+        """Callback: actualiza visualizacion al cambiar cualquier opcion."""
         if not self.solution:
-            messagebox.showwarning("Aviso", "Ejecute el análisis primero (RESOLVER).")
             return
 
         result_type = self.result_var.get()
@@ -344,35 +315,44 @@ class PostProcessTab:
                     node_values[nid] = 0.0
 
         label = labels.get(result_type, result_type)
-
-        # Enviar al canvas de malla compartido
         canvas = self.main_window.mesh_canvas
-        canvas.set_result_values(node_values, label)
 
-        # Deformada
+        # Configurar isolineas
+        canvas.set_isolines(
+            self.show_isolines_var.get(),
+            self.isoline_count_var.get()
+        )
+
+        # Configurar deformada
         if self.show_deformed_var.get():
-            canvas.set_deformed(u, self.scale_var.get())
+            canvas.displacements = u
+            max_disp = np.max(np.abs(u))
+            if max_disp > 0:
+                coords = np.array([
+                    [self.project.nodes[n].x, self.project.nodes[n].y]
+                    for n in sorted(self.project.nodes.keys())
+                ])
+                model_size = max(
+                    coords[:, 0].max() - coords[:, 0].min(),
+                    coords[:, 1].max() - coords[:, 1].min()
+                )
+                canvas.deform_scale = model_size * 0.1 / max_disp * self.scale_var.get()
+            canvas.show_deformed = True
         else:
             canvas.show_deformed = False
             canvas.displacements = None
-            canvas.redraw()
 
+        # Actualizar resultados (esto redibuja el canvas)
+        canvas.set_result_values(node_values, label)
         self.main_window.set_status(f"Visualizando: {label}")
-
-    def _clear_results(self):
-        """Limpia la visualizacion de resultados del canvas."""
-        self.main_window.mesh_canvas.clear_results()
 
     # ═════════════════════════════════════════════════════════════════════
     # TABLA DE RESULTADOS
     # ═════════════════════════════════════════════════════════════════════
 
     def _update_table(self):
-        """Actualiza la tabla con resultados numericos."""
         self.results_tree.delete(*self.results_tree.get_children())
-
         if not self.solution:
-            self.main_window.set_status("No hay resultados.")
             return
 
         table_type = self.table_type_var.get()
@@ -385,7 +365,6 @@ class PostProcessTab:
             self.results_tree.heading("v4", text="")
             self.results_tree.heading("v5", text="")
             self.results_tree.heading("v6", text="")
-
             for nid in sorted(self.project.nodes.keys()):
                 ux = u[2 * (nid - 1)]
                 uy = u[2 * (nid - 1) + 1]
@@ -402,7 +381,6 @@ class PostProcessTab:
             self.results_tree.heading("v4", text="σ1")
             self.results_tree.heading("v5", text="σ2")
             self.results_tree.heading("v6", text="VM")
-
             if self.nodal_stresses:
                 for nid in sorted(self.nodal_stresses.keys()):
                     s = self.nodal_stresses[nid]
@@ -422,9 +400,9 @@ class PostProcessTab:
             self.results_tree.heading("v4", text="")
             self.results_tree.heading("v5", text="")
             self.results_tree.heading("v6", text="")
-
             R = self.solution["reactions"]
-            for bc in sorted(self.project.boundary_conditions.values(), key=lambda b: b.node_id):
+            for bc in sorted(self.project.boundary_conditions.values(),
+                             key=lambda b: b.node_id):
                 nid = bc.node_id
                 rx = R[2 * (nid - 1)] if bc.restrain_x else 0
                 ry = R[2 * (nid - 1) + 1] if bc.restrain_y else 0
@@ -438,19 +416,10 @@ class PostProcessTab:
 
     def refresh(self):
         """Refresca la pestana de post-proceso."""
-        if hasattr(self, 'model_info'):
-            info = (
-                f"Nodos: {self.project.num_nodes}\n"
-                f"Elementos: {self.project.num_elements}\n"
-                f"GDL: {self.project.total_dof}\n"
-                f"Análisis: {self.project.analysis_type}"
-            )
-            self.model_info.config(text=info)
-
         if not self.project.is_solved:
             self.solution = None
             self.nodal_stresses = None
             if hasattr(self, 'solve_status'):
-                self.solve_status.config(text="Estado: Sin resolver", foreground="#ffa726")
-            if hasattr(self, 'solve_info'):
-                self.solve_info.config(text="")
+                self.solve_status.config(
+                    text="Estado: Sin resolver", foreground="#ffa726"
+                )
