@@ -282,7 +282,7 @@ class MeshCanvas(ttk.Frame):
         return r, g, b
 
     def _draw_gradient_elements(self):
-        """Renderiza gradiente pixel-perfect con PIL + mapeo bilineal inverso."""
+        """Gradiente Gouraud: subdivision + rasterizacion de triangulos con PIL."""
         if not HAS_PIL:
             self._draw_gradient_polygons()
             return
@@ -293,6 +293,7 @@ class MeshCanvas(ttk.Frame):
             return
 
         img = np.zeros((h, w, 4), dtype=np.uint8)
+        n = 6  # subdivisiones por arista (pocas: los triangulos dan suavidad)
 
         for elem in self.project.elements.values():
             nids = elem.node_ids[:4]
@@ -307,97 +308,92 @@ class MeshCanvas(ttk.Frame):
                 nc.append((x, y))
                 nv.append(self.result_values[nid])
 
-            # Bounding box en pantalla
-            spts = [self.world_to_screen(c[0], c[1]) for c in nc]
-            sx_min = max(0, int(min(p[0] for p in spts)) - 2)
-            sx_max = min(w - 1, int(max(p[0] for p in spts)) + 2)
-            sy_min = max(0, int(min(p[1] for p in spts)) - 2)
-            sy_max = min(h - 1, int(max(p[1] for p in spts)) + 2)
-            if sx_min >= sx_max or sy_min >= sy_max:
-                continue
+            # Generar grilla de puntos en coords naturales
+            pts_grid = {}  # (i,j) -> (sx, sy, val)
+            for i in range(n + 1):
+                xi = -1 + 2 * i / n
+                for j in range(n + 1):
+                    eta = -1 + 2 * j / n
+                    N = [(1 - xi) * (1 - eta) / 4,
+                         (1 + xi) * (1 - eta) / 4,
+                         (1 + xi) * (1 + eta) / 4,
+                         (1 - xi) * (1 + eta) / 4]
+                    wx = sum(N[k] * nc[k][0] for k in range(4))
+                    wy = sum(N[k] * nc[k][1] for k in range(4))
+                    val = sum(N[k] * nv[k] for k in range(4))
+                    sx, sy = self.world_to_screen(wx, wy)
+                    pts_grid[(i, j)] = (sx, sy, val)
 
-            # Grilla de pixeles → coordenadas mundo
-            cols = np.arange(sx_min, sx_max + 1)
-            rows = np.arange(sy_min, sy_max + 1)
-            PX, PY = np.meshgrid(cols, rows)
-            WX = (PX - self.offset_x) / self.scale
-            WY = -(PY - self.offset_y) / self.scale
-
-            # Mapeo bilineal inverso: P(s,t) = P0(1-s)(1-t)+P1·s(1-t)+P2·st+P3(1-s)t
-            x0, y0 = nc[0]; x1, y1 = nc[1]
-            x2, y2 = nc[2]; x3, y3 = nc[3]
-            Ex, Ey = x1 - x0, y1 - y0
-            Fx, Fy = x3 - x0, y3 - y0
-            Gx, Gy = x0 - x1 + x2 - x3, y0 - y1 + y2 - y3
-            Hx = WX - x0
-            Hy = WY - y0
-
-            # Ecuacion cuadratica: a·s² + b·s + c = 0
-            a_val = Gx * Fy - Gy * Fx  # escalar (constante del elemento)
-            b_arr = (Ex * Fy - Ey * Fx) + Hx * Gy - Hy * Gx
-            c_arr = Hx * Ey - Hy * Ex
-
-            s = np.full_like(WX, np.nan)
-            if abs(a_val) < 1e-12:
-                # Caso lineal (paralelogramo/rectangulo)
-                valid = np.abs(b_arr) > 1e-12
-                s[valid] = -c_arr[valid] / b_arr[valid]
-            else:
-                disc = b_arr * b_arr - 4 * a_val * c_arr
-                valid = disc >= 0
-                sqrt_d = np.sqrt(np.maximum(disc, 0))
-                s1 = (-b_arr + sqrt_d) / (2 * a_val)
-                s2 = (-b_arr - sqrt_d) / (2 * a_val)
-                ok1 = valid & (s1 >= -0.01) & (s1 <= 1.01)
-                ok2 = valid & (s2 >= -0.01) & (s2 <= 1.01)
-                s[ok1] = np.clip(s1[ok1], 0, 1)
-                s[ok2 & ~ok1] = np.clip(s2[ok2 & ~ok1], 0, 1)
-
-            # Calcular t a partir de s
-            denom_x = Fx + s * Gx
-            denom_y = Fy + s * Gy
-            t = np.full_like(s, np.nan)
-            use_x = np.abs(denom_x) >= np.abs(denom_y)
-            mx = use_x & (np.abs(denom_x) > 1e-12)
-            my = (~use_x) & (np.abs(denom_y) > 1e-12)
-            t[mx] = (Hx[mx] - s[mx] * Ex) / denom_x[mx]
-            t[my] = (Hy[my] - s[my] * Ey) / denom_y[my]
-
-            # Mascara de pixeles dentro del elemento
-            eps = 0.001
-            inside = (np.isfinite(s) & np.isfinite(t) &
-                      (s >= -eps) & (s <= 1 + eps) &
-                      (t >= -eps) & (t <= 1 + eps))
-            if not np.any(inside):
-                continue
-
-            # Coordenadas naturales ξ,η ∈ [-1, 1]
-            xi = np.clip(2 * s - 1, -1, 1)
-            eta = np.clip(2 * t - 1, -1, 1)
-
-            # Interpolacion con funciones de forma Q4
-            vals = ((1 - xi) * (1 - eta) / 4 * nv[0] +
-                    (1 + xi) * (1 - eta) / 4 * nv[1] +
-                    (1 + xi) * (1 + eta) / 4 * nv[2] +
-                    (1 - xi) * (1 + eta) / 4 * nv[3])
-
-            # Jet colormap vectorizado
-            vrange = max(self.result_vmax - self.result_vmin, 1e-15)
-            t_color = np.clip((vals - self.result_vmin) / vrange, 0, 1)
-            rc, gc, bc = self._jet_rgb_vectorized(t_color)
-
-            # Pintar pixeles en la imagen
-            iy = PY[inside].astype(int)
-            ix = PX[inside].astype(int)
-            img[iy, ix, 0] = (rc[inside] * 255).astype(np.uint8)
-            img[iy, ix, 1] = (gc[inside] * 255).astype(np.uint8)
-            img[iy, ix, 2] = (bc[inside] * 255).astype(np.uint8)
-            img[iy, ix, 3] = 255
+            # Subdividir en triangulos y rasterizar cada uno
+            for i in range(n):
+                for j in range(n):
+                    p00 = pts_grid[(i, j)]
+                    p10 = pts_grid[(i + 1, j)]
+                    p11 = pts_grid[(i + 1, j + 1)]
+                    p01 = pts_grid[(i, j + 1)]
+                    # 2 triangulos por sub-quad
+                    self._rasterize_triangle(img, w, h, p00, p10, p11)
+                    self._rasterize_triangle(img, w, h, p00, p11, p01)
 
         # Mostrar imagen en el canvas (1 solo item)
         pil_img = Image.fromarray(img, 'RGBA')
         self._gradient_photo = ImageTk.PhotoImage(pil_img)
         self.canvas.create_image(0, 0, anchor=NW, image=self._gradient_photo)
+
+    def _rasterize_triangle(self, img, w, h, p0, p1, p2):
+        """Rasteriza un triangulo con interpolacion baricentrica de color.
+
+        Cada p es (sx, sy, valor). El color se interpola suavemente
+        entre los 3 vertices usando coordenadas baricentricas.
+        """
+        sx0, sy0, v0 = p0
+        sx1, sy1, v1 = p1
+        sx2, sy2, v2 = p2
+
+        # Bounding box en pantalla
+        min_x = max(0, int(min(sx0, sx1, sx2)))
+        max_x = min(w - 1, int(max(sx0, sx1, sx2)) + 1)
+        min_y = max(0, int(min(sy0, sy1, sy2)))
+        max_y = min(h - 1, int(max(sy0, sy1, sy2)) + 1)
+        if min_x >= max_x or min_y >= max_y:
+            return
+
+        # Grilla de pixeles
+        px = np.arange(min_x, max_x + 1, dtype=np.float64)
+        py = np.arange(min_y, max_y + 1, dtype=np.float64)
+        PX, PY = np.meshgrid(px, py)
+
+        # Coordenadas baricentricas vectorizadas
+        denom = (sy1 - sy2) * (sx0 - sx2) + (sx2 - sx1) * (sy0 - sy2)
+        if abs(denom) < 1e-6:
+            return  # triangulo degenerado
+
+        lam0 = ((sy1 - sy2) * (PX - sx2) + (sx2 - sx1) * (PY - sy2)) / denom
+        lam1 = ((sy2 - sy0) * (PX - sx2) + (sx0 - sx2) * (PY - sy2)) / denom
+        lam2 = 1.0 - lam0 - lam1
+
+        # Mascara: dentro del triangulo
+        inside = (lam0 >= -0.001) & (lam1 >= -0.001) & (lam2 >= -0.001)
+        if not np.any(inside):
+            return
+
+        # Interpolar valor en cada pixel
+        vals = lam0 * v0 + lam1 * v1 + lam2 * v2
+
+        # Jet colormap
+        vrange = max(self.result_vmax - self.result_vmin, 1e-15)
+        t = np.clip((vals - self.result_vmin) / vrange, 0, 1)
+        rc, gc, bc = self._jet_rgb_vectorized(t)
+
+        # Pintar pixeles
+        iy = PY[inside].astype(int)
+        ix = PX[inside].astype(int)
+        valid = (iy >= 0) & (iy < h) & (ix >= 0) & (ix < w)
+        iy, ix = iy[valid], ix[valid]
+        img[iy, ix, 0] = (rc[inside][valid] * 255).astype(np.uint8)
+        img[iy, ix, 1] = (gc[inside][valid] * 255).astype(np.uint8)
+        img[iy, ix, 2] = (bc[inside][valid] * 255).astype(np.uint8)
+        img[iy, ix, 3] = 255
 
     def _draw_gradient_polygons(self):
         """Fallback: gradiente con sub-poligonos si PIL no esta disponible."""
