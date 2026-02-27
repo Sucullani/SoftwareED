@@ -68,10 +68,10 @@ class ShapeFunctionsModule(BaseEducationalModule):
         self.add_subtitle("Valores en su elemento actual")
 
         # Evaluar en el centro
-        N_func, _ = get_shape_functions(project.element_type)
+        N_func, _ = get_shape_functions(self.project.element_type)
         N_center = N_func(0.0, 0.0)
 
-        self.add_text(f"Elemento {element_id}: Nodos {self.element.node_ids}")
+        self.add_text(f"Elemento {self.element_id}: Nodos {self.element.node_ids}")
         self.add_text(f"Valores de N en el centro (xi=0, eta=0):")
         for i, val in enumerate(N_center):
             nid = self.element.node_ids[i]

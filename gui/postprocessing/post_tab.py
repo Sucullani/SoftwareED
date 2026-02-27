@@ -1,7 +1,7 @@
 """
 PostProcessTab: Panel izquierdo de Post-Proceso.
-Resolver analisis, seleccionar resultado, tabla de resultados.
-La visualizacion se hace en el MeshCanvas compartido.
+Organizado en sub-pestanas: Resolver, Resultados, Visualizacion.
+Usa el MeshCanvas compartido (mismo canvas que Pre-Proceso y Proceso).
 """
 
 import tkinter as tk
@@ -12,7 +12,7 @@ import numpy as np
 
 
 class PostProcessTab:
-    """Panel de Post-Proceso con boton resolver y selector de resultados."""
+    """Panel de Post-Proceso con pestanas para resolver, resultados y visualizacion."""
 
     def __init__(self, parent, project, main_window):
         self.project = project
@@ -26,43 +26,43 @@ class PostProcessTab:
         self._build_panel()
 
     def _build_panel(self):
-        """Construye el panel con secciones: resolver, seleccionar, tabla."""
-        # Scroll container
-        main_canvas = tk.Canvas(self.frame, highlightthickness=0)
-        scrollbar = ttk.Scrollbar(self.frame, orient=VERTICAL, command=main_canvas.yview)
-        self.scroll_frame = ttk.Frame(main_canvas)
-        self.scroll_frame.bind(
-            "<Configure>",
-            lambda e: main_canvas.configure(scrollregion=main_canvas.bbox("all"))
-        )
-        main_canvas.create_window((0, 0), window=self.scroll_frame, anchor=NW)
-        main_canvas.configure(yscrollcommand=scrollbar.set)
-        scrollbar.pack(side=RIGHT, fill=Y)
-        main_canvas.pack(side=LEFT, fill=BOTH, expand=YES)
+        """Construye el panel con un Notebook de sub-pestanas."""
+        self.notebook = ttk.Notebook(self.frame, bootstyle="danger")
+        self.notebook.pack(fill=BOTH, expand=YES)
 
-        # Seccion 1: Control del Analisis
-        self._build_solve_section()
+        # Sub-tab 1: Resolver
+        self.solve_frame = ttk.Frame(self.notebook)
+        self.notebook.add(self.solve_frame, text="  Resolver  ")
+        self._build_solve_tab()
 
-        ttk.Separator(self.scroll_frame).pack(fill=X, padx=10, pady=8)
+        # Sub-tab 2: Resultados
+        self.results_frame = ttk.Frame(self.notebook)
+        self.notebook.add(self.results_frame, text="  Resultados  ")
+        self._build_results_tab()
 
-        # Seccion 2: Selector de resultado
-        self._build_result_selector()
+        # Sub-tab 3: Visualizacion
+        self.viz_frame = ttk.Frame(self.notebook)
+        self.notebook.add(self.viz_frame, text="  Visualización  ")
+        self._build_visualization_tab()
 
-        ttk.Separator(self.scroll_frame).pack(fill=X, padx=10, pady=8)
+    # ═════════════════════════════════════════════════════════════════════
+    # SUB-TAB 1: RESOLVER
+    # ═════════════════════════════════════════════════════════════════════
 
-        # Seccion 3: Tabla de resultados
-        self._build_result_table()
+    def _build_solve_tab(self):
+        """Contenido de la pestana Resolver."""
+        container = ttk.Frame(self.solve_frame)
+        container.pack(fill=BOTH, expand=YES, padx=5, pady=5)
 
-    def _build_solve_section(self):
-        """Seccion: boton resolver y estado."""
+        # Header
         ttk.Label(
-            self.scroll_frame, text="Analisis FEM",
-            font=("Segoe UI", 12, "bold"),
-        ).pack(anchor=W, padx=10, pady=(10, 5))
+            container, text="Análisis FEM",
+            font=("Segoe UI", 11, "bold"),
+        ).pack(anchor=W, padx=10, pady=(10, 3))
 
         # Info del modelo
         self.model_info = ttk.Label(
-            self.scroll_frame,
+            container,
             text="Cargue un modelo para comenzar.",
             font=("Segoe UI", 9), foreground="#888", wraplength=360,
         )
@@ -70,90 +70,58 @@ class PostProcessTab:
 
         # Boton Resolver
         ttk.Button(
-            self.scroll_frame, text="  RESOLVER  K * u = F  ",
+            container, text="  RESOLVER  K · u = F  ",
             bootstyle="success", command=self._on_solve,
         ).pack(pady=10, padx=10, fill=X)
 
         # Estado
         self.solve_status = ttk.Label(
-            self.scroll_frame, text="Estado: Sin resolver",
+            container, text="Estado: Sin resolver",
             font=("Segoe UI", 10, "bold"), foreground="#ffa726",
         )
         self.solve_status.pack(padx=15, pady=3, anchor=W)
 
-        # Info detallada
+        # Separador
+        ttk.Separator(container).pack(fill=X, padx=10, pady=8)
+
+        # Info detallada del resultado
+        ttk.Label(
+            container, text="Resumen de la Solución",
+            font=("Segoe UI", 10, "bold"),
+        ).pack(anchor=W, padx=10, pady=(5, 3))
+
         self.solve_info = ttk.Label(
-            self.scroll_frame, text="",
+            container, text="",
             font=("Consolas", 8), foreground="#aaa",
             justify=LEFT, wraplength=360,
         )
         self.solve_info.pack(padx=15, pady=3, anchor=W, fill=X)
 
-    def _build_result_selector(self):
-        """Selector de tipo de resultado a visualizar."""
+    # ═════════════════════════════════════════════════════════════════════
+    # SUB-TAB 2: RESULTADOS (Tabla)
+    # ═════════════════════════════════════════════════════════════════════
+
+    def _build_results_tab(self):
+        """Contenido de la pestana Resultados."""
+        container = ttk.Frame(self.results_frame)
+        container.pack(fill=BOTH, expand=YES, padx=5, pady=5)
+
+        # Header
         ttk.Label(
-            self.scroll_frame, text="Tipo de Resultado",
+            container, text="Tabla de Resultados Numéricos",
             font=("Segoe UI", 11, "bold"),
-        ).pack(anchor=W, padx=10, pady=(5, 5))
+        ).pack(anchor=W, padx=10, pady=(10, 5))
 
-        self.result_var = tk.StringVar(value="VM")
-        results = [
-            ("Desplazamiento Ux", "Ux"),
-            ("Desplazamiento Uy", "Uy"),
-            ("Magnitud |U|", "Umag"),
-            ("Esfuerzo Normal sx", "Sx"),
-            ("Esfuerzo Normal sy", "Sy"),
-            ("Esfuerzo Cortante txy", "Txy"),
-            ("Esfuerzo Principal s1", "S1"),
-            ("Esfuerzo Principal s2", "S2"),
-            ("Von Mises", "VM"),
-        ]
-
-        for text, value in results:
-            ttk.Radiobutton(
-                self.scroll_frame, text=text, value=value,
-                variable=self.result_var, bootstyle="danger",
-            ).pack(anchor=W, padx=20, pady=1)
-
-        # Opciones
-        opt_frame = ttk.Frame(self.scroll_frame)
-        opt_frame.pack(fill=X, padx=15, pady=5)
-
-        self.show_deformed_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(
-            opt_frame, text="Malla deformada",
-            variable=self.show_deformed_var, bootstyle="round-toggle",
-        ).pack(anchor=W, pady=2)
-
-        scale_row = ttk.Frame(opt_frame)
-        scale_row.pack(fill=X, pady=2)
-        ttk.Label(scale_row, text="Factor escala:").pack(side=LEFT)
-        self.scale_var = tk.DoubleVar(value=1.0)
-        ttk.Entry(scale_row, textvariable=self.scale_var, width=6).pack(side=LEFT, padx=5)
-
-        # Boton Visualizar
-        ttk.Button(
-            self.scroll_frame, text="  Visualizar en Malla  ",
-            bootstyle="danger", command=self._visualize_result,
-        ).pack(pady=8, padx=10, fill=X)
-
-    def _build_result_table(self):
-        """Tabla de resultados numericos."""
-        ttk.Label(
-            self.scroll_frame, text="Tabla de Resultados",
-            font=("Segoe UI", 11, "bold"),
-        ).pack(anchor=W, padx=10, pady=(5, 3))
-
-        # Selector
-        sel_frame = ttk.Frame(self.scroll_frame)
-        sel_frame.pack(fill=X, padx=10, pady=3)
+        # Selector de tipo
+        sel_frame = ttk.Frame(container)
+        sel_frame.pack(fill=X, padx=10, pady=5)
 
         ttk.Label(sel_frame, text="Mostrar:").pack(side=LEFT)
         self.table_type_var = tk.StringVar(value="Desplazamientos")
         ttk.Combobox(
             sel_frame, textvariable=self.table_type_var,
             values=["Desplazamientos", "Esfuerzos", "Reacciones"],
-            state="readonly", width=15
+            state="readonly", width=18
         ).pack(side=LEFT, padx=5)
 
         ttk.Button(
@@ -162,10 +130,13 @@ class PostProcessTab:
         ).pack(side=LEFT, padx=5)
 
         # Tabla
+        table_frame = ttk.Frame(container)
+        table_frame.pack(fill=BOTH, expand=YES, padx=10, pady=5)
+
         columns = ("node", "v1", "v2", "v3", "v4", "v5", "v6")
         self.results_tree = ttk.Treeview(
-            self.scroll_frame, columns=columns, show="headings",
-            bootstyle="danger", height=10
+            table_frame, columns=columns, show="headings",
+            bootstyle="danger", height=15
         )
         self.results_tree.heading("node", text="Nodo", anchor=CENTER)
         self.results_tree.heading("v1", text="Ux", anchor=CENTER)
@@ -175,9 +146,96 @@ class PostProcessTab:
         self.results_tree.heading("v5", text="", anchor=CENTER)
         self.results_tree.heading("v6", text="", anchor=CENTER)
         for col in columns:
-            self.results_tree.column(col, width=55, anchor=CENTER)
+            self.results_tree.column(col, width=60, anchor=CENTER)
 
-        self.results_tree.pack(fill=X, padx=10, pady=5)
+        scrollbar = ttk.Scrollbar(table_frame, orient=VERTICAL,
+                                  command=self.results_tree.yview)
+        self.results_tree.configure(yscrollcommand=scrollbar.set)
+
+        self.results_tree.pack(fill=BOTH, expand=YES, side=LEFT)
+        scrollbar.pack(fill=Y, side=RIGHT)
+
+    # ═════════════════════════════════════════════════════════════════════
+    # SUB-TAB 3: VISUALIZACION
+    # ═════════════════════════════════════════════════════════════════════
+
+    def _build_visualization_tab(self):
+        """Contenido de la pestana Visualizacion."""
+        container = ttk.Frame(self.viz_frame)
+        container.pack(fill=BOTH, expand=YES, padx=5, pady=5)
+
+        # Header
+        ttk.Label(
+            container, text="Visualización de Resultados",
+            font=("Segoe UI", 11, "bold"),
+        ).pack(anchor=W, padx=10, pady=(10, 3))
+
+        ttk.Label(
+            container,
+            text="Seleccione el tipo de resultado y presione\n"
+                 "'Visualizar' para ver el mapa de colores en el canvas.",
+            font=("Segoe UI", 9), foreground="#aaa", wraplength=380,
+        ).pack(anchor=W, padx=15, pady=(0, 8))
+
+        # Selector de resultado
+        ttk.Label(
+            container, text="Tipo de Resultado",
+            font=("Segoe UI", 10, "bold"),
+        ).pack(anchor=W, padx=10, pady=(5, 3))
+
+        self.result_var = tk.StringVar(value="VM")
+        results = [
+            ("Desplazamiento Ux", "Ux"),
+            ("Desplazamiento Uy", "Uy"),
+            ("Magnitud |U|", "Umag"),
+            ("Esfuerzo Normal σx", "Sx"),
+            ("Esfuerzo Normal σy", "Sy"),
+            ("Esfuerzo Cortante τxy", "Txy"),
+            ("Esfuerzo Principal σ1", "S1"),
+            ("Esfuerzo Principal σ2", "S2"),
+            ("Von Mises", "VM"),
+        ]
+
+        for text, value in results:
+            ttk.Radiobutton(
+                container, text=text, value=value,
+                variable=self.result_var, bootstyle="danger",
+            ).pack(anchor=W, padx=20, pady=1)
+
+        # Separador
+        ttk.Separator(container).pack(fill=X, padx=10, pady=8)
+
+        # Opciones de deformacion
+        ttk.Label(
+            container, text="Opciones de Deformada",
+            font=("Segoe UI", 10, "bold"),
+        ).pack(anchor=W, padx=10, pady=(5, 3))
+
+        self.show_deformed_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(
+            container, text="Mostrar malla deformada",
+            variable=self.show_deformed_var, bootstyle="round-toggle",
+        ).pack(anchor=W, padx=20, pady=2)
+
+        scale_row = ttk.Frame(container)
+        scale_row.pack(fill=X, padx=20, pady=2)
+        ttk.Label(scale_row, text="Factor de escala:").pack(side=LEFT)
+        self.scale_var = tk.DoubleVar(value=1.0)
+        ttk.Entry(scale_row, textvariable=self.scale_var, width=8).pack(side=LEFT, padx=5)
+
+        # Separador
+        ttk.Separator(container).pack(fill=X, padx=10, pady=8)
+
+        # Botones de accion
+        ttk.Button(
+            container, text="  Visualizar en Malla  ",
+            bootstyle="danger", command=self._visualize_result,
+        ).pack(pady=5, padx=10, fill=X)
+
+        ttk.Button(
+            container, text="  Limpiar Resultados  ",
+            bootstyle="warning-outline", command=self._clear_results,
+        ).pack(pady=3, padx=10, fill=X)
 
     # ═════════════════════════════════════════════════════════════════════
     # RESOLVER
@@ -228,8 +286,8 @@ class PostProcessTab:
                 info += f"  N{nid} {comp}: {R[dof]:.2f}\n"
 
             self.solve_info.config(text=info)
-            self.solve_status.config(text="Estado: RESUELTO", foreground="#81c784")
-            self.main_window.set_status("Analisis completado. Visualice resultados.")
+            self.solve_status.config(text="Estado: RESUELTO ✓", foreground="#81c784")
+            self.main_window.set_status("Análisis completado. Visualice resultados.")
             self.main_window._update_status_info()
 
             # Auto-visualizar Von Mises en el canvas compartido
@@ -237,19 +295,22 @@ class PostProcessTab:
             self._visualize_result()
             self._update_table()
 
+            # Ir a la pestana de Visualizacion
+            self.notebook.select(2)
+
         except Exception as e:
-            self.solve_status.config(text="Estado: ERROR", foreground="#ef5350")
+            self.solve_status.config(text="Estado: ERROR ✗", foreground="#ef5350")
             self.solve_info.config(text=str(e))
             messagebox.showerror("Error al resolver", str(e))
 
     # ═════════════════════════════════════════════════════════════════════
-    # VISUALIZACION EN CANVAS COMPARTIDO
+    # VISUALIZACION EN CANVAS COMPARTIDO (MeshCanvas)
     # ═════════════════════════════════════════════════════════════════════
 
     def _visualize_result(self):
-        """Envia valores de resultado al MeshCanvas y ContourCanvas."""
+        """Envia valores de resultado al MeshCanvas compartido."""
         if not self.solution:
-            messagebox.showwarning("Aviso", "Ejecute el analisis primero (RESOLVER).")
+            messagebox.showwarning("Aviso", "Ejecute el análisis primero (RESOLVER).")
             return
 
         result_type = self.result_var.get()
@@ -284,28 +345,23 @@ class PostProcessTab:
 
         label = labels.get(result_type, result_type)
 
-        # Enviar al canvas de malla (tkinter)
+        # Enviar al canvas de malla compartido
         canvas = self.main_window.mesh_canvas
         canvas.set_result_values(node_values, label)
-
-        # Enviar al canvas de contornos (matplotlib)
-        contour = self.main_window.contour_canvas
-        contour.set_result_values(node_values, label)
 
         # Deformada
         if self.show_deformed_var.get():
             canvas.set_deformed(u, self.scale_var.get())
-            contour.set_deformed(u, self.scale_var.get())
         else:
             canvas.show_deformed = False
             canvas.displacements = None
             canvas.redraw()
-            contour.show_deformed = False
-            contour.displacements = None
-            if contour.result_values:
-                contour.draw_contour()
 
         self.main_window.set_status(f"Visualizando: {label}")
+
+    def _clear_results(self):
+        """Limpia la visualizacion de resultados del canvas."""
+        self.main_window.mesh_canvas.clear_results()
 
     # ═════════════════════════════════════════════════════════════════════
     # TABLA DE RESULTADOS
@@ -340,11 +396,11 @@ class PostProcessTab:
                 )
 
         elif table_type == "Esfuerzos":
-            self.results_tree.heading("v1", text="sx")
-            self.results_tree.heading("v2", text="sy")
-            self.results_tree.heading("v3", text="txy")
-            self.results_tree.heading("v4", text="s1")
-            self.results_tree.heading("v5", text="s2")
+            self.results_tree.heading("v1", text="σx")
+            self.results_tree.heading("v2", text="σy")
+            self.results_tree.heading("v3", text="τxy")
+            self.results_tree.heading("v4", text="σ1")
+            self.results_tree.heading("v5", text="σ2")
             self.results_tree.heading("v6", text="VM")
 
             if self.nodal_stresses:
@@ -387,7 +443,7 @@ class PostProcessTab:
                 f"Nodos: {self.project.num_nodes}\n"
                 f"Elementos: {self.project.num_elements}\n"
                 f"GDL: {self.project.total_dof}\n"
-                f"Analisis: {self.project.analysis_type}"
+                f"Análisis: {self.project.analysis_type}"
             )
             self.model_info.config(text=info)
 

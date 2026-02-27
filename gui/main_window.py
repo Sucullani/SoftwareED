@@ -21,7 +21,7 @@ from gui.preprocessing.pre_tab import PreProcessTab
 from gui.processing.proc_tab import ProcessTab
 from gui.postprocessing.post_tab import PostProcessTab
 from gui.preprocessing.mesh_canvas import MeshCanvas
-from gui.postprocessing.contour_canvas import ContourCanvas
+
 from gui.dialogs.material_dialog import MaterialDialog
 from gui.dialogs.about_dialog import AboutDialog
 
@@ -85,19 +85,13 @@ class MainWindow:
 
         self.notebook.bind("<<NotebookTabChanged>>", self._on_tab_changed)
 
-        # ─── Panel derecho: MeshCanvas + ContourCanvas ──────────────────
+        # ─── Panel derecho: MeshCanvas compartido ────────────────────────
         self.right_panel = ttk.Frame(self.main_paned)
         self.main_paned.add(self.right_panel, weight=3)
 
-        # Canvas de malla (Pre-proceso y Proceso)
+        # Canvas de malla unificado (todas las pestanas)
         self.mesh_canvas = MeshCanvas(self.right_panel, self.project, self)
         self.mesh_canvas.pack(fill=BOTH, expand=YES)
-
-        # Canvas de contornos matplotlib (Post-proceso)
-        self.contour_canvas = ContourCanvas(self.right_panel, self.project, self)
-        # No lo packs aun, se muestra al cambiar a tab Post-Proceso
-
-        self._active_canvas = "mesh"  # "mesh" o "contour"
 
     # ═════════════════════════════════════════════════════════════════════
     # BARRA DE MENU
@@ -264,8 +258,6 @@ class MainWindow:
         self.project.reset()
         self.mesh_canvas.project = self.project
         self.mesh_canvas.clear_results()
-        self.contour_canvas.project = self.project
-        self.contour_canvas.clear_results()
         self._update_all_project_refs()
         self._refresh_all_tabs()
         self._update_status_info()
@@ -323,7 +315,6 @@ class MainWindow:
 
         self._update_all_project_refs()
         self.mesh_canvas.clear_results()
-        self.contour_canvas.clear_results()
         self._refresh_all_tabs()
         self._update_status_info()
         self.root.after(100, self.mesh_canvas.fit_view)
@@ -337,7 +328,6 @@ class MainWindow:
     def _update_all_project_refs(self):
         """Actualiza la referencia al proyecto en todos los componentes."""
         self.mesh_canvas.project = self.project
-        self.contour_canvas.project = self.project
         self.pre_tab.project = self.project
         self.proc_tab.project = self.project
         self.post_tab.project = self.project
@@ -402,14 +392,9 @@ class MainWindow:
             solution = self.post_tab.solution
             nodal_stresses = self.post_tab.nodal_stresses
 
-            # Obtener figura de contornos si existe
-            contour_fig = None
-            if hasattr(self.contour_canvas, 'fig') and self.contour_canvas.result_values:
-                contour_fig = self.contour_canvas.fig
-
             generate_pdf_report(
                 self.project, solution, nodal_stresses,
-                filepath, contour_figure=contour_fig
+                filepath, contour_figure=None
             )
 
             self.set_status(f"Reporte PDF exportado: {os.path.basename(filepath)}")
@@ -511,13 +496,7 @@ class MainWindow:
         tab_index = self.notebook.index(self.notebook.select())
         tab_names = ["Pre-Proceso", "Proceso", "Post-Proceso"]
         if tab_index < len(tab_names):
-            self.set_status(f"Pestana activa: {tab_names[tab_index]}")
-
-        # Cambiar canvas derecho segun la pestana
-        if tab_index == 2:  # Post-Proceso -> mostrar contornos matplotlib
-            self._show_contour_canvas()
-        else:  # Pre-Proceso o Proceso -> mostrar canvas de malla
-            self._show_mesh_canvas()
+            self.set_status(f"Pestaña activa: {tab_names[tab_index]}")
 
         # Refrescar pestana activa
         if tab_index == 0:
@@ -527,20 +506,8 @@ class MainWindow:
         elif tab_index == 2:
             self.post_tab.refresh()
 
-    def _show_mesh_canvas(self):
-        """Muestra el canvas de malla en el panel derecho."""
-        if self._active_canvas != "mesh":
-            self.contour_canvas.pack_forget()
-            self.mesh_canvas.pack(fill=BOTH, expand=YES)
-            self._active_canvas = "mesh"
-            self.mesh_canvas.redraw()
-
-    def _show_contour_canvas(self):
-        """Muestra el canvas de contornos matplotlib en el panel derecho."""
-        if self._active_canvas != "contour":
-            self.mesh_canvas.pack_forget()
-            self.contour_canvas.pack(fill=BOTH, expand=YES)
-            self._active_canvas = "contour"
+        # El canvas siempre es MeshCanvas, solo redibujar
+        self.mesh_canvas.redraw()
 
     def _refresh_all_tabs(self):
         """Refresca todas las pestanas con los datos actuales."""
