@@ -131,23 +131,23 @@ class ProcessTab:
 
         # Modulos organizados por categoria
         categories = [
-            ("Geometría y Forma", [
-                ("① Funciones de Forma", "Funciones N en coordenadas naturales", "mod01"),
-                ("② Jacobiano y Transformación", "Mapeo físico ↔ natural", "mod02"),
+            ("Geometría del elemento", [
+                ("① Coordenadas, N y Jacobiano",
+                 "Mapeo isoparamétrico, funciones de forma, det J", "mod01"),
+                ("② Matriz B (Deformación)",
+                 "∂N/∂x con J⁻¹, snap a puntos de Gauss", "mod02"),
             ]),
-            ("Formulación del Elemento", [
-                ("③ Matriz B (Deformación)", "Relación deformación-desplazamiento", "mod03"),
-                ("④ Matriz Constitutiva D", "Relación esfuerzo-deformación", "mod04"),
-                ("⑤ Matriz de Rigidez ke", "Rigidez del elemento individual", "mod05"),
-                ("⑥ Integración de Gauss", "Cuadratura numérica en el elemento", "mod06"),
+            ("Formulación del elemento", [
+                ("③ Matriz constitutiva D",
+                 "Video + D(E,ν) en LaTeX", "mod03"),
+                ("④ Rigidez e integración de Gauss",
+                 "Integrando simbólico + cuadratura", "mod04"),
             ]),
-            ("Sistema Global", [
-                ("⑦ Vector de Cargas fe", "Cargas equivalentes nodales", "mod07"),
-                ("⑧ Ensamblaje Global K,F", "Sistema global de ecuaciones", "mod08"),
-                ("⑨ Condiciones de Contorno", "Restricciones y solución K·u=F", "mod09"),
-            ]),
-            ("Resultados", [
-                ("⑩ Esfuerzos y Resultados", "Post-proceso: σ, Von Mises", "mod10"),
+            ("Sistema global", [
+                ("⑤ Ensamblaje global K, F + BCs",
+                 "Flying elements, sistema reducido", "mod05"),
+                ("⑥ Fuerzas equivalentes nodales",
+                 "Carga de arista / peso propio", "mod06"),
             ]),
         ]
 
@@ -205,60 +205,16 @@ class ProcessTab:
         )
 
     def _open_module(self, mod_key):
-        """Abre un modulo educativo interactivo."""
-        if not self.project.elements:
-            messagebox.showwarning(
-                "Aviso", "Cargue un modelo primero (Archivo > Cargar Ejemplo)."
-            )
-            return
-
-        # Seleccionar elemento
-        elem_ids = sorted(self.project.elements.keys())
-        if len(elem_ids) == 1:
-            elem_id = elem_ids[0]
-        else:
-            from tkinter import simpledialog
-            elem_id = simpledialog.askinteger(
-                "Seleccionar Elemento",
-                f"Ingrese el ID del elemento ({elem_ids[0]}-{elem_ids[-1]}):",
-                initialvalue=elem_ids[0],
-                minvalue=elem_ids[0],
-                maxvalue=elem_ids[-1],
-                parent=self.frame.winfo_toplevel()
-            )
-            if elem_id is None:
-                return
-            if elem_id not in self.project.elements:
-                messagebox.showerror("Error", f"El elemento {elem_id} no existe.")
-                return
-
-        # Resaltar elemento en el canvas compartido
-        self.main_window.mesh_canvas.highlight_element(elem_id)
-
-        # Abrir modulo
-        try:
-            module_map = {
-                "mod01": ("education.mod01_shape_functions", "ShapeFunctionsModule"),
-                "mod02": ("education.mod02_jacobian", "JacobianModule"),
-                "mod03": ("education.mod03_b_matrix", "BMatrixModule"),
-                "mod04": ("education.mod04_constitutive", "ConstitutiveModule"),
-                "mod05": ("education.mod05_stiffness", "StiffnessModule"),
-                "mod06": ("education.mod06_gauss_integration", "GaussIntegrationModule"),
-                "mod07": ("education.mod07_load_vector", "LoadVectorModule"),
-                "mod08": ("education.mod08_assembly", "AssemblyModule"),
-                "mod09": ("education.mod09_boundary_conditions", "BoundaryConditionsModule"),
-                "mod10": ("education.mod10_stress", "StressModule"),
-            }
-
-            if mod_key in module_map:
-                module_name, class_name = module_map[mod_key]
-                import importlib
-                mod = importlib.import_module(module_name)
-                cls = getattr(mod, class_name)
-                cls(self.frame.winfo_toplevel(), self.project, elem_id)
-                self.main_window.set_status(f"Modulo educativo abierto: {mod_key}")
-        except Exception as e:
-            messagebox.showerror("Error", f"Error al abrir modulo:\n{e}")
+        """Abre un modulo educativo interactivo (delegado en module_launcher)."""
+        from education.module_launcher import open_module
+        ok = open_module(
+            parent_tk=self.frame.winfo_toplevel(),
+            project=self.project,
+            mod_key=mod_key,
+            mesh_canvas=self.main_window.mesh_canvas,
+        )
+        if ok:
+            self.main_window.set_status(f"Modulo educativo abierto: {mod_key}")
 
     def refresh(self):
         """Refresca la pestana de proceso."""

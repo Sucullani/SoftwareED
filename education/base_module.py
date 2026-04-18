@@ -1,195 +1,236 @@
 """
-BaseEducationalModule: Ventana base para módulos educativos.
-Todas las ventanas educativas heredan de esta clase.
+BaseEducationalModule: ventana base para los módulos educativos de FEM,
+construida con ttkbootstrap sobre el mismo tema 'darkly' que la ventana
+principal.
+
+Layout (sin panel de fórmulas):
+┌─────────────────────────────────────────────────────────┐
+│ Título del módulo              [📖 Teoría] [↻] [Cerrar] │  header
+├─────────────┬───────────────────────────────────────────┤
+│ Controles y │         Visualización                     │
+│ valores     │         (click sobre el elemento)         │
+│ actuales    │                                           │
+├─────────────┴───────────────────────────────────────────┤
+│  [▶ Play] [⏸] [■]   ─── progreso ───                    │  footer
+└─────────────────────────────────────────────────────────┘
+
+Las subclases implementan:
+    build_controls(parent), build_visualization(parent)
+    build_theory(doc, ctx) -> None   # opcional
+    animate_step(t)        -> None   # opcional, 0 ≤ t ≤ 1
 """
+
+from __future__ import annotations
+
+from typing import Optional
 
 import tkinter as tk
 import ttkbootstrap as ttk
-from ttkbootstrap.constants import *
 import numpy as np
 
-try:
-    import matplotlib
-    matplotlib.use("TkAgg")
-    from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-    from matplotlib.figure import Figure
-    from mpl_toolkits.mplot3d import Axes3D
-    HAS_MATPLOTLIB = True
-except ImportError:
-    HAS_MATPLOTLIB = False
+from education.components import TheoryViewer, StepAnimator
 
 
-class BaseEducationalModule:
-    """Ventana base para módulos educativos con layout estandarizado."""
+class BaseEducationalModule(ttk.Toplevel):
+    """Ventana ttkbootstrap para un módulo educativo."""
 
-    def __init__(self, parent, project, element_id, title, width=1100, height=750):
+    TITLE: str = "Módulo"
+    HAS_ANIMATION: bool = False
+    ANIMATION_DURATION_MS: int = 2500
+
+    def __init__(self, parent, project, element_id,
+                 width: int = 1280, height: int = 820):
+        super().__init__(parent)
         self.project = project
         self.element_id = element_id
-        self.element = project.elements.get(element_id)
+        self.element = project.elements.get(element_id) if project else None
 
-        self.dialog = ttk.Toplevel(parent)
-        self.dialog.title(f"Módulo Educativo: {title}")
-        self.dialog.geometry(f"{width}x{height}")
-        self.dialog.transient(parent)
+        self.title(f"Módulo Educativo — {self.TITLE}")
+        self.geometry(f"{width}x{height}")
+        self.minsize(1000, 680)
 
-        # Layout principal: PanedWindow Horizontal
-        self.paned = ttk.Panedwindow(self.dialog, orient=HORIZONTAL)
-        self.paned.pack(fill=BOTH, expand=YES, padx=5, pady=5)
-
-        # Panel izquierdo: Explicación y fórmulas
-        self.left_frame = ttk.Frame(self.paned, width=450)
-        self.paned.add(self.left_frame, weight=2)
-
-        # Panel derecho: Gráfica/visualización
-        self.right_frame = ttk.Frame(self.paned)
-        self.paned.add(self.right_frame, weight=3)
-
-        # Scroll en panel izquierdo
-        self.left_canvas = tk.Canvas(self.left_frame, highlightthickness=0)
-        self.left_scrollbar = ttk.Scrollbar(
-            self.left_frame, orient=VERTICAL, command=self.left_canvas.yview
-        )
-        self.scroll_frame = ttk.Frame(self.left_canvas)
-        self.scroll_frame.bind(
-            "<Configure>",
-            lambda e: self.left_canvas.configure(scrollregion=self.left_canvas.bbox("all"))
-        )
-        self.left_canvas.create_window((0, 0), window=self.scroll_frame, anchor=NW)
-        self.left_canvas.configure(yscrollcommand=self.left_scrollbar.set)
-        self.left_scrollbar.pack(side=RIGHT, fill=Y)
-        self.left_canvas.pack(side=LEFT, fill=BOTH, expand=YES)
-
-        # Scroll con rueda del mouse
-        self.left_canvas.bind_all(
-            "<MouseWheel>",
-            lambda e: self.left_canvas.yview_scroll(int(-1 * (e.delta / 120)), "units")
-        )
-
-        # Coordenadas del elemento
-        if self.element:
+        if self.element and project:
             self.node_coords = np.array([
                 [project.nodes[nid].x, project.nodes[nid].y]
                 for nid in self.element.node_ids
-            ])
+            ], dtype=float)
         else:
-            self.node_coords = np.array([[0, 0], [1, 0], [1, 1], [0, 1]])
+            self.node_coords = np.array(
+                [[0.0, 0.0], [2.0, 0.2], [2.2, 1.5], [0.1, 1.3]],
+                dtype=float,
+            )
 
-    # ─── Helpers para agregar contenido educativo ──────────────────────
+        self._build_layout()
+        try:
+            self.build_controls(self.controls_frame)
+        except Exception as exc:
+            self._error_label(self.controls_frame, f"Error en controles: {exc}")
+        try:
+            self.build_visualization(self.viz_frame)
+        except Exception as exc:
+            self._error_label(self.viz_frame, f"Error en visualización: {exc}")
 
-    def add_title(self, text, icon=""):
-        """Agrega un título con icono al panel izquierdo."""
-        ttk.Label(
-            self.scroll_frame,
-            text=f"{icon} {text}",
-            font=("Segoe UI", 13, "bold"),
-        ).pack(anchor=W, padx=10, pady=(15, 5))
+        self.after(120, self._raise)
 
-    def add_subtitle(self, text):
-        """Agrega un subtítulo."""
-        ttk.Label(
-            self.scroll_frame,
-            text=text,
-            font=("Segoe UI", 10, "bold"),
-            foreground="#4fc3f7",
-        ).pack(anchor=W, padx=10, pady=(10, 3))
+    # ---------- layout ----------
+    def _build_layout(self) -> None:
+        self.columnconfigure(0, weight=0)
+        self.columnconfigure(1, weight=1)
+        self.rowconfigure(0, weight=0)
+        self.rowconfigure(1, weight=1)
+        self.rowconfigure(2, weight=0)
 
-    def add_text(self, text):
-        """Agrega texto explicativo."""
-        label = ttk.Label(
-            self.scroll_frame,
-            text=text,
-            font=("Segoe UI", 9),
-            wraplength=400,
-            justify=LEFT,
+        # ── HEADER ─────────────────────────────────────────────
+        header = ttk.Frame(self, padding=(10, 6))
+        header.grid(row=0, column=0, columnspan=2, sticky="ew")
+        header.columnconfigure(0, weight=1)
+
+        ttk.Label(header, text=self.TITLE,
+                   font=("Segoe UI", 14, "bold"),
+                   bootstyle="info", anchor="w",
+                   ).grid(row=0, column=0, sticky="w")
+
+        ttk.Button(header, text="📖 Teoría", bootstyle="info",
+                    command=self.open_theory,
+                    ).grid(row=0, column=1, padx=4)
+        ttk.Button(header, text="↻", width=3, bootstyle="secondary-outline",
+                    command=self.reset,
+                    ).grid(row=0, column=2, padx=4)
+        ttk.Button(header, text="Cerrar", bootstyle="danger-outline",
+                    command=self.destroy,
+                    ).grid(row=0, column=3, padx=(4, 0))
+
+        # ── BODY: 2 columnas (controles | visualización) ────────
+        # Columna de controles con scroll vertical
+        controls_outer = ttk.Frame(self)
+        controls_outer.grid(row=1, column=0, sticky="nsew",
+                             padx=(8, 4), pady=6)
+        controls_outer.rowconfigure(0, weight=1)
+        controls_outer.columnconfigure(0, weight=1)
+
+        self._ctrl_canvas = tk.Canvas(controls_outer, width=280,
+                                       highlightthickness=0,
+                                       background="#222233")
+        self._ctrl_canvas.grid(row=0, column=0, sticky="nsew")
+        self._ctrl_sb = ttk.Scrollbar(controls_outer, orient="vertical",
+                                       command=self._ctrl_canvas.yview,
+                                       bootstyle="round")
+        self._ctrl_sb.grid(row=0, column=1, sticky="ns")
+        self._ctrl_canvas.configure(yscrollcommand=self._ctrl_sb.set)
+
+        self.controls_frame = ttk.Frame(self._ctrl_canvas, padding=(6, 6))
+        self._ctrl_id = self._ctrl_canvas.create_window(
+            (0, 0), window=self.controls_frame, anchor="nw"
         )
-        label.pack(anchor=W, padx=15, pady=2)
+        self.controls_frame.bind(
+            "<Configure>",
+            lambda e: self._ctrl_canvas.configure(
+                scrollregion=self._ctrl_canvas.bbox("all")
+            ),
+        )
+        self._ctrl_canvas.bind(
+            "<Configure>",
+            lambda e: self._ctrl_canvas.itemconfigure(
+                self._ctrl_id, width=e.width
+            ),
+        )
 
-    def add_formula(self, text):
-        """Agrega una fórmula o ecuación."""
-        frame = ttk.Frame(self.scroll_frame)
-        frame.pack(fill=X, padx=15, pady=5)
+        # Visualización
+        self.viz_frame = ttk.Frame(self, padding=(4, 4))
+        self.viz_frame.grid(row=1, column=1, sticky="nsew",
+                             padx=(4, 8), pady=6)
+        self.viz_frame.rowconfigure(0, weight=1)
+        self.viz_frame.columnconfigure(0, weight=1)
 
-        ttk.Label(
-            frame,
-            text=text,
-            font=("Consolas", 10),
-            foreground="#81c784",
-            justify=LEFT,
-        ).pack(anchor=W)
-
-    def add_matrix_display(self, matrix, name="", fmt=".4f"):
-        """Muestra una matriz NumPy con formato legible."""
-        frame = ttk.Frame(self.scroll_frame)
-        frame.pack(fill=X, padx=15, pady=5)
-
-        if name:
-            ttk.Label(
-                frame, text=f"{name} =",
-                font=("Consolas", 10, "bold"),
-                foreground="#ffa726",
-            ).pack(anchor=W)
-
-        if isinstance(matrix, np.ndarray):
-            rows, cols = matrix.shape if matrix.ndim == 2 else (1, matrix.shape[0])
-            mat_2d = matrix.reshape(rows, cols)
-
-            text_lines = []
-            for row in mat_2d:
-                line = "  ".join(f"{v:{fmt}}" for v in row)
-                text_lines.append(f"  [{line}]")
-
-            mat_text = "\n".join(text_lines)
+        # ── FOOTER ─────────────────────────────────────────────
+        self.footer_frame = ttk.Frame(self, padding=(10, 6))
+        self.footer_frame.grid(row=2, column=0, columnspan=2,
+                                sticky="ew", padx=8, pady=(2, 8))
+        if self.HAS_ANIMATION:
+            self.animator = StepAnimator(
+                self.footer_frame,
+                step_fn=self._safe_animate_step,
+                duration_ms=self.ANIMATION_DURATION_MS,
+            )
+            self.animator.pack(fill="x", padx=4, pady=2)
         else:
-            mat_text = str(matrix)
+            self.animator = None
+            ttk.Label(self.footer_frame, text="").pack(fill="x")
 
-        ttk.Label(
-            frame,
-            text=mat_text,
-            font=("Consolas", 8),
-            justify=LEFT,
-        ).pack(anchor=W)
+    # ---------- hooks para subclases ----------
+    def build_controls(self, parent: ttk.Frame) -> None:
+        ttk.Label(parent, text="(sin controles)").pack(pady=10)
 
-    def add_separator(self):
-        """Agrega un separador horizontal."""
-        ttk.Separator(self.scroll_frame).pack(fill=X, padx=10, pady=10)
+    def build_visualization(self, parent: ttk.Frame) -> None:
+        ttk.Label(parent, text="(visualización no implementada)"
+                   ).pack(expand=True)
 
-    def add_value(self, label, value, fmt=".6f"):
-        """Muestra un valor individual con etiqueta."""
-        frame = ttk.Frame(self.scroll_frame)
-        frame.pack(fill=X, padx=15, pady=2)
-        ttk.Label(
-            frame, text=f"{label}: ",
-            font=("Segoe UI", 9, "bold"),
-        ).pack(side=LEFT)
-        ttk.Label(
-            frame,
-            text=f"{value:{fmt}}" if isinstance(value, float) else str(value),
-            font=("Consolas", 10),
-            foreground="#ef5350",
-        ).pack(side=LEFT)
+    def build_theory(self, doc, ctx: dict) -> None:
+        doc.section("Teoría")
+        doc.para("Este módulo no define un documento de teoría extendido todavía.")
 
-    def create_figure(self, figsize=(6, 5)):
-        """Crea una figura matplotlib embebida en el panel derecho."""
-        if not HAS_MATPLOTLIB:
-            ttk.Label(
-                self.right_frame,
-                text="matplotlib no disponible",
-                font=("Segoe UI", 12),
-            ).pack(expand=YES)
-            return None, None
+    def animate_step(self, t: float) -> None:
+        return None
 
-        fig = Figure(figsize=figsize, dpi=100, facecolor="#1e1e2e")
-        canvas = FigureCanvasTkAgg(fig, master=self.right_frame)
-        canvas.get_tk_widget().pack(fill=BOTH, expand=YES, padx=5, pady=5)
-        return fig, canvas
+    def reset(self) -> None:
+        """Reconstruye controles y visualización."""
+        for frame in (self.controls_frame, self.viz_frame):
+            for child in frame.winfo_children():
+                child.destroy()
+        try:
+            self.build_controls(self.controls_frame)
+        except Exception as exc:
+            self._error_label(self.controls_frame, f"Error en controles: {exc}")
+        try:
+            self.build_visualization(self.viz_frame)
+        except Exception as exc:
+            self._error_label(self.viz_frame, f"Error en visualización: {exc}")
 
-    def style_axis(self, ax, title=""):
-        """Aplica estilo oscuro a un eje matplotlib."""
-        ax.set_facecolor("#1e1e2e")
-        if title:
-            ax.set_title(title, color="white", fontsize=11, fontweight="bold")
-        ax.tick_params(colors="white", labelsize=8)
-        ax.xaxis.label.set_color("white")
-        ax.yaxis.label.set_color("white")
-        for spine in ax.spines.values():
-            spine.set_color("#555")
+    # ---------- helpers ----------
+    def open_theory(self) -> None:
+        ctx = self._theory_context()
+
+        def builder(doc):
+            try:
+                self.build_theory(doc, ctx)
+            except Exception as exc:
+                doc.section("Error")
+                doc.para(f"No se pudo construir la teoría: {exc}")
+
+        TheoryViewer.open(
+            self,
+            title=f"Teoría — {self.TITLE}",
+            doc_builder=builder,
+            subtitle="EduFEM — Módulos educativos",
+        )
+
+    def _theory_context(self) -> dict:
+        return {
+            "element_type": (getattr(self.element, "element_type", "Q4")
+                              if self.element else "Q4"),
+            "node_coords": self.node_coords.copy(),
+        }
+
+    def _safe_animate_step(self, t: float) -> None:
+        try:
+            self.animate_step(t)
+        except Exception:
+            pass
+
+    def _raise(self) -> None:
+        try:
+            self.lift()
+            self.focus_force()
+        except Exception:
+            pass
+
+    @staticmethod
+    def _error_label(parent, msg: str) -> None:
+        lbl = ttk.Label(parent, text=msg, bootstyle="danger",
+                         wraplength=300, justify="left")
+        try:
+            lbl.pack(padx=10, pady=10)
+        except tk.TclError:
+            # parent ya está gestionado con grid
+            lbl.grid(row=99, column=0, columnspan=3, padx=10, pady=10,
+                      sticky="ew")

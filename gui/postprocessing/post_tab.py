@@ -263,6 +263,9 @@ class PostProcessTab:
             )
             self.main_window.set_status("Análisis completado automáticamente.")
             self.main_window._update_status_info()
+            # Refrescar estado del menú/toolbar (habilitar Exportar, etc.)
+            if hasattr(self.main_window, "_refresh_menu_state"):
+                self.main_window._refresh_menu_state()
 
             # Auto-visualizar Von Mises
             self._on_result_changed()

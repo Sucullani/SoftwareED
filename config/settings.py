@@ -59,3 +59,11 @@ JACOBIAN_MIN_DETERMINANT = 1e-12
 PROJECT_FILE_EXTENSION = ".edufem"
 PROJECT_FILE_DESCRIPTION = "Proyecto EduFEM"
 CSV_DELIMITER = ","
+
+# ─── Configuración de usuario (persistencia entre sesiones) ────────────────
+USER_CONFIG_DIR = os.path.join(os.path.expanduser("~"), ".edufem")
+RECENT_FILES_PATH = os.path.join(USER_CONFIG_DIR, "recent.json")
+RECENT_FILES_MAX = 10
+
+# ─── Gravedad por defecto ──────────────────────────────────────────────────
+DEFAULT_GRAVITY = 9.81

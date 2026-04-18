@@ -4,7 +4,8 @@ Actúa como la capa de datos del patrón MVC.
 """
 
 from config.settings import (
-    DEFAULT_ANALYSIS_TYPE, DEFAULT_ELEMENT_TYPE, DEFAULT_THICKNESS
+    DEFAULT_ANALYSIS_TYPE, DEFAULT_ELEMENT_TYPE, DEFAULT_THICKNESS,
+    DEFAULT_GRAVITY,
 )
 from config.units import DEFAULT_UNIT_SYSTEM
 from models.node import Node
@@ -28,6 +29,8 @@ class ProjectModel:
         self.element_type = DEFAULT_ELEMENT_TYPE
         self.unit_system = DEFAULT_UNIT_SYSTEM
         self.default_thickness = DEFAULT_THICKNESS
+        self.gravity = DEFAULT_GRAVITY
+        self.include_gravity = False
 
         # Datos del modelo
         self.nodes = {}              # {id: Node}
@@ -187,6 +190,8 @@ class ProjectModel:
             "element_type": self.element_type,
             "unit_system": self.unit_system,
             "default_thickness": self.default_thickness,
+            "gravity": self.gravity,
+            "include_gravity": self.include_gravity,
             "nodes": {str(k): v.to_dict() for k, v in self.nodes.items()},
             "elements": {str(k): v.to_dict() for k, v in self.elements.items()},
             "materials": {k: v.to_dict() for k, v in self.materials.items()},
@@ -206,6 +211,8 @@ class ProjectModel:
         project.element_type = data.get("element_type", DEFAULT_ELEMENT_TYPE)
         project.unit_system = data.get("unit_system", DEFAULT_UNIT_SYSTEM)
         project.default_thickness = data.get("default_thickness", DEFAULT_THICKNESS)
+        project.gravity = data.get("gravity", DEFAULT_GRAVITY)
+        project.include_gravity = data.get("include_gravity", False)
 
         # Reconstituir objetos
         project.nodes = {
