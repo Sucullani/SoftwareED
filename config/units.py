@@ -42,6 +42,18 @@ UNIT_SYSTEMS = {
         "esfuerzo": "ksi",
         "descripcion": "Sistema Imperial (kilo-libras)"
     },
+    "Técnico (kgf, cm, kgf/cm²)": {
+        "longitud": "cm",
+        "fuerza": "kgf",
+        "esfuerzo": "kgf/cm²",
+        "descripcion": "Sistema Técnico con kilogramo-fuerza"
+    },
+    "Técnico (tonf, m, tonf/m²)": {
+        "longitud": "m",
+        "fuerza": "tonf",
+        "esfuerzo": "tonf/m²",
+        "descripcion": "Sistema Técnico con tonelada-fuerza"
+    },
     "Personalizado": {
         "longitud": "-",
         "fuerza": "-",

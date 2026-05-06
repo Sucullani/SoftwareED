@@ -14,7 +14,7 @@ import numpy as np
 import tkinter as tk
 import ttkbootstrap as ttk
 
-from education.base_module import BaseEducationalModule
+from education.base_module import GeometryModule
 from education.components import (
     FourPanel, ParamInput, TheoryDoc,
     iso_inverse_map, natural_to_physical,
@@ -23,9 +23,10 @@ from education.components.plot_panel import _theme_colors
 
 from fem.shape_functions import get_shape_functions
 from fem.jacobian import compute_jacobian
+from config.settings import ELEMENT_Q4, ELEMENT_Q9
 
 
-class IsoMappingModule(BaseEducationalModule):
+class IsoMappingModule(GeometryModule):
     TITLE = "① Coordenadas, Funciones de forma y Jacobiano"
     HAS_ANIMATION = False
 
@@ -33,20 +34,28 @@ class IsoMappingModule(BaseEducationalModule):
     VIZ_CONTOUR = "Contornos"
 
     def __init__(self, parent, project, element_id):
-        # Determinar tipo y coordenadas del elemento
-        self._element_type = "Q4"
-        self._n_nodes = 4
-        if project and project.elements.get(element_id):
-            et = project.elements[element_id].element_type
-            if "Q9" in str(et) or "9 nodos" in str(et):
-                self._element_type = "Q9"
-                self._n_nodes = 9
-
+        # element_type / n_nodes los autodetecta GeometryModule.
+        # Aquí mantenemos un *modo de exploración* (Q4/Q9) para comparar
+        # funciones de forma — única excepción en toda la suite educativa,
+        # justificada porque el módulo ENSEÑA cómo difieren bilineal y
+        # bicuadrática. NO muta el proyecto.
         self._viz_mode = self.VIZ_3D
-        self._node_idx = 1        # 1-based: N_1..N_n
-        self._grid = 40           # resolución de la grilla ξ,η
+        self._node_idx = 1
+        self._grid = 40
         self._sel_xi: float | None = None
         self._sel_eta: float | None = None
+
+        # Pre-init explore_type detectando element_type del project antes
+        # de super() — build_controls lo necesita.
+        is_q9_proj = (
+            project is not None
+            and getattr(project, "element_type", None) == ELEMENT_Q9
+        )
+        elem = project.elements.get(element_id) if project else None
+        if elem is not None and getattr(elem, "num_nodes", 0) == 9:
+            is_q9_proj = True
+        self._explore_type = ELEMENT_Q9 if is_q9_proj else ELEMENT_Q4
+        self._explore_n = 9 if is_q9_proj else 4
 
         super().__init__(parent, project, element_id, width=1280, height=820)
 
@@ -66,11 +75,18 @@ class IsoMappingModule(BaseEducationalModule):
 
         ttk.Separator(parent).pack(fill="x", pady=6)
 
-        # Elemento
-        ttk.Label(parent, text="Elemento",
+        # Modo de comparación pedagógica (Q4 vs Q9). NO cambia el project,
+        # solo redibuja las funciones de forma para que el alumno vea cómo
+        # se diferencian. El badge superior muestra el tipo real del modelo.
+        ttk.Label(parent, text="Modo de comparación",
                    font=("Segoe UI", 10, "bold"),
                    bootstyle="info").pack(anchor="w", pady=(0, 4))
-        self.var_elem = tk.StringVar(value=self._element_type)
+        ttk.Label(parent, wraplength=250, justify="left",
+                   font=("Segoe UI", 8), foreground="#aaa",
+                   text=("Cambiar entre Q4 y Q9 sólo afecta la visualización "
+                          "del módulo. El proyecto sigue siendo el mismo.")
+                   ).pack(anchor="w", pady=(0, 4))
+        self.var_elem = tk.StringVar(value="Q9" if self._explore_n == 9 else "Q4")
         ttk.Combobox(parent, textvariable=self.var_elem, state="readonly",
                       values=["Q4", "Q9"],
                       bootstyle="info").pack(fill="x", pady=(0, 8))
@@ -93,7 +109,7 @@ class IsoMappingModule(BaseEducationalModule):
         self.var_ni = tk.StringVar(value=str(self._node_idx))
         self.cb_ni = ttk.Combobox(
             parent, textvariable=self.var_ni, state="readonly",
-            values=[str(i) for i in range(1, self._n_nodes + 1)],
+            values=[str(i) for i in range(1, self._explore_n + 1)],
             bootstyle="info",
         )
         self.cb_ni.pack(fill="x", pady=(0, 8))
@@ -133,11 +149,12 @@ class IsoMappingModule(BaseEducationalModule):
 
     # ---------- callbacks ----------
     def _on_element_changed(self) -> None:
-        et = self.var_elem.get()
-        self._element_type = et
-        self._n_nodes = 4 if et == "Q4" else 9
-        self._node_idx = min(self._node_idx, self._n_nodes)
-        self.cb_ni.configure(values=[str(i) for i in range(1, self._n_nodes + 1)])
+        # Cambia SOLO el modo de exploración local; el project queda intacto.
+        choice = self.var_elem.get()
+        self._explore_type = ELEMENT_Q9 if choice == "Q9" else ELEMENT_Q4
+        self._explore_n = 9 if choice == "Q9" else 4
+        self._node_idx = min(self._node_idx, self._explore_n)
+        self.cb_ni.configure(values=[str(i) for i in range(1, self._explore_n + 1)])
         self.var_ni.set(str(self._node_idx))
         self._redraw()
 
@@ -159,7 +176,7 @@ class IsoMappingModule(BaseEducationalModule):
         if event.inaxes is self.fp.ax_at(0, 0):
             result = iso_inverse_map(event.xdata, event.ydata,
                                        self._node_coords(),
-                                       self._element_type)
+                                       self._explore_type)
             if result is None:
                 return
             self._sel_xi, self._sel_eta = result
@@ -195,8 +212,8 @@ class IsoMappingModule(BaseEducationalModule):
         colors = _theme_colors()
         self.fp.clear()
 
-        coords = self._node_coords()[: self._n_nodes]
-        N_fn, dN_fn = get_shape_functions(self._element_type)
+        coords = self._node_coords()[: self._explore_n]
+        N_fn, dN_fn = get_shape_functions(self._explore_type)
 
         # -- (0,0) elemento físico --
         ax_phys = self.fp.ax_at(0, 0)
@@ -213,7 +230,7 @@ class IsoMappingModule(BaseEducationalModule):
         # Marcador sincronizado
         if self._sel_xi is not None:
             xy = natural_to_physical(self._sel_xi, self._sel_eta,
-                                       coords, self._element_type)
+                                       coords, self._explore_type)
             self._mark_point(ax_phys, xy[0], xy[1])
             self._mark_point(ax_nat, self._sel_xi, self._sel_eta)
             self._mark_on_surfaces(N_fn, dN_fn, coords)
@@ -239,7 +256,7 @@ class IsoMappingModule(BaseEducationalModule):
                          textcoords="offset points", xytext=(6, 6),
                          color=colors["fg"], fontsize=9)
         # nodos intermedios Q9
-        if self._element_type == "Q9" and len(coords) >= 9:
+        if self._explore_type == ELEMENT_Q9 and len(coords) >= 9:
             ax.scatter(coords[4:, 0], coords[4:, 1], s=40,
                        c="#ffd470", edgecolors=colors["fg"], zorder=4)
         # márgenes
@@ -282,17 +299,17 @@ class IsoMappingModule(BaseEducationalModule):
         ax.set_aspect("equal")
 
     def _sample_boundary(self, coords, n: int = 40) -> np.ndarray:
-        N_fn, _ = get_shape_functions(self._element_type)
+        N_fn, _ = get_shape_functions(self._explore_type)
         ts = np.linspace(-1, 1, n)
         pts = []
         for eta in [-1, 1]:
             seq = ts if eta == -1 else ts[::-1]
             for xi in seq:
-                pts.append(N_fn(xi, eta) @ coords[: self._n_nodes])
+                pts.append(N_fn(xi, eta) @ coords[: self._explore_n])
         for xi in [1, -1]:
             seq = ts if xi == 1 else ts[::-1]
             for eta in seq:
-                pts.append(N_fn(xi, eta) @ coords[: self._n_nodes])
+                pts.append(N_fn(xi, eta) @ coords[: self._explore_n])
         return np.array(pts)
 
     def _xi_eta_grid(self):
@@ -321,7 +338,7 @@ class IsoMappingModule(BaseEducationalModule):
             for j in range(self._grid):
                 try:
                     _, detJ, _ = compute_jacobian(
-                        dN_fn(XI[i, j], ET[i, j]), coords[: self._n_nodes]
+                        dN_fn(XI[i, j], ET[i, j]), coords[: self._explore_n]
                     )
                 except Exception:
                     detJ = 0.0
@@ -408,7 +425,7 @@ class IsoMappingModule(BaseEducationalModule):
         self._scatter_on_panel(ax_ni, xi, eta, z_ni)
         # det J
         try:
-            _, detJ, _ = compute_jacobian(dN_fn(xi, eta), coords[: self._n_nodes])
+            _, detJ, _ = compute_jacobian(dN_fn(xi, eta), coords[: self._explore_n])
         except Exception:
             detJ = 0.0
         ax_j = self.fp.ax_at(1, 1)

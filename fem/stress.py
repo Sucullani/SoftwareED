@@ -5,8 +5,8 @@ Cálculo de esfuerzos en puntos de Gauss y extrapolación a nodos.
 
 import numpy as np
 
-from fem.shape_functions import get_shape_functions
-from fem.gauss_quadrature import get_gauss_points_for_element
+from fem.shape_functions import get_shape_functions, shape_functions_q9
+from fem.gauss_quadrature import get_gauss_points_for_element, get_gauss_points_2d
 from fem.jacobian import compute_jacobian, compute_dN_physical
 from fem.b_matrix import compute_b_matrix
 from fem.constitutive import constitutive_matrix
@@ -102,6 +102,44 @@ def extrapolate_to_nodes_q4(gauss_stresses):
     return nodal_stresses
 
 
+# Cache de la matriz inversa Q9 (se computa una vez).
+_Q9_EXTRAP_MATRIX = None
+
+
+def _q9_extrapolation_matrix():
+    """
+    Matriz 9x9 que proyecta 9 valores en puntos de Gauss 3x3 a 9 valores en
+    nodos Q9. Se construye evaluando las 9 funciones de forma bicuadráticas
+    en los 9 puntos de Gauss y se invierte: σ_nodes = M⁻¹ · σ_gauss.
+    """
+    global _Q9_EXTRAP_MATRIX
+    if _Q9_EXTRAP_MATRIX is not None:
+        return _Q9_EXTRAP_MATRIX
+    gauss_pts, _ = get_gauss_points_2d(3)
+    M = np.zeros((9, 9))
+    for j, (xi, eta) in enumerate(gauss_pts):
+        M[j, :] = shape_functions_q9(xi, eta)
+    _Q9_EXTRAP_MATRIX = np.linalg.inv(M)
+    return _Q9_EXTRAP_MATRIX
+
+
+def extrapolate_to_nodes_q9(gauss_stresses):
+    """
+    Extrapola esfuerzos de 9 puntos de Gauss (3×3) a los 9 nodos del Q9.
+    El orden de Gauss sigue get_gauss_points_2d(3); el orden de nodos es el
+    canónico de shape_functions_q9 (4 esquinas, 4 medios, centro).
+    """
+    M_inv = _q9_extrapolation_matrix()
+    stress_keys = ["sigma_x", "sigma_y", "tau_xy", "sigma_1", "sigma_2", "von_mises"]
+    nodal_stresses = [{} for _ in range(9)]
+    for key in stress_keys:
+        gauss_values = np.array([gs[key] for gs in gauss_stresses])
+        nodal_values = M_inv @ gauss_values
+        for i in range(9):
+            nodal_stresses[i][key] = nodal_values[i]
+    return nodal_stresses
+
+
 def compute_all_stresses(project, solution):
     """
     Calcula esfuerzos para todos los elementos y promedia en nodos compartidos.
@@ -136,8 +174,9 @@ def compute_all_stresses(project, solution):
         # Extrapolar a nodos
         if elem.num_nodes == 4:
             nodal_stresses = extrapolate_to_nodes_q4(gauss_stresses)
+        elif elem.num_nodes == 9:
+            nodal_stresses = extrapolate_to_nodes_q9(gauss_stresses)
         else:
-            # Para Q9, usar directamente los valores de Gauss por ahora
             nodal_stresses = gauss_stresses[:elem.num_nodes]
 
         element_stresses[elem_id] = {

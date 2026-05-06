@@ -1,0 +1,1800 @@
+% !TEX program = pdflatex
+% Propuesta de rediseño UX para los módulos educativos de EduFEM
+% Tesis - Software educativo de Elementos Finitos 2D (TP / DP)
+
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[spanish,es-noshorthands]{babel}
+\usepackage[margin=2.2cm,headheight=14pt]{geometry}
+\usepackage[protrusion=true,expansion=false]{microtype}
+\usepackage{xcolor}
+\usepackage{ifthen}
+\usepackage{tikz}
+\usepackage{tcolorbox}
+\usepackage{amsmath,amssymb}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{caption}
+
+\usetikzlibrary{shapes.geometric, shapes.misc, arrows.meta, positioning, fit,
+                backgrounds, calc, decorations.pathreplacing, patterns,
+                shadows.blur, shadings, 3d}
+\tcbuselibrary{skins, breakable}
+
+% --------- Paleta alineada con el tema darkly de la app ---------
+\definecolor{bgDark}{HTML}{212529}
+\definecolor{panelBg}{HTML}{2B2D33}
+\definecolor{accent}{HTML}{4FA3FF}
+\definecolor{phasePre}{HTML}{0D6EFD}
+\definecolor{phaseProc}{HTML}{FD7E14}
+\definecolor{phasePost}{HTML}{198754}
+\definecolor{warn}{HTML}{FFC107}
+\definecolor{danger}{HTML}{E74C3C}
+\definecolor{good}{HTML}{43A047}
+\definecolor{nodeOrange}{HTML}{FF9F43}
+\definecolor{nodeBlue}{HTML}{4FC3F7}
+\definecolor{midBlue}{HTML}{6FB8FF}
+\definecolor{centerViolet}{HTML}{B86FFF}
+\definecolor{selYellow}{HTML}{FFD54F}
+\definecolor{softGray}{HTML}{45475A}
+\definecolor{textMuted}{HTML}{8A8E96}
+
+% --------- Estilos generales ---------
+\hypersetup{
+    colorlinks=true,
+    linkcolor=accent,
+    urlcolor=accent,
+    citecolor=accent,
+    pdftitle={Propuesta UX - Modulos Educativos EduFEM},
+    pdfauthor={Tesis EduFEM}
+}
+
+\titleformat{\section}
+  {\Large\bfseries\color{accent}}
+  {\thesection}{0.7em}{}[{\color{softGray}\titlerule[0.6pt]}]
+
+\titleformat{\subsection}
+  {\large\bfseries\color{phaseProc}}
+  {\thesubsection}{0.6em}{}
+
+\titleformat{\subsubsection}
+  {\normalsize\bfseries\color{phasePre}}
+  {\thesubsubsection}{0.5em}{}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{textMuted}EduFEM \textbar{} Propuesta UX}
+\fancyhead[R]{\small\color{textMuted}\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\headrule}{\color{softGray}\hrule height \headrulewidth}
+
+% --------- Macros para cajas y mockups ---------
+\newtcolorbox{ideaBox}[1][]{
+  enhanced,
+  colback=panelBg!8,
+  colframe=accent,
+  boxrule=0.6pt,
+  arc=2mm,
+  left=8pt,right=8pt,top=6pt,bottom=6pt,
+  fonttitle=\bfseries\color{white},
+  coltitle=white,
+  colbacktitle=accent,
+  attach boxed title to top left={xshift=6mm,yshift=-3mm},
+  boxed title style={arc=1.5mm,boxrule=0pt},
+  title={#1}
+}
+
+\newtcolorbox{warnBox}[1][]{
+  enhanced,
+  colback=warn!8,
+  colframe=warn!80!black,
+  boxrule=0.6pt,
+  arc=2mm,
+  left=8pt,right=8pt,top=6pt,bottom=6pt,
+  title={#1}
+}
+
+\newtcolorbox{moduleBox}[2][]{
+  enhanced,
+  colback=panelBg!5,
+  colframe=#2,
+  boxrule=1pt,
+  arc=3mm,
+  left=10pt,right=10pt,top=8pt,bottom=8pt,
+  fonttitle=\large\bfseries\color{white},
+  coltitle=white,
+  colbacktitle=#2,
+  attach boxed title to top left={xshift=10mm,yshift=-3.5mm},
+  boxed title style={arc=2mm,boxrule=0pt},
+  title={#1},
+  breakable
+}
+
+% --------- Helpers TikZ para mockups de ventana ---------
+\tikzset{
+    win/.style={
+        draw=softGray, fill=bgDark, rounded corners=2pt,
+        line width=0.6pt
+    },
+    titlebar/.style={
+        draw=softGray, fill=panelBg, rounded corners=2pt,
+        line width=0.4pt
+    },
+    panel/.style={
+        draw=softGray!60, fill=panelBg, rounded corners=1.2pt,
+        line width=0.3pt
+    },
+    btn/.style={
+        draw=accent, fill=accent!18, rounded corners=1pt,
+        line width=0.3pt, text=white, font=\scriptsize
+    },
+    btnPhase/.style={
+        draw=phaseProc, fill=phaseProc!22, rounded corners=1pt,
+        line width=0.3pt, text=white, font=\scriptsize
+    },
+    chip/.style={
+        draw=accent, fill=accent!30, rounded corners=2pt,
+        line width=0.3pt, text=white, font=\tiny,
+        inner sep=2pt
+    },
+    nodeDot/.style={circle, fill=nodeOrange, draw=white, line width=0.3pt,
+                    minimum size=4pt, inner sep=0pt},
+    midDot/.style={circle, fill=midBlue, draw=white, line width=0.3pt,
+                    minimum size=2.8pt, inner sep=0pt},
+    cnDot/.style={circle, fill=centerViolet, draw=white, line width=0.3pt,
+                    minimum size=2.8pt, inner sep=0pt},
+    selRing/.style={circle, draw=selYellow, line width=1.0pt,
+                    minimum size=8pt, inner sep=0pt},
+    label/.style={font=\tiny\color{white}, inner sep=1pt}
+}
+
+% ============================================================
+\begin{document}
+
+% --------- Portada ---------
+\begin{titlepage}
+\begin{tikzpicture}[remember picture, overlay]
+  \fill[bgDark] (current page.south west) rectangle (current page.north east);
+
+  % barra accent superior
+  \fill[accent] ([yshift=-2.3cm]current page.north west) rectangle
+    ([yshift=-2.5cm]current page.north east);
+
+  % barras de fase
+  \fill[phasePre]  ([yshift=-2.5cm]current page.north west) rectangle
+    ([xshift=7cm,yshift=-2.65cm]current page.north west);
+  \fill[phaseProc] ([xshift=7cm,yshift=-2.5cm]current page.north west) rectangle
+    ([xshift=14cm,yshift=-2.65cm]current page.north west);
+  \fill[phasePost] ([xshift=14cm,yshift=-2.5cm]current page.north west) rectangle
+    ([yshift=-2.65cm]current page.north east);
+
+  \node[anchor=north west, text=white, font=\fontsize{30}{34}\bfseries]
+    at ([xshift=2.2cm,yshift=-3.8cm]current page.north west)
+    {Rediseño UX};
+  \node[anchor=north west, text=accent, font=\fontsize{22}{26}\bfseries]
+    at ([xshift=2.2cm,yshift=-5.2cm]current page.north west)
+    {Módulos Educativos};
+  \node[anchor=north west, text=textMuted, font=\Large]
+    at ([xshift=2.2cm,yshift=-6.2cm]current page.north west)
+    {EduFEM \textbar{} Elementos Finitos 2D \textbar{} TP / DP};
+
+  % Tarjeta de mockup esquemático
+  \begin{scope}[shift={([xshift=2.2cm,yshift=-9cm]current page.north west)}]
+    \draw[win] (0,0) rectangle (16,7);
+    \fill[panelBg, rounded corners=2pt] (0.05, 6.4) rectangle (15.95, 6.95);
+    \node[anchor=west, text=white, font=\small\bfseries]
+      at (0.3, 6.67) {EduFEM};
+    \fill[danger,  rounded corners=1pt] (15.0, 6.55) rectangle (15.4, 6.85);
+    \fill[warn,    rounded corners=1pt] (14.5, 6.55) rectangle (14.9, 6.85);
+    \fill[good,    rounded corners=1pt] (14.0, 6.55) rectangle (14.4, 6.85);
+
+    % left: 3 phase tabs
+    \draw[panel] (0.3, 0.5) rectangle (5.5, 6.3);
+    \fill[phasePre, rounded corners=1pt] (0.5, 5.8) rectangle (1.9, 6.15);
+    \fill[phaseProc, rounded corners=1pt] (2.0, 5.8) rectangle (3.4, 6.15);
+    \fill[phasePost, rounded corners=1pt] (3.5, 5.8) rectangle (4.9, 6.15);
+    \node[text=white, font=\tiny] at (1.2, 5.97) {Pre};
+    \node[text=white, font=\tiny] at (2.7, 5.97) {Proc};
+    \node[text=white, font=\tiny] at (4.2, 5.97) {Post};
+
+    \node[text=textMuted, font=\tiny, anchor=west] at (0.5, 5.4) {Tablas};
+    \node[text=textMuted, font=\tiny, anchor=west] at (0.5, 5.0) {Educación};
+    \node[text=textMuted, font=\tiny, anchor=west] at (0.5, 4.6) {Selección};
+
+    % right: shared mesh canvas
+    \draw[panel] (5.7, 0.5) rectangle (15.7, 6.3);
+    \node[text=textMuted, font=\tiny, anchor=south west]
+      at (5.85, 6.05) {MeshCanvas compartido};
+
+    % sample mesh inside canvas
+    \begin{scope}[shift={(7.0, 1.5)}, scale=0.55]
+      \foreach \x in {0,1,2,3} {
+        \foreach \y in {0,1,2} {
+          \draw[softGray, line width=0.4pt]
+            (\x,\y) rectangle ({\x+1},{\y+1});
+          \node[nodeDot] at (\x,\y) {};
+        }
+      }
+      \foreach \x in {0,1,2,3,4} {
+        \node[nodeDot] at (\x,3) {};
+      }
+      \foreach \y in {0,1,2,3} {
+        \node[nodeDot] at (4,\y) {};
+      }
+      % highlighted element
+      \fill[selYellow, opacity=0.18] (1,1) rectangle (2,2);
+      \draw[selYellow, line width=1pt] (1,1) rectangle (2,2);
+    \end{scope}
+
+    % overlay pill (educational module)
+    \draw[panel, fill=bgDark, line width=0.5pt, rounded corners=2pt]
+      (10.5, 4.1) rectangle (15.4, 5.9);
+    \node[text=accent, font=\tiny\bfseries, anchor=north west]
+      at (10.65, 5.85) {M2 - Matriz B};
+    \node[text=textMuted, font=\tiny, anchor=north west]
+      at (10.65, 5.55) {evaluacion en pg2};
+    \draw[selYellow, line width=0.6pt] (10.7, 4.4) rectangle (15.25, 5.3);
+  \end{scope}
+
+  \node[anchor=south west, text=textMuted, font=\small]
+    at ([xshift=2.2cm,yshift=2cm]current page.south west)
+    {Documento técnico de propuesta - Sin compromiso de implementación};
+  \node[anchor=south west, text=accent, font=\small\bfseries]
+    at ([xshift=2.2cm,yshift=1.5cm]current page.south west)
+    {Tesis - Software Educativo FEM};
+\end{tikzpicture}
+\end{titlepage}
+
+% --------- Resumen ejecutivo ---------
+\section*{Resumen ejecutivo}
+\addcontentsline{toc}{section}{Resumen ejecutivo}
+
+Este documento propone un \textbf{rediseño UX diferenciado} de los nueve módulos
+educativos de EduFEM (M0--M9). El diagnóstico parte de un patrón observado:
+los nueve módulos heredan el mismo layout fijo (header + sidebar 280\,px +
+visualización + footer), lo que genera una sensación de uniformidad que
+\emph{contradice} la diversidad de los conceptos enseñados. Un módulo sobre
+calidad geométrica de la malla y otro sobre el círculo de Mohr no deberían
+verse iguales: cada concepto tiene una geometría natural de presentación.
+
+La propuesta articula tres ejes complementarios:
+
+\begin{enumerate}[leftmargin=1.2em, itemsep=2pt]
+  \item \textbf{Tres modos de presentación} en lugar de uno solo:
+        \emph{Toplevel autónomo}, \emph{Overlay sobre el canvas compartido} y
+        \emph{Embed en el panel lateral de la fase}. Cada módulo elige el modo
+        que su concepto pide.
+  \item \textbf{Operación desde el canvas principal}: el elemento bajo análisis,
+        el nodo seleccionado y la iluminación se manipulan desde el
+        \texttt{MeshCanvas} compartido y la barra lateral de la fase activa.
+        Los módulos consumen esa selección, no la duplican.
+  \item \textbf{Layouts diferenciados}: cada módulo recibe una propuesta visual
+        única, justificada pedagógicamente y mockup-eada con TikZ. Diez
+        layouts, no uno repetido diez veces.
+\end{enumerate}
+
+\begin{ideaBox}[Premisas innegociables]
+\textbf{Cero ruido visual estructural.} Todo widget debe justificarse contra
+un objetivo pedagógico concreto. \textbf{Cero duplicación con el menú principal:}
+si el dato (Q4/Q9, TP/DP, material, unidades) ya vive en \texttt{Modelo\,$\triangleright$\,...}
+no se repite dentro del módulo. \textbf{Self-explaining.} El módulo debe
+contar su historia con una animación al abrir y micro-tooltips contextuales,
+no con bloques de texto en sidebar.
+\end{ideaBox}
+
+\tableofcontents
+\newpage
+
+% ============================================================
+\section{Diagnóstico: por qué los módulos se sienten clonados}
+
+\subsection{El layout único como cuello de botella}
+
+\texttt{BaseEducationalModule} impone una caja con cuatro zonas fijas:
+
+\begin{center}
+\begin{tikzpicture}[scale=0.9]
+  \draw[win] (0,0) rectangle (12, 7);
+  % header
+  \draw[panel] (0.1, 6.1) rectangle (11.9, 6.9);
+  \node[text=white, font=\small, anchor=west] at (0.3, 6.5) {Header (titulo, badge, botones)};
+  % sidebar
+  \draw[panel] (0.1, 0.6) rectangle (3.0, 6.0);
+  \node[text=white, font=\small, anchor=north, align=center, text width=2.4cm]
+    at (1.55, 5.8) {Sidebar 280\,px\\(controles)};
+  % viz
+  \draw[panel] (3.1, 0.6) rectangle (11.9, 6.0);
+  \node[text=white, font=\small] at (7.5, 3.3) {Visualizacion};
+  % footer
+  \draw[panel] (0.1, 0.1) rectangle (11.9, 0.5);
+  \node[text=white, font=\small, anchor=west] at (0.3, 0.3) {Footer (animacion)};
+  \node[text=textMuted, font=\tiny, anchor=south] at (6, -0.5)
+    {Fig. 1 - Layout actual de \texttt{BaseEducationalModule}};
+\end{tikzpicture}
+\end{center}
+\vspace{0.6cm}
+
+El sidebar de 280\,px se convierte en un \emph{vertedero} de elementos:
+combos de selección, sliders, párrafos explicativos, tarjetas de métricas
+duplicadas, recordatorios teóricos. Esto genera tres patologías:
+
+\begin{itemize}[leftmargin=1.2em, itemsep=2pt]
+  \item \textbf{Sobre-carga cognitiva.} El alumno debe saltar entre
+        ``leer texto del sidebar'' y ``mirar el gráfico'' para entender qué hace
+        cada control. Los párrafos didácticos deberían ser \emph{ambientales}
+        (overlay, tooltip al hover), no estructurales.
+  \item \textbf{Duplicación con el modelo.} Selectores de elemento, valores
+        de E, $\nu$, $t$, tipo de análisis aparecen en módulos cuando ya
+        están definidos en \texttt{Modelo}. Cualquier desincronización
+        confunde al alumno.
+  \item \textbf{Layout incongruente con el concepto.} El círculo de Mohr
+        (M8) merece pantalla con dos paneles vinculados; la matriz B (M2)
+        merece la matriz LaTeX como protagonista. El sidebar fijo le quita
+        protagonismo a ambas.
+\end{itemize}
+
+\subsection{Inventario de redundancias detectadas}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{@{}l l l@{}}
+\toprule
+\textbf{Control} & \textbf{Módulos donde aparece} & \textbf{Fuente real} \\
+\midrule
+Selector Q4 / Q9 & M1 & \texttt{Modelo\,$\triangleright$\,Tipo de Elemento} \\
+Selector TP / DP & (eliminado, ya OK) & \texttt{Modelo\,$\triangleright$\,Tipo de Análisis} \\
+$E$, $\nu$ editables & M4 & Material del elemento \\
+Espesor $t$ & M4 & Atributo del elemento \\
+Combo de elemento & M0, M3, M4, M5 & Click en MeshCanvas \\
+Tarjeta ``Estado'' textual & M2, M6, M8 & Datos ya en plot \\
+Recordatorio TP/DP texto & M3 & Menú + badge \\
+\bottomrule
+\end{tabular}
+\end{center}
+\vspace{0.4cm}
+
+\begin{warnBox}[Caso límite a preservar]
+M1 (Coordenadas, $N_i$, Jacobiano) tiene un selector Q4/Q9 \emph{justificado}:
+el módulo enseña la diferencia entre interpolación bilineal y bicuadrática.
+Es la única excepción legítima. NO muta el proyecto, solo cambia la
+visualización.
+\end{warnBox}
+
+% ============================================================
+\section{Arquitectura propuesta: tres modos de presentación}
+
+La idea central es romper el monopolio del Toplevel y abrir tres canales
+para que cada módulo elija el más adecuado.
+
+\subsection{Modo A - Toplevel autónomo (el actual)}
+
+Ventana independiente, ideal cuando el módulo necesita:
+\begin{itemize}[leftmargin=1.2em, itemsep=2pt]
+  \item Espacio amplio (M4 con notebook 2 sub-tabs).
+  \item Comparación lado-a-lado independiente del modelo (M9 sandbox).
+  \item Vista 3D de pantalla completa (M7).
+\end{itemize}
+
+\subsection{Modo B - Overlay sobre el canvas compartido}
+
+\textbf{Modo nuevo.} El módulo NO abre ventana: se dibuja \emph{encima} del
+\texttt{MeshCanvas} principal como un panel translúcido o sobre el propio
+canvas (anotaciones, halos, flechas). El alumno sigue interactuando con la
+malla normal pero ve la capa educativa superpuesta.
+
+\begin{center}
+\begin{tikzpicture}[scale=0.85]
+  % main window mockup
+  \draw[win] (0,0) rectangle (15, 7);
+  \fill[panelBg, rounded corners=2pt] (0.05, 6.4) rectangle (14.95, 6.9);
+  \node[text=white, font=\small\bfseries, anchor=west] at (0.3, 6.65) {EduFEM};
+
+  % left tabs
+  \draw[panel] (0.2, 0.3) rectangle (4.8, 6.3);
+  \fill[phaseProc, rounded corners=1pt] (0.4, 5.85) rectangle (4.6, 6.18);
+  \node[text=white, font=\small] at (2.5, 6.0) {PROCESO};
+
+  % educational accordion in the side panel
+  \draw[panel, fill=accent!8] (0.4, 4.4) rectangle (4.6, 5.7);
+  \node[text=accent, font=\small\bfseries, anchor=north west]
+    at (0.55, 5.6) {M2 \textbar{} Matriz B};
+  \node[text=white, font=\tiny, anchor=north west]
+    at (0.55, 5.25) {Click en el canvas};
+  \node[text=white, font=\tiny, anchor=north west]
+    at (0.55, 5.0) {para evaluar B en};
+  \node[text=white, font=\tiny, anchor=north west]
+    at (0.55, 4.75) {un punto Gauss};
+  \draw[btnPhase] (0.55, 4.5) rectangle (2.4, 4.7);
+  \node[text=white, font=\tiny] at (1.5, 4.6) {Cerrar overlay};
+
+  % canvas with overlay
+  \draw[panel] (5.0, 0.3) rectangle (14.8, 6.3);
+  % mesh
+  \begin{scope}[shift={(6.0, 1.0)}, scale=0.7]
+    \foreach \x in {0,1,2,3,4} {
+      \foreach \y in {0,1,2,3} {
+        \draw[softGray, line width=0.3pt]
+          (\x,\y) rectangle ({\x+1},{\y+1});
+      }
+    }
+    \foreach \x in {0,...,5} {
+      \foreach \y in {0,...,4} {
+        \node[nodeDot] at (\x,\y) {};
+      }
+    }
+    % highlighted element with gauss points
+    \fill[selYellow, opacity=0.20] (2,1) rectangle (3,2);
+    \draw[selYellow, line width=1pt] (2,1) rectangle (3,2);
+    \foreach \pt in {(2.21,1.21), (2.79,1.21), (2.21,1.79), (2.79,1.79)} {
+      \node[draw=danger, line width=0.5pt, fill=danger,
+            cross out, minimum size=4pt] at \pt {};
+    }
+  \end{scope}
+
+  % overlay card top right
+  \draw[panel, fill=bgDark!90, line width=0.6pt, rounded corners=2pt,
+        drop shadow={shadow xshift=1pt, shadow yshift=-1pt}]
+    (10.4, 4.7) rectangle (14.5, 5.95);
+  \node[text=accent, font=\tiny\bfseries, anchor=north west]
+    at (10.55, 5.85) {Matriz B (3x8) en pg1};
+  \node[text=white, font=\tiny\ttfamily, anchor=north west]
+    at (10.55, 5.55) {[+0.31  0.00  -0.31  0.00 ...]};
+  \node[text=white, font=\tiny\ttfamily, anchor=north west]
+    at (10.55, 5.30) {[ 0.00 +0.42   0.00 -0.42 ...]};
+  \node[text=white, font=\tiny\ttfamily, anchor=north west]
+    at (10.55, 5.05) {[+0.42 +0.31  -0.42 -0.31 ...]};
+  \node[text=textMuted, font=\tiny, anchor=north west]
+    at (10.55, 4.80) {(arrastrable)};
+
+  \node[text=textMuted, font=\tiny, anchor=south] at (7.5, -0.4)
+    {Fig. 2 - Modo B: overlay flotante sobre el MeshCanvas compartido};
+\end{tikzpicture}
+\end{center}
+\vspace{0.6cm}
+
+\textbf{Ventajas pedagógicas:}
+\begin{itemize}[leftmargin=1.2em, itemsep=2pt]
+  \item El alumno NO pierde el contexto del modelo completo.
+  \item La selección del canvas (elemento, nodo, arista) es la entrada natural.
+  \item La iluminación / coloreado se aplica al canvas real, no a una copia.
+\end{itemize}
+
+\subsection{Modo C - Embed en el panel lateral de la fase}
+
+Para módulos cortos y secundarios. El contenido del módulo aparece dentro
+de la sub-pestaña ``Educación'' del panel izquierdo (\texttt{pre\_tab},
+\texttt{proc\_tab}, \texttt{post\_tab}), sin ventana nueva. El canvas
+principal sigue mostrando la malla y reacciona a las acciones del módulo.
+
+\subsection{Tabla de asignación módulo $\rightarrow$ modo}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{@{}c l c l@{}}
+\toprule
+\textbf{Mód.} & \textbf{Concepto} & \textbf{Modo propuesto} & \textbf{Justificación} \\
+\midrule
+M0 & Calidad de malla        & B - Overlay   & Mapa colorea el canvas real \\
+M1 & Coords, $N_i$, Jacobiano & A - Toplevel  & 4 paneles + comparación Q4/Q9 \\
+M2 & Matriz B                & B - Overlay   & B asociada a un punto del canvas \\
+M3 & Matriz D                & C - Embed     & Cambia con el material elegido \\
+M4 & Rigidez + Gauss         & A - Toplevel  & Notebook + cinta de PG \\
+M5 & Ensamblaje              & A - Toplevel  & Vuelo elem $\rightarrow$ K global \\
+M6 & Fuerzas equivalentes    & B - Overlay   & Acción sobre arista del canvas \\
+M7 & Discontinuidad $\sigma$ & A - Toplevel  & Vista 3D en pantalla completa \\
+M8 & Direcciones $\sigma_1/\sigma_2$ & B - Overlay & Cruces sobre el canvas + Mohr \\
+M9 & Q4 vs Q9 sandbox        & A - Toplevel  & Sandbox independiente \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Operación desde la fase: el panel lateral como controlador}
+
+Para los módulos en modo B (overlay) y C (embed), el panel lateral de la
+fase activa actúa como \emph{cabina de comando}. Esto rompe la dependencia
+del sidebar interno del Toplevel.
+
+\begin{center}
+\begin{tikzpicture}[scale=0.9]
+  % phase tab control card
+  \draw[panel, fill=panelBg!40] (0, 0) rectangle (6, 6.5);
+  \fill[phaseProc, rounded corners=1pt] (0.1, 6.0) rectangle (5.9, 6.4);
+  \node[text=white, font=\small\bfseries] at (3.0, 6.2) {PROCESO};
+
+  % educational accordion
+  \draw[softGray, line width=0.3pt] (0.2, 5.85) -- (5.8, 5.85);
+  \node[text=accent, font=\small\bfseries, anchor=north west]
+    at (0.3, 5.75) {Educacion};
+
+  % module list
+  \foreach \i/\name/\state in {0/M1 - Coordenadas/normal,
+                               1/M2 - Matriz B/active,
+                               2/M3 - Matriz D/normal,
+                               3/M4 - Rigidez/normal,
+                               4/M5 - Ensamblaje/normal,
+                               5/M6 - Fuerzas eq./normal} {
+    \pgfmathsetmacro{\yy}{5.4 - 0.55*\i}
+    \ifthenelse{\equal{\state}{active}}{
+      \draw[panel, fill=accent!22] (0.3, \yy) rectangle (5.7, {\yy + 0.45});
+      \node[text=white, font=\small\bfseries, anchor=west]
+        at (0.45, {\yy + 0.22}) {\name};
+      \node[text=accent, font=\tiny, anchor=east]
+        at (5.55, {\yy + 0.22}) {ACTIVO};
+    }{
+      \draw[softGray, line width=0.2pt] (0.3, \yy) rectangle (5.7, {\yy + 0.45});
+      \node[text=textMuted, font=\small, anchor=west]
+        at (0.45, {\yy + 0.22}) {\name};
+    }
+  }
+
+  % active module dynamic controls
+  \draw[softGray, line width=0.3pt] (0.2, 2.0) -- (5.8, 2.0);
+  \node[text=accent, font=\small\bfseries, anchor=north west]
+    at (0.3, 1.9) {Controles M2};
+  \node[text=textMuted, font=\tiny, anchor=north west]
+    at (0.3, 1.55) {Punto de evaluacion};
+  \draw[btn] (0.3, 1.0) rectangle (1.2, 1.3);  \node[text=white, font=\tiny] at (0.75, 1.15) {centro};
+  \draw[btn] (1.3, 1.0) rectangle (2.2, 1.3);  \node[text=white, font=\tiny] at (1.75, 1.15) {pg1};
+  \draw[btn] (2.3, 1.0) rectangle (3.2, 1.3);  \node[text=white, font=\tiny] at (2.75, 1.15) {pg2};
+  \draw[btn] (3.3, 1.0) rectangle (4.2, 1.3);  \node[text=white, font=\tiny] at (3.75, 1.15) {pg3};
+  \draw[btn] (4.3, 1.0) rectangle (5.2, 1.3);  \node[text=white, font=\tiny] at (4.75, 1.15) {pg4};
+
+  \draw[btnPhase] (0.3, 0.4) rectangle (3.0, 0.7);
+  \node[text=white, font=\tiny] at (1.65, 0.55) {Iluminar elem. en canvas};
+  \draw[btn] (3.1, 0.4) rectangle (5.7, 0.7);
+  \node[text=white, font=\tiny] at (4.4, 0.55) {Mostrar B en LaTeX};
+
+  \node[text=textMuted, font=\tiny, anchor=south] at (3, -0.4)
+    {Fig. 3 - Panel lateral de la fase como cabina de comando};
+\end{tikzpicture}
+\end{center}
+\vspace{0.4cm}
+
+\textbf{Reglas de oro de este patrón:}
+\begin{enumerate}[leftmargin=1.2em, itemsep=2pt]
+  \item El \textbf{elemento bajo análisis} se elige por \emph{click en el
+        MeshCanvas}, no por combobox interno.
+  \item La \textbf{iluminación} (highlight, glow, halo) se aplica al
+        elemento real del canvas. El módulo solo solicita ``ilumina el
+        elemento $E_3$ en color X'' y el canvas obedece.
+  \item Los \textbf{controles dinámicos} del módulo aparecen en el panel
+        lateral, sin abrir ventana. Para datos extensos (matrices,
+        gráficos secundarios), un \emph{overlay flotante} sobre el
+        canvas — arrastrable y cerrable.
+\end{enumerate}
+
+\newpage
+
+% ============================================================
+\section{Propuestas por módulo}
+
+A continuación se desarrolla cada módulo con: concepto enseñado, problema
+del layout actual, mockup del rediseño y justificación pedagógica.
+
+% ============================================================
+\subsection{M0 \textbar{} Calidad geométrica de la malla}
+
+\begin{moduleBox}[M0 - Calidad geometrica - Modo B (Overlay)]{phasePre}
+
+\textbf{Concepto enseñado.} Métricas de calidad de elementos cuadriláteros
+(Jacobian Ratio, Robinson Aspect, Taper / Admissibility, Scaled Jacobian)
+y cómo degradan al distorsionar un nodo.
+
+\textbf{Patología actual.}
+\begin{itemize}[leftmargin=1em]
+  \item Los criterios de calidad están en texto en el sidebar (lectura única).
+  \item La ``tarjeta de métricas'' duplica el radar.
+  \item Click sobre un elemento en el panel ``mapa'' es la única interacción.
+\end{itemize}
+
+\textbf{Propuesta UX - Vista rayos X sobre el canvas:}
+\begin{enumerate}[leftmargin=1.2em, itemsep=2pt]
+  \item El \texttt{MeshCanvas} principal pinta cada elemento con verde /
+        amarillo / rojo según su estado combinado. Sin abrir ventana.
+  \item \textbf{Hover sobre un elemento}: aparece una tarjeta flotante
+        anclada al cursor con el radar de 4 ejes.
+  \item \textbf{Drag sobre un nodo}: distorsión interactiva en tiempo real,
+        métricas recalculan a 60\,fps.
+  \item Histograma horizontal colapsable de 50\,px en el footer del canvas
+        (no en el sidebar).
+\end{enumerate}
+
+\begin{center}
+\begin{tikzpicture}[scale=0.92]
+  \draw[win] (0,0) rectangle (15, 6.5);
+
+  % canvas grid colored by quality
+  \begin{scope}[shift={(0.5, 0.5)}]
+    \foreach \r/\c/\col in {%
+      0/0/good, 0/1/good, 0/2/warn,   0/3/good,
+      1/0/good, 1/1/warn, 1/2/danger, 1/3/warn,
+      2/0/good, 2/1/good, 2/2/good,   2/3/good} {
+      \fill[\col, opacity=0.5]
+        ({\c*1.4}, {\r*1.4}) rectangle ({\c*1.4 + 1.4}, {\r*1.4 + 1.4});
+      \draw[white, line width=0.3pt]
+        ({\c*1.4}, {\r*1.4}) rectangle ({\c*1.4 + 1.4}, {\r*1.4 + 1.4});
+      \node[nodeDot] at ({\c*1.4}, {\r*1.4}) {};
+      \node[nodeDot] at ({\c*1.4 + 1.4}, {\r*1.4}) {};
+    }
+    % top row of nodes
+    \foreach \c in {0,1,2,3,4} {
+      \node[nodeDot] at ({\c*1.4}, {3*1.4}) {};
+    }
+    % distorted node (drag preview)
+    \node[selRing] at (3.7, 2.55) {};
+    \draw[selYellow, dashed, line width=0.4pt, ->]
+      (2.8, 2.8) -- (3.7, 2.55);
+  \end{scope}
+
+  % floating radar card
+  \draw[panel, fill=bgDark!95, line width=0.6pt, rounded corners=2pt,
+        drop shadow={shadow xshift=1pt, shadow yshift=-1pt}]
+    (8.5, 1.5) rectangle (14.5, 5.5);
+  \node[text=danger, font=\small\bfseries, anchor=north west]
+    at (8.65, 5.4) {Elemento E6 - Mala};
+
+  % radar diagram
+  \begin{scope}[shift={(11.5, 3.3)}, scale=0.85]
+    \foreach \r in {0.4, 0.8, 1.2} {
+      \draw[softGray, line width=0.3pt] (0,0) circle (\r);
+    }
+    \foreach \a in {0, 90, 180, 270} {
+      \draw[softGray, line width=0.3pt] (0,0) -- (\a:1.3);
+    }
+    \node[text=white, font=\tiny] at (0:1.5)   {SJ};
+    \node[text=white, font=\tiny] at (90:1.5)  {JR};
+    \node[text=white, font=\tiny] at (180:1.5) {AR};
+    \node[text=white, font=\tiny] at (270:1.5) {Tap};
+    \fill[danger, opacity=0.4]
+      (0:0.5) -- (90:0.7) -- (180:0.4) -- (270:0.3) -- cycle;
+    \draw[danger, line width=0.6pt]
+      (0:0.5) -- (90:0.7) -- (180:0.4) -- (270:0.3) -- cycle;
+  \end{scope}
+
+  \node[text=white, font=\tiny\ttfamily, anchor=north west]
+    at (8.65, 2.0) {SJ=0.18  JR=0.28  AR=4.2};
+
+  % footer histogram strip
+  \draw[panel, fill=panelBg!50] (0.5, -0.05) rectangle (14.5, 0.4);
+  \node[text=accent, font=\tiny, anchor=west] at (0.6, 0.18) {Distrib. Jacobian};
+  \foreach \x/\h in {2.5/0.08, 3.0/0.16, 3.5/0.22, 4.0/0.30, 4.5/0.30,
+                     5.0/0.18, 5.5/0.10, 6.0/0.06} {
+    \fill[accent, opacity=0.6] (\x, 0.06) rectangle ({\x+0.4}, {0.06 + \h});
+  }
+
+  \node[text=textMuted, font=\tiny, anchor=south] at (7.5, -0.55)
+    {Fig. 4 - M0: hover sobre elemento abre radar flotante; drag de nodo distorsiona en vivo};
+\end{tikzpicture}
+\end{center}
+
+\textbf{Justificación pedagógica.} El alumno ve la calidad ``en su sitio'' —
+sobre la malla real que está construyendo o cargando, no sobre una copia en
+panel auxiliar. El drag interactivo convierte la métrica en algo
+\emph{cinético}: el alumno ve el Jacobian caer al mover el nodo, y eso es
+el aprendizaje real, no una tabla de números.
+
+\end{moduleBox}
+
+% ============================================================
+\subsection{M1 \textbar{} Coordenadas naturales, $N_i$, Jacobiano}
+
+\begin{moduleBox}[M1 - Mapeo isoparametrico - Modo A (Toplevel)]{phaseProc}
+
+\textbf{Concepto enseñado.} El mapeo isoparamétrico
+$(x, y) \leftrightarrow (\xi, \eta)$, las funciones de forma $N_i$ y el
+Jacobiano que conecta ambos espacios.
+
+\textbf{Patología actual.} Cuatro paneles 2$\times$2 + sidebar denso. La
+relación entre el panel físico y el panel natural se pierde porque el
+alumno tiene que mirar dos esquinas opuestas.
+
+\textbf{Propuesta UX - Split mirror animado:}
+\begin{enumerate}[leftmargin=1.2em, itemsep=2pt]
+  \item Dos mitades simétricas separadas por un eje vertical con la
+        flecha ``$N_i \rightarrow$''. Físico izq, natural der.
+  \item \textbf{Hover sin click} en cualquier mitad dibuja un punto rojo
+        sincronizado en ambas y también en las superficies $N_i$ y
+        det\,$\mathbf{J}$ (insets pequeños, esquinas).
+  \item Chips numerados 1..9 sobre los nodos para elegir $N_i$.
+  \item \textbf{Demo-mode al abrir}: una ``mosca'' recorre las 9 funciones
+        de forma en 5\,s.
+\end{enumerate}
+
+\begin{center}
+\begin{tikzpicture}[scale=0.85]
+  \draw[win] (0,0) rectangle (16, 7.5);
+
+  % header
+  \fill[panelBg, rounded corners=2pt] (0.05, 6.95) rectangle (15.95, 7.45);
+  \node[text=accent, font=\small\bfseries, anchor=west]
+    at (0.3, 7.2) {M1 - Mapeo isoparametrico};
+  % chips for N_i
+  \foreach \i in {1,...,9} {
+    \draw[chip] ({3.5 + 0.5*\i}, 7.05) rectangle ({3.85 + 0.5*\i}, 7.35);
+    \node[text=white, font=\tiny] at ({3.675 + 0.5*\i}, 7.20) {\i};
+  }
+
+  % left half: physical
+  \draw[panel] (0.2, 0.3) rectangle (7.7, 6.7);
+  \node[text=textMuted, font=\tiny, anchor=south west]
+    at (0.4, 6.45) {Espacio fisico (x, y)};
+  \begin{scope}[shift={(2.0, 1.5)}, scale=1.1]
+    \draw[accent, fill=accent!10, line width=1pt]
+      (0,0) -- (3,0.2) -- (3.2,2.5) -- (0.1,2.3) -- cycle;
+    \node[nodeDot] at (0,0) {};         \node[label] at (-0.2,-0.2) {1};
+    \node[nodeDot] at (3,0.2) {};       \node[label] at (3.2,0.0) {2};
+    \node[nodeDot] at (3.2,2.5) {};     \node[label] at (3.4,2.6) {3};
+    \node[nodeDot] at (0.1,2.3) {};     \node[label] at (-0.2,2.4) {4};
+    \node[selRing] at (1.6, 1.2) {};
+  \end{scope}
+
+  % central arrow
+  \draw[accent, line width=1pt, ->] (7.85, 3.5) -- (8.35, 3.5);
+  \node[text=accent, font=\tiny] at (8.1, 3.85) {$N_i(\xi,\eta)$};
+
+  % right half: natural
+  \draw[panel] (8.5, 0.3) rectangle (16, 6.7);
+  \node[text=textMuted, font=\tiny, anchor=south west]
+    at (8.7, 6.45) {Espacio natural (xi, eta)};
+  \begin{scope}[shift={(11.0, 2.0)}, scale=1.5]
+    \draw[accent, fill=accent!10, line width=1pt]
+      (-1, -1) rectangle (1, 1);
+    \draw[softGray, line width=0.3pt] (-1, 0) -- (1, 0);
+    \draw[softGray, line width=0.3pt] (0, -1) -- (0, 1);
+    \node[nodeDot] at (-1,-1) {}; \node[label] at (-1.2,-1.1) {1};
+    \node[nodeDot] at (1,-1) {};  \node[label] at (1.2,-1.1) {2};
+    \node[nodeDot] at (1,1) {};   \node[label] at (1.2,1.1) {3};
+    \node[nodeDot] at (-1,1) {};  \node[label] at (-1.2,1.1) {4};
+    \node[selRing] at (0.1, 0.05) {};
+  \end{scope}
+
+  % inset: N_i surface
+  \draw[panel, fill=bgDark!90, rounded corners=2pt, line width=0.4pt]
+    (10.2, 4.7) rectangle (12.4, 6.4);
+  \node[text=textMuted, font=\tiny, anchor=north west]
+    at (10.3, 6.35) {N1(xi, eta)};
+  \draw[accent, line width=0.4pt] plot[smooth, samples=20, domain=-1:1]
+    ({11.3 + 0.4*\x}, {5.2 + 0.7*(1-\x)*(1-\x)*0.25});
+
+  % inset: detJ
+  \draw[panel, fill=bgDark!90, rounded corners=2pt, line width=0.4pt]
+    (13.0, 4.7) rectangle (15.5, 6.4);
+  \node[text=textMuted, font=\tiny, anchor=north west]
+    at (13.1, 6.35) {det J(xi, eta)};
+  \draw[warn, line width=0.4pt] plot[smooth, samples=20, domain=-1:1]
+    ({14.25 + 0.5*\x}, {5.5 + 0.3*\x});
+
+  \node[text=textMuted, font=\tiny, anchor=south] at (8, -0.4)
+    {Fig. 5 - M1: split mirror con marcador rojo sincronizado en ambos espacios};
+\end{tikzpicture}
+\end{center}
+
+\textbf{Justificación pedagógica.} El isomorfismo $\xi,\eta \leftrightarrow x,y$
+se aprende mejor cuando ambos lados se mueven \emph{a la vez}. El mouse
+es un puente físico entre los dos mundos. Los insets $N_i$ y det\,$\mathbf{J}$
+ya no compiten por espacio: son referencias contextuales.
+
+\end{moduleBox}
+
+% ============================================================
+\subsection{M2 \textbar{} Matriz B - Modo B (Overlay)}
+
+\begin{moduleBox}[M2 - Matriz B - Modo B (Overlay)]{phaseProc}
+
+\textbf{Concepto enseñado.} La matriz $\mathbf{B}$ que relaciona
+desplazamientos nodales con deformaciones $\boldsymbol{\varepsilon} =
+\mathbf{B}\mathbf{u}$, su construcción vía
+$\partial N_i / \partial x = \mathbf{J}^{-1} \cdot \partial N_i / \partial \xi$
+y la propiedad de superconvergencia en puntos de Gauss.
+
+\textbf{Patología actual.} La matriz $\mathbf{B}$ aparece en LaTeX abajo,
+pero no se conecta visualmente con cuál término viene de cuál nodo. La
+``superconvergencia'' es una palabra del sidebar.
+
+\textbf{Propuesta UX - Matriz como protagonista, geometría secundaria:}
+\begin{enumerate}[leftmargin=1.2em, itemsep=2pt]
+  \item El módulo NO abre Toplevel. Se activa desde la sub-pestaña
+        ``Educación'' del panel \texttt{proc\_tab}.
+  \item En el canvas: glow amarillo pulsante en los puntos de Gauss del
+        elemento seleccionado.
+  \item \textbf{Click en un punto Gauss} sobre el canvas $\rightarrow$
+        aparece un \emph{overlay flotante} en el canvas con la matriz
+        $\mathbf{B}$ en LaTeX grande, evaluada en ese punto.
+  \item \textbf{Hover sobre una columna} de $\mathbf{B}$ ilumina el nodo
+        correspondiente en la malla; \textbf{hover sobre una fila} ilumina
+        la componente de deformación ($\varepsilon_x$, $\varepsilon_y$,
+        $\gamma_{xy}$).
+\end{enumerate}
+
+\begin{center}
+\begin{tikzpicture}[scale=0.85]
+  \draw[win] (0,0) rectangle (16, 7.5);
+
+  % left: phase tab
+  \draw[panel] (0.2, 0.3) rectangle (4.8, 7.2);
+  \fill[phaseProc, rounded corners=1pt] (0.4, 6.7) rectangle (4.6, 7.05);
+  \node[text=white, font=\small\bfseries] at (2.5, 6.875) {PROCESO};
+  \node[text=accent, font=\tiny\bfseries, anchor=north west]
+    at (0.4, 6.5) {Educacion};
+  \draw[panel, fill=accent!22] (0.4, 5.5) rectangle (4.6, 6.2);
+  \node[text=white, font=\small, anchor=west] at (0.5, 5.85)
+    {M2 - Matriz B (activo)};
+
+  \node[text=textMuted, font=\tiny, anchor=west] at (0.5, 5.25)
+    {Click en pg amarillos};
+
+  % canvas
+  \draw[panel] (5.0, 0.3) rectangle (15.8, 7.2);
+  \begin{scope}[shift={(6.0, 1.0)}, scale=0.6]
+    \foreach \x in {0,1,2,3,4} {
+      \foreach \y in {0,1,2,3} {
+        \draw[softGray, line width=0.3pt]
+          (\x,\y) rectangle ({\x+1},{\y+1});
+      }
+    }
+    \foreach \x in {0,...,5} {
+      \foreach \y in {0,...,4} {
+        \node[nodeDot] at (\x,\y) {};
+      }
+    }
+    \fill[selYellow, opacity=0.18] (2,1) rectangle (3,2);
+    \draw[selYellow, line width=1pt] (2,1) rectangle (3,2);
+    % Glow pulsante en pg
+    \foreach \pt/\sel in {(2.21,1.21)/0, (2.79,1.21)/1,
+                          (2.21,1.79)/0, (2.79,1.79)/0} {
+      \node[circle, draw=selYellow, line width=0.6pt,
+            fill=selYellow!40, minimum size=8pt, inner sep=0pt] at \pt {};
+      \ifnum\sel=1
+        \node[circle, draw=selYellow, line width=1pt,
+              minimum size=14pt, inner sep=0pt] at \pt {};
+      \fi
+    }
+  \end{scope}
+
+  % overlay matrix card
+  \draw[panel, fill=bgDark!95, rounded corners=2pt, line width=0.7pt,
+        drop shadow={shadow xshift=1pt, shadow yshift=-1pt}]
+    (8.5, 3.2) rectangle (15.5, 6.7);
+  \node[text=accent, font=\small\bfseries, anchor=north west]
+    at (8.65, 6.55) {Matriz B (3x8) en pg2};
+  \node[text=warn, font=\tiny, anchor=north west]
+    at (8.65, 6.25) {SUPERCONVERGENCIA: sigma exacta aqui};
+
+  % matrix LaTeX-like
+  \node[text=white, font=\tiny\ttfamily, anchor=north west]
+    at (8.65, 5.85)
+    {\begin{tabular}{cccccccc}
+      $+$0.31 & 0 & $-$0.31 & 0 & $+$0.31 & 0 & $-$0.31 & 0 \\
+      0 & $-$0.42 & 0 & $-$0.42 & 0 & $+$0.42 & 0 & $+$0.42 \\
+      $-$0.42 & $+$0.31 & $-$0.42 & $-$0.31 & $+$0.42 & $+$0.31 & $+$0.42 & $-$0.31 \\
+    \end{tabular}};
+
+  % rows labels
+  \node[text=danger, font=\tiny, anchor=east] at (8.55, 5.65) {eps\_x};
+  \node[text=accent, font=\tiny, anchor=east] at (8.55, 5.50) {eps\_y};
+  \node[text=warn,   font=\tiny, anchor=east] at (8.55, 5.30) {gamma\_xy};
+
+  % column labels (nodes)
+  \foreach \i/\xx in {1/9.05, 2/9.95, 3/10.85, 4/11.75, 5/12.65, 6/13.55, 7/14.45, 8/15.30} {
+    \node[text=textMuted, font=\tiny] at (\xx, 5.05) {N\i};
+  }
+
+  \node[text=textMuted, font=\tiny, anchor=north west]
+    at (8.65, 4.30) {Hover en columna -> ilumina nodo};
+  \node[text=textMuted, font=\tiny, anchor=north west]
+    at (8.65, 4.05) {Hover en fila -> ilumina componente};
+
+  \node[text=textMuted, font=\tiny, anchor=south] at (8, -0.4)
+    {Fig. 6 - M2: overlay con matriz B grande, vinculacion bidireccional con la malla};
+\end{tikzpicture}
+\end{center}
+
+\textbf{Justificación pedagógica.} La superconvergencia deja de ser un
+término abstracto: el alumno \emph{ve} que esos puntos amarillos pulsantes
+son los que el solver elige y que la $\mathbf{B}$ que vive ahí es la que
+importa para $\sigma$. Las flechas hover-driven entre columnas y nodos
+materializan la regla \emph{cada par de columnas pertenece a un nodo}.
+
+\end{moduleBox}
+
+% ============================================================
+\subsection{M3 \textbar{} Matriz constitutiva $\mathbf{D}$ - Modo C (Embed)}
+
+\begin{moduleBox}[M3 - Matriz D - Modo C (Embed en panel lateral)]{phaseProc}
+
+\textbf{Concepto enseñado.} La matriz $\mathbf{D}(E, \nu, \text{caso})$
+que conecta tensión y deformación $\boldsymbol{\sigma} = \mathbf{D}
+\boldsymbol{\varepsilon}$, dependiendo del material y del caso plano.
+
+\textbf{Patología actual.} La ventana es enorme para algo que solo muestra
+una matriz $3 \times 3$ y una fórmula. El selector de elemento se duplica.
+El ``recordatorio teórico'' es texto estático.
+
+\textbf{Propuesta UX - Sin Toplevel: panel embebido + dial físico:}
+\begin{enumerate}[leftmargin=1.2em, itemsep=2pt]
+  \item M3 vive dentro del panel \texttt{proc\_tab\,$\triangleright$\,Educación}.
+        El elemento se elige con click sobre el canvas (highlight amarillo).
+  \item \textbf{Tres tarjetas verticales} en el panel: $\mathbf{D}$ simbólica,
+        $\mathbf{D}$ numérica, animación esquemática TP vs DP.
+  \item Único control: un \textbf{dial circular de Poisson} ($\nu \in
+        [0, 0.499]$). Mover el dial reescribe $\mathbf{D}$ en tiempo real.
+        El dial se vuelve rojo cuando $\nu \to 0.5$ en DP (volumetric locking).
+  \item \textbf{Animación TP vs DP}: una placa fina que se carga lateralmente
+        (TP) vs un muro de contención infinito (DP), con el cubito 2D
+        deformándose de modo distinto.
+\end{enumerate}
+
+\begin{center}
+\begin{tikzpicture}[scale=0.92]
+  % lateral panel
+  \draw[panel, fill=panelBg!30] (0, 0) rectangle (5.2, 7.5);
+  \fill[phaseProc, rounded corners=1pt] (0.1, 7.05) rectangle (5.1, 7.40);
+  \node[text=white, font=\small\bfseries] at (2.6, 7.225) {PROCESO};
+  \node[text=accent, font=\small\bfseries, anchor=north west]
+    at (0.2, 6.95) {M3 - Matriz D};
+
+  % dial
+  \begin{scope}[shift={(2.6, 5.5)}]
+    \draw[softGray, line width=2pt] (0,0) circle (0.85);
+    \draw[accent, line width=2.5pt]
+      (0.85, 0) arc (0:140:0.85);
+    \node[circle, fill=warn, draw=white, minimum size=8pt, inner sep=0pt]
+      at ({140}:0.85) {};
+    \node[text=white, font=\small\bfseries] at (0,0) {$\nu$};
+    \node[text=warn, font=\small\bfseries] at (0,-0.45) {0.30};
+  \end{scope}
+
+  % D symbolic card
+  \draw[panel, fill=bgDark!90] (0.2, 3.4) rectangle (5.1, 4.5);
+  \node[text=textMuted, font=\tiny, anchor=north west]
+    at (0.3, 4.4) {D simbolica (TP)};
+  \node[text=white, font=\small\ttfamily, anchor=north west]
+    at (0.3, 4.05) {E/(1-v\textasciicircum 2) [1 v 0; v 1 0; 0 0 (1-v)/2]};
+
+  % D numeric card
+  \draw[panel, fill=bgDark!90] (0.2, 1.7) rectangle (5.1, 3.2);
+  \node[text=textMuted, font=\tiny, anchor=north west]
+    at (0.3, 3.1) {D numerica (Pa)};
+  \node[text=accent, font=\tiny\ttfamily, anchor=north west]
+    at (0.3, 2.85) {2.31e11  6.92e10  0};
+  \node[text=accent, font=\tiny\ttfamily, anchor=north west]
+    at (0.3, 2.55) {6.92e10  2.31e11  0};
+  \node[text=accent, font=\tiny\ttfamily, anchor=north west]
+    at (0.3, 2.25) {     0       0   8.08e10};
+
+  % TP/DP animation card
+  \draw[panel, fill=bgDark!90] (0.2, 0.2) rectangle (5.1, 1.5);
+  \node[text=textMuted, font=\tiny, anchor=north west]
+    at (0.3, 1.4) {Caso plano: TP (placa delgada)};
+  \fill[accent!40] (0.6, 0.5) rectangle (2.0, 1.0);
+  \draw[white, line width=0.4pt] (0.6, 0.5) rectangle (2.0, 1.0);
+  \draw[danger, line width=0.6pt, ->] (2.2, 0.75) -- (2.6, 0.75);
+  \draw[danger, line width=0.6pt, ->] (0.4, 0.75) -- (0.0, 0.75);
+  \node[text=accent, font=\tiny] at (3.5, 0.75) {sigma\_z = 0};
+
+  % canvas right
+  \draw[panel] (5.5, 0.3) rectangle (16, 7.5);
+  \node[text=textMuted, font=\tiny, anchor=north west]
+    at (5.7, 7.4) {MeshCanvas (elemento clickeado se ilumina aqui)};
+  \begin{scope}[shift={(7, 1.5)}, scale=0.7]
+    \foreach \x in {0,1,2,3,4} {
+      \foreach \y in {0,1,2,3} {
+        \draw[softGray, line width=0.3pt]
+          (\x,\y) rectangle ({\x+1},{\y+1});
+        \node[nodeDot] at (\x,\y) {};
+      }
+    }
+    \foreach \x in {0,1,2,3,4,5} {
+      \node[nodeDot] at (\x,4) {};
+    }
+    \foreach \y in {0,...,4} {
+      \node[nodeDot] at (5,\y) {};
+    }
+    \fill[selYellow, opacity=0.30] (2,1) rectangle (3,2);
+    \draw[selYellow, line width=1.5pt] (2,1) rectangle (3,2);
+    \node[text=selYellow, font=\small\bfseries] at (2.5, 1.5) {E6};
+  \end{scope}
+  \draw[selYellow, dashed, line width=0.4pt, ->]
+    (4.9, 5.5) -- (8.95, 2.55);
+  \node[text=selYellow, font=\tiny] at (6.8, 4.3) {material -> D};
+
+  \node[text=textMuted, font=\tiny, anchor=south] at (8, -0.4)
+    {Fig. 7 - M3: panel embebido con dial de Poisson; click en canvas elige el elemento};
+\end{tikzpicture}
+\end{center}
+
+\textbf{Justificación pedagógica.} El dial es \emph{cinético}: el alumno
+experimenta la singularidad en $\nu = 0.5$ moviendo la perilla y viendo
+los números explotar. El cubito animado da intuición física (TP = placa,
+DP = muro). M3 es ahora un módulo \emph{secundario} acoplado al canvas,
+no un Toplevel intrusivo.
+
+\end{moduleBox}
+
+% ============================================================
+\subsection{M4 \textbar{} Rigidez del elemento + Cuadratura de Gauss}
+
+\begin{moduleBox}[M4 - Rigidez + Gauss - Modo A (Toplevel)]{phaseProc}
+
+\textbf{Concepto enseñado.} $\mathbf{k}_e = \int \int \mathbf{B}^T
+\mathbf{D} \mathbf{B} |\det \mathbf{J}| t \, d\xi \, d\eta$ aproximado
+por cuadratura de Gauss. El integrando simbólico es feroz; la
+cuadratura es elegante.
+
+\textbf{Patología actual.} Sidebar con 3 spinboxes ($E$, $\nu$, $t$) que
+\emph{no deberían existir} (vienen del material). Notebook con dos
+sub-tabs separadas, sin transición narrativa entre ellas.
+
+\textbf{Propuesta UX - Cinta transportadora ``fábrica de K'':}
+\begin{enumerate}[leftmargin=1.2em, itemsep=2pt]
+  \item Eliminar spinboxes $E$, $\nu$, $t$. Se leen del material.
+  \item Reemplazar las dos sub-tabs por una \textbf{cinta horizontal} en
+        la mitad inferior: cada PG entra desde la izquierda con su
+        contribución $w_p \mathbf{B}^T\mathbf{D}\mathbf{B} |J| t$ y se
+        suma al heatmap acumulado de $\mathbf{k}_e$ a la derecha.
+  \item \textbf{Scrubber temporal} debajo (timeline). Arrastrar rebobina
+        el ensamblado.
+  \item \textbf{Único control}: orden de cuadratura $1\times1, 2\times2,
+        3\times3$. Al elegir $1\times1$ aparecen los \textbf{modos hourglass}
+        sobre la malla — momento didáctico clave (sub-integración).
+\end{enumerate}
+
+\begin{center}
+\begin{tikzpicture}[scale=0.9]
+  \draw[win] (0,0) rectangle (16, 7);
+
+  % top half: integrando simbolico + superficie K_ij
+  \draw[panel] (0.3, 3.5) rectangle (8, 6.8);
+  \node[text=textMuted, font=\tiny, anchor=north west]
+    at (0.4, 6.7) {Integrando K\_ij(xi, eta) en LaTeX};
+  \node[text=white, font=\footnotesize\ttfamily, anchor=north west]
+    at (0.4, 6.3)
+    {K\_22 = (E*t/((1-v\^{}2)*detJ\^{}2)) *};
+  \node[text=white, font=\footnotesize\ttfamily, anchor=north west]
+    at (0.4, 5.95)
+    {[(1-eta)\^{}2/16 * J22\^{}2 +};
+  \node[text=white, font=\footnotesize\ttfamily, anchor=north west]
+    at (0.4, 5.65)
+    {(1-xi)\^{}2/16 * J11\^{}2 +};
+  \node[text=textMuted, font=\footnotesize, anchor=north west]
+    at (0.4, 5.30)
+    {... (terminos cruzados) ...};
+  \node[text=warn, font=\tiny, anchor=north west]
+    at (0.4, 4.85)
+    {No hay primitiva cerrada: usar Gauss};
+
+  \draw[panel] (8.2, 3.5) rectangle (15.7, 6.8);
+  \node[text=textMuted, font=\tiny, anchor=north west]
+    at (8.3, 6.7) {Superficie |K\_ij(xi, eta)| - 3D};
+  \begin{scope}[shift={(11.95, 5.0)}, scale=1.0]
+    \foreach \i in {0,...,5} {
+      \foreach \j in {0,...,5} {
+        \pgfmathsetmacro{\zz}{0.6 - 0.04*((\i-2.5)^2 + (\j-2.5)^2)}
+        \pgfmathsetmacro{\rr}{0.6*\zz + 0.4}
+        \pgfmathsetmacro{\bb}{0.4*\zz}
+        \fill[red!30!orange, opacity=\rr]
+          ({-1.5 + 0.5*\i}, {-0.6 + 0.3*\j}) rectangle
+          ({-1 + 0.5*\i}, {-0.3 + 0.3*\j});
+      }
+    }
+  \end{scope}
+
+  % bottom half: gauss conveyor
+  \draw[panel] (0.3, 0.3) rectangle (15.7, 3.3);
+  \node[text=accent, font=\small\bfseries, anchor=north west]
+    at (0.4, 3.2) {Cinta transportadora 2x2};
+
+  % gauss point pills moving right
+  \foreach \i/\xx/\op in {1/2.0/0.4, 2/4.5/0.4, 3/7.0/1.0, 4/9.5/0.25} {
+    \draw[selYellow, line width=0.5pt, fill=selYellow, opacity=\op,
+          rounded corners=2pt]
+      (\xx, 1.6) rectangle ({\xx + 1.6}, 2.6);
+    \node[text=white, font=\tiny\bfseries] at ({\xx + 0.8}, 2.30)
+      {pg\i};
+    \node[text=white, font=\tiny] at ({\xx + 0.8}, 2.0)
+      {w*BtDB*detJ*t};
+  }
+
+  % arrow conveyor
+  \draw[accent, line width=0.6pt, ->] (0.5, 1.2) -- (10.5, 1.2);
+  \node[text=accent, font=\tiny] at (5.5, 0.95) {sumar al heatmap K\_e};
+
+  % accumulated K heatmap right
+  \draw[panel, fill=bgDark!80] (11.5, 0.5) rectangle (15.5, 3.0);
+  \node[text=textMuted, font=\tiny, anchor=north west]
+    at (11.6, 2.95) {K\_e acumulado (3 / 4 PG)};
+  \begin{scope}[shift={(13.5, 1.7)}]
+    \foreach \i in {0,...,4} {
+      \foreach \j in {0,...,4} {
+        \pgfmathsetmacro{\val}{0.5 + 0.4*sin((\i+\j)*30)}
+        \fill[accent, opacity=\val]
+          ({-1 + 0.4*\i}, {-1 + 0.4*\j}) rectangle
+          ({-0.6 + 0.4*\i}, {-0.6 + 0.4*\j});
+      }
+    }
+  \end{scope}
+
+  \node[text=textMuted, font=\tiny, anchor=south] at (8, -0.4)
+    {Fig. 8 - M4: integrando arriba, cinta de PG abajo, K\_e ensamblandose en vivo};
+\end{tikzpicture}
+\end{center}
+
+\textbf{Justificación pedagógica.} El concepto difícil es ``por qué hay
+puntos discretos donde se evalúa''. La metáfora de cinta transportadora
+hace que el alumno \emph{cuente} los términos: 4 contribuciones para
+$2\times2$, 9 para $3\times3$. La aparición de modos hourglass en
+$1\times1$ es un cliffhanger pedagógico que ningún sidebar puede
+transmitir.
+
+\end{moduleBox}
+
+% ============================================================
+\subsection{M5 \textbar{} Ensamblaje global - Vuelo de elementos}
+
+\begin{moduleBox}[M5 - Ensamblaje - Modo A (Toplevel)]{phaseProc}
+
+\textbf{Concepto enseñado.} Reubicación de cada $\mathbf{k}_e$ local
+en las filas y columnas globales correspondientes a sus GDLs, hasta
+formar $\mathbf{K}$ globales y aplicar BCs.
+
+\textbf{Patología actual.} La animación ``flying element'' actual hace
+solo \emph{fade-in} en las celdas destino. La metáfora del vuelo NO se
+materializa: el alumno no ve por qué se llama ``flying''.
+
+\textbf{Propuesta UX - Vuelo real con curvas de Bézier:}
+\begin{enumerate}[leftmargin=1.2em, itemsep=2pt]
+  \item Al pulsar ``ensamblar siguiente'', el bloque $\mathbf{k}_e$ se
+        \emph{despega} de la posición del elemento, se eleva, gira y
+        \emph{vuela} en una curva Bézier hasta su bloque destino en
+        $\mathbf{K}$.
+  \item Trazas Bézier residuales (fade) muestran las migraciones previas.
+        Al final el alumno ve un ``mapa de vuelos'' sobre la malla.
+  \item \textbf{Click en una fila/columna restringida}: tachado visual
+        animado representando la eliminación del GDL.
+\end{enumerate}
+
+\begin{center}
+\begin{tikzpicture}[scale=0.85]
+  \draw[win] (0,0) rectangle (16, 7);
+
+  % left mesh
+  \draw[panel] (0.3, 0.3) rectangle (7, 6.7);
+  \node[text=textMuted, font=\tiny, anchor=north west]
+    at (0.4, 6.6) {Malla - 6 elementos};
+  \begin{scope}[shift={(1.0, 0.8)}, scale=0.8]
+    \foreach \x in {0,1,2,3} {
+      \foreach \y in {0,1} {
+        \draw[softGray, line width=0.3pt]
+          (\x,\y) rectangle ({\x+1},{\y+1});
+        \node[nodeDot] at (\x,\y) {};
+      }
+    }
+    \foreach \x in {0,1,2,3,4} {
+      \node[nodeDot] at (\x,2) {};
+    }
+    \foreach \y in {0,1,2} {
+      \node[nodeDot] at (4,\y) {};
+    }
+    % element about to fly
+    \fill[selYellow, opacity=0.5] (2,1) rectangle (3,2);
+    \draw[selYellow, line width=1.5pt] (2,1) rectangle (3,2);
+    \node[text=white, font=\small\bfseries] at (2.5, 1.5) {E3};
+  \end{scope}
+
+  % right K matrix
+  \draw[panel] (7.3, 0.3) rectangle (15.7, 6.7);
+  \node[text=textMuted, font=\tiny, anchor=north west]
+    at (7.4, 6.6) {K global (heatmap)};
+
+  \begin{scope}[shift={(11.5, 3.5)}, scale=0.55]
+    \foreach \i in {0,...,9} {
+      \foreach \j in {0,...,9} {
+        \pgfmathsetmacro{\val}{0.05 + 0.4*((\i==\j) ? 1 : 0) +
+                                0.15*((abs(\i-\j) < 3) ? 1 : 0)}
+        \fill[accent, opacity=\val]
+          ({-3 + 0.6*\i}, {-3 + 0.6*\j}) rectangle
+          ({-2.4 + 0.6*\i}, {-2.4 + 0.6*\j});
+      }
+    }
+    % destination cells highlighted (block 4..7)
+    \foreach \i in {4,5,6,7} {
+      \foreach \j in {4,5,6,7} {
+        \draw[selYellow, line width=0.6pt]
+          ({-3 + 0.6*\i}, {-3 + 0.6*\j}) rectangle
+          ({-2.4 + 0.6*\i}, {-2.4 + 0.6*\j});
+      }
+    }
+    % BC strikethrough on row/col 0
+    \draw[danger, line width=1pt]
+      (-3, -3.3) -- (-3, 3);
+    \draw[danger, line width=1pt]
+      (-3.3, -3) -- (3, -3);
+  \end{scope}
+
+  % flying ke trajectory (Bezier)
+  \draw[selYellow, line width=1pt, ->]
+    (3.0, 3.5) .. controls (5, 5.5) and (8, 5) .. (11, 4.0);
+
+  % flying block mid-air
+  \draw[selYellow, fill=selYellow!40, line width=0.6pt, rounded corners=1pt,
+        rotate around={20:(7.5, 4.7)}]
+    (7.0, 4.4) rectangle (8.0, 5.0);
+  \node[text=white, font=\tiny\bfseries] at (7.5, 4.7) {k\_e};
+
+  \node[text=textMuted, font=\tiny, anchor=south] at (8, -0.4)
+    {Fig. 9 - M5: k\_e literalmente vuela del elemento al bloque destino en K};
+\end{tikzpicture}
+\end{center}
+
+\textbf{Justificación pedagógica.} El nombre ``flying element'' debe
+traducirse en una metáfora visible. La curva Bézier hace que el alumno
+\emph{vea} la operación
+$K_{IJ} \mathrel{+}= k^{(e)}_{ij}$ como una migración espacial. Las
+trazas residuales acumulan un mapa que cuenta la historia del ensamblaje.
+
+\end{moduleBox}
+
+% ============================================================
+\subsection{M6 \textbar{} Fuerzas equivalentes - Modo B (Overlay)}
+
+\begin{moduleBox}[M6 - Fuerzas equivalentes - Modo B (Overlay)]{phaseProc}
+
+\textbf{Concepto enseñado.} Conversión de cargas distribuidas (arista o
+gravedad) en fuerzas puntuales nodales por integración con funciones
+de forma.
+
+\textbf{Patología actual.} Toplevel + dos paneles + tabla numérica que
+duplica las barras. Selector de arista por combobox.
+
+\textbf{Propuesta UX - Drag-to-load + lluvia de partículas:}
+\begin{enumerate}[leftmargin=1.2em, itemsep=2pt]
+  \item Sin Toplevel. Activar M6 desde el panel proc cambia el cursor
+        sobre el canvas a ``modo carga''.
+  \item \textbf{Drag desde fuera del elemento hacia una arista} define
+        $q$ (magnitud y sentido). Al soltar:
+  \item Las flechitas distribuidas se generan automáticamente sobre
+        la arista; con un \emph{tween} de 1.5\,s caen como partículas
+        hacia los nodos extremos, formando bolitas con tamaño
+        proporcional a la fuerza integrada.
+  \item Modo gravedad: switch en el panel cambia a ``lluvia uniforme''
+        desde arriba, redistribuyéndose en los 9 nodos Q9 según $N_i$.
+  \item \textbf{Hover sobre un nodo}: tooltip con $F_x, F_y$ exactos.
+\end{enumerate}
+
+\begin{center}
+\begin{tikzpicture}[scale=0.95]
+  \draw[panel] (0, 0) rectangle (15, 6.5);
+  \node[text=textMuted, font=\tiny, anchor=north west]
+    at (0.2, 6.4) {MeshCanvas - modo M6 activo};
+
+  % element with edge load
+  \begin{scope}[shift={(2, 1)}, scale=1.4]
+    \draw[accent, fill=accent!12, line width=0.7pt]
+      (0,0) rectangle (3, 2);
+    \node[nodeDot] at (0,0) {}; \node[label] at (-0.2,-0.2) {1};
+    \node[nodeDot] at (3,0) {}; \node[label] at (3.2,-0.2) {2};
+    \node[nodeDot] at (3,2) {}; \node[label] at (3.2,2.2) {3};
+    \node[nodeDot] at (0,2) {}; \node[label] at (-0.2,2.2) {4};
+    \node[midDot] at (1.5,0) {};
+    \node[midDot] at (3,1) {};
+    \node[midDot] at (1.5,2) {};
+    \node[midDot] at (0,1) {};
+    \node[cnDot]  at (1.5,1) {};
+
+    % distributed arrows on top edge
+    \foreach \xa in {0.3, 0.7, 1.1, 1.5, 1.9, 2.3, 2.7} {
+      \draw[selYellow, line width=0.5pt, ->]
+        (\xa, 2.5) -- (\xa, 2.05);
+    }
+  \end{scope}
+
+  % equivalent nodal forces (red bigger arrows)
+  \begin{scope}[shift={(2, 1)}, scale=1.4]
+    \draw[danger, line width=1.6pt, -{Stealth[length=4pt]}]
+      (0, 2) -- (0, 3.0);
+    \node[text=danger, font=\tiny, anchor=west] at (0.05, 2.65) {qL/6};
+
+    \draw[danger, line width=2.4pt, -{Stealth[length=5pt]}]
+      (1.5, 2) -- (1.5, 3.4);
+    \node[text=danger, font=\tiny, anchor=west] at (1.55, 2.85) {4qL/6};
+
+    \draw[danger, line width=1.6pt, -{Stealth[length=4pt]}]
+      (3, 2) -- (3, 3.0);
+    \node[text=danger, font=\tiny, anchor=west] at (3.05, 2.65) {qL/6};
+  \end{scope}
+
+  % drag indicator
+  \draw[accent, dashed, line width=0.5pt, ->]
+    (10, 5.5) .. controls (8, 4.5) and (6.5, 4.0) .. (5.0, 4.0);
+  \node[text=accent, font=\tiny, anchor=west] at (10.1, 5.5)
+    {drag desde aqui hacia la arista para aplicar q};
+
+  % overlay legend
+  \draw[panel, fill=bgDark!95, rounded corners=2pt, line width=0.4pt]
+    (10.5, 1.2) rectangle (14.7, 3.0);
+  \node[text=accent, font=\tiny\bfseries, anchor=north west]
+    at (10.6, 2.9) {Distribucion Q9 (q cte)};
+  \node[text=white, font=\tiny\ttfamily, anchor=north west]
+    at (10.6, 2.55) {N1: F = qL/6};
+  \node[text=white, font=\tiny\ttfamily, anchor=north west]
+    at (10.6, 2.30) {N5: F = 4qL/6 (medio)};
+  \node[text=white, font=\tiny\ttfamily, anchor=north west]
+    at (10.6, 2.05) {N2: F = qL/6};
+  \node[text=textMuted, font=\tiny, anchor=north west]
+    at (10.6, 1.65) {Hover en nodo => Fx, Fy};
+
+  \node[text=textMuted, font=\tiny, anchor=south] at (7.5, -0.4)
+    {Fig. 10 - M6: drag-to-load sobre arista; particulas caen a los nodos};
+\end{tikzpicture}
+\end{center}
+
+\textbf{Justificación pedagógica.} El concepto de \emph{fuerzas
+equivalentes} suele explicarse como integral abstracta. Aquí el alumno
+\emph{ve} la integral: las flechitas distribuidas se acumulan en cada
+nodo según su peso $N_i$. Para Q9 con $q$ constante el ratio
+$1\!:\!4\!:\!1$ aparece visualmente: la flecha del nodo medio es 4 veces
+más grande que la de los extremos. Eso \emph{es} el resultado clásico
+$L/6, 4L/6, L/6$.
+
+\end{moduleBox}
+
+% ============================================================
+\subsection{M7 \textbar{} Discontinuidad $\sigma$ - Modo A (Toplevel 3D)}
+
+\begin{moduleBox}[M7 - Discontinuidad sigma - Modo A (Toplevel)]{phasePost}
+
+\textbf{Concepto enseñado.} El FEM garantiza continuidad $C^0$ de
+desplazamientos pero NO de tensiones, por eso aparecen ``saltos'' en
+nodos compartidos. El smoothing nodal (promediado) lo corrige a costa
+de información: los saltos crudos eran un \emph{indicador cualitativo
+de error}.
+
+\textbf{Patología actual.} Slider de morph oculto detrás de un
+``radiobutton''. Selector de componente en sidebar.
+
+\textbf{Propuesta UX - Slider gigante como protagonista:}
+\begin{enumerate}[leftmargin=1.2em, itemsep=2pt]
+  \item Vista 3D ocupa toda la pantalla.
+  \item \textbf{Slider gigante} en el footer (ancho completo) etiquetado
+        ``Crudo $\leftarrow$$\rightarrow$ Promediado''. Drag continuo.
+  \item Chips horizontales arriba para componente ($\sigma_x, \sigma_y,
+        \tau_{xy}$, VM).
+  \item \textbf{Detector de saltos automático}: aristas con discontinuidad
+        $> 10\%$ parpadean en rojo cuando el slider está cerca de ``Crudo''
+        — esos son los puntos donde el alumno debe refinar la malla.
+\end{enumerate}
+
+\begin{center}
+\begin{tikzpicture}[scale=0.9]
+  \draw[win] (0,0) rectangle (16, 7);
+
+  % chips top
+  \foreach \i/\name/\sel in {0/sigma\_x/0, 1/sigma\_y/0, 2/tau\_xy/0,
+                              3/VonMises/1} {
+    \pgfmathsetmacro{\xx}{0.5 + 1.6*\i}
+    \ifthenelse{\equal{\sel}{1}}{
+      \draw[btnPhase, fill=phasePost!40] (\xx, 6.3) rectangle ({\xx + 1.4}, 6.7);
+    }{
+      \draw[panel] (\xx, 6.3) rectangle ({\xx + 1.4}, 6.7);
+    }
+    \node[text=white, font=\small] at ({\xx + 0.7}, 6.5) {\name};
+  }
+
+  % 3D surface mockup
+  \draw[panel] (0.3, 1.3) rectangle (15.7, 6.1);
+
+  \begin{scope}[shift={(8, 3.7)}]
+    % isometric mesh patches simulating discontinuous surface
+    \foreach \i in {0,1,2} {
+      \foreach \j in {0,1,2} {
+        \pgfmathsetmacro{\h}{0.3 + 0.5*\i + 0.2*\j + 0.4*((\i==1) ? 1 : 0)}
+        \pgfmathsetmacro{\xx}{-3 + 1.8*\i + 0.6*\j}
+        \pgfmathsetmacro{\yy}{-1.5 + 1.0*\j - 0.3*\i}
+        \fill[red!50!orange, opacity={0.5+0.1*\h}]
+          (\xx, \yy) -- ({\xx + 1.6}, {\yy - 0.3}) --
+          ({\xx + 1.9}, {\yy + \h}) -- ({\xx + 0.3}, {\yy + \h + 0.3}) -- cycle;
+        \draw[white, line width=0.4pt]
+          (\xx, \yy) -- ({\xx + 1.6}, {\yy - 0.3}) --
+          ({\xx + 1.9}, {\yy + \h}) -- ({\xx + 0.3}, {\yy + \h + 0.3}) -- cycle;
+      }
+    }
+    % blinking discontinuity edges
+    \draw[danger, line width=2pt, dashed]
+      (-1.2, -0.5) -- (-0.9, 0.6);
+    \draw[danger, line width=2pt, dashed]
+      (1.5, -0.8) -- (1.8, 0.3);
+    \node[text=danger, font=\tiny\bfseries] at (-0.5, 1.5)
+      {salto > 10\%};
+  \end{scope}
+
+  % slider gigante en footer
+  \draw[panel] (0.3, 0.3) rectangle (15.7, 1.1);
+  \node[text=accent, font=\small\bfseries, anchor=west]
+    at (0.4, 0.92) {Crudo};
+  \node[text=phasePost, font=\small\bfseries, anchor=east]
+    at (15.6, 0.92) {Promediado};
+
+  \draw[softGray, line width=4pt] (1.5, 0.6) -- (14.5, 0.6);
+  \draw[accent, line width=4pt] (1.5, 0.6) -- (5.0, 0.6);
+  \fill[selYellow, draw=white, line width=0.5pt]
+    (5.0, 0.6) circle (0.18);
+  \node[text=white, font=\tiny] at (5.0, 0.30) {t = 0.27};
+
+  \node[text=textMuted, font=\tiny, anchor=south] at (8, -0.4)
+    {Fig. 11 - M7: slider gigante; aristas rojas pulsantes marcan saltos};
+\end{tikzpicture}
+\end{center}
+
+\textbf{Justificación pedagógica.} Mostrar el morph como slider continuo
+hace que el alumno juegue con $t \in [0, 1]$ y vea las superficies
+deformarse en tiempo real. Las aristas rojas pulsantes son el aporte
+nuevo: convierten una visualización pasiva en un detector de errores que
+sugiere acciones (``refiná aquí'').
+
+\end{moduleBox}
+
+% ============================================================
+\subsection{M8 \textbar{} Direcciones principales + Mohr - Modo B}
+
+\begin{moduleBox}[M8 - Direcciones principales sigma1/sigma2 - Modo B (Overlay)]{phasePost}
+
+\textbf{Concepto enseñado.} Esfuerzos principales $\sigma_1, \sigma_2$
+como autovalores del tensor, sus direcciones (ortogonales) y su
+representación geométrica en el círculo de Mohr.
+
+\textbf{Patología actual.} Toplevel separado del canvas. La tarjeta
+``Estado en el nodo'' duplica los valores que ya están en el círculo.
+
+\textbf{Propuesta UX - Vinculación bidireccional canvas $\leftrightarrow$ Mohr:}
+\begin{enumerate}[leftmargin=1.2em, itemsep=2pt]
+  \item Sin Toplevel. Las cruces principales se dibujan \emph{sobre el
+        MeshCanvas real} en cada nodo.
+  \item Overlay flotante con el círculo de Mohr del nodo seleccionado
+        (arrastrable, cerrable).
+  \item \textbf{Doble vínculo bidireccional}: el alumno arrastra un punto
+        sobre el círculo (cualquier ángulo $2\theta$), y en la malla todas
+        las cruces giran consistentemente para mostrar el estado en ese
+        plano rotado.
+\end{enumerate}
+
+\begin{center}
+\begin{tikzpicture}[scale=0.85]
+  \draw[panel] (0, 0) rectangle (16, 7);
+  \node[text=textMuted, font=\tiny, anchor=north west]
+    at (0.2, 6.85) {MeshCanvas con cruces principales sigma1 (rojo) / sigma2 (azul)};
+
+  % Mesh with crosses at nodes
+  \begin{scope}[shift={(0.7, 0.7)}, scale=0.85]
+    \foreach \x in {0,1,2,3,4} {
+      \foreach \y in {0,1,2,3} {
+        \draw[softGray!60, line width=0.3pt]
+          (\x,\y) rectangle ({\x+1},{\y+1});
+      }
+    }
+    \foreach \xx/\yy/\ang/\mA/\mB in {
+      0/0/0/0.5/0.4,    1/0/-15/0.7/0.5,  2/0/-25/0.9/0.6, 3/0/-30/1.0/0.7, 4/0/-30/0.95/0.7,
+      0/1/-10/0.6/0.5,  1/1/-20/0.85/0.5, 2/1/-30/1.1/0.7, 3/1/-35/1.2/0.8, 4/1/-35/1.0/0.7,
+      0/2/-15/0.65/0.5, 1/2/-25/0.9/0.6,  2/2/-35/1.15/0.8,3/2/-40/1.25/0.85,4/2/-35/1.05/0.75,
+      0/3/-20/0.7/0.5,  1/3/-30/0.95/0.65,2/3/-40/1.2/0.85,3/3/-45/1.3/0.95, 4/3/-40/1.1/0.8} {
+      \draw[danger, line width=1pt]
+        ({\xx - \mA*0.3*cos(\ang)}, {\yy - \mA*0.3*sin(\ang)}) --
+        ({\xx + \mA*0.3*cos(\ang)}, {\yy + \mA*0.3*sin(\ang)});
+      \draw[accent, line width=1pt]
+        ({\xx - \mB*0.3*sin(\ang)}, {\yy + \mB*0.3*cos(\ang)}) --
+        ({\xx + \mB*0.3*sin(\ang)}, {\yy - \mB*0.3*cos(\ang)});
+      \node[circle, fill=textMuted, draw=white,
+            minimum size=2.4pt, inner sep=0pt] at (\xx, \yy) {};
+    }
+    % selected node
+    \node[selRing] at (3, 3) {};
+    \node[text=selYellow, font=\tiny\bfseries] at (3.4, 3.3) {N18};
+  \end{scope}
+
+  % Mohr circle overlay top right (draggable)
+  \draw[panel, fill=bgDark!95, rounded corners=2pt, line width=0.7pt,
+        drop shadow={shadow xshift=1pt, shadow yshift=-1pt}]
+    (9, 1.0) rectangle (15.5, 6.5);
+  \node[text=accent, font=\small\bfseries, anchor=north west]
+    at (9.15, 6.4) {Circulo de Mohr - N18};
+  \node[text=textMuted, font=\tiny, anchor=north east]
+    at (15.4, 6.4) {(arrastrable)};
+
+  \begin{scope}[shift={(12.25, 3.7)}, scale=1.0]
+    \draw[softGray, line width=0.3pt] (-2.5, 0) -- (2.5, 0);
+    \draw[softGray, line width=0.3pt] (0, -1.8) -- (0, 1.8);
+    \node[text=textMuted, font=\tiny, anchor=west] at (2.4, 0.15) {sigma};
+    \node[text=textMuted, font=\tiny, anchor=south] at (0.15, 1.7) {tau};
+
+    \draw[accent, line width=1pt] (0.5, 0) circle (1.5);
+
+    % key points
+    \node[circle, fill=warn, draw=white, minimum size=4pt, inner sep=0pt]
+      at (1.2, 0.9) {};
+    \node[text=warn, font=\tiny, anchor=west] at (1.3, 1.1) {(sx, txy)};
+
+    \node[circle, fill=warn, draw=white, minimum size=4pt, inner sep=0pt]
+      at (-0.2, -0.9) {};
+
+    \node[circle, fill=danger, draw=white, minimum size=4pt, inner sep=0pt]
+      at (2.0, 0) {};
+    \node[text=danger, font=\tiny, anchor=south] at (2.0, 0.1) {sigma1};
+
+    \node[circle, fill=accent, draw=white, minimum size=4pt, inner sep=0pt]
+      at (-1.0, 0) {};
+    \node[text=accent, font=\tiny, anchor=south] at (-1.0, 0.1) {sigma2};
+
+    % draggable angle pointer
+    \node[circle, fill=selYellow, draw=white, line width=0.6pt,
+          minimum size=8pt, inner sep=0pt] at (0.5, 1.5) {};
+    \draw[selYellow, dashed, line width=0.4pt]
+      (0.5, 0) -- (0.5, 1.5);
+    \node[text=selYellow, font=\tiny, anchor=west] at (0.65, 1.5)
+      {2 theta};
+  \end{scope}
+
+  \node[text=textMuted, font=\tiny, anchor=south] at (8, -0.4)
+    {Fig. 12 - M8: arrastrar punto en Mohr rota TODAS las cruces de la malla a la vez};
+\end{tikzpicture}
+\end{center}
+
+\textbf{Justificación pedagógica.} El círculo de Mohr es la
+\emph{geometría} del tensor. Convertirlo en un control activo (arrastrable)
+y verlo coordinar con todas las cruces de la malla muestra que un solo
+ángulo $\theta$ define el estado completo en cada punto. Pedagogía pura.
+
+\end{moduleBox}
+
+% ============================================================
+\subsection{M9 \textbar{} Q4 vs Q9 sandbox - Modo A (Toplevel)}
+
+\begin{moduleBox}[M9 - Q4 vs Q9 - Modo A (Toplevel)]{phasePost}
+
+\textbf{Concepto enseñado.} Convergencia: $h$-refinement vs $p$-refinement.
+Q9 converge más rápido que Q4 con menos GDLs en problemas con flexión.
+
+\textbf{Patología actual.} El layout actual es razonable. Falta el plot
+de convergencia que cierra el círculo pedagógico.
+
+\textbf{Propuesta UX - Plot de convergencia + slider continuo:}
+\begin{enumerate}[leftmargin=1.2em, itemsep=2pt]
+  \item Mantener los dos paneles lado a lado.
+  \item Reemplazar radiobuttons $N \in \{0, 1, 2\}$ por un \textbf{slider
+        continuo} con transición animada entre niveles.
+  \item Agregar un \textbf{tercer panel debajo}: gráfica log-log de
+        convergencia (eje Y: $|u|_{max}$ relativo, eje X: número de GDLs).
+        Para cada $N$ se acumulan dos puntos (Q4, Q9) sobre el mismo eje.
+        El alumno ve la pendiente: $O(h^2)$ para Q4, $O(h^4)$ para Q9.
+  \item Botón ``Tomar como referencia'': fija un resultado y los siguientes
+        se miden contra él como error \%.
+\end{enumerate}
+
+\begin{center}
+\begin{tikzpicture}[scale=0.9]
+  \draw[win] (0,0) rectangle (16, 7);
+
+  % Q4 panel
+  \draw[panel] (0.3, 3.5) rectangle (7.8, 6.7);
+  \node[text=accent, font=\small\bfseries, anchor=north west]
+    at (0.4, 6.6) {Q4 - 24 elem - 60 GDL};
+  \begin{scope}[shift={(4.0, 5.0)}, scale=0.5]
+    \foreach \x in {0,1,2,3,4,5} {
+      \foreach \y in {0,1,2,3} {
+        \pgfmathtruncatemacro{\valint}{30 + 60*((\x>=2 && \x<=4 && \y==1)? 1 : 0.5)}
+        \fill[red!\valint!yellow]
+          (\x, \y) rectangle ({\x+1}, {\y+1});
+        \draw[white, line width=0.2pt]
+          (\x, \y) rectangle ({\x+1}, {\y+1});
+      }
+    }
+  \end{scope}
+
+  % Q9 panel
+  \draw[panel] (8.2, 3.5) rectangle (15.7, 6.7);
+  \node[text=phasePost, font=\small\bfseries, anchor=north west]
+    at (8.3, 6.6) {Q9 - 24 elem - 200 GDL};
+  \begin{scope}[shift={(11.95, 5.0)}, scale=0.5]
+    \foreach \x in {0,1,2,3,4,5} {
+      \foreach \y in {0,1,2,3} {
+        \pgfmathtruncatemacro{\valint}{40 + 50*((\x>=2 && \x<=4 && \y==1)? 1 : 0.5)}
+        \fill[red!\valint!yellow]
+          (\x, \y) rectangle ({\x+1}, {\y+1});
+        \draw[white, line width=0.2pt]
+          (\x, \y) rectangle ({\x+1}, {\y+1});
+      }
+    }
+  \end{scope}
+
+  % slider
+  \draw[panel] (0.3, 2.6) rectangle (15.7, 3.3);
+  \node[text=accent, font=\tiny\bfseries, anchor=west]
+    at (0.4, 2.95) {Refinamiento N};
+  \draw[softGray, line width=4pt] (2.5, 2.95) -- (15.0, 2.95);
+  \draw[accent, line width=4pt] (2.5, 2.95) -- (6.5, 2.95);
+  \fill[selYellow, draw=white, line width=0.5pt]
+    (6.5, 2.95) circle (0.16);
+  \foreach \x/\lab in {2.5/N=0, 6.5/N=1, 10.5/N=2, 14.5/N=3} {
+    \node[text=textMuted, font=\tiny] at (\x, 2.7) {\lab};
+  }
+
+  % convergence plot
+  \draw[panel] (0.3, 0.3) rectangle (15.7, 2.4);
+  \node[text=accent, font=\tiny\bfseries, anchor=north west]
+    at (0.4, 2.3) {Convergencia log-log: |u|\_max vs GDLs};
+
+  \begin{scope}[shift={(0.5, 0.5)}]
+    \draw[softGray, line width=0.4pt] (0, 0) -- (14.5, 0);
+    \draw[softGray, line width=0.4pt] (0, 0) -- (0, 1.5);
+    \node[text=textMuted, font=\tiny] at (-0.05, 1.5) {error};
+    \node[text=textMuted, font=\tiny] at (14.5, -0.15) {GDLs (log)};
+
+    % Q4 curve - shallow
+    \draw[accent, line width=1.2pt]
+      (1, 1.2) -- (4, 0.85) -- (7, 0.55) -- (10, 0.35);
+    \foreach \pt in {(1,1.2),(4,0.85),(7,0.55),(10,0.35)} {
+      \node[circle, fill=accent, draw=white, minimum size=4pt, inner sep=0pt] at \pt {};
+    }
+    \node[text=accent, font=\tiny, anchor=west] at (10.2, 0.35) {Q4 (h\^{}2)};
+
+    % Q9 curve - steep
+    \draw[phasePost, line width=1.2pt]
+      (1.5, 1.0) -- (4.5, 0.5) -- (8, 0.18) -- (11, 0.08);
+    \foreach \pt in {(1.5,1.0),(4.5,0.5),(8,0.18),(11,0.08)} {
+      \node[circle, fill=phasePost, draw=white, minimum size=4pt, inner sep=0pt] at \pt {};
+    }
+    \node[text=phasePost, font=\tiny, anchor=west] at (11.2, 0.08) {Q9 (h\^{}4)};
+  \end{scope}
+
+  \node[text=textMuted, font=\tiny, anchor=south] at (8, -0.4)
+    {Fig. 13 - M9: paneles Q4/Q9 + slider continuo + plot de convergencia que cierra el ciclo};
+\end{tikzpicture}
+\end{center}
+
+\textbf{Justificación pedagógica.} La pendiente del log-log \emph{es} el
+orden de convergencia. Sin ese plot el alumno cree que ``Q9 es mejor'' por
+intuición; con el plot lo \emph{demuestra} él mismo. Es el módulo donde
+EduFEM se vuelve un laboratorio de teoría de aproximación.
+
+\end{moduleBox}
+
+\newpage
+
+% ============================================================
+\section{Librerías alternativas a Matplotlib}
+
+Matplotlib es el caballo de batalla actual y debe seguir siéndolo en los
+casos donde brilla: plots estáticos, LaTeX vía mathtext, gráficos
+publicables. Pero hay tres áreas donde matplotlib limita la propuesta:
+
+\begin{enumerate}[leftmargin=1.2em, itemsep=2pt]
+  \item Drag de nodos a 60\,fps (M0, M6, M8).
+  \item 3D rotable suave con shaders (M7, M9).
+  \item Tooltips ricos sobre celdas / aristas (M5).
+\end{enumerate}
+
+\subsection{Tabla comparativa}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{@{}p{3.4cm} p{4.5cm} p{3.5cm} p{3.5cm}@{}}
+\toprule
+\textbf{Necesidad} & \textbf{Librería} & \textbf{Pros} & \textbf{Contras} \\
+\midrule
+Drag fluido nodos &
+\texttt{pyqtgraph} &
+GPU-accel, 60\,fps, sliders sin lag, API simple &
+~10\,MB (PyQt6), no integra nativo con \texttt{ttkbootstrap} \\
+\midrule
+3D shading + isolíneas &
+\texttt{PyVista} (sobre VTK) &
+Calidad ParaView, smooth shading, isovaluas 3D &
+~80\,MB (VTK pesado en instalador) \\
+\midrule
+3D ligero rápido &
+\texttt{vispy} &
+OpenGL nativo, \textasciitilde 15\,MB &
+API más cruda, menos ejemplos \\
+\midrule
+Animaciones explicativas &
+\texttt{manim Community} &
+Pre-render WebP, infra ya existe (\texttt{WebpPlayer}). 0\,MB runtime &
+Solo offline, no interactivo \\
+\midrule
+Plots interactivos hover &
+\texttt{plotly} + \texttt{pywebview} &
+Tooltips por celda, zoom infinito &
+~30\,MB, abre browser embebido \\
+\midrule
+Imgui-style controles &
+\texttt{dearpygui} &
+Look ``CAD profesional'' &
+Refactor enorme, lock-in \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Recomendación pragmática}
+
+\begin{ideaBox}[Estrategia híbrida]
+Mantener \textbf{matplotlib} como motor por defecto. Añadir
+\textbf{pyqtgraph} como dependencia \emph{opcional} (patrón
+\texttt{\_require\_pyqtgraph()} igual a \texttt{ezdxf}). Usarlo
+\emph{solo} donde el drag o el slider en tiempo real lo justifica:
+M0 (drag de nodo distorsionando), M6 (drag-to-load), M8 (arrastre del
+punto en Mohr). Mantener matplotlib para todo lo demás. PyVista solo
+si M7 escala mal con matplotlib 3D.
+
+Para el demo-mode al abrir cada módulo: \textbf{pre-renderizar WebPs con
+manim} -- encaja con la infra existente del pipeline
+\texttt{tools/render\_q4q9/} y NO suma peso al runtime.
+\end{ideaBox}
+
+% ============================================================
+\section{Roadmap incremental}
+
+Migrar los nueve módulos a la vez sería temerario. Se propone un
+roadmap por riesgo creciente:
+
+\begin{center}
+\begin{tikzpicture}[scale=1]
+  \draw[accent, line width=3pt, ->] (0, 0) -- (15, 0);
+
+  \foreach \x/\name/\risk/\col in {1.0/Fase 1/bajo/good,
+                                    5.0/Fase 2/medio/warn,
+                                    9.0/Fase 3/alto/danger,
+                                    13.0/Fase 4/alto+/danger} {
+    \fill[\col] (\x, 0) circle (0.2);
+    \node[text=\col, font=\small\bfseries, anchor=south] at (\x, 0.3) {\name};
+    \node[text=textMuted, font=\tiny] at (\x, -0.4) {riesgo \risk};
+  }
+\end{tikzpicture}
+\end{center}
+
+\subsection*{Fase 1 - Riesgo bajo: M7 + M8}
+
+Postproceso, layouts simples de migrar al modo overlay. Validan el
+patrón de operación desde el panel lateral sin tocar el solver ni la
+arquitectura del base.
+
+\subsection*{Fase 2 - Riesgo medio: M0 + M3}
+
+M0 con \texttt{pyqtgraph} prueba el drag fluido. M3 prueba el modo
+embed en panel lateral. Ambos son módulos pequeños donde el costo de
+equivocarse es bajo.
+
+\subsection*{Fase 3 - Riesgo alto: M1, M2, M5, M6, M9}
+
+Una vez validados los modos en módulos chicos, se migran los más
+complejos. M5 con la animación de vuelo Bézier es el más vistoso y el
+que más impacto pedagógico tiene.
+
+\subsection*{Fase 4 - Último: M4}
+
+El integrando simbólico Q9 ya tiene problemas de renderizado LaTeX.
+Migrar a la cinta transportadora requiere repensar la animación entera.
+
+% ============================================================
+\section*{Cierre}
+\addcontentsline{toc}{section}{Cierre}
+
+EduFEM tiene un núcleo FEM sólido y un ecosistema gráfico maduro. La
+oportunidad pedagógica está en romper la uniformidad del layout actual
+y en aprovechar el \texttt{MeshCanvas} compartido como protagonista —
+los módulos no deben ser \emph{ventanas alternativas} a la GUI principal,
+sino \emph{capas educativas} que se posan sobre ella. Cuando un módulo
+se vuelve \emph{parte del flujo natural}, deja de ser un add-on y se
+vuelve la GUI misma.
+
+\vspace{1cm}
+\begin{center}
+\textit{``El mejor diseño es el que se siente inevitable''}
+\end{center}
+
+\end{document}

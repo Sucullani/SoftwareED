@@ -1,0 +1,651 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-tabla]{babel}
+\usepackage{lmodern}
+\usepackage[a4paper,margin=2.4cm]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{bm}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage[most]{tcolorbox}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{microtype}
+\usepackage{parskip}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!60!black,
+  urlcolor=blue!60!black,
+  citecolor=black,
+  pdftitle={Metricas de calidad de malla para elementos cuadrilateros Q4/Q9},
+  pdfauthor={EduFEM},
+  pdfsubject={Finite element mesh quality - thesis annex}
+}
+
+\tcbuselibrary{skins,breakable}
+
+\newtcolorbox{notabox}[1][]{
+  colback=yellow!6,
+  colframe=orange!55!black,
+  boxrule=0.6pt,
+  arc=2pt,
+  left=8pt,right=8pt,top=6pt,bottom=6pt,
+  fonttitle=\bfseries,
+  breakable,
+  #1
+}
+
+\newtcolorbox{recbox}[1][]{
+  colback=blue!4,
+  colframe=blue!45!black,
+  boxrule=0.6pt,
+  arc=2pt,
+  left=8pt,right=8pt,top=6pt,bottom=6pt,
+  fonttitle=\bfseries,
+  breakable,
+  #1
+}
+
+\newtcolorbox{bugbox}[1][]{
+  colback=red!4,
+  colframe=red!55!black,
+  boxrule=0.6pt,
+  arc=2pt,
+  left=8pt,right=8pt,top=6pt,bottom=6pt,
+  fonttitle=\bfseries,
+  breakable,
+  #1
+}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{blue!55!black}\bfseries,
+  commentstyle=\color{gray!60!black}\itshape,
+  stringstyle=\color{purple!50!black},
+  backgroundcolor=\color{gray!6},
+  frame=single,
+  framesep=4pt,
+  rulecolor=\color{gray!30},
+  showstringspaces=false,
+  breaklines=true,
+  language=Python,
+  xleftmargin=4pt,
+  xrightmargin=4pt,
+}
+
+\title{\bfseries M\'etricas de calidad de malla\\para elementos cuadril\'ateros Q4 y Q9}
+\author{Anexo t\'ecnico --- Proyecto EduFEM}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent
+Este anexo recopila, justifica y contrasta las principales m\'etricas empleadas en la literatura t\'ecnica para evaluar la calidad geom\'etrica de elementos finitos cuadril\'ateros bilineales (Q4) y bicuadr\'aticos Lagrangianos (Q9) en problemas planos. Se detallan las tres medidas originales de Robinson~\cite{Robinson1987} (relaci\'on de aspecto, conicidad y sesgo), las m\'etricas basadas en el determinante y condicionamiento del Jacobiano~\cite{Knupp2000,Knupp2003}, las m\'etricas angulares usadas por ANSYS Fluent, y un conjunto de sugerencias adicionales con \'enfasis en la validez de los nodos intermedios de elementos Q9 (criterio del cuarto de arista). Se incluye una tabla consolidada de umbrales de aceptaci\'on recogidos de NAFEMS, CUBIT/Verdict, ANSYS y Abaqus, as\'i como observaciones espec\'ificas para el c\'odigo \texttt{fem/mesh\_quality.py} de EduFEM, en el que se identifica que la funci\'on actualmente denominada \texttt{robinson\_stretch} no implementa realmente la m\'etrica de Robinson sino una simple relaci\'on de aspecto de aristas.
+\end{abstract}
+
+\tableofcontents
+\vspace{1em}
+
+\begin{bugbox}[title={Hallazgo principal}]
+La funci\'on \texttt{fem/mesh\_quality.py::robinson\_stretch} calcula
+\[
+R_{\text{c\'odigo}} \;=\; \frac{\max_i \|\mathbf{e}_i\|}{\min_i \|\mathbf{e}_i\|},
+\]
+es decir, el cociente entre la arista m\'as larga y la m\'as corta del cuadril\'atero. \textbf{No es la m\'etrica de Robinson}: es la \emph{relaci\'on de aspecto de aristas} (edge--length aspect ratio), una aproximaci\'on m\'as burda. Las m\'etricas originales de Robinson~\cite{Robinson1987} se construyen sobre los vectores que unen puntos medios de aristas opuestas y un vector bilineal $\mathbf{X}_3$ que captura la desviaci\'on respecto a un paralelogramo. En la secci\'on~\ref{sec:robinson} se formulan correctamente las tres m\'etricas (aspect, taper, skew) y en la secci\'on~\ref{sec:recs} se propone refactorizar el c\'odigo.
+\end{bugbox}
+
+\section{Notaci\'on y marco te\'orico}
+
+Sea un elemento cuadril\'atero plano con cuatro v\'ertices macro $\mathbf{r}_1,\mathbf{r}_2,\mathbf{r}_3,\mathbf{r}_4\in\mathbb{R}^2$ numerados en sentido antihorario. El mapeo isoparam\'etrico bilineal est\'andar
+\begin{equation}
+\mathbf{x}(\xi,\eta) \;=\; \sum_{i=1}^{4} N_i(\xi,\eta)\,\mathbf{r}_i, \qquad (\xi,\eta)\in[-1,1]^2
+\label{eq:isoparam}
+\end{equation}
+admite la descomposici\'on alternativa
+\begin{equation}
+\mathbf{x}(\xi,\eta) \;=\; \mathbf{X}_0 + \xi\,\mathbf{X}_1 + \eta\,\mathbf{X}_2 + \xi\eta\,\mathbf{X}_3,
+\label{eq:robinson_decomp}
+\end{equation}
+donde los cuatro vectores b\'asicos de Robinson son
+\begin{align}
+\mathbf{X}_0 &= \tfrac{1}{4}(\mathbf{r}_1+\mathbf{r}_2+\mathbf{r}_3+\mathbf{r}_4) && \text{(centroide)}, \label{eq:X0}\\
+\mathbf{X}_1 &= \tfrac{1}{4}(-\mathbf{r}_1+\mathbf{r}_2+\mathbf{r}_3-\mathbf{r}_4) && \text{(vector punto medio eje $\xi$)}, \label{eq:X1}\\
+\mathbf{X}_2 &= \tfrac{1}{4}(-\mathbf{r}_1-\mathbf{r}_2+\mathbf{r}_3+\mathbf{r}_4) && \text{(vector punto medio eje $\eta$)}, \label{eq:X2}\\
+\mathbf{X}_3 &= \tfrac{1}{4}(\mathbf{r}_1-\mathbf{r}_2+\mathbf{r}_3-\mathbf{r}_4) && \text{(vector bilineal / taper)}. \label{eq:X3}
+\end{align}
+Geom\'etricamente, $\mathbf{X}_1$ es el vector que une los puntos medios de las aristas \emph{2--3} y \emph{4--1} (aristas ``verticales'' en coordenadas naturales), y $\mathbf{X}_2$ es el vector an\'alogo en direcci\'on $\eta$. El vector $\mathbf{X}_3$ se anula \emph{si y s\'olo si} el cuadril\'atero es un paralelogramo; por tanto $\|\mathbf{X}_3\|$ es una medida directa de la desviaci\'on respecto a esta forma ideal.
+
+La matriz Jacobiana de~\eqref{eq:isoparam} es
+\begin{equation}
+\mathbf{J}(\xi,\eta) \;=\; \frac{\partial \mathbf{x}}{\partial(\xi,\eta)} \;=\; \begin{bmatrix} \partial x/\partial\xi & \partial x/\partial\eta \\ \partial y/\partial\xi & \partial y/\partial\eta \end{bmatrix}, \qquad J \;=\; \det\mathbf{J},
+\label{eq:jacobian}
+\end{equation}
+y es la pieza central de todas las m\'etricas num\'ericas (secciones~\ref{sec:jac} y~\ref{sec:extras}).
+
+\section{M\'etricas de distorsi\'on de Robinson}
+\label{sec:robinson}
+
+Robinson~\cite{Robinson1987} propuso descomponer toda distorsi\'on de un cuadril\'atero en tres par\'ametros escalares independientes: \emph{aspect ratio}, \emph{taper} y \emph{skew}. La belleza del enfoque es que los tres par\'ametros son invariantes frente a traslaciones, rotaciones y cambios de escala globales, y por tanto caracterizan la forma intr\'inseca del elemento.
+
+\subsection{Relaci\'on de aspecto de Robinson ($AR_R$)}
+\begin{equation}
+\boxed{\;AR_R \;=\; \frac{\max\bigl(\|\mathbf{X}_1\|,\|\mathbf{X}_2\|\bigr)}{\min\bigl(\|\mathbf{X}_1\|,\|\mathbf{X}_2\|\bigr)}\;}
+\label{eq:AR_R}
+\end{equation}
+\begin{itemize}[leftmargin=1.2em]
+  \item \textbf{Ideal:} $AR_R = 1$ (cuadrado o rombo).
+  \item \textbf{Aceptable:} $AR_R \le 4$ (NAFEMS, CUBIT/Verdict~\cite{Verdict2007}).
+  \item \textbf{Interpretaci\'on f\'isica:} relaciones de aspecto altas inducen \emph{shear locking} en zonas dominadas por flexi\'on y deterioran el condicionamiento de $\mathbf{K}$ a lo largo de la direcci\'on alargada.
+\end{itemize}
+
+\subsection{Conicidad o \emph{taper} de Robinson ($T_R$)}
+\begin{equation}
+\boxed{\;T_R \;=\; \max\!\left(\frac{|\mathbf{X}_3\cdot\hat{\mathbf{X}}_1|}{\|\mathbf{X}_1\|},\;\frac{|\mathbf{X}_3\cdot\hat{\mathbf{X}}_2|}{\|\mathbf{X}_2\|}\right),\qquad \hat{\mathbf{X}}_\alpha = \mathbf{X}_\alpha/\|\mathbf{X}_\alpha\|\;}
+\label{eq:taper}
+\end{equation}
+Una formulaci\'on equivalente usada por Verdict~\cite{Verdict2007}, m\'as directa de programar, es
+\begin{equation}
+T_R \;=\; \max\!\left(\frac{\bigl|\,\|\mathbf{e}_{12}\|-\|\mathbf{e}_{34}\|\,\bigr|}{\|\mathbf{e}_{12}\|+\|\mathbf{e}_{34}\|},\;\frac{\bigl|\,\|\mathbf{e}_{23}\|-\|\mathbf{e}_{41}\|\,\bigr|}{\|\mathbf{e}_{23}\|+\|\mathbf{e}_{41}\|}\right),
+\label{eq:taper_edges}
+\end{equation}
+donde $\mathbf{e}_{ij}=\mathbf{r}_j-\mathbf{r}_i$.
+\begin{itemize}[leftmargin=1.2em]
+  \item \textbf{Ideal:} $T_R = 0$ (paralelogramo). \textbf{Aceptable:} $T_R \le 0{,}5$. \textbf{Malo:} $T_R > 0{,}7$.
+  \item \textbf{Interpretaci\'on f\'isica:} cuantifica cu\'anto se aparta el elemento de ser un paralelogramo. Un \emph{taper} elevado impide representar exactamente campos de gradiente constante y es la causa principal del \emph{trapezoidal locking} en elementos serendipity Q8.
+\end{itemize}
+
+\subsection{Sesgo o \emph{skew} de Robinson ($S_R$)}
+\begin{equation}
+\boxed{\;S_R \;=\; \frac{|\mathbf{X}_1\cdot\mathbf{X}_2|}{\|\mathbf{X}_1\|\,\|\mathbf{X}_2\|} \;=\; |\cos\phi|\;}
+\label{eq:skew}
+\end{equation}
+donde $\phi$ es el \'angulo entre los dos vectores de puntos medios evaluado en el centro del elemento. Robinson demostr\'o la propiedad notable de que $S_R=0$ no s\'olo en rect\'angulos sino tambi\'en en trapecios sim\'etricos, cometas y tri\'angulos degenerados: los vectores $\mathbf{X}_1$ y $\mathbf{X}_2$ permanecen ortogonales mientras la distorsi\'on se concentra \'unicamente en $\mathbf{X}_3$.
+\begin{itemize}[leftmargin=1.2em]
+  \item \textbf{Ideal:} $S_R = 0$ (cuadril\'atero con ejes isoparam\'etricos ortogonales).
+  \item \textbf{Aceptable:} $S_R \le 0{,}5$, equivalente a $\phi \in [60^\circ, 120^\circ]$.
+  \item \textbf{Interpretaci\'on f\'isica:} un sesgo alto contamina la evaluaci\'on de deformaciones en los puntos de Gauss por mezcla espuria de componentes de cortante y normal.
+\end{itemize}
+
+\begin{notabox}[title={Sobre la implementaci\'on actual en EduFEM}]
+La funci\'on \texttt{robinson\_stretch(corner\_coords)} presente en~\texttt{fem/mesh\_quality.py} computa $\max_i\|\mathbf{e}_i\|/\min_i\|\mathbf{e}_i\|$, lo que corresponde a una \emph{relaci\'on de aspecto de aristas} (v\'alida pero limitada). La discrepancia con la ecuaci\'on~\eqref{eq:AR_R} es que Robinson usa \emph{vectores entre puntos medios} ($\mathbf{X}_1,\mathbf{X}_2$) y no las aristas directamente. Ambas m\'etricas coinciden en paralelogramos, pero difieren en trapecios y cuadril\'ateros generales. La propuesta es: (i)~renombrar la funci\'on a \texttt{edge\_aspect\_ratio}; (ii)~a\~nadir tres funciones nuevas \texttt{robinson\_aspect}, \texttt{robinson\_taper} y \texttt{robinson\_skew} basadas en $\mathbf{X}_1,\mathbf{X}_2,\mathbf{X}_3$.
+\end{notabox}
+
+\section{M\'etricas basadas en el Jacobiano}
+\label{sec:jac}
+
+\subsection{Relaci\'on del determinante (\emph{Jacobian ratio})}
+
+Sea $\mathcal{G}$ el conjunto de puntos de Gauss del elemento ($2\!\times\!2$ para Q4, $3\!\times\!3$ para Q9). Dos convenciones coexisten en la literatura comercial:
+\begin{align}
+R_J^{\text{Abaqus/Patran}} &\;=\; \frac{\min_{g\in\mathcal{G}} J(\boldsymbol{\xi}_g)}{\max_{g\in\mathcal{G}} J(\boldsymbol{\xi}_g)} \;\in\;(0,1], \label{eq:RJ_abq}\\[2pt]
+R_J^{\text{ANSYS}}\phantom{/Patran} &\;=\; \frac{\max_{g\in\mathcal{G}} J(\boldsymbol{\xi}_g)}{\min_{g\in\mathcal{G}} J(\boldsymbol{\xi}_g)} \;\in\;[1,\infty). \label{eq:RJ_ans}
+\end{align}
+El c\'odigo de EduFEM usa la convenci\'on~\eqref{eq:RJ_abq} (su funci\'on \texttt{jacobian\_ratio} devuelve \texttt{min/max}).
+\begin{itemize}[leftmargin=1.2em]
+  \item \textbf{Ideal:} $R_J^{\text{Abaqus}}=1$ (elemento rectangular perfecto, Jacobiano constante).
+  \item \textbf{Bueno:} $\ge 0{,}7$. \textbf{Aceptable:} $\ge 0{,}3$. \textbf{Inaceptable:} $<0{,}1$.
+  \item \textbf{Interpretaci\'on f\'isica:} mide cu\'an uniforme es el mapeo isoparam\'etrico a lo largo del elemento. Valores bajos indican que la integraci\'on num\'erica de $\int_{\Omega_e} \mathbf{B}^{\!\top}\mathbf{D}\,\mathbf{B}\,|J|\,d\xi\,d\eta$ pierde precisi\'on significativamente.
+\end{itemize}
+
+\subsection{Jacobiano escalado (\emph{scaled Jacobian})}
+
+Una m\'etrica m\'as selectiva, propia del Verdict Library~\cite{Verdict2007,Knupp2003}, normaliza el Jacobiano nodal por la longitud de las dos aristas incidentes en cada v\'ertice. Para el v\'ertice $i$ con aristas $\mathbf{L}_{i-1}$ y $\mathbf{L}_i$ (productos vectoriales en 2D tomados como escalares con signo):
+\begin{equation}
+SJ_i \;=\; \frac{\mathbf{L}_{i-1}\times\mathbf{L}_i}{\|\mathbf{L}_{i-1}\|\,\|\mathbf{L}_i\|} \;=\; \sin\alpha_i,
+\label{eq:SJ_i}
+\end{equation}
+donde $\alpha_i$ es el \'angulo interno. La m\'etrica del elemento se define como
+\begin{equation}
+\boxed{\;SJ \;=\; \min_{i=1,\dots,4} SJ_i \;\in[-1,1]\;}
+\label{eq:SJ}
+\end{equation}
+\begin{itemize}[leftmargin=1.2em]
+  \item \textbf{Ideal:} $SJ = 1$ (todos los \'angulos de $90^\circ$).
+  \item \textbf{Aceptable:} $SJ \ge 0{,}5$. \textbf{Bajo:} $0<SJ<0{,}3$. \textbf{Invertido:} $SJ \le 0$.
+  \item \textbf{Ventaja clave:} es el \'unico indicador robusto para detectar elementos \emph{invertidos} (auto--intersectantes) y es independiente del tama\~no absoluto.
+\end{itemize}
+
+\subsection{Criterio de Jacobiano negativo (inversi\'on del elemento)}
+Un elemento se considera \emph{inv\'alido} si el determinante del Jacobiano cambia de signo o se anula en el interior:
+\begin{equation}
+\text{elemento v\'alido} \;\iff\; J(\boldsymbol{\xi}_g) > \varepsilon \quad \forall g\in\mathcal{G},\qquad \varepsilon = 10^{-12}.
+\label{eq:valid_elem}
+\end{equation}
+En EduFEM, la constante $\varepsilon$ es precisamente \texttt{JACOBIAN\_MIN\_DETERMINANT} de \texttt{config/settings.py}. Para un Q4 la inversi\'on requiere no convexidad; en un Q9 puede ocurrir adem\'as cuando un nodo intermedio sale del \emph{intervalo v\'alido} (v\'ease secci\'on~\ref{sec:midside}).
+
+\subsection{N\'umero de condici\'on del Jacobiano (Knupp)}
+
+Knupp~\cite{Knupp2000} propuso evaluar la calidad del mapeo mediante el n\'umero de condici\'on de Frobenius de $\mathbf{J}$:
+\begin{equation}
+\kappa(\mathbf{J}) \;=\; \|\mathbf{J}\|_F\,\|\mathbf{J}^{-1}\|_F \;=\; \frac{\|\mathbf{J}\|_F^{\,2}}{|\det\mathbf{J}|}, \qquad \|\mathbf{J}\|_F^{\,2} = \sum_{i,j} J_{ij}^{\,2}.
+\label{eq:kappa}
+\end{equation}
+La \emph{m\'etrica de forma} normalizada es $\mathrm{Sh} = 2/\kappa \in [0,1]$, con valor ideal $1$.
+\begin{itemize}[leftmargin=1.2em]
+  \item \textbf{Ideal:} $\kappa = 2$, $\mathrm{Sh}=1$. \textbf{Aceptable:} $\mathrm{Sh}\ge 0{,}3$.
+  \item \textbf{Interpretaci\'on f\'isica:} acota la amplificaci\'on del error de redondeo en la integraci\'on num\'erica de la rigidez.
+\end{itemize}
+
+\section{M\'etricas angulares}
+\label{sec:angles}
+
+\subsection{\'Angulos internos}
+El c\'alculo implementado actualmente en \texttt{internal\_angles} es correcto. Para el v\'ertice $i$, con vecinos $i-1$ e $i+1$:
+\begin{equation}
+\theta_i \;=\; \arccos\!\left(\frac{(\mathbf{r}_{i-1}-\mathbf{r}_i)\cdot(\mathbf{r}_{i+1}-\mathbf{r}_i)}{\|\mathbf{r}_{i-1}-\mathbf{r}_i\|\,\|\mathbf{r}_{i+1}-\mathbf{r}_i\|}\right).
+\label{eq:theta_i}
+\end{equation}
+
+\subsection{Sesgo equiangular ($Q_{EAS}$, ANSYS Fluent)}
+Una m\'etrica adimensional ampliamente usada por ANSYS Fluent~\cite{FluentUG}:
+\begin{equation}
+\boxed{\;Q_{EAS} \;=\; \max\!\left(\frac{\theta_{\max}-\theta_e}{180^\circ-\theta_e},\;\frac{\theta_e-\theta_{\min}}{\theta_e}\right),\qquad \theta_e = 90^\circ\;}
+\label{eq:EAS}
+\end{equation}
+Los umbrales recomendados por el manual son:
+\begin{center}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{cc}
+\toprule
+$Q_{EAS}$ & Calidad \\
+\midrule
+$0{,}00 - 0{,}25$ & Excelente \\
+$0{,}25 - 0{,}50$ & Buena \\
+$0{,}50 - 0{,}80$ & Aceptable \\
+$0{,}80 - 0{,}95$ & Pobre \\
+$0{,}95 - 1{,}00$ & Degenerada \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Umbrales directos sobre $\theta_{\min},\theta_{\max}$ (NAFEMS)}
+\begin{center}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{lccc}
+\toprule
+\textbf{M\'etrica} & \textbf{Buena} & \textbf{Aceptable} & \textbf{Inaceptable} \\
+\midrule
+$\theta_{\min}$ & $\ge 45^\circ$ & $\ge 30^\circ$ & $<20^\circ$ \\
+$\theta_{\max}$ & $\le 135^\circ$ & $\le 150^\circ$ & $>160^\circ$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Sugerencias de m\'etricas adicionales}
+\label{sec:extras}
+
+\subsection{Relaci\'on de aspecto --- tres definiciones coexistentes}
+
+La literatura no es un\'ivoca respecto a ``aspect ratio''. Conviene documentar cu\'al se usa:
+\begin{enumerate}[leftmargin=1.4em]
+  \item \textbf{Longitud de aristas} (la m\'as simple, la actualmente llamada \texttt{robinson\_stretch} en EduFEM): $AR_{\text{arista}} = L_{\max}/L_{\min}$.
+  \item \textbf{Vectores de puntos medios} (Robinson): ecuaci\'on~\eqref{eq:AR_R}.
+  \item \textbf{Stretch de Verdict}~\cite{Verdict2007}:
+  \begin{equation}
+  \mathrm{Str} \;=\; \sqrt{2}\,\frac{L_{\min}}{D_{\max}}, \qquad D_{\max} = \max\bigl(\|\mathbf{r}_3-\mathbf{r}_1\|,\|\mathbf{r}_4-\mathbf{r}_2\|\bigr),
+  \label{eq:verdict_stretch}
+  \end{equation}
+  normalizada al rango $[0,1]$ con ideal $=1$.
+\end{enumerate}
+
+\subsection{M\'etrica de Oddy}
+\begin{equation}
+O \;=\; \frac{\|\mathbf{J}^{\!\top}\mathbf{J}\|_F^{\,2} - \tfrac{1}{2}\,\mathrm{tr}(\mathbf{J}^{\!\top}\mathbf{J})^2}{(\det\mathbf{J})^{\,2}}.
+\label{eq:oddy}
+\end{equation}
+Equivalente al n\'umero de condici\'on del tensor m\'etrico $\mathbf{G}=\mathbf{J}^{\!\top}\mathbf{J}$. \textbf{Ideal:} $O=0$. \textbf{Aceptable:} $O\le 0{,}5$. Es la base de m\'ultiples funcionales objetivo en optimizaci\'on de mallas~\cite{Knupp2000}.
+
+\subsection{Calidad ortogonal (\emph{orthogonal quality}, Fluent)}
+Para cada cara $f$ de la celda:
+\begin{equation}
+OQ \;=\; \min_{f}\!\left(\frac{\mathbf{A}_f\cdot\mathbf{f}_f}{\|\mathbf{A}_f\|\,\|\mathbf{f}_f\|},\;\frac{\mathbf{A}_f\cdot\mathbf{c}_f}{\|\mathbf{A}_f\|\,\|\mathbf{c}_f\|}\right),
+\label{eq:OQ}
+\end{equation}
+con $\mathbf{A}_f$ normal de la cara, $\mathbf{f}_f$ vector del centroide de la celda al centroide de la cara, y $\mathbf{c}_f$ vector al centroide de la celda vecina. \textbf{Ideal:} $OQ=1$; Fluent rechaza $OQ<0{,}1$.
+
+\subsection{Posici\'on de los nodos medios Q9 (criterio del cuarto de arista)}
+\label{sec:midside}
+
+Para un elemento cuadr\'atico, la \emph{posici\'on} del nodo intermedio a lo largo de su arista es cr\'itica. Sea $\mathbf{m}$ la posici\'on del nodo medio sobre la arista $(a,b)$ y defina el par\'ametro lineal
+\begin{equation}
+s \;=\; \frac{(\mathbf{m}-\mathbf{r}_a)\cdot(\mathbf{r}_b-\mathbf{r}_a)}{\|\mathbf{r}_b-\mathbf{r}_a\|^{\,2}} \;\in\;[0,1].
+\label{eq:s_param}
+\end{equation}
+La restricci\'on de una arista recta con funciones de forma cuadr\'aticas $\{N_1,N_2,N_3\}$ en el par\'ametro $\xi\in[-1,1]$ produce
+\begin{equation}
+J(\xi) \;=\; \tfrac{L}{2} + (1-2s)\,L\,\xi.
+\label{eq:J_edge}
+\end{equation}
+Exigir $J(\xi)>0$ en todo el intervalo produce el \textbf{intervalo v\'alido cl\'asico}:
+\begin{equation}
+\boxed{\;\tfrac{1}{4} < s < \tfrac{3}{4}\;}
+\label{eq:quarter_rule}
+\end{equation}
+En los extremos $s=\tfrac{1}{4}$ y $s=\tfrac{3}{4}$ el Jacobiano se anula en el v\'ertice cercano: \'esta es exactamente la construcci\'on del \emph{elemento singular de Barsoum}~\cite{Barsoum1976} empleado deliberadamente en mec\'anica de la fractura lineal el\'astica para reproducir la singularidad $r^{-1/2}$ en la punta de una grieta. Para an\'alisis general la recomendaci\'on es:
+\begin{itemize}[leftmargin=1.2em]
+  \item \textbf{Ideal:} $s = 0{,}5$. \textbf{Bueno:} $|s-0{,}5|\le 0{,}1$.
+  \item \textbf{Advertencia:} $|s-0{,}5| > 0{,}15$. \textbf{Inaceptable:} $|s-0{,}5| \ge 0{,}25$.
+\end{itemize}
+Para el nodo centroide N9 se aplica un criterio an\'alogo: su posici\'on en el sistema de coordenadas f\'isicas debe permanecer dentro de la envolvente convexa de los cuatro nodos intermedios, de lo contrario $\det\mathbf{J}$ puede cambiar de signo en el interior del elemento.
+
+\begin{recbox}[title={Relevancia para EduFEM}]
+Esta m\'etrica \textbf{no est\'a implementada} actualmente. Dado que EduFEM genera los nodos medios autom\'aticamente mediante \texttt{expand\_q4\_to\_q9} colocando $s=0{,}5$ por construcci\'on, en proyectos reci\'en convertidos siempre se cumplir\'a el criterio. Sin embargo, si se permitiera en el futuro el movimiento manual de los nodos medios (por ejemplo, para mostrar educativamente el elemento de Barsoum o para importar mallas externas), \'esta ser\'ia la m\'etrica m\'as informativa.
+\end{recbox}
+
+\subsection{\'Area del elemento y uniformidad de tama\~no}
+
+\'Area por la f\'ormula del zapato (shoelace) para Q4:
+\begin{equation}
+A_e \;=\; \tfrac{1}{2}\bigl|x_1(y_2-y_4)+x_2(y_3-y_1)+x_3(y_4-y_2)+x_4(y_1-y_3)\bigr|.
+\label{eq:area}
+\end{equation}
+Sobre el conjunto de la malla se definen dos cifras de m\'erito:
+\begin{align}
+\rho &\;=\; \frac{A_{\min}}{A_{\max}} \qquad \text{(raz\'on global de tama\~nos, recomendado } \ge 0{,}01\text{)}, \\
+R_s &\;=\; \min\!\left(\frac{A_e}{\bar A},\,\frac{\bar A}{A_e}\right) \qquad \text{(tama\~no relativo, aceptable } \ge 0{,}3\text{)},
+\end{align}
+con $\bar A$ el \'area media. Saltos bruscos de tama\~no ($\rho<10^{-3}$) generan concentraciones espurias de esfuerzos en la interfaz entre regiones.
+
+\subsection{Comentario sobre \emph{warpage}}
+El alabeo (\emph{warpage}) mide la desviaci\'on de los cuatro v\'ertices respecto a un plano com\'un. Por construcci\'on es \emph{identicamente nulo} en elementos 2D planos (Q4/Q9 en estado plano de tensi\'on o deformaci\'on), por lo que \textbf{no aplica} a EduFEM. Se menciona por completitud y para clarificar que los tutoriales de mallado de cascarones 3D incorporan esta m\'etrica mientras que aqu\'i no es relevante.
+
+\section{Tabla consolidada de umbrales}
+
+\renewcommand{\arraystretch}{1.2}
+\begin{longtable}{lllllll}
+\toprule
+\textbf{M\'etrica} & \textbf{S\'imbolo} & \textbf{Ideal} & \textbf{Buena} & \textbf{Aceptable} & \textbf{Inaceptable} & \textbf{Ref.} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{M\'etrica} & \textbf{S\'imbolo} & \textbf{Ideal} & \textbf{Buena} & \textbf{Aceptable} & \textbf{Inaceptable} & \textbf{Ref.} \\
+\midrule
+\endhead
+Aspect de Robinson & $AR_R$ & $1$ & $\le 2$ & $\le 4$ & $>10$ & \cite{Robinson1987,Verdict2007} \\
+Taper de Robinson & $T_R$ & $0$ & $\le 0{,}2$ & $\le 0{,}5$ & $>0{,}7$ & \cite{Robinson1987,Verdict2007} \\
+Skew de Robinson & $S_R$ & $0$ & $\le 0{,}2$ & $\le 0{,}5$ & $>0{,}7$ & \cite{Robinson1987,Verdict2007} \\
+Stretch de Verdict & $\mathrm{Str}$ & $1$ & $\ge 0{,}5$ & $\ge 0{,}25$ & $<0{,}1$ & \cite{Verdict2007,Knupp2003} \\
+Jacobian ratio (Abaqus) & $R_J$ & $1$ & $\ge 0{,}7$ & $\ge 0{,}3$ & $<0{,}1$ & \cite{AbaqusCAE} \\
+Jacobian ratio (ANSYS) & $R_J$ & $1$ & $\le 5$ & $\le 10$ & $>40$ & \cite{AnsysMesh} \\
+Scaled Jacobian & $SJ$ & $1$ & $\ge 0{,}7$ & $\ge 0{,}5$ & $\le 0$ & \cite{Verdict2007,Knupp2003} \\
+\'Angulo m\'inimo & $\theta_{\min}$ & $90^\circ$ & $\ge 45^\circ$ & $\ge 30^\circ$ & $<20^\circ$ & \cite{FluentUG,Verdict2007} \\
+\'Angulo m\'aximo & $\theta_{\max}$ & $90^\circ$ & $\le 135^\circ$ & $\le 150^\circ$ & $>160^\circ$ & \cite{FluentUG,Verdict2007} \\
+Skew equiangular & $Q_{EAS}$ & $0$ & $\le 0{,}25$ & $\le 0{,}5$ & $>0{,}9$ & \cite{FluentUG} \\
+Condici\'on de Knupp & $\kappa$ & $2$ & $\le 4$ & $\le 10$ & $>30$ & \cite{Knupp2000} \\
+Oddy & $O$ & $0$ & $\le 0{,}2$ & $\le 0{,}5$ & $>2$ & \cite{Knupp2000} \\
+Ortogonalidad & $OQ$ & $1$ & $\ge 0{,}7$ & $\ge 0{,}2$ & $<0{,}1$ & \cite{FluentUG} \\
+Posici\'on nodo medio Q9 & $s$ & $0{,}5$ & $|s-0{,}5|\le 0{,}1$ & $|s-0{,}5|\le 0{,}2$ & $\ge 0{,}25$ & \cite{Bathe2014,Barsoum1976} \\
+Uniformidad de tama\~no & $\rho$ & $1$ & $\ge 0{,}5$ & $\ge 0{,}1$ & $<0{,}01$ & \cite{Verdict2007} \\
+\bottomrule
+\end{longtable}
+
+\section{Contexto avanzado: \emph{patch test}, MacNeal--Harder y Q9 vs Q8}
+\label{sec:patch}
+
+\subsection{\emph{Patch test} (prueba de parcheo)}
+Una formulaci\'on de elementos finitos \emph{pasa la prueba de parcheo} si y s\'olo si, para una malla arbitraria (incluyendo cuadril\'ateros distorsionados) sometida a una condici\'on de frontera de deformaci\'on constante, reproduce exactamente esa deformaci\'on y el correspondiente campo de tensi\'on en todo el parche. El teorema de Irons \& Razzaque~\cite{IronsRazzaque1972} garantiza:
+\begin{itemize}[leftmargin=1.2em]
+  \item Q4 pasa la prueba de parcheo en cualquier cuadril\'atero convexo.
+  \item Q9 pasa la prueba para cualquier elemento admisible con nodos medios en el intervalo $(\tfrac{1}{4},\tfrac{3}{4})$.
+  \item \textbf{Q8 serendipity} pasa la prueba de deformaci\'on \emph{constante} pero \textbf{falla} la prueba cuadr\'atica en cuadril\'ateros no paralelogr\'amicos. Este es el argumento principal para preferir Q9 en mallas educativas donde la distorsi\'on es deliberada.
+\end{itemize}
+
+\subsection{Benchmark MacNeal--Harder}
+El conjunto est\'andar de problemas para validar elementos~\cite{MacNealHarder1985} consta de:
+\begin{enumerate}[leftmargin=1.4em,itemsep=0pt]
+  \item Viga en voladizo recta (mallas regular, trapezoidal, paralelogr\'amica).
+  \item Viga curva.
+  \item Viga torsionada.
+  \item Placa rectangular (apoyos simples y empotramiento).
+  \item Cubierta de Scordelis--Lo.
+  \item Cascar\'on esf\'erico.
+  \item Cilindro de pared gruesa.
+\end{enumerate}
+La variante trapezoidal del problema 1 es la prueba can\'onica de sensibilidad al \emph{taper} de Robinson: bajo una distorsi\'on moderada Q8 pierde $\sim 40\%$ de precisi\'on en el desplazamiento de la punta, mientras que Q9 pierde $<5\%$~\cite{LeeBathe1993}.
+
+\subsection{Por qu\'e Q9 es m\'as robusto que Q8 bajo distorsi\'on}
+Bajo una distorsi\'on angular o trapezoidal, el Jacobiano isoparam\'etrico~\eqref{eq:jacobian} deja de ser constante y su inversa se convierte en una funci\'on racional de $(\xi,\eta)$. Para representar exactamente un campo de desplazamiento cuadr\'atico tras la composici\'on con $\mathbf{J}^{-1}$ el elemento debe conservar \emph{completitud polin\'omica} de grado 2 en coordenadas globales. La base Lagrangiana de Q9
+\[
+\{1,\xi,\eta,\xi^2,\eta^2,\xi\eta,\xi^2\eta,\xi\eta^2,\xi^2\eta^2\}
+\]
+\emph{s\'i} conserva esta completitud bajo distorsi\'on arbitraria. La base serendipity de Q8, por el contrario, omite los t\'erminos $\xi^2\eta^2$, $\xi^2\eta$ y $\xi\eta^2$, y bajo distorsi\'on angular colapsa a un espacio polin\'omico efectivo de grado 1 en coordenadas globales. El resultado es el fen\'omeno conocido como \emph{trapezoidal locking}.
+
+La conclusi\'on de Lee \& Bathe~\cite{LeeBathe1993} es expl\'icita:
+\begin{quote}
+\emph{``Los elementos Lagrangianos no se ven afectados por distorsiones angulares y son por tanto los elementos m\'as fiables para uso general.''}
+\end{quote}
+
+\section{Recomendaciones espec\'ificas para el c\'odigo EduFEM}
+\label{sec:recs}
+
+\subsection{Refactor propuesto de \texttt{fem/mesh\_quality.py}}
+
+Se sugiere el siguiente esqueleto, que preserva la API actual y a\~nade las nuevas m\'etricas de forma incremental:
+
+\begin{lstlisting}[caption={Esqueleto propuesto para \texttt{fem/mesh\_quality.py}}]
+def edge_aspect_ratio(corner_coords):
+    """Relacion de aspecto por longitud de aristas (la metrica
+    anteriormente llamada robinson_stretch).
+    Ideal: 1.0  -  Aceptable: < 4.0
+    """
+    ...  # codigo actual de robinson_stretch
+
+def robinson_vectors(corner_coords):
+    """Devuelve X0, X1, X2, X3 (ecs. (3)-(6))."""
+    r = corner_coords[:4]
+    X0 = 0.25 * r.sum(axis=0)
+    X1 = 0.25 * (-r[0] + r[1] + r[2] - r[3])
+    X2 = 0.25 * (-r[0] - r[1] + r[2] + r[3])
+    X3 = 0.25 * ( r[0] - r[1] + r[2] - r[3])
+    return X0, X1, X2, X3
+
+def robinson_aspect(corner_coords):
+    """Aspect ratio de Robinson (ec. (7))."""
+    _, X1, X2, _ = robinson_vectors(corner_coords)
+    n1, n2 = np.linalg.norm(X1), np.linalg.norm(X2)
+    return max(n1, n2) / max(min(n1, n2), 1e-15)
+
+def robinson_taper(corner_coords):
+    """Taper de Robinson (ec. (8))."""
+    _, X1, X2, X3 = robinson_vectors(corner_coords)
+    n1, n2 = np.linalg.norm(X1), np.linalg.norm(X2)
+    t1 = abs(np.dot(X3, X1)) / (n1*n1 + 1e-15)
+    t2 = abs(np.dot(X3, X2)) / (n2*n2 + 1e-15)
+    return max(t1, t2)
+
+def robinson_skew(corner_coords):
+    """Skew de Robinson (ec. (10))."""
+    _, X1, X2, _ = robinson_vectors(corner_coords)
+    n1, n2 = np.linalg.norm(X1), np.linalg.norm(X2)
+    return abs(np.dot(X1, X2)) / (n1*n2 + 1e-15)
+
+def scaled_jacobian(corner_coords):
+    """Scaled Jacobian (ec. (15))."""
+    r = corner_coords[:4]
+    n = 4
+    vals = []
+    for i in range(n):
+        a = r[(i-1) % n] - r[i]
+        b = r[(i+1) % n] - r[i]
+        cross = a[0]*b[1] - a[1]*b[0]
+        vals.append(cross / (np.linalg.norm(a)*np.linalg.norm(b) + 1e-15))
+    return min(vals)
+
+def equiangular_skewness(corner_coords):
+    """Q_EAS de Fluent (ec. (18))."""
+    angles = internal_angles(corner_coords)
+    tmin, tmax, te = min(angles), max(angles), 90.0
+    return max((tmax - te) / (180.0 - te), (te - tmin) / te)
+
+def midside_position_ratio(elem, project):
+    """Parametro s de cada arista Q9 (ec. (23)).
+    Devuelve la maxima desviacion |s - 0.5| entre las 4 aristas."""
+    if elem.num_nodes != 9:
+        return 0.0
+    ...  # iterar aristas (n1,n2,n5),(n2,n3,n6),...
+\end{lstlisting}
+
+\subsection{Ampliaci\'on de \texttt{evaluate\_mesh\_quality}}
+Propuesta de diccionario de salida ampliado por elemento:
+\begin{lstlisting}[caption={Campos sugeridos en el resultado de \texttt{evaluate\_mesh\_quality}}]
+{
+  "jacobian_ratio": ...,       # ya existe
+  "scaled_jacobian": ...,      # NUEVO
+  "min_angle": ..., "max_angle": ..., "angles": [...],
+  "equiangular_skewness": ..., # NUEVO
+  "edge_aspect": ...,          # renombrado desde robinson (!)
+  "robinson_aspect": ...,      # NUEVO
+  "robinson_taper": ...,       # NUEVO
+  "robinson_skew": ...,        # NUEVO
+  "midside_deviation": ...,    # NUEVO (solo Q9)
+  "area": ...,                 # NUEVO (shoelace)
+  "status": "Buena" | "Aceptable" | "Mala",
+}
+\end{lstlisting}
+
+\subsection{Criterio de \emph{status} combinado}
+Para mantener la sem\'antica pedag\'ogica de tres niveles, se propone:
+\begin{align*}
+\text{Buena:}&\quad R_J \ge 0{,}5 \;\wedge\; SJ \ge 0{,}5 \;\wedge\; Q_{EAS} \le 0{,}5 \;\wedge\; T_R \le 0{,}3 \;\wedge\; AR_R \le 3, \\
+\text{Aceptable:}&\quad R_J \ge 0{,}2 \;\wedge\; SJ > 0 \;\wedge\; \theta_{\min} \ge 30^\circ, \\
+\text{Mala:}&\quad \text{resto.}
+\end{align*}
+
+\subsection{Impacto en el m\'odulo educativo M0}
+El m\'odulo M0 (\texttt{education/mod00\_mesh\_quality.py}) actualmente muestra los tres indicadores hist\'oricos en el radar normalizado. Se sugiere: (i)~a\~nadir las cuatro nuevas m\'etricas al radar; (ii)~mantener un modo ``cl\'asico'' con s\'olo los tres hist\'oricos para no saturar al estudiante principiante; (iii)~en proyectos Q9 mostrar adicionalmente un histograma de la desviaci\'on del nodo medio $|s-0{,}5|$ para toda la malla.
+
+\section{Framework unificado Q4/Q9 implementado en EduFEM}
+\label{sec:unified}
+
+Tras el an\'alisis de las secciones \ref{sec:robinson}--\ref{sec:extras}, se adopt\'o un \textbf{set unificado de 4 m\'etricas} que cubre las cinco dimensiones independientes de calidad (macro-forma, macro-elongaci\'on, uniformidad interior, admisibilidad de nodos medios, admisibilidad del centroide) con redundancia m\'inima. Las tres primeras son \emph{tipo-agn\'osticas} y aplican id\'enticamente a Q4 y Q9; la cuarta se adapta al tipo de elemento para medir el modo de falla dominante de cada familia.
+
+\subsection{Principio de capas ortogonales}
+La clave del framework es que cada m\'etrica mira la geometr\'ia en una capa distinta:
+\begin{itemize}[leftmargin=1.4em,itemsep=1pt]
+  \item $q_{SJ}$ y $R_J$ usan las funciones de forma del elemento ($N_i^{(4)}$ o $N_i^{(9)}$) evaluadas en los puntos Gauss nativos. \textbf{Ven la geometr\'ia real, incluyendo la curvatura de un Q9}.
+  \item $AR_R$ usa s\'olo las 4 esquinas. Caracteriza el \textbf{sobre envolvente macro} del elemento; es ciega a la posici\'on de los nodos medios por dise\~no.
+  \item La 4ta m\'etrica (Taper o $q_D$) mide \textbf{la desviaci\'on entre la geometr\'ia real y el sobre macro}: para Q4 esa desviaci\'on se expresa como conicidad trapezoidal; para Q9 se expresa como desplazamiento de los nodos internos.
+\end{itemize}
+En consecuencia, un Q9 con esquinas cuadradas ($AR_R = 1$) pero con un nodo medio desplazado hacia afuera tendr\'a $q_D$ elevado y, por propagaci\'on de la curvatura, $R_J$ reducido, mientras $AR_R$ permanece en 1. El diagn\'ostico apunta al nodo medio como causa ra\'iz, no al elemento completo.
+
+\subsection{Tabla de las 4 m\'etricas finales}
+\begin{center}
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{cllcc}
+\toprule
+\# & \textbf{M\'etrica} & \textbf{Cobertura} & \textbf{Q4} & \textbf{Q9} \\
+\midrule
+1 & Scaled Jacobian $q_{SJ}$ & \'angulos + inversi\'on & \checkmark & \checkmark \\
+2 & Jacobian Ratio $R_J$ & uniformidad interior & \checkmark & \checkmark \\
+3 & Robinson Aspect $AR_R$ & elongaci\'on macro & \checkmark & \checkmark \\
+4 & Robinson Taper $T_R$ & trapezoidal locking & \checkmark & --- \\
+4 & Admisibilidad $q_D$ + gates & nodos N5--N9 & --- & \checkmark \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Criterio de estado combinado}
+Un elemento recibe el status \emph{Buena} si y s\'olo si
+\begin{equation}
+q_{SJ} \ge 0{,}7 \;\wedge\; R_J \ge 0{,}5 \;\wedge\; AR_R \le 3 \;\wedge\;
+\begin{cases}
+T_R \le 0{,}3 & \text{(Q4)}\\
+q_D \le 0{,}10 \;\wedge\; \text{gates OK} & \text{(Q9)}
+\end{cases}
+\label{eq:status_buena}
+\end{equation}
+\emph{Aceptable} si $q_{SJ} \ge 0{,}3,\ R_J \ge 0{,}2,\ AR_R \le 5$ y la 4ta m\'etrica cumple un umbral laxo (Q4: $T_R \le 0{,}5$; Q9: $q_D \le 0{,}25$ y gates OK). \emph{Mala} en cualquier otro caso, con asignaci\'on autom\'atica a \emph{Mala} si $q_{SJ} \le 0$, $R_J \le 0$ o (para Q9) alg\'un gate duro del 1/4--3/4 o de convexidad de $\mathbf{P}_9$ est\'a violado.
+
+\subsection{Estructura del resultado}
+La funci\'on \texttt{evaluate\_mesh\_quality(project)} devuelve por elemento:
+
+\begin{lstlisting}[caption={Campos del diccionario devuelto por \texttt{evaluate\_mesh\_quality}}]
+{
+  # Metricas universales (Q4 y Q9)
+  'scaled_jacobian':    float,   # q_SJ, rango [-1, 1]
+  'jacobian_ratio':     float,   # R_J,  rango (0, 1]
+  'robinson_aspect':    float,   # AR_R, ideal 1.0
+  'edge_aspect':        float,   # L_max/L_min (metrica simple)
+  'min_angle', 'max_angle', 'angles': float / list,  # diagnostico
+  # 4ta metrica dependiente del tipo
+  'robinson_taper':        float | None,  # T_R: solo Q4
+  'midside_admissibility': {                # solo Q9
+     'q_D':              float,
+     's_min', 's_max':   float,   # tangencial de nodos medios
+     'gate_tangential':  bool,    # todos en (1/4, 3/4)?
+     'gate_convex':      bool,    # N9 en envolvente de N5-N8?
+     'gates_ok':         bool,
+  } | None,
+  # Sintesis
+  'status': 'Buena' | 'Aceptable' | 'Mala',
+  # Retrocompat con llamadores antiguos
+  'robinson': float,   # == edge_aspect; NO es AR_R, usar robinson_aspect
+}
+\end{lstlisting}
+
+\subsection{Impacto pedag\'ogico en el m\'odulo M0}
+El m\'odulo educativo \texttt{education/mod00\_mesh\_quality.py} se adapta autom\'aticamente al tipo de elemento activo:
+\begin{itemize}[leftmargin=1.4em,itemsep=1pt]
+  \item El panel de m\'etricas muestra los 4 valores num\'ericos, con la etiqueta de la 4ta cambiando entre ``Taper (R)'' y ``Admis. Q9'' seg\'un corresponda.
+  \item El radar normalizado pasa de 3 a 4 ejes. Los 3 primeros son id\'enticos en ambos tipos; el 4to cambia de etiqueta (``Taper'' $\leftrightarrow$ ``Admis. N5--N9'').
+  \item Para Q9, junto al valor de $q_D$ se muestra el indicador \texttt{OK}/\texttt{!GATES} con el resultado de los dos gates duros (criterio del cuarto de arista y envolvente de $\mathbf{P}_9$).
+  \item Al pulsar ``Convertir Q4$\to$Q9'' el estudiante ve que el eje \emph{Taper} se relaja (Q9 maneja bien trapecios por completitud polin\'omica) y aparece el nuevo eje \emph{Admis.~N5--N9} que antes no ten\'ia sentido. Es una demostraci\'on visual del trade-off entre tipos de elementos.
+\end{itemize}
+
+\section{Conclusi\'on}
+La implementaci\'on actual de EduFEM cubre correctamente dos de las tres m\'etricas cl\'asicas (\'angulos internos y relaci\'on del Jacobiano); la tercera estaba mal etiquetada pero es num\'ericamente v\'alida como relaci\'on de aspecto de aristas. Tras el refactor descrito en \S\ref{sec:unified}, el c\'odigo incorpora: (a)~las m\'etricas aut\'enticas de Robinson basadas en los vectores de puntos medios; (b)~el Jacobiano escalado, \'unico indicador robusto de inversi\'on; (c)~la verificaci\'on de admisibilidad de los nodos medios y centroide para elementos Q9 (criterio del cuarto de arista + envolvente convexa de $\mathbf{P}_9$); y (d)~un criterio de status combinado que adapta la cuarta m\'etrica al tipo de elemento (Taper para Q4, Admisibilidad para Q9). El conjunto resulta consistente con los manuales de Abaqus, ANSYS y CUBIT/Verdict, y respalda la elecci\'on arquitect\'onica de Q9 frente a Q8 presente en EduFEM.
+
+\begin{thebibliography}{99}
+
+\bibitem{Robinson1987}
+Robinson, J. (1987). \emph{Some new distortion measures for quadrilaterals}. Finite Elements in Analysis and Design, Vol.~3, pp.~183--197. DOI: 10.1016/0168-874X(87)90023-0.
+
+\bibitem{Knupp2000}
+Knupp, P.\,M. (2000, 2001). \emph{Achieving finite element mesh quality via optimization of the Jacobian matrix norm and associated quantities. Parts I \& II}. International Journal for Numerical Methods in Engineering, 48: 401--420 y 1165--1185.
+
+\bibitem{Knupp2003}
+Knupp, P.\,M. (2003). \emph{Algebraic mesh quality metrics for unstructured initial meshes}. Finite Elements in Analysis and Design, 39: 217--241.
+
+\bibitem{Verdict2007}
+Pebay, P., Thompson, D., Shepherd, J., Knupp, P., et~al. (2007). \emph{The Verdict Geometric Quality Library}. Sandia National Laboratories, Technical Report SAND2007-1751. Metrics for Quadrilateral Elements --- Coreform CUBIT Documentation.
+
+\bibitem{FluentUG}
+ANSYS Inc. (2024). \emph{ANSYS Fluent User's Guide}, secci\'on ``Mesh Quality'' (tabla de skewness y orthogonal quality). \url{https://ansyshelp.ansys.com/}
+
+\bibitem{AnsysMesh}
+ANSYS Inc. (2024). \emph{ANSYS Meshing User's Guide}: ``Jacobian Ratio'' y ``Element Quality''.
+
+\bibitem{AbaqusCAE}
+Dassault Syst\`emes (2017). \emph{Abaqus/CAE User's Manual}: ``Adjusting the position of midside nodes'' y ``Resetting midside nodes''.
+
+\bibitem{IronsRazzaque1972}
+Irons, B.\,M., Razzaque, A. (1972). \emph{Experience with the patch test for convergence of finite elements}, en \emph{The Mathematical Foundations of the Finite Element Method}, Academic Press, pp.~557--587.
+
+\bibitem{MacNealHarder1985}
+MacNeal, R.\,H., Harder, R.\,L. (1985). \emph{A proposed standard set of problems to test finite element accuracy}. Finite Elements in Analysis and Design, 1: 3--20.
+
+\bibitem{LeeBathe1993}
+Lee, N.-S., Bathe, K.-J. (1993). \emph{Effects of element distortions on the performance of isoparametric elements}. International Journal for Numerical Methods in Engineering, 36: 3553--3576.
+
+\bibitem{Bathe2014}
+Bathe, K.-J. (2014). \emph{Finite Element Procedures}, 2$^{\text{a}}$ ed., Prentice Hall, \S 5.3.3.
+
+\bibitem{Barsoum1976}
+Barsoum, R.\,S. (1976). \emph{On the use of isoparametric finite elements in linear fracture mechanics}. Int. J. Num. Meth. Eng., 10: 25--37.
+
+\bibitem{Prathap1994}
+Prathap, G. (1994). \emph{Distortion, degeneracy and rezoning in finite elements}. S\=adhan\=a 19(2): 311--335.
+
+\end{thebibliography}
+
+\end{document}

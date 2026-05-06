@@ -21,9 +21,9 @@ import tkinter as tk
 import ttkbootstrap as ttk
 import sympy as sp
 
-from education.base_module import BaseEducationalModule
+from education.base_module import ProcessModule
 from education.components import (
-    PlotPanel, TheoryDoc, render_expression_latex,
+    PlotPanel, TheoryDoc, render_expression_latex, ParamInput,
 )
 from education.components.plot_panel import _theme_colors
 
@@ -32,7 +32,10 @@ from fem.jacobian import compute_jacobian, compute_dN_physical
 from fem.b_matrix import compute_b_matrix
 from fem.constitutive import constitutive_matrix
 from fem.gauss_quadrature import get_gauss_points_2d
-from config.settings import ANALYSIS_PLANE_STRESS, ANALYSIS_PLANE_STRAIN
+from config.settings import (
+    ANALYSIS_PLANE_STRESS, ANALYSIS_PLANE_STRAIN,
+    ELEMENT_Q4, ELEMENT_Q9,
+)
 
 
 # ───────────────────────── CAPA SIMBÓLICA ─────────────────────────
@@ -112,31 +115,110 @@ class SymbolicIntegrandQ4:
         return sp.cancel(expr)
 
 
+class SymbolicIntegrandQ9(SymbolicIntegrandQ4):
+    """Versión Q9 (bicuadrática) del integrando simbólico.
+
+    Hereda D, t y el armado de B/J; redefine las 9 funciones de forma y
+    los bucles sobre 9 nodos. Las coordenadas por defecto se generan
+    como un Q4 distorsionado + los 5 nodos extra en la posición canónica
+    (medios + centroide) por si no se pasan explícitamente.
+    """
+
+    def __init__(self, E=225000.0, nu=0.2, t=0.8, coords=None):
+        if coords is None or len(coords) < 9:
+            c4 = [[0, 0], [5, 0], [7, 4], [2, 3]]
+            mids = [
+                [(c4[0][0] + c4[1][0]) / 2, (c4[0][1] + c4[1][1]) / 2],
+                [(c4[1][0] + c4[2][0]) / 2, (c4[1][1] + c4[2][1]) / 2],
+                [(c4[2][0] + c4[3][0]) / 2, (c4[2][1] + c4[3][1]) / 2],
+                [(c4[3][0] + c4[0][0]) / 2, (c4[3][1] + c4[0][1]) / 2],
+            ]
+            cx = sum(p[0] for p in c4) / 4
+            cy = sum(p[1] for p in c4) / 4
+            coords = c4 + mids + [[cx, cy]]
+        super().__init__(E, nu, t, coords)
+
+    def _shape_functions(self):
+        xi, eta = self.xi, self.eta
+        half = sp.Rational(1, 2)
+        quarter = sp.Rational(1, 4)
+        return [
+            quarter * xi * (xi - 1) * eta * (eta - 1),
+            quarter * xi * (xi + 1) * eta * (eta - 1),
+            quarter * xi * (xi + 1) * eta * (eta + 1),
+            quarter * xi * (xi - 1) * eta * (eta + 1),
+            half * (1 - xi ** 2) * eta * (eta - 1),
+            half * xi * (xi + 1) * (1 - eta ** 2),
+            half * (1 - xi ** 2) * eta * (eta + 1),
+            half * xi * (xi - 1) * (1 - eta ** 2),
+            (1 - xi ** 2) * (1 - eta ** 2),
+        ]
+
+    def _jacobian(self, dN_dxi, dN_deta):
+        c = self.coords
+        dx_dxi = sum(dN_dxi[i] * c[i][0] for i in range(9))
+        dy_dxi = sum(dN_dxi[i] * c[i][1] for i in range(9))
+        dx_deta = sum(dN_deta[i] * c[i][0] for i in range(9))
+        dy_deta = sum(dN_deta[i] * c[i][1] for i in range(9))
+        return sp.Matrix([[dx_dxi, dy_dxi], [dx_deta, dy_deta]])
+
+    def _b(self, dN_dxi, dN_deta, J):
+        detJ = J.det()
+        i11 = J[1, 1] / detJ
+        i12 = -J[0, 1] / detJ
+        i21 = -J[1, 0] / detJ
+        i22 = J[0, 0] / detJ
+        B_parts = []
+        for i in range(9):
+            dNx = i11 * dN_dxi[i] + i12 * dN_deta[i]
+            dNy = i21 * dN_dxi[i] + i22 * dN_deta[i]
+            B_parts.append(sp.Matrix([[dNx, 0], [0, dNy], [dNy, dNx]]))
+        return sp.Matrix.hstack(*B_parts), detJ
+
+
 # ───────────────────────── MÓDULO ─────────────────────────
 
-class StiffnessGaussModule(BaseEducationalModule):
+class StiffnessGaussModule(ProcessModule):
     TITLE = "④ Rigidez del elemento  —  integrando + cuadratura de Gauss"
     HAS_ANIMATION = False
 
-    def __init__(self, parent, project, element_id):
-        self._element_type = "Q4"
-        self._n_nodes = 4
-        if project and project.elements.get(element_id):
-            et = project.elements[element_id].element_type
-            if "Q9" in str(et) or "9 nodos" in str(et):
-                self._element_type = "Q9"
-                self._n_nodes = 9
+    BADGE_SHOW_MATERIAL = True
 
-        self._E = 225_000.0
-        self._nu = 0.2
-        self._t = 0.8
-        self._analysis = ANALYSIS_PLANE_STRESS
+    def __init__(self, parent, project, element_id):
+        # element_type / n_nodes los autodetecta ProcessModule (vía base).
+        # Defaults de E, ν, t se inicializan desde el material/elemento del
+        # project; el usuario puede tunearlos para ver el efecto en K_ij.
+        self._E, self._nu, self._t = self._defaults_from_project(
+            project, element_id
+        )
+        # NOTA: _analysis (TP/DP) se lee dinámicamente vía self.analysis_type
+        # (propiedad de ProcessModule). NO existe selector local.
         self._order = 2
         self._i = 1
         self._j = 1
         self._current_gp = 0
         self._k_acum: np.ndarray | None = None
         super().__init__(parent, project, element_id, width=1380, height=880)
+
+    @staticmethod
+    def _defaults_from_project(project, element_id):
+        """Inicializa (E, ν, t) leyendo el elemento + su material del project.
+        Fallback: valores demo del ejemplo canónico (E=225000, ν=0.2, t=0.8).
+        """
+        E_def, nu_def, t_def = 225_000.0, 0.2, 0.8
+        if project is None:
+            return E_def, nu_def, t_def
+        elem = project.elements.get(element_id) if element_id is not None else None
+        if elem is not None:
+            mat = project.materials.get(getattr(elem, "material_name", None))
+            if mat is not None:
+                return float(mat.E), float(mat.nu), float(elem.thickness)
+        return E_def, nu_def, t_def
+
+    @property
+    def _analysis(self) -> str:
+        """Compat: muchos métodos usan self._analysis. Lee del project."""
+        return self.analysis_type
 
     # ---------- controles ----------
     def build_controls(self, parent):
@@ -152,9 +234,10 @@ class StiffnessGaussModule(BaseEducationalModule):
 
         ttk.Separator(parent).pack(fill="x", pady=6)
 
-        # Parámetros
-        from education.components import ParamInput
-
+        # Parámetros (E, ν, t) — editables para que el alumno tunee y vea
+        # el efecto en el integrando. Se inicializan desde el material/elemento
+        # del project. El caso plano TP/DP NO se elige aquí: se lee del
+        # project (badge en header). Cambiar el caso → Modelo ▸ Tipo de Análisis.
         self.inp_E = ParamInput(parent, "E", self._E, unit="",
                                  fmt="{:.0f}",
                                  on_change=self._set_E)
@@ -170,15 +253,6 @@ class StiffnessGaussModule(BaseEducationalModule):
                                  on_change=self._set_t)
         self.inp_t.pack(fill="x", pady=2)
 
-        ttk.Label(parent, text="Caso plano",
-                   font=("Segoe UI", 9, "bold"),
-                   foreground="#bbb").pack(anchor="w", pady=(6, 2))
-        self.var_case = tk.StringVar(value=self._analysis)
-        ttk.Combobox(parent, textvariable=self.var_case, state="readonly",
-                      values=[ANALYSIS_PLANE_STRESS, ANALYSIS_PLANE_STRAIN],
-                      bootstyle="info").pack(fill="x", pady=(0, 6))
-        self.var_case.trace_add("write", lambda *a: self._set_case())
-
         ttk.Separator(parent).pack(fill="x", pady=6)
 
         # Selección de (i,j) para tab 1
@@ -188,13 +262,13 @@ class StiffnessGaussModule(BaseEducationalModule):
         row = ttk.Frame(parent); row.pack(fill="x", pady=(0, 4))
         ttk.Label(row, text="i").pack(side="left")
         self.var_i = tk.StringVar(value=str(self._i))
-        self.sp_i = ttk.Spinbox(row, from_=1, to=2 * self._n_nodes,
+        self.sp_i = ttk.Spinbox(row, from_=1, to=2 * self.n_nodes,
                                  textvariable=self.var_i, width=4,
                                  command=self._on_ij_changed)
         self.sp_i.pack(side="left", padx=4)
         ttk.Label(row, text="j").pack(side="left", padx=(10, 0))
         self.var_j = tk.StringVar(value=str(self._j))
-        self.sp_j = ttk.Spinbox(row, from_=1, to=2 * self._n_nodes,
+        self.sp_j = ttk.Spinbox(row, from_=1, to=2 * self.n_nodes,
                                  textvariable=self.var_j, width=4,
                                  command=self._on_ij_changed)
         self.sp_j.pack(side="left", padx=4)
@@ -272,15 +346,22 @@ class StiffnessGaussModule(BaseEducationalModule):
         self._reset_acum()
 
     # ---------- callbacks parametros ----------
-    def _set_E(self, v: float) -> None: self._E = float(v)
-    def _set_nu(self, v: float) -> None: self._nu = float(v)
-    def _set_t(self, v: float) -> None: self._t = float(v)
-    def _set_case(self) -> None: self._analysis = self.var_case.get()
+    def _set_E(self, v: float) -> None:
+        self._E = float(v)
+        self._rebuild_symbolic()
+
+    def _set_nu(self, v: float) -> None:
+        self._nu = float(v)
+        self._rebuild_symbolic()
+
+    def _set_t(self, v: float) -> None:
+        self._t = float(v)
+        self._rebuild_symbolic()
 
     def _on_ij_changed(self) -> None:
         try:
-            self._i = max(1, min(2 * self._n_nodes, int(self.var_i.get())))
-            self._j = max(1, min(2 * self._n_nodes, int(self.var_j.get())))
+            self._i = max(1, min(2 * self.n_nodes, int(self.var_i.get())))
+            self._j = max(1, min(2 * self.n_nodes, int(self.var_j.get())))
         except ValueError:
             return
         self._rebuild_symbolic()
@@ -295,7 +376,14 @@ class StiffnessGaussModule(BaseEducationalModule):
     # ---------- SYMBOLIC TAB ----------
     def _rebuild_symbolic(self) -> None:
         coords = self._node_coords().tolist()
-        sym = SymbolicIntegrandQ4(self._E, self._nu, self._t, coords)
+        if self.element_type == ELEMENT_Q9:
+            sym = SymbolicIntegrandQ9(self._E, self._nu, self._t, coords)
+            max_chars = 260
+            title_suffix = "  [bloque visible; matriz B es 3×18]"
+        else:
+            sym = SymbolicIntegrandQ4(self._E, self._nu, self._t, coords)
+            max_chars = 450
+            title_suffix = ""
         try:
             expr = sym.integrand_entry(self._i - 1, self._j - 1, self._analysis)
         except Exception as exc:
@@ -304,26 +392,69 @@ class StiffnessGaussModule(BaseEducationalModule):
 
         colors = _theme_colors()
         expr_latex = sp.latex(expr)
-        # cabecera legible
         title_latex = rf"K_{{{self._i},{self._j}}}(\xi,\eta)\;=\;"
-        # truncar para que mathtext no explote
-        full = title_latex + self._truncate_latex(expr_latex, max_chars=450)
-        render_expression_latex(
-            self.panel_expr.ax, full, fontsize=11, color=colors["fg"],
-            title=f"Integrando (i={self._i}, j={self._j})  —  {self._analysis}",
-        )
+        full = title_latex + self._truncate_latex(expr_latex, max_chars=max_chars)
+        title_meta = (f"Integrando (i={self._i}, j={self._j})  —  "
+                       f"{self._analysis}{title_suffix}")
+        # Si el LaTeX truncado es inválido (ej. corte dentro de un \frac
+        # gigante en Q9), degradamos a placeholder en vez de crashear.
+        try:
+            render_expression_latex(
+                self.panel_expr.ax, full, fontsize=11, color=colors["fg"],
+                title=title_meta,
+            )
+        except Exception:
+            self._show_expr_too_large(title_meta, len(expr_latex))
         self.panel_expr.redraw()
 
-        # superficie 3D
         self._draw_surface_kij(expr, sym)
+
+    def _show_expr_too_large(self, title: str, n_chars: int) -> None:
+        """Placeholder para K_ij con LaTeX inrenderizable (típico de Q9)."""
+        ax = self.panel_expr.ax
+        ax.clear()
+        ax.set_xticks([]); ax.set_yticks([])
+        for s in ax.spines.values():
+            s.set_visible(False)
+        ax.set_title(title, color=_theme_colors()["fg"], fontsize=10)
+        ax.text(0.5, 0.5,
+                 f"K_ij(ξ,η) tiene {n_chars} caracteres en LaTeX —\n"
+                 "demasiado grande para renderizar legiblemente.\n\n"
+                 "La superficie |K_ij| de abajo muestra su forma sobre el\n"
+                 "cuadrado natural. Probá Q4 o (i, j) chicos para verlo expandido.",
+                 ha="center", va="center", color="#aaa",
+                 transform=ax.transAxes, fontsize=10)
 
     @staticmethod
     def _truncate_latex(s: str, max_chars: int = 450) -> str:
+        """Recorta LaTeX preservando llaves balanceadas.
+
+        Si el corte ingenuo cae dentro de un grupo (ej. `\\frac{...}{...}`),
+        mathtext falla al parsear. Avanzamos hacia atrás desde max_chars
+        hasta encontrar una posición donde las llaves estén balanceadas y
+        el carácter previo no sea un comando o argumento abierto.
+        """
         if len(s) <= max_chars:
             return s
-        return s[: max_chars - 12] + r"\;\ldots"
+        cut = max_chars - 12
+        # Backtrack hasta llaves balanceadas y fin de "+"/"-" (entre términos).
+        depth = 0
+        last_safe = 0
+        for i, ch in enumerate(s[:cut]):
+            if ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth = max(0, depth - 1)
+            elif depth == 0 and ch in "+-" and i > 0:
+                last_safe = i
+        if last_safe == 0:
+            # No encontramos un break term-level; al menos cerrar llaves.
+            stub = s[:cut]
+            opens = stub.count("{") - stub.count("}")
+            return stub + ("}" * max(0, opens)) + r"\;\ldots"
+        return s[:last_safe] + r"\;\ldots"
 
-    def _draw_surface_kij(self, expr, sym: SymbolicIntegrandQ4) -> None:
+    def _draw_surface_kij(self, expr, sym) -> None:
         colors = _theme_colors()
         ax = self.panel_surf.ax
         ax.clear()
@@ -382,18 +513,18 @@ class StiffnessGaussModule(BaseEducationalModule):
         )
 
     def _reset_acum(self) -> None:
-        n = 2 * self._n_nodes
+        n = 2 * self.n_nodes
         self._k_acum = np.zeros((n, n))
         self._current_gp = 0
         self._redraw_gauss()
 
     def _next_gp(self) -> None:
-        coords = self._node_coords()[: self._n_nodes]
+        coords = self._node_coords()[: self.n_nodes]
         pts, wts = get_gauss_points_2d(self._order)
         if self._current_gp >= len(pts):
             return
         D = constitutive_matrix(self._E, self._nu, self._analysis)
-        _, dN_fn = get_shape_functions(self._element_type)
+        _, dN_fn = get_shape_functions(self.element_type)
         xi, eta = pts[self._current_gp]
         w = wts[self._current_gp]
         dN_nat = dN_fn(xi, eta)
@@ -480,14 +611,14 @@ class StiffnessGaussModule(BaseEducationalModule):
         ax.set_xticks([]); ax.set_yticks([])
 
     def _draw_order_comparison(self, ax, colors) -> None:
-        coords = self._node_coords()[: self._n_nodes]
+        coords = self._node_coords()[: self.n_nodes]
         D = constitutive_matrix(self._E, self._nu, self._analysis)
-        _, dN_fn = get_shape_functions(self._element_type)
+        _, dN_fn = get_shape_functions(self.element_type)
         max_norms = []
         labels = []
         for n in (1, 2, 3):
             pts, wts = get_gauss_points_2d(n)
-            K = np.zeros((2 * self._n_nodes, 2 * self._n_nodes))
+            K = np.zeros((2 * self.n_nodes, 2 * self.n_nodes))
             for (xi, eta), w in zip(pts, wts):
                 dN_nat = dN_fn(xi, eta)
                 _, detJ, invJ = compute_jacobian(dN_nat, coords)

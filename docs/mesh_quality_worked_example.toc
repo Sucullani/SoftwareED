@@ -1,0 +1,20 @@
+\babel@toc {spanish}{}\relax 
+\contentsline {section}{\numberline {1}Resumen te\'orico del set de 4 m\'etricas}{1}{section.1}%
+\contentsline {section}{\numberline {2}Ejemplo Q4: cuadril\'atero distorsionado}{2}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Definici\'on del elemento}{2}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}Paso 1 --- longitudes y \'angulos internos}{3}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}Paso 2 --- vectores de Robinson}{3}{subsection.2.3}%
+\contentsline {subsection}{\numberline {2.4}Paso 3 --- M\'etrica 1: Scaled Jacobian}{4}{subsection.2.4}%
+\contentsline {subsection}{\numberline {2.5}Paso 4 --- M\'etrica 2: Jacobian Ratio}{4}{subsection.2.5}%
+\contentsline {subsection}{\numberline {2.6}Paso 5 --- M\'etrica 3: Robinson Aspect}{4}{subsection.2.6}%
+\contentsline {subsection}{\numberline {2.7}Paso 6 --- M\'etrica 4a: Robinson Taper}{4}{subsection.2.7}%
+\contentsline {subsection}{\numberline {2.8}Resumen Q4}{5}{subsection.2.8}%
+\contentsline {section}{\numberline {3}Ejemplo Q9: mismo macro con nodo medio desplazado}{6}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Definici\'on del elemento}{6}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}Paso 1 --- admisibilidad por arista}{6}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}Paso 2 --- M\'etrica 4b: q\_D}{7}{subsection.3.3}%
+\contentsline {subsection}{\numberline {3.4}Paso 3 --- M\'etrica 1: Scaled Jacobian (3$\times $3 Gauss)}{7}{subsection.3.4}%
+\contentsline {subsection}{\numberline {3.5}Paso 4 --- M\'etrica 2: Jacobian Ratio (3$\times $3)}{7}{subsection.3.5}%
+\contentsline {subsection}{\numberline {3.6}Paso 5 --- M\'etrica 3: Robinson Aspect}{8}{subsection.3.6}%
+\contentsline {subsection}{\numberline {3.7}Resumen Q9}{8}{subsection.3.7}%
+\contentsline {section}{\numberline {4}Comparaci\'on Q4 vs Q9 y lecciones}{9}{section.4}%

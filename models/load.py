@@ -29,37 +29,44 @@ class NodalLoad:
 class SurfaceLoad:
     """Carga superficial trapezoidal en un borde de elemento."""
 
-    def __init__(self, element_id, node_start, node_end,
-                 q_start=0.0, q_end=0.0, angle=0.0):
+    def __init__(self, node_start, node_end,
+                 q_start=0.0, q_end=0.0, angle=0.0, element_id=None):
         """
         Parámetros:
-            element_id: ID del elemento al que pertenece el borde.
             node_start: Nodo inicial del borde cargado.
             node_end: Nodo final del borde cargado.
             q_start: Magnitud de la carga en el nodo inicial.
             q_end: Magnitud de la carga en el nodo final.
             angle: Ángulo de aplicación en grados (0° = normal al borde).
+            element_id: Opcional. Conservado por retrocompatibilidad.
         """
-        self.element_id = element_id
         self.node_start = node_start
         self.node_end = node_end
         self.q_start = float(q_start)
         self.q_end = float(q_end)
         self.angle = float(angle)
+        self.element_id = element_id
 
     def to_dict(self):
         return {
-            "element_id": self.element_id,
             "node_start": self.node_start,
             "node_end": self.node_end,
             "q_start": self.q_start,
             "q_end": self.q_end,
             "angle": self.angle,
+            "element_id": self.element_id,
         }
 
     @classmethod
     def from_dict(cls, data):
-        return cls(**data)
+        return cls(
+            node_start=data["node_start"],
+            node_end=data["node_end"],
+            q_start=data.get("q_start", 0.0),
+            q_end=data.get("q_end", 0.0),
+            angle=data.get("angle", 0.0),
+            element_id=data.get("element_id"),
+        )
 
     def __repr__(self):
         return (f"SurfaceLoad(elem={self.element_id}, "

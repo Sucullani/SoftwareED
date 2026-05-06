@@ -113,7 +113,7 @@ def dshape_functions_q9(xi, eta):
 
 def get_shape_functions(element_type):
     """Retorna las funciones N y dN según el tipo de elemento."""
-    if element_type == "Q4" or "4 nodos" in str(element_type):
+    from config.settings import ELEMENT_Q4
+    if element_type == ELEMENT_Q4:
         return shape_functions_q4, dshape_functions_q4
-    else:
-        return shape_functions_q9, dshape_functions_q9
+    return shape_functions_q9, dshape_functions_q9

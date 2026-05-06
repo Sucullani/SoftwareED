@@ -11,6 +11,15 @@ from ttkbootstrap.constants import *
 from tkinter import messagebox
 import numpy as np
 
+from config.settings import (
+    DECIMALS_FORCE, DECIMALS_STRESS, DECIMALS_DISPLACEMENT, fmt,
+    PHASE_POST_COLOR, PHASE_POST_BOOTSTYLE,
+    HEALTH_WARNING_COLOR, HEALTH_ERROR_COLOR, LABEL_BG,
+)
+from gui.widgets.phase_banner import build_phase_banner
+from gui.widgets.module_launcher_panel import render_module_buttons
+from models.model_health import validate_project, Severity
+
 
 class PostProcessTab:
     """Panel de Post-Proceso con auto-solve y visualizacion reactiva."""
@@ -28,7 +37,22 @@ class PostProcessTab:
 
     def _build_panel(self):
         """Construye el panel con sub-pestanas."""
-        self.notebook = ttk.Notebook(self.frame, bootstyle="danger")
+        # Banner colorido verde (identidad visual de POST-PROCESO)
+        build_phase_banner(
+            self.frame,
+            color=PHASE_POST_COLOR,
+            icon="📊",
+            title="POST-PROCESO",
+            subtitle="Resultados · esfuerzos · interpretacion pedagogica",
+        )
+
+        # Banner de salud del modelo (warnings). Solo se muestra cuando
+        # hay warnings tras validar; los errores criticos abren el modal
+        # bloqueante en su lugar. Construye y oculta -- se rellena cuando
+        # auto_solve detecta warnings.
+        self._build_health_banner()
+
+        self.notebook = ttk.Notebook(self.frame, bootstyle=PHASE_POST_BOOTSTYLE)
         self.notebook.pack(fill=BOTH, expand=YES)
 
         # Sub-tab 1: Visualizacion
@@ -40,6 +64,39 @@ class PostProcessTab:
         self.results_frame = ttk.Frame(self.notebook)
         self.notebook.add(self.results_frame, text="  Resultados  ")
         self._build_results_tab()
+
+        # Sub-tab 3: Modulos educativos (M7 discontinuidad, M8 principales)
+        self.education_frame = ttk.Frame(self.notebook)
+        self.notebook.add(self.education_frame, text="  🎓 Educacion  ")
+        self._build_education_tab()
+
+    def _build_education_tab(self):
+        """Modulos educativos del POST-PROCESO."""
+        from education.module_launcher import (
+            list_modules_for_phase, open_module,
+        )
+
+        def _on_open(mod_key):
+            ok = open_module(
+                parent_tk=self.frame.winfo_toplevel(),
+                project=self.project,
+                mod_key=mod_key,
+                mesh_canvas=self.main_window.mesh_canvas,
+            )
+            if ok:
+                self.main_window.set_status(f"Modulo educativo abierto: {mod_key}")
+
+        render_module_buttons(
+            self.education_frame,
+            modules=list_modules_for_phase("post"),
+            on_open=_on_open,
+            bootstyle=f"{PHASE_POST_BOOTSTYLE}-outline",
+            header_text="Modulos Educativos · Post-Proceso",
+            header_color=PHASE_POST_COLOR,
+            subtitle=("Interpretacion de resultados: continuidad de esfuerzos,\n"
+                      "direcciones principales y circulo de Mohr.\n"
+                      "Requieren modelo resuelto (F5)."),
+        )
 
     # ═════════════════════════════════════════════════════════════════════
     # SUB-TAB: VISUALIZACION
@@ -184,7 +241,7 @@ class PostProcessTab:
         columns = ("node", "v1", "v2", "v3", "v4", "v5", "v6")
         self.results_tree = ttk.Treeview(
             table_frame, columns=columns, show="headings",
-            bootstyle="danger", height=15
+            bootstyle="danger", height=15, selectmode="extended",
         )
         self.results_tree.heading("node", text="Nodo", anchor=CENTER)
         self.results_tree.heading("v1", text="Ux", anchor=CENTER)
@@ -202,28 +259,178 @@ class PostProcessTab:
         self.results_tree.pack(fill=BOTH, expand=YES, side=LEFT)
         scrollbar.pack(fill=Y, side=RIGHT)
 
+        # Atajos de copiado (TSV al portapapeles, pegable en Excel)
+        self.results_tree.bind("<Control-c>", self._copy_results_tsv)
+        self.results_tree.bind("<Control-C>", self._copy_results_tsv)
+        self.results_tree.bind("<Control-a>", self._select_all_results)
+        self.results_tree.bind("<Control-A>", self._select_all_results)
+
     # ═════════════════════════════════════════════════════════════════════
     # AUTO-SOLVE (se llama al activar la pestana Post-Proceso)
     # ═════════════════════════════════════════════════════════════════════
 
+    def _build_health_banner(self):
+        """Construye el banner de warnings (oculto por defecto). Aparece
+        cuando `auto_solve` detecta warnings no-criticos. Es no-bloqueante:
+        solo informa, el usuario puede cerrarlo con la X."""
+        self.health_banner = tk.Frame(
+            self.frame, bg=LABEL_BG, highlightthickness=1,
+            highlightbackground=HEALTH_WARNING_COLOR,
+        )
+        # No hace pack -> queda oculto hasta que se llame
+        # `_show_health_banner`.
+        self._health_banner_visible = False
+
+        inner = tk.Frame(self.health_banner, bg=LABEL_BG)
+        inner.pack(fill=X, padx=10, pady=8)
+
+        # Icono + texto
+        tk.Label(
+            inner, text="⚠", fg=HEALTH_WARNING_COLOR, bg=LABEL_BG,
+            font=("Segoe UI", 14, "bold"),
+        ).pack(side=LEFT, padx=(0, 10))
+
+        self.health_banner_text = tk.Label(
+            inner, text="", fg="#e8e8ea", bg=LABEL_BG,
+            font=("Segoe UI", 9), justify=LEFT, anchor=W, wraplength=600,
+        )
+        self.health_banner_text.pack(side=LEFT, fill=X, expand=YES)
+
+        # Botones de accion (a la derecha)
+        btn_frame = tk.Frame(inner, bg=LABEL_BG)
+        btn_frame.pack(side=RIGHT)
+
+        ttk.Button(
+            btn_frame, text="Ver detalle",
+            bootstyle="warning-outline",
+            command=self._on_show_health_details,
+        ).pack(side=LEFT, padx=(0, 4))
+
+        ttk.Button(
+            btn_frame, text="✕", bootstyle="secondary-link", width=3,
+            command=self._hide_health_banner,
+        ).pack(side=LEFT)
+
+    def _show_health_banner(self, report):
+        """Muestra el banner con el resumen de warnings del report."""
+        self._last_report = report
+        n = len(report.warnings)
+        if n == 1:
+            txt = f"1 advertencia detectada: {report.warnings[0].message}"
+        else:
+            txt = (f"{n} advertencias en el modelo. "
+                   f"El analisis procedera, pero conviene revisar.")
+        self.health_banner_text.config(text=txt)
+        if not self._health_banner_visible:
+            self.health_banner.pack(fill=X, before=self.notebook,
+                                    padx=8, pady=(0, 6))
+            self._health_banner_visible = True
+
+    def _hide_health_banner(self):
+        if self._health_banner_visible:
+            self.health_banner.pack_forget()
+            self._health_banner_visible = False
+
+    def _on_show_health_details(self):
+        """Abre el HealthReportDialog con el ultimo report (modal pero
+        sin bloquear el solve, porque ya se resolvio o se va a resolver).
+        """
+        if not hasattr(self, "_last_report") or self._last_report is None:
+            return
+        from gui.dialogs.health_report_dialog import HealthReportDialog
+        dlg = HealthReportDialog(
+            self.frame.winfo_toplevel(), self._last_report, self.project,
+            main_window=self.main_window, allow_continue=False,
+        )
+        dlg.show()
+        # Si el usuario aplico fixes, re-validar y refrescar el banner
+        if dlg.fixes_applied > 0:
+            new_report = validate_project(self.project)
+            if new_report.has_warnings():
+                self._show_health_banner(new_report)
+            else:
+                self._hide_health_banner()
+            self._last_report = new_report
+
     def auto_solve(self):
-        """Resuelve automaticamente si hay modelo valido y no esta resuelto."""
+        """Resuelve automaticamente si hay modelo valido y no esta resuelto.
+
+        Antes del solve, ejecuta `validate_project` (panel de salud):
+          - errores criticos -> abre HealthReportDialog modal y bloquea
+            hasta que el usuario los corrija o decida "resolver de todos
+            modos"
+          - solo warnings -> muestra banner no-bloqueante arriba del
+            notebook y procede con el solve
+          - modelo sano -> oculta el banner y resuelve directo
+        """
+        # Si ya esta resuelto, solo actualizar display (no re-validar para
+        # evitar abrir el modal en cada cambio de tab post-solve).
+        if self.solution is not None and self.project.is_solved:
+            return
+
+        # ─── Validacion previa ────────────────────────────────────────
+        report = validate_project(self.project)
+
+        if report.has_errors():
+            # Modal bloqueante. El usuario puede aplicar fixes y/o
+            # continuar/cancelar. Tras cerrar, re-validamos: si fixes
+            # resolvieron todos los errores, seguimos al solve; si no,
+            # respetamos la decision del usuario.
+            from gui.dialogs.health_report_dialog import HealthReportDialog
+            dlg = HealthReportDialog(
+                self.frame.winfo_toplevel(), report, self.project,
+                main_window=self.main_window, allow_continue=True,
+            )
+            result = dlg.show()
+            # Re-validar tras posibles auto-fixes
+            report = validate_project(self.project)
+            if report.has_errors() and result != "continue":
+                # Usuario cancelo y aun hay errores. Lo regresamos al
+                # Pre-Proceso para que pueda corregirlos.
+                self.solve_status.config(
+                    text=f"✗ {len(report.errors)} error(es) sin resolver — "
+                         f"corrija desde Pre-Proceso",
+                    foreground=HEALTH_ERROR_COLOR,
+                )
+                self._hide_health_banner()
+                self._last_report = report
+                try:
+                    self.main_window.notebook.select(0)
+                    self.main_window.set_status(
+                        "Corrija los errores antes de resolver"
+                    )
+                except Exception:
+                    pass
+                return
+            # Si quedaron warnings tras los fixes, mostrar banner
+            if report.has_warnings():
+                self._show_health_banner(report)
+            else:
+                self._hide_health_banner()
+        elif report.has_warnings():
+            self._show_health_banner(report)
+            self._last_report = report
+        else:
+            self._hide_health_banner()
+            self._last_report = report
+
+        # Chequeos de pre-requisitos minimos (redundantes con el
+        # validador, pero el usuario puede haber clickeado "continuar
+        # igual" en el modal -> respetar su decision aqui significa
+        # intentar resolver y dejar que el solver tire una excepcion
+        # explicita si no puede).
         if not self.project.elements:
             self.solve_status.config(
                 text="Sin modelo — defina nodos y elementos",
-                foreground="#ef5350"
+                foreground=HEALTH_ERROR_COLOR,
             )
             return
 
         if not self.project.boundary_conditions:
             self.solve_status.config(
                 text="Sin restricciones — defina condiciones de contorno",
-                foreground="#ef5350"
+                foreground=HEALTH_ERROR_COLOR,
             )
-            return
-
-        # Si ya esta resuelto, solo actualizar display
-        if self.solution is not None and self.project.is_solved:
             return
 
         self.solve_status.config(text="Resolviendo...", foreground="#4fc3f7")
@@ -254,7 +461,8 @@ class PostProcessTab:
                 f"GDL: {len(u)} total, "
                 f"{len(self.solution['free_dofs'])} libres, "
                 f"{len(restrained)} restringidos\n"
-                f"Max |Ux|: {max_ux:.4e}   Max |Uy|: {max_uy:.4e}"
+                f"Max |Ux|: {max_ux:.{DECIMALS_DISPLACEMENT}e}   "
+                f"Max |Uy|: {max_uy:.{DECIMALS_DISPLACEMENT}e}"
             )
             self.model_info.config(text=info)
             self.solve_status.config(
@@ -374,7 +582,11 @@ class PostProcessTab:
                 umag = np.sqrt(ux**2 + uy**2)
                 self.results_tree.insert(
                     "", END,
-                    values=(nid, f"{ux:.6e}", f"{uy:.6e}", f"{umag:.6e}", "", "", "")
+                    values=(nid,
+                            f"{ux:.{DECIMALS_DISPLACEMENT}e}",
+                            f"{uy:.{DECIMALS_DISPLACEMENT}e}",
+                            f"{umag:.{DECIMALS_DISPLACEMENT}e}",
+                            "", "", "")
                 )
 
         elif table_type == "Esfuerzos":
@@ -390,9 +602,13 @@ class PostProcessTab:
                     self.results_tree.insert(
                         "", END,
                         values=(
-                            nid, f"{s['sigma_x']:.2f}", f"{s['sigma_y']:.2f}",
-                            f"{s['tau_xy']:.2f}", f"{s['sigma_1']:.2f}",
-                            f"{s['sigma_2']:.2f}", f"{s['von_mises']:.2f}",
+                            nid,
+                            fmt(s['sigma_x'], "stress"),
+                            fmt(s['sigma_y'], "stress"),
+                            fmt(s['tau_xy'], "stress"),
+                            fmt(s['sigma_1'], "stress"),
+                            fmt(s['sigma_2'], "stress"),
+                            fmt(s['von_mises'], "stress"),
                         )
                     )
 
@@ -410,8 +626,52 @@ class PostProcessTab:
                 rx = R[2 * (nid - 1)] if bc.restrain_x else 0
                 ry = R[2 * (nid - 1) + 1] if bc.restrain_y else 0
                 self.results_tree.insert(
-                    "", END, values=(nid, f"{rx:.2f}", f"{ry:.2f}", "", "", "", "")
+                    "", END, values=(nid, fmt(rx, "force"),
+                                     fmt(ry, "force"), "", "", "", "")
                 )
+
+    # ─── Copiado al portapapeles (TSV) ─────────────────────────────────
+    def _select_all_results(self, event=None):
+        children = self.results_tree.get_children()
+        if children:
+            self.results_tree.selection_set(children)
+        return "break"
+
+    def _copy_results_tsv(self, event=None):
+        """Copia las filas seleccionadas (o todas si no hay selección) al
+        portapapeles en formato TSV. Solo se incluyen columnas con header
+        no vacío para que el pegado en Excel quede limpio según la vista
+        activa (Desplazamientos / Esfuerzos / Reacciones)."""
+        items = self.results_tree.selection()
+        if not items:
+            items = self.results_tree.get_children()
+        if not items:
+            return "break"
+
+        cols = self.results_tree["columns"]
+        # Solo columnas con header no vacío (la vista activa puede dejar
+        # v4..v6 sin texto).
+        visible = [
+            (c, self.results_tree.heading(c, "text"))
+            for c in cols
+            if self.results_tree.heading(c, "text")
+        ]
+        if not visible:
+            return "break"
+
+        lines = ["\t".join(h for _, h in visible)]
+        for iid in items:
+            values = self.results_tree.item(iid, "values")
+            col_to_val = dict(zip(cols, values))
+            lines.append("\t".join(str(col_to_val.get(c, "")) for c, _ in visible))
+
+        text = "\n".join(lines)
+        self.frame.clipboard_clear()
+        self.frame.clipboard_append(text)
+        self.main_window.set_status(
+            f"Copiado al portapapeles: {len(items)} fila(s) en formato TSV"
+        )
+        return "break"
 
     # ═════════════════════════════════════════════════════════════════════
     # REFRESH

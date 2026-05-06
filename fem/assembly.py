@@ -4,7 +4,13 @@ Ensamblaje de la matriz de rigidez global K y vector de fuerzas F.
 
 import numpy as np
 
+from config.settings import ELEMENT_Q9
 from fem.stiffness import element_stiffness
+from fem.equivalent_forces import (
+    surface_load_to_nodal_forces,
+    surface_load_to_nodal_forces_q9,
+)
+from models.mesh_utils import find_edge_midnode
 
 
 def assemble_global_system(project):
@@ -63,11 +69,59 @@ def assemble_global_system(project):
             "node_coords": node_coords,
         }
 
-    # Ensamblar vector de fuerzas nodales
+    # Ensamblar vector de fuerzas nodales puntuales
     for load in project.nodal_loads.values():
         dof_x = 2 * (load.node_id - 1)
         dof_y = 2 * (load.node_id - 1) + 1
         F[dof_x] += load.fx
         F[dof_y] += load.fy
+
+    # Ensamblar contribucion de cargas superficiales (trapezoidales lineales).
+    # Q4: arista de 2 nodos → integración lineal.
+    # Q9: arista de 3 nodos → se localiza el nodo medio en el elemento dueño
+    # y la carga se reparte en los 3 nodos con funciones de forma cuadráticas.
+    for sl in project.surface_loads:
+        n_a = project.nodes.get(sl.node_start)
+        n_b = project.nodes.get(sl.node_end)
+        if n_a is None or n_b is None:
+            continue
+
+        mid_nid = None
+        if project.element_type == ELEMENT_Q9:
+            elem = project.elements.get(sl.element_id) if sl.element_id is not None else None
+            if elem is not None:
+                mid_nid = find_edge_midnode(elem, sl.node_start, sl.node_end)
+            if mid_nid is None:
+                # Fallback: buscar en cualquier elemento que contenga la arista.
+                for e in project.elements.values():
+                    mid_nid = find_edge_midnode(e, sl.node_start, sl.node_end)
+                    if mid_nid is not None:
+                        break
+
+        if mid_nid is not None:
+            n_m = project.nodes.get(mid_nid)
+            if n_m is not None:
+                (fx_a, fy_a), (fx_m, fy_m), (fx_b, fy_b) = (
+                    surface_load_to_nodal_forces_q9(
+                        (n_a.x, n_a.y), (n_m.x, n_m.y), (n_b.x, n_b.y),
+                        sl.q_start, sl.q_end, sl.angle,
+                    )
+                )
+                F[2 * (sl.node_start - 1)]     += fx_a
+                F[2 * (sl.node_start - 1) + 1] += fy_a
+                F[2 * (mid_nid - 1)]           += fx_m
+                F[2 * (mid_nid - 1) + 1]       += fy_m
+                F[2 * (sl.node_end - 1)]       += fx_b
+                F[2 * (sl.node_end - 1) + 1]   += fy_b
+                continue
+
+        (fx_a, fy_a), (fx_b, fy_b) = surface_load_to_nodal_forces(
+            (n_a.x, n_a.y), (n_b.x, n_b.y),
+            sl.q_start, sl.q_end, sl.angle,
+        )
+        F[2 * (sl.node_start - 1)]     += fx_a
+        F[2 * (sl.node_start - 1) + 1] += fy_a
+        F[2 * (sl.node_end - 1)]       += fx_b
+        F[2 * (sl.node_end - 1) + 1]   += fy_b
 
     return K, F, element_data

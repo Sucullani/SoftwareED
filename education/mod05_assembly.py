@@ -14,7 +14,7 @@ import numpy as np
 import tkinter as tk
 import ttkbootstrap as ttk
 
-from education.base_module import BaseEducationalModule
+from education.base_module import ProcessModule
 from education.components import PlotPanel, TheoryDoc
 from education.components.plot_panel import _theme_colors
 
@@ -22,7 +22,7 @@ from fem.shape_functions import get_shape_functions
 from fem.stiffness import element_stiffness
 
 
-class AssemblyModule(BaseEducationalModule):
+class AssemblyModule(ProcessModule):
     TITLE = "⑤ Ensamblaje global K, F + BCs"
     HAS_ANIMATION = False
     ANIM_FRAMES = 20
@@ -157,6 +157,10 @@ class AssemblyModule(BaseEducationalModule):
         self._redraw_K()
 
     def _reset(self) -> None:
+        # Guard: durante una animación de fly-in, reset corromperia el
+        # estado intermedio.
+        if self._anim_running:
+            return
         self._K.fill(0.0)
         self._F.fill(0.0)
         self._assembled.clear()
@@ -185,6 +189,10 @@ class AssemblyModule(BaseEducationalModule):
         self._animate_fly(ke, dofs, coords, eid)
 
     def _assemble_all(self) -> None:
+        # Guard: si hay una animación corriendo, ignorar el click — sino
+        # la consolidación de la animación pisa el ensamblado masivo.
+        if self._anim_running:
+            return
         while self._ptr < len(self._order):
             eid = self._order[self._ptr]
             ke, dofs, _ = self._element_ke(eid)

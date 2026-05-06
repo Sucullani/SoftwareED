@@ -7,7 +7,8 @@ Datos del caso de validacion:
 
 from models.project import ProjectModel
 from models.material import Material
-from config.settings import ANALYSIS_PLANE_STRESS, ELEMENT_Q4
+from models.mesh_utils import expand_q4_to_q9
+from config.settings import ANALYSIS_PLANE_STRESS, ELEMENT_Q4, ELEMENT_Q9
 
 
 def load_example_project(P=1000.0):
@@ -95,4 +96,20 @@ def load_example_project(P=1000.0):
     project.set_boundary_condition(6, True, True)   # Empotrado
 
     project.is_modified = False
+    return project
+
+
+def load_example_project_q9(P=1000.0):
+    """Variante Q9 del ejemplo canónico.
+
+    Construye la misma geometría/E/ν/t/cargas/BCs que `load_example_project`
+    y ejecuta `expand_q4_to_q9` para generar los nodos medios y centroides,
+    dejando el proyecto listo para validar el pipeline Q9 end-to-end.
+    """
+    project = load_example_project(P=P)
+    project.project_name = "Ejemplo Validacion Q9"
+    expand_q4_to_q9(project)
+    project.element_type = ELEMENT_Q9
+    project.is_modified = False
+    project.is_solved = False
     return project

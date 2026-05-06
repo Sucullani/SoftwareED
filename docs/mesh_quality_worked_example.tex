@@ -1,0 +1,553 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-tabla,es-noshorthands]{babel}
+\usepackage{lmodern}
+\usepackage[a4paper,margin=2.3cm]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{bm}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage[most]{tcolorbox}
+\usepackage{hyperref}
+\usepackage{microtype}
+\usepackage{parskip}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,calc,decorations.pathreplacing,positioning,fit,backgrounds}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepackage{listings}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!60!black,
+  urlcolor=blue!60!black,
+  pdftitle={Ejemplo paso a paso - metricas de calidad de malla Q4/Q9},
+  pdfauthor={EduFEM}
+}
+
+\tcbuselibrary{skins,breakable}
+
+\newtcolorbox{resultbox}[1][]{
+  colback=green!5,
+  colframe=green!45!black,
+  boxrule=0.6pt,
+  arc=2pt,
+  left=8pt,right=8pt,top=6pt,bottom=6pt,
+  fonttitle=\bfseries,
+  breakable,
+  #1
+}
+
+\newtcolorbox{stepbox}[1][]{
+  colback=blue!4,
+  colframe=blue!40!black,
+  boxrule=0.5pt,
+  arc=2pt,
+  left=7pt,right=7pt,top=5pt,bottom=5pt,
+  fonttitle=\bfseries,
+  breakable,
+  #1
+}
+
+\newtcolorbox{interpretbox}[1][]{
+  colback=orange!6,
+  colframe=orange!60!black,
+  boxrule=0.5pt,
+  arc=2pt,
+  left=7pt,right=7pt,top=5pt,bottom=5pt,
+  fonttitle=\bfseries,
+  breakable,
+  #1
+}
+
+\definecolor{cornercol}{HTML}{4fc3f7}
+\definecolor{midcol}{HTML}{6fb8ff}
+\definecolor{centercol}{HTML}{b86fff}
+\definecolor{good}{HTML}{43a047}
+\definecolor{warn}{HTML}{fdd835}
+\definecolor{bad}{HTML}{e53935}
+
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  backgroundcolor=\color{gray!6},
+  frame=single,
+  framesep=4pt,
+  rulecolor=\color{gray!30},
+  showstringspaces=false,
+  breaklines=true,
+}
+
+\title{\bfseries Ejemplo paso a paso:\\m\'etricas de calidad de malla Q4 y Q9}
+\author{EduFEM --- Anexo de c\'alculo num\'erico}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent
+Este documento ilustra el c\'alculo detallado, paso a paso, de las cuatro m\'etricas de calidad adoptadas por EduFEM (Scaled Jacobian, Jacobian Ratio, Robinson Aspect, y Taper/Admisibilidad seg\'un el tipo de elemento) sobre dos ejemplos concretos deliberadamente distorsionados: un elemento Q4 y un elemento Q9 que comparten las cuatro esquinas macro. Se presentan todas las operaciones aritm\'eticas intermedias (vectores, productos internos, determinantes Jacobianos en cada punto de Gauss) con sus valores num\'ericos, de modo que el lector pueda reproducir los resultados con papel y l\'apiz o con una hoja de c\'alculo. El marco te\'orico se resume en la Secci\'on~\ref{sec:teoria}; el desarrollo num\'erico detallado para Q4 est\'a en la Secci\'on~\ref{sec:q4} y para Q9 en la Secci\'on~\ref{sec:q9}. La Secci\'on~\ref{sec:comp} compara ambos casos y extrae lecciones pedag\'ogicas.
+\end{abstract}
+
+\tableofcontents
+\vspace{1em}
+
+% =========================================================================
+\section{Resumen te\'orico del set de 4 m\'etricas}
+\label{sec:teoria}
+
+Sea un cuadril\'atero con v\'ertices $\mathbf{r}_1,\ldots,\mathbf{r}_4$ (CCW) y, en el caso Q9, nodos medios $\mathbf{r}_5,\ldots,\mathbf{r}_8$ y centroide $\mathbf{r}_9$. El mapeo isoparam\'etrico es $\mathbf{x}(\xi,\eta) = \sum_i N_i(\xi,\eta)\,\mathbf{r}_i$ con $(\xi,\eta)\in[-1,1]^2$, y su matriz Jacobiana es $\mathbf{J} = \partial\mathbf{x}/\partial(\xi,\eta)$.
+
+\begin{center}
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{clll}
+\toprule
+\# & \textbf{M\'etrica} & \textbf{F\'ormula} & \textbf{Ideal / umbral} \\
+\midrule
+1 & Scaled Jacobian $q_{SJ}$ & $\displaystyle\min_g \frac{\det\mathbf{J}_g}{\|\mathbf{J}_{:,1}\|_g\,\|\mathbf{J}_{:,2}\|_g}$ & $1$\;/\;$\ge 0{,}5$ \\[6pt]
+2 & Jacobian Ratio $R_J$ & $\displaystyle\frac{\min_g \det\mathbf{J}_g}{\max_g \det\mathbf{J}_g}$ & $1$\;/\;$\ge 0{,}3$ \\[6pt]
+3 & Robinson Aspect $AR_R$ & $\displaystyle\frac{\max(\|\mathbf{X}_1\|,\|\mathbf{X}_2\|)}{\min(\|\mathbf{X}_1\|,\|\mathbf{X}_2\|)}$ & $1$\;/\;$\le 4$ \\[6pt]
+4a & Robinson Taper (Q4) $T_R$ & $\displaystyle\max\!\left(\frac{|\mathbf{X}_3\!\cdot\!\mathbf{X}_1|}{\|\mathbf{X}_1\|^2},\frac{|\mathbf{X}_3\!\cdot\!\mathbf{X}_2|}{\|\mathbf{X}_2\|^2}\right)$ & $0$\;/\;$\le 0{,}5$ \\[6pt]
+4b & Admisibilidad (Q9) $q_D$ & $\max_i d_i,\;d_9$ (con gates $s_i\!\in\!(\tfrac{1}{4},\tfrac{3}{4})$) & $0$\;/\;$\le 0{,}15$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent Los vectores de Robinson se construyen a partir de las 4 esquinas:
+\begin{equation}
+\mathbf{X}_1 = \tfrac{1}{4}(-\mathbf{r}_1+\mathbf{r}_2+\mathbf{r}_3-\mathbf{r}_4),\quad
+\mathbf{X}_2 = \tfrac{1}{4}(-\mathbf{r}_1-\mathbf{r}_2+\mathbf{r}_3+\mathbf{r}_4),\quad
+\mathbf{X}_3 = \tfrac{1}{4}(\mathbf{r}_1-\mathbf{r}_2+\mathbf{r}_3-\mathbf{r}_4).
+\label{eq:X123}
+\end{equation}
+
+\noindent Los par\'ametros de admisibilidad del nodo medio sobre la arista $\mathbf{r}_a\!\to\!\mathbf{r}_b$ con nodo medio $\mathbf{r}_m$ son
+\begin{equation}
+s = \frac{(\mathbf{r}_m-\mathbf{r}_a)\cdot(\mathbf{r}_b-\mathbf{r}_a)}{\|\mathbf{r}_b-\mathbf{r}_a\|^2},\qquad
+d_i = \frac{\|\mathbf{r}_m - \tfrac{1}{2}(\mathbf{r}_a+\mathbf{r}_b)\|}{\|\mathbf{r}_b-\mathbf{r}_a\|}.
+\label{eq:s_di}
+\end{equation}
+
+% =========================================================================
+\section{Ejemplo Q4: cuadril\'atero distorsionado}
+\label{sec:q4}
+
+\subsection{Definici\'on del elemento}
+Elegimos un cuadril\'atero deliberadamente no rectangular, con aristas de distinta longitud y una ligera conicidad:
+\begin{center}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{cll}
+\toprule
+Nodo & $x$ & $y$ \\
+\midrule
+$\mathbf{r}_1$ & $0{,}0$ & $0{,}0$ \\
+$\mathbf{r}_2$ & $4{,}0$ & $0{,}0$ \\
+$\mathbf{r}_3$ & $5{,}0$ & $3{,}0$ \\
+$\mathbf{r}_4$ & $0{,}5$ & $2{,}5$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{center}
+\begin{tikzpicture}[scale=1.0]
+  % grid
+  \draw[gray!20, step=0.5] (-0.5,-0.5) grid (5.8,3.5);
+  \draw[->, gray!60] (-0.3,0) -- (5.8,0) node[right]{$x$};
+  \draw[->, gray!60] (0,-0.3) -- (0,3.5) node[above]{$y$};
+  % quadrilateral fill
+  \fill[cornercol!30] (0,0) -- (4,0) -- (5,3) -- (0.5,2.5) -- cycle;
+  \draw[thick, cornercol!70!black] (0,0) -- (4,0) -- (5,3) -- (0.5,2.5) -- cycle;
+  % corners
+  \foreach \p/\lab/\pos in {(0,0)/1/below left,(4,0)/2/below right,(5,3)/3/above right,(0.5,2.5)/4/above left}{
+    \draw[fill=cornercol] \p circle (0.09);
+    \node[\pos, font=\small\bfseries] at \p {$\mathbf{r}_\lab$};
+  }
+  % edge labels
+  \node[below, font=\scriptsize] at (2,0) {$L_{12}{=}4{,}000$};
+  \node[right, font=\scriptsize] at (4.5,1.5) {$L_{23}{=}\sqrt{10}$};
+  \node[above, font=\scriptsize] at (2.75,2.75) {$L_{34}{\approx}4{,}528$};
+  \node[left, font=\scriptsize] at (0.25,1.25) {$L_{41}{\approx}2{,}550$};
+\end{tikzpicture}
+\end{center}
+
+\subsection{Paso 1 --- longitudes y \'angulos internos}
+
+\begin{stepbox}[title={Longitudes de aristas}]
+\begin{align*}
+L_{12} &= \|\mathbf{r}_2-\mathbf{r}_1\| = \sqrt{4^2+0^2} = 4{,}000000 \\
+L_{23} &= \|\mathbf{r}_3-\mathbf{r}_2\| = \sqrt{1^2+3^2} = \sqrt{10} \approx 3{,}162278 \\
+L_{34} &= \|\mathbf{r}_4-\mathbf{r}_3\| = \sqrt{(-4{,}5)^2+(-0{,}5)^2} = \sqrt{20{,}5} \approx 4{,}527693 \\
+L_{41} &= \|\mathbf{r}_1-\mathbf{r}_4\| = \sqrt{(-0{,}5)^2+(-2{,}5)^2} = \sqrt{6{,}5} \approx 2{,}549510
+\end{align*}
+\end{stepbox}
+
+\begin{stepbox}[title={\'Angulos internos (ec. (8) del documento te\'orico)}]
+Para el v\'ertice $i$, con $\mathbf{v}_1 = \mathbf{r}_{i-1}-\mathbf{r}_i$ y $\mathbf{v}_2 = \mathbf{r}_{i+1}-\mathbf{r}_i$:
+$$\theta_i = \arccos\left(\frac{\mathbf{v}_1\cdot\mathbf{v}_2}{\|\mathbf{v}_1\|\|\mathbf{v}_2\|}\right).$$
+
+\textbf{V\'ertice $\mathbf{r}_1$:} $\mathbf{v}_1 = \mathbf{r}_4-\mathbf{r}_1 = (0{,}5,\,2{,}5)$, $\mathbf{v}_2 = \mathbf{r}_2-\mathbf{r}_1 = (4,\,0)$.
+$$\cos\theta_1 = \frac{(0{,}5)(4)+(2{,}5)(0)}{\sqrt{6{,}5}\cdot 4} = \frac{2}{4\sqrt{6{,}5}} \approx 0{,}19612 \;\Rightarrow\; \theta_1 \approx 78{,}69^\circ.$$
+
+\textbf{V\'ertice $\mathbf{r}_2$:} $\mathbf{v}_1=(-4,0)$, $\mathbf{v}_2=(1,3)$ $\Rightarrow$ $\cos\theta_2 = -4/(4\sqrt{10}) \approx -0{,}31623 \Rightarrow \theta_2 \approx 108{,}43^\circ$.
+
+\textbf{V\'ertice $\mathbf{r}_3$:} $\mathbf{v}_1=(-1,-3)$, $\mathbf{v}_2=(-4{,}5,-0{,}5)$ $\Rightarrow$ $\cos\theta_3 \approx 0{,}41976 \Rightarrow \theta_3 \approx 65{,}22^\circ$.
+
+\textbf{V\'ertice $\mathbf{r}_4$:} $\mathbf{v}_1=(4{,}5,0{,}5)$, $\mathbf{v}_2=(-0{,}5,-2{,}5)$ $\Rightarrow$ $\cos\theta_4 \approx -0{,}30382 \Rightarrow \theta_4 \approx 107{,}65^\circ$.
+
+\textbf{Suma de control:} $78{,}69+108{,}43+65{,}22+107{,}65 = 360{,}00^\circ$ \;\checkmark
+\end{stepbox}
+
+\subsection{Paso 2 --- vectores de Robinson}
+
+\begin{stepbox}[title={C\'alculo de $\mathbf{X}_1$, $\mathbf{X}_2$, $\mathbf{X}_3$ seg\'un ec.~\eqref{eq:X123}}]
+\begin{align*}
+\mathbf{X}_1 &= \tfrac{1}{4}(-\mathbf{r}_1+\mathbf{r}_2+\mathbf{r}_3-\mathbf{r}_4) \\
+&= \tfrac{1}{4}\bigl[(-0,0)+(4,0)+(5,3)+(-0{,}5,-2{,}5)\bigr] \\
+&= \tfrac{1}{4}(8{,}5,\,0{,}5) = (2{,}125,\,0{,}125) \\
+\|\mathbf{X}_1\| &= \sqrt{2{,}125^2+0{,}125^2} = \sqrt{4{,}5313} \approx 2{,}128673 \\[4pt]
+\mathbf{X}_2 &= \tfrac{1}{4}(-\mathbf{r}_1-\mathbf{r}_2+\mathbf{r}_3+\mathbf{r}_4) \\
+&= \tfrac{1}{4}\bigl[(0,0)+(-4,0)+(5,3)+(0{,}5,2{,}5)\bigr] \\
+&= \tfrac{1}{4}(1{,}5,\,5{,}5) = (0{,}375,\,1{,}375) \\
+\|\mathbf{X}_2\| &= \sqrt{0{,}375^2+1{,}375^2} = \sqrt{2{,}03125} \approx 1{,}425219 \\[4pt]
+\mathbf{X}_3 &= \tfrac{1}{4}(\mathbf{r}_1-\mathbf{r}_2+\mathbf{r}_3-\mathbf{r}_4) \\
+&= \tfrac{1}{4}\bigl[(0,0)+(-4,0)+(5,3)+(-0{,}5,-2{,}5)\bigr] \\
+&= \tfrac{1}{4}(0{,}5,\,0{,}5) = (0{,}125,\,0{,}125) \\
+\|\mathbf{X}_3\| &= 0{,}125\sqrt{2} \approx 0{,}176777
+\end{align*}
+\end{stepbox}
+
+\subsection{Paso 3 --- M\'etrica 1: Scaled Jacobian}
+
+La m\'etrica se eval\'ua en los 4 puntos Gauss $2\!\times\!2$, con coordenadas naturales $(\xi_g,\eta_g) = (\pm 1/\sqrt{3},\pm 1/\sqrt{3})$, es decir $(\pm 0{,}577350,\pm 0{,}577350)$.
+
+\begin{stepbox}[title={Funciones de forma y Jacobiano Q4}]
+\[
+N_i(\xi,\eta) = \tfrac{1}{4}(1\pm\xi)(1\pm\eta),\qquad
+\mathbf{J}(\xi,\eta) = \sum_{i=1}^{4}\begin{pmatrix}\partial N_i/\partial\xi \\ \partial N_i/\partial\eta\end{pmatrix}(x_i,\,y_i).
+\]
+\end{stepbox}
+
+Evaluando en los 4 puntos Gauss:
+\begin{center}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{cccc|c}
+\toprule
+$(\xi,\eta)$ & $\det\mathbf{J}_g$ & $\|\mathbf{J}_{:,1}\|_g$ & $\|\mathbf{J}_{:,2}\|_g$ & $SJ_g = \det\mathbf{J}_g/(\|\mathbf{J}_{:,1}\|\|\mathbf{J}_{:,2}\|)$ \\
+\midrule
+$(-0{,}5774,\,-0{,}5774)$ & $2{,}658494$ & $2{,}075048$ & $1{,}303902$ & $0{,}982568$ \\
+$(-0{,}5774,\,+0{,}5774)$ & $2{,}802831$ & $2{,}217940$ & $1{,}317666$ & $0{,}959051$ \\
+$(+0{,}5774,\,-0{,}5774)$ & $2{,}947169$ & $2{,}100970$ & $1{,}448133$ & $0{,}968672$ \\
+$(+0{,}5774,\,+0{,}5774)$ & $3{,}091506$ & $2{,}242211$ & $1{,}460539$ & $\mathbf{0{,}944019}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{resultbox}[title={M\'etrica 1: Scaled Jacobian Q4}]
+\[
+\boxed{\;q_{SJ} = \min_g SJ_g = 0{,}944019 \;}\qquad \text{(clasificaci\'on: Buena, $\ge 0{,}7$)}
+\]
+\end{resultbox}
+
+\subsection{Paso 4 --- M\'etrica 2: Jacobian Ratio}
+Tomando $\det\mathbf{J}$ de la tabla anterior:
+\[
+\min_g \det\mathbf{J}_g = 2{,}658494,\quad \max_g \det\mathbf{J}_g = 3{,}091506.
+\]
+
+\begin{resultbox}[title={M\'etrica 2: Jacobian Ratio Q4}]
+\[
+\boxed{\;R_J = \frac{2{,}658494}{3{,}091506} = 0{,}859935\;}\qquad \text{(clasificaci\'on: Buena, $\ge 0{,}5$)}
+\]
+\end{resultbox}
+
+\subsection{Paso 5 --- M\'etrica 3: Robinson Aspect}
+Usando los valores del Paso 2:
+\[
+\|\mathbf{X}_1\| = 2{,}128673,\qquad \|\mathbf{X}_2\| = 1{,}425219.
+\]
+
+\begin{resultbox}[title={M\'etrica 3: Robinson Aspect Q4}]
+\[
+\boxed{\;AR_R = \frac{\max(\|\mathbf{X}_1\|,\|\mathbf{X}_2\|)}{\min(\|\mathbf{X}_1\|,\|\mathbf{X}_2\|)} = \frac{2{,}128673}{1{,}425219} = 1{,}493576\;} \qquad \text{(Buena, $\le 3$)}
+\]
+\end{resultbox}
+
+\subsection{Paso 6 --- M\'etrica 4a: Robinson Taper}
+Calculamos los dos productos internos:
+\begin{align*}
+\mathbf{X}_1\cdot\mathbf{X}_3 &= (2{,}125)(0{,}125)+(0{,}125)(0{,}125) = 0{,}281250 \\
+\mathbf{X}_2\cdot\mathbf{X}_3 &= (0{,}375)(0{,}125)+(1{,}375)(0{,}125) = 0{,}218750 \\
+\|\mathbf{X}_1\|^2 &= 4{,}531250,\qquad \|\mathbf{X}_2\|^2 = 2{,}031250
+\end{align*}
+
+Los dos cocientes candidatos:
+\[
+\frac{|\mathbf{X}_1\!\cdot\!\mathbf{X}_3|}{\|\mathbf{X}_1\|^2} = \frac{0{,}281250}{4{,}531250} = 0{,}062069,\qquad
+\frac{|\mathbf{X}_2\!\cdot\!\mathbf{X}_3|}{\|\mathbf{X}_2\|^2} = \frac{0{,}218750}{2{,}031250} = 0{,}107692.
+\]
+
+\begin{resultbox}[title={M\'etrica 4a: Robinson Taper Q4}]
+\[
+\boxed{\;T_R = \max(0{,}062069,\;0{,}107692) = 0{,}107692\;} \qquad \text{(Buena, $\le 0{,}3$)}
+\]
+\end{resultbox}
+
+\subsection{Resumen Q4}
+\begin{center}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{lcccc}
+\toprule
+M\'etrica & Valor & Umbral Buena & Umbral Aceptable & Estado \\
+\midrule
+$q_{SJ}$  & $0{,}944$ & $\ge 0{,}7$ & $\ge 0{,}3$ & \textcolor{good}{\textbf{Buena}} \\
+$R_J$     & $0{,}860$ & $\ge 0{,}5$ & $\ge 0{,}2$ & \textcolor{good}{\textbf{Buena}} \\
+$AR_R$    & $1{,}494$ & $\le 3$     & $\le 5$     & \textcolor{good}{\textbf{Buena}} \\
+$T_R$     & $0{,}108$ & $\le 0{,}3$ & $\le 0{,}5$ & \textcolor{good}{\textbf{Buena}} \\
+\midrule
+\multicolumn{4}{l}{\textbf{Estado global:}} & \textcolor{good}{\textbf{Buena}} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{interpretbox}[title={Interpretaci\'on pedag\'ogica Q4}]
+El elemento est\'a visiblemente distorsionado (\'angulos desde $65^\circ$ hasta $108^\circ$, aristas de $2{,}55$ a $4{,}53$) pero las 4 m\'etricas lo declaran \textbf{Buena}. El Jacobiano var\'ia un $\sim\!15\%$ entre puntos Gauss, el taper es bajo ($10{,}8\%$) porque el cuadril\'atero est\'a pr\'oximo a un paralelogramo (vector $\mathbf{X}_3$ peque\~no: $\|\mathbf{X}_3\|=0{,}177$ vs $\|\mathbf{X}_1\|=2{,}13$). En la pr\'actica, este tipo de distorsi\'on moderada es frecuente en mallas reales y no deteriora significativamente la soluci\'on.
+\end{interpretbox}
+
+\newpage
+% =========================================================================
+\section{Ejemplo Q9: mismo macro con nodo medio desplazado}
+\label{sec:q9}
+
+\subsection{Definici\'on del elemento}
+Reutilizamos las mismas cuatro esquinas del ejemplo Q4 y agregamos los 5 nodos interiores. De los 4 nodos medios, tres est\'an en el punto medio exacto de su arista y \textbf{uno} (el nodo $N_5$ de la arista $\mathbf{r}_1\mathbf{r}_2$) est\'a desplazado deliberadamente: se corre al par\'ametro tangencial $s=0{,}6$ (en vez de $0{,}5$) y se levanta $0{,}2$ unidades sobre la l\'inea base. El nodo central $N_9$ se coloca en el promedio de los cuatro nodos medios (posici\'on can\'onica Lagrangiana).
+
+\begin{center}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{clll}
+\toprule
+Nodo & $x$ & $y$ & Rol \\
+\midrule
+$\mathbf{r}_1$ & $0{,}00$ & $0{,}00$ & v\'ertice \\
+$\mathbf{r}_2$ & $4{,}00$ & $0{,}00$ & v\'ertice \\
+$\mathbf{r}_3$ & $5{,}00$ & $3{,}00$ & v\'ertice \\
+$\mathbf{r}_4$ & $0{,}50$ & $2{,}50$ & v\'ertice \\
+$\mathbf{r}_5$ & $\mathbf{2{,}40}$ & $\mathbf{0{,}20}$ & medio $N_1N_2$ \textbf{(desplazado)} \\
+$\mathbf{r}_6$ & $4{,}50$ & $1{,}50$ & medio $N_2N_3$ (ideal) \\
+$\mathbf{r}_7$ & $2{,}75$ & $2{,}75$ & medio $N_3N_4$ (ideal) \\
+$\mathbf{r}_8$ & $0{,}25$ & $1{,}25$ & medio $N_4N_1$ (ideal) \\
+$\mathbf{r}_9$ & $2{,}475$ & $1{,}425$ & centroide (ideal) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{center}
+\begin{tikzpicture}[scale=1.0]
+  \draw[gray!20, step=0.5] (-0.5,-0.5) grid (5.8,3.5);
+  \draw[->, gray!60] (-0.3,0) -- (5.8,0) node[right]{$x$};
+  \draw[->, gray!60] (0,-0.3) -- (0,3.5) node[above]{$y$};
+  \fill[cornercol!25] (0,0) -- (4,0) -- (5,3) -- (0.5,2.5) -- cycle;
+  \draw[thick, cornercol!70!black] (0,0) -- (4,0) -- (5,3) -- (0.5,2.5) -- cycle;
+  % corners
+  \foreach \p/\lab in {(0,0)/1,(4,0)/2,(5,3)/3,(0.5,2.5)/4}{
+    \draw[fill=cornercol] \p circle (0.10);
+    \node[below right=-1pt, font=\scriptsize\bfseries] at \p {$\mathbf{r}_\lab$};
+  }
+  % mids: 5 displaced, others at mid
+  \draw[fill=midcol] (2.4,0.2) circle (0.08);
+  \node[below right=-2pt, font=\scriptsize, red!70!black] at (2.4,0.2) {$\mathbf{r}_5$};
+  \draw[fill=midcol] (4.5,1.5) circle (0.08); \node[right=2pt, font=\scriptsize] at (4.5,1.5) {$\mathbf{r}_6$};
+  \draw[fill=midcol] (2.75,2.75) circle (0.08); \node[above=2pt, font=\scriptsize] at (2.75,2.75) {$\mathbf{r}_7$};
+  \draw[fill=midcol] (0.25,1.25) circle (0.08); \node[left=2pt, font=\scriptsize] at (0.25,1.25) {$\mathbf{r}_8$};
+  % center
+  \draw[fill=centercol] (2.475,1.425) circle (0.08);
+  \node[above right=-1pt, font=\scriptsize] at (2.475,1.425) {$\mathbf{r}_9$};
+  % show ideal midpoint of P1P2 for reference
+  \draw[dashed, red!60, thin] (2,0) -- (2.4,0.2);
+  \draw[fill=white, draw=red!60, thin] (2,0) circle (0.05);
+  \node[below, font=\tiny, red!70!black] at (2,-0.05) {ideal $(2,0)$};
+\end{tikzpicture}
+\end{center}
+
+\subsection{Paso 1 --- admisibilidad por arista}
+
+Aplicamos la ec.~\eqref{eq:s_di} a cada una de las cuatro aristas macro.
+
+\begin{stepbox}[title={Arista $\mathbf{r}_1\mathbf{r}_2$ con nodo medio $\mathbf{r}_5=(2{,}4,\,0{,}2)$}]
+\begin{align*}
+\mathbf{e} &= \mathbf{r}_2-\mathbf{r}_1 = (4,\,0), \quad L = 4{,}000 \\
+s_1 &= \frac{(\mathbf{r}_5-\mathbf{r}_1)\cdot\mathbf{e}}{\|\mathbf{e}\|^2}
+     = \frac{(2{,}4)(4)+(0{,}2)(0)}{16} = \frac{9{,}6}{16} = \mathbf{0{,}6000} \\
+\text{midpoint ideal} &= (2,\,0) \\
+d_1 &= \frac{\|\mathbf{r}_5-(2,0)\|}{L} = \frac{\|(0{,}4,\,0{,}2)\|}{4}
+     = \frac{\sqrt{0{,}20}}{4} \approx \mathbf{0{,}111803}
+\end{align*}
+La componente normal $d_n = |0{,}2|/4 = 0{,}050$; la tangencial es $|s-0{,}5|=0{,}10$, ambas visibles en la figura.
+\end{stepbox}
+
+\begin{stepbox}[title={Aristas restantes (nodos medios en el punto medio exacto)}]
+Para $\mathbf{r}_6, \mathbf{r}_7, \mathbf{r}_8$: $s_i = 0{,}5$ y $d_i = 0$ por construcci\'on. Todos los gates tangenciales se cumplen ($s_i\in(\tfrac{1}{4},\tfrac{3}{4})$).
+\end{stepbox}
+
+\begin{stepbox}[title={Centroide $\mathbf{r}_9$}]
+Promedio de los 4 nodos medios:
+\[
+\mathbf{r}_9^{\star} = \tfrac{1}{4}(\mathbf{r}_5+\mathbf{r}_6+\mathbf{r}_7+\mathbf{r}_8)
+= \tfrac{1}{4}(9{,}9,\,5{,}7) = (2{,}475,\,1{,}425).
+\]
+Como $\mathbf{r}_9 = \mathbf{r}_9^{\star}$ exactamente, $d_9 = 0$. Adem\'as, $\mathbf{r}_9$ est\'a dentro de la envolvente convexa de $\{\mathbf{r}_5,\mathbf{r}_6,\mathbf{r}_7,\mathbf{r}_8\}$ por ser su centroide: gate de convexidad cumplido.
+\end{stepbox}
+
+\subsection{Paso 2 --- M\'etrica 4b: q\_D}
+
+\begin{resultbox}[title={M\'etrica 4b: Admisibilidad Q9}]
+\[
+\boxed{\;q_D = \max(d_1,d_2,d_3,d_4,d_9) = \max(0{,}1118,\,0,\,0,\,0,\,0) = 0{,}111803\;}
+\]
+\textbf{Gates:} $s_{\min}=0{,}500$, $s_{\max}=0{,}600$ ambos en $(\tfrac{1}{4},\tfrac{3}{4})$ \checkmark. $\mathbf{r}_9$ en envolvente \checkmark.\\
+\textbf{Clasificaci\'on:} Aceptable (el umbral Buena exige $q_D \le 0{,}10$; el umbral Aceptable es $q_D \le 0{,}25$).
+\end{resultbox}
+
+\subsection{Paso 3 --- M\'etrica 1: Scaled Jacobian (3$\times$3 Gauss)}
+
+Para Q9 se utilizan 9 puntos Gauss $3\!\times\!3$ con coordenadas $\xi_g,\eta_g\in\{-\sqrt{3/5},\,0,\,+\sqrt{3/5}\} \approx \{-0{,}7746,\,0,\,+0{,}7746\}$. El Jacobiano utiliza ahora las 9 funciones de forma $N_i^{(9)}$.
+
+\begin{center}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{rccc|c}
+\toprule
+$(\xi_g,\eta_g)$ & $\det\mathbf{J}_g$ & $\|\mathbf{J}_{:,1}\|_g$ & $\|\mathbf{J}_{:,2}\|_g$ & $SJ_g$ \\
+\midrule
+$(-0{,}7746,-0{,}7746)$ & $3{,}000286$ & $2{,}519730$ & $1{,}237480$ & $0{,}962212$ \\
+$(-0{,}7746,+0{,}0000)$ & $2{,}782818$ & $2{,}288516$ & $1{,}254619$ & $0{,}969212$ \\
+$(-0{,}7746,+0{,}7746)$ & $2{,}771109$ & $2{,}244820$ & $1{,}289082$ & $0{,}957616$ \\
+$(+0{,}0000,-0{,}7746)$ & $2{,}428256$ & $2{,}028275$ & $1{,}197872$ & $0{,}999441$ \\
+$(+0{,}0000,+0{,}0000)$ & $2{,}687500$ & $2{,}132194$ & $1{,}281113$ & $0{,}983863$ \\
+$(+0{,}0000,+0{,}7746)$ & $2{,}931744$ & $2{,}246186$ & $1{,}370530$ & $0{,}952339$ \\
+$(+0{,}7746,-0{,}7746)$ & $2{,}228891$ & $1{,}575228$ & $1{,}417359$ & $0{,}998310$ \\
+$(+0{,}7746,+0{,}0000)$ & $2{,}802182$ & $2{,}008667$ & $1{,}432614$ & $0{,}973777$ \\
+$(+0{,}7746,+0{,}7746)$ & $3{,}139714$ & $2{,}259982$ & $1{,}478947$ & $\mathbf{0{,}939361}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{resultbox}[title={M\'etrica 1: Scaled Jacobian Q9}]
+\[
+\boxed{\;q_{SJ} = \min_g SJ_g = 0{,}939361\;}\qquad \text{(Buena, $\ge 0{,}7$)}
+\]
+Es ligeramente inferior al Q4 (0{,}944) porque el nodo medio desplazado introduce oscilaci\'on adicional en $\det\mathbf{J}$.
+\end{resultbox}
+
+\subsection{Paso 4 --- M\'etrica 2: Jacobian Ratio (3$\times$3)}
+\[
+\min_g \det\mathbf{J}_g = 2{,}228891,\qquad \max_g \det\mathbf{J}_g = 3{,}139714.
+\]
+
+\begin{resultbox}[title={M\'etrica 2: Jacobian Ratio Q9}]
+\[
+\boxed{\;R_J = \frac{2{,}228891}{3{,}139714} = 0{,}709903\;} \qquad \text{(Buena, $\ge 0{,}5$)}
+\]
+Notablemente \textbf{menor} que en Q4 ($0{,}860$): con el mismo macro, la biquadraticidad del mapeo Q9 amplifica la variaci\'on del Jacobiano al haber un nodo medio desplazado.
+\end{resultbox}
+
+\subsection{Paso 5 --- M\'etrica 3: Robinson Aspect}
+Opera \'unicamente sobre las 4 esquinas macro, que son id\'enticas a las del Q4:
+
+\begin{resultbox}[title={M\'etrica 3: Robinson Aspect Q9 (identico al Q4)}]
+\[
+\boxed{\;AR_R = 1{,}493576\;} \qquad \text{(Buena)}
+\]
+Esto confirma que $AR_R$ es ciega a la posici\'on de los nodos medios por dise\~no: mide el \emph{sobre envolvente macro} y no la curvatura interior.
+\end{resultbox}
+
+\subsection{Resumen Q9}
+\begin{center}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{lcccc}
+\toprule
+M\'etrica & Valor & Umbral Buena & Umbral Aceptable & Estado \\
+\midrule
+$q_{SJ}$  & $0{,}939$ & $\ge 0{,}7$ & $\ge 0{,}3$ & \textcolor{good}{\textbf{Buena}} \\
+$R_J$     & $0{,}710$ & $\ge 0{,}5$ & $\ge 0{,}2$ & \textcolor{good}{\textbf{Buena}} \\
+$AR_R$    & $1{,}494$ & $\le 3$     & $\le 5$     & \textcolor{good}{\textbf{Buena}} \\
+$q_D$     & $0{,}112$ & $\le 0{,}10$ & $\le 0{,}25$ & \textcolor{warn}{\textbf{Aceptable}} \\
+Gates     & OK        & ---         & ---         & \textcolor{good}{\textbf{OK}} \\
+\midrule
+\multicolumn{4}{l}{\textbf{Estado global} (peor m\'etrica manda):} & \textcolor{warn}{\textbf{Aceptable}} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{interpretbox}[title={Interpretaci\'on pedag\'ogica Q9}]
+Tres de las cuatro m\'etricas son indistinguibles entre la clasificaci\'on Q4 y Q9 (dentro de la resoluci\'on de un par de d\'ecimas). La diferencia pedag\'ogicamente significativa est\'a en:
+\begin{enumerate}[leftmargin=1.2em,itemsep=1pt]
+  \item $R_J$ cae de $0{,}860$ a $0{,}710$: la biquadraticidad de Q9 hace visible el efecto del nodo medio desplazado en la uniformidad del Jacobiano interior.
+  \item $q_D$ es la \'unica m\'etrica que \textbf{apunta directamente} a la arista problem\'atica ($d_1=0{,}112$ mientras $d_2,d_3,d_4=0$). Es la diferencia entre un diagn\'ostico gen\'erico (``el Jacobiano es peor'') y uno espec\'ifico (``el nodo medio de la arista 1 est\'a desplazado un 11,2\% de la longitud de la arista'').
+\end{enumerate}
+Si se moviera $N_5$ hasta $s=0{,}76$ (fuera del intervalo $(\tfrac{1}{4},\tfrac{3}{4})$), el \emph{gate tangencial} se violar\'ia autom\'aticamente y el status pasar\'ia a \textcolor{bad}{\textbf{Mala}} sin necesidad de recalcular el Jacobiano.
+\end{interpretbox}
+
+% =========================================================================
+\section{Comparaci\'on Q4 vs Q9 y lecciones}
+\label{sec:comp}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{lccc}
+\toprule
+M\'etrica & Q4 & Q9 (mismo macro + $\mathbf{r}_5$ movido) & Diferencia \\
+\midrule
+$q_{SJ}$ & $0{,}944019$ & $0{,}939361$ & $-0{,}5\%$ \\
+$R_J$    & $0{,}859935$ & $0{,}709903$ & $\mathbf{-17{,}4\%}$ \\
+$AR_R$   & $1{,}493576$ & $1{,}493576$ & id\'entico \\
+4ta m\'etrica & $T_R=0{,}108$ & $q_D=0{,}112$ (gates OK) & -- cambio de etiqueta -- \\
+\midrule
+Estado global & \textcolor{good}{Buena} & \textcolor{warn}{Aceptable} & -- \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{interpretbox}[title={Tres lecciones concretas}]
+\begin{enumerate}[leftmargin=1.2em,itemsep=2pt]
+  \item \textbf{Las 3 primeras m\'etricas sirven a ambos tipos}: cambian de stencil (2$\times$2 vs 3$\times$3) y de campo de c\'alculo (4 vs 9 funciones de forma) pero la f\'ormula es id\'entica. Robinson Aspect permanece \emph{exactamente igual} entre los dos casos porque opera sobre las mismas 4 esquinas.
+  \item \textbf{El Jacobian Ratio es el detector de distorsi\'on interior m\'as sensible}: captur\'o la perturbaci\'on del nodo medio con un $17\%$ de ca\'ida, mientras que $q_{SJ}$ apenas baj\'o un $0{,}5\%$. La raz\'on es geom\'etrica: el punto Gauss central $(0,0)$, que no existe en el stencil $2\!\times\!2$, revela la variaci\'on biquadr\'atica.
+  \item \textbf{La 4ta m\'etrica es el localizador}: sin ella, el c\'odigo sabr\'ia que ``algo empeor\'o'' en Q9 pero no qu\'e nodo es el responsable. Con $q_D$, el mensaje al usuario pasa de ``la malla est\'a degradada'' a ``revisa el nodo $\mathbf{r}_5$ de la arista 1''. Esta diferencia de granularidad es el argumento pedag\'ogico central del framework de 4 m\'etricas.
+\end{enumerate}
+\end{interpretbox}
+
+\section*{Ap\'endice: reproducci\'on de los c\'alculos}
+Los valores num\'ericos de este documento se obtuvieron directamente con las funciones del m\'odulo \texttt{fem.mesh\_quality} de EduFEM. El lector puede reproducirlos con:
+
+\begin{lstlisting}[language=Python]
+from fem.mesh_quality import (
+    scaled_jacobian, jacobian_ratio,
+    robinson_aspect, robinson_taper,
+    midside_center_admissibility,
+)
+from config.settings import ELEMENT_Q4, ELEMENT_Q9
+import numpy as np
+
+# Ejemplo Q4
+P_q4 = np.array([[0,0],[4,0],[5,3],[0.5,2.5]], dtype=float)
+print(scaled_jacobian(P_q4, ELEMENT_Q4))   # 0.944019
+print(jacobian_ratio(P_q4, ELEMENT_Q4))    # 0.859935
+print(robinson_aspect(P_q4))                # 1.493576
+print(robinson_taper(P_q4))                 # 0.107692
+
+# Ejemplo Q9: mismo macro + r5 = (2.4, 0.2); r6..r8 en midpoint, r9 en centroide
+M5 = np.array([2.4, 0.2])
+M6 = 0.5*(P_q4[1]+P_q4[2])
+M7 = 0.5*(P_q4[2]+P_q4[3])
+M8 = 0.5*(P_q4[3]+P_q4[0])
+N9 = 0.25*(M5+M6+M7+M8)
+P_q9 = np.vstack([P_q4, M5, M6, M7, M8, N9])
+print(scaled_jacobian(P_q9, ELEMENT_Q9))   # 0.939361
+print(jacobian_ratio(P_q9, ELEMENT_Q9))    # 0.709903
+print(midside_center_admissibility(P_q9))
+# -> {'q_D': 0.1118, 's_min': 0.5, 's_max': 0.6, 'gates_ok': True}
+\end{lstlisting}
+
+\end{document}

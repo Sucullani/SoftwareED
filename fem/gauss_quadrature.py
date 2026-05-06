@@ -55,7 +55,7 @@ def get_gauss_points_for_element(element_type):
     Q4 → 2×2 (4 puntos)
     Q9 → 3×3 (9 puntos)
     """
-    if element_type == "Q4" or "4 nodos" in str(element_type):
+    from config.settings import ELEMENT_Q4
+    if element_type == ELEMENT_Q4:
         return get_gauss_points_2d(2)
-    else:
-        return get_gauss_points_2d(3)
+    return get_gauss_points_2d(3)

@@ -63,14 +63,10 @@ def import_elements_csv(filepath, project, thickness=None, material_name=None):
     """
     Importa elementos desde un archivo CSV.
 
-    Formato esperado:
-        N1, N2, N3, N4 [, Espesor] [, Material]
-
-    Parámetros:
-        filepath: ruta del archivo CSV.
-        project: ProjectModel donde agregar los elementos.
-        thickness: espesor por defecto si no se especifica en el CSV.
-        material_name: nombre del material por defecto.
+    Formato esperado (header dinámico):
+        Q4 → ID, N1, N2, N3, N4 [, Espesor] [, Material]
+        Q9 → ID, N1, ..., N9 [, Espesor] [, Material]
+    La cantidad de nodos se detecta contando las columnas "N*" del header.
 
     Retorna:
         int: número de elementos importados.
@@ -78,91 +74,56 @@ def import_elements_csv(filepath, project, thickness=None, material_name=None):
     count = 0
     with open(filepath, "r", encoding="utf-8") as f:
         reader = csv.reader(f)
-        next(reader, None)
+        header = next(reader, None)
+        n_nodes = 4
+        has_id_col = False
+        if header is not None:
+            cols = [c.strip().upper() for c in header]
+            n_nodes = sum(1 for c in cols if c.startswith("N") and c[1:].isdigit())
+            if n_nodes == 0:
+                n_nodes = 4
+            has_id_col = len(cols) > 0 and cols[0] == "ID"
+
+        node_start = 1 if has_id_col else 0
+        extras_start = node_start + n_nodes
+
         for row in reader:
-            if len(row) >= 4:
-                nids = [int(row[i].strip()) for i in range(4)]
-                t = float(row[4].strip()) if len(row) >= 5 else thickness
-                mat = row[5].strip() if len(row) >= 6 else material_name
-                project.add_element(nids, t, mat)
-                count += 1
+            if len(row) < node_start + n_nodes:
+                continue
+            nids = [int(row[node_start + i].strip()) for i in range(n_nodes)]
+            t = (float(row[extras_start].strip())
+                 if len(row) > extras_start and row[extras_start].strip() else thickness)
+            mat = (row[extras_start + 1].strip()
+                   if len(row) > extras_start + 1 else material_name)
+            project.add_element(nids, t, mat)
+            count += 1
     return count
 
 
 def export_elements_csv(filepath, project):
     """
-    Exporta elementos a un archivo CSV.
-
-    Parámetros:
-        filepath: ruta del archivo CSV.
-        project: ProjectModel con los elementos.
+    Exporta elementos a un archivo CSV con columnas dinámicas según
+    project.element_type (Q4 → N1..N4, Q9 → N1..N9).
 
     Retorna:
         int: número de elementos exportados.
     """
+    from config.settings import ELEMENT_Q9
+    n_cols = 9 if project.element_type == ELEMENT_Q9 else 4
+
     count = 0
     with open(filepath, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
-        writer.writerow(["ID", "N1", "N2", "N3", "N4", "Espesor", "Material"])
+        header = ["ID"] + [f"N{i+1}" for i in range(n_cols)] + ["Espesor", "Material"]
+        writer.writerow(header)
         for elem in sorted(project.elements.values(), key=lambda e: e.id):
             nids = list(elem.node_ids)
-            while len(nids) < 4:
+            while len(nids) < n_cols:
                 nids.append("")
-            writer.writerow([
-                elem.id, nids[0], nids[1], nids[2], nids[3],
-                elem.thickness, elem.material_name
-            ])
+            writer.writerow(
+                [elem.id] + nids[:n_cols] + [elem.thickness, elem.material_name]
+            )
             count += 1
     return count
 
 
-def export_results_csv(filepath, project, solution, nodal_stresses):
-    """
-    Exporta los resultados del análisis a un archivo CSV.
-
-    Parámetros:
-        filepath: ruta del archivo CSV.
-        project: ProjectModel.
-        solution: dict con resultados del solver.
-        nodal_stresses: dict con esfuerzos nodales.
-
-    Retorna:
-        int: número de filas exportadas.
-    """
-    import numpy as np
-
-    count = 0
-    u = solution["u"]
-
-    with open(filepath, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
-        writer.writerow([
-            "Nodo", "Ux", "Uy", "|U|",
-            "sigma_x", "sigma_y", "tau_xy",
-            "sigma_1", "sigma_2", "von_mises"
-        ])
-
-        for nid in sorted(project.nodes.keys()):
-            ux = u[2 * (nid - 1)]
-            uy = u[2 * (nid - 1) + 1]
-            umag = np.sqrt(ux**2 + uy**2)
-
-            if nodal_stresses and nid in nodal_stresses:
-                s = nodal_stresses[nid]
-                sx = s.get("sigma_x", 0)
-                sy = s.get("sigma_y", 0)
-                txy = s.get("tau_xy", 0)
-                s1 = s.get("sigma_1", 0)
-                s2 = s.get("sigma_2", 0)
-                vm = s.get("von_mises", 0)
-            else:
-                sx = sy = txy = s1 = s2 = vm = 0
-
-            writer.writerow([
-                nid, f"{ux:.6e}", f"{uy:.6e}", f"{umag:.6e}",
-                f"{sx:.4f}", f"{sy:.4f}", f"{txy:.4f}",
-                f"{s1:.4f}", f"{s2:.4f}", f"{vm:.4f}"
-            ])
-            count += 1
-
-    return count

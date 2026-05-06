@@ -31,6 +31,8 @@ class ProjectModel:
         self.default_thickness = DEFAULT_THICKNESS
         self.gravity = DEFAULT_GRAVITY
         self.include_gravity = False
+        # Etiquetas cuando unit_system == "Personalizado"
+        self.custom_units = {"longitud": "-", "fuerza": "-", "esfuerzo": "-"}
 
         # Datos del modelo
         self.nodes = {}              # {id: Node}
@@ -67,17 +69,194 @@ class ProjectModel:
         return node
 
     def remove_node(self, node_id):
-        """Elimina un nodo y todas sus referencias."""
+        """Elimina un nodo y TODAS sus referencias en el modelo:
+        cargas nodales, restricciones y cargas superficiales que lo
+        referencien como `node_start` o `node_end`.
+
+        Si el nodo aparece en `element.node_ids` (es vertice de algun
+        elemento), se elimina igual -- el elemento queda con un node_id
+        invalido y el panel de salud lo flaggeara como error critico.
+        El caller deberia usar `remove_element` para borrar el elemento
+        primero o aceptar la inconsistencia.
+        """
+        if node_id not in self.nodes:
+            return
+        del self.nodes[node_id]
+        # Cargas nodales asociadas
+        if node_id in self.nodal_loads:
+            del self.nodal_loads[node_id]
+        # Restricciones asociadas
+        if node_id in self.boundary_conditions:
+            del self.boundary_conditions[node_id]
+        # Surface loads que referencien este nodo como extremo de arista
+        self.surface_loads = [
+            sl for sl in self.surface_loads
+            if sl.node_start != node_id and sl.node_end != node_id
+        ]
+        self.is_modified = True
+        self.is_solved = False
+
+    def remove_node_with_cascade(self, node_id, *, cleanup_orphans=True):
+        """Borra un nodo y cascadea simetricamente al de `remove_element`.
+
+        El usuario pide "borrar este nodo". El cascade decide que mas
+        debe irse para que el modelo no quede inconsistente:
+
+        1) Borra todos los elementos que contienen al nodo.
+        2) Por cada elemento eliminado, propaga el cleanup de mid/center
+           nodes huerfanos (los que no quedan en ningun otro elemento ni
+           tienen datos del usuario). Los nodos con datos del usuario se
+           preservan como huerfanos visibles -- el panel de salud los
+           flaggeara, pero no se pierden.
+        3) Borra el nodo objetivo + sus cargas / BCs / surface refs.
+
+        Si `cleanup_orphans=False` se comporta como `remove_node` legacy:
+        borra solo el nodo y sus refs directas, dejando elementos con
+        node_ids invalidos que el panel de salud flaggeara.
+
+        Retorna:
+            dict con cuatro claves:
+                - "node_deleted": True/False
+                - "elements_deleted": list[int] de element_ids eliminados
+                - "nodes_deleted": list[int] de node_ids eliminados
+                  (incluye al objetivo si fue borrado)
+                - "nodes_preserved": list[int] de node_ids preservados
+                  como huerfanos (tenian datos del usuario)
+        """
+        result = {
+            "node_deleted": False,
+            "elements_deleted": [],
+            "nodes_deleted": [],
+            "nodes_preserved": [],
+        }
+        if node_id not in self.nodes:
+            return result
+
+        if cleanup_orphans:
+            # Snapshot de elementos que usan el nodo (lista, no generador,
+            # porque vamos a mutar self.elements).
+            elem_ids = [
+                eid for eid, e in self.elements.items()
+                if node_id in e.node_ids
+            ]
+            for eid in elem_ids:
+                sub = self.remove_element(eid, cleanup_orphans=True)
+                if sub["deleted"]:
+                    result["elements_deleted"].append(eid)
+                result["nodes_deleted"].extend(sub["nodes_deleted"])
+                result["nodes_preserved"].extend(sub["nodes_preserved"])
+
+        # Borrado explicito del nodo objetivo + refs directas. Si el
+        # cascade ya lo elimino (era huerfano sin datos al quedar fuera
+        # del ultimo elemento), los `if` protegen.
         if node_id in self.nodes:
             del self.nodes[node_id]
-            # Eliminar cargas nodales del nodo
-            if node_id in self.nodal_loads:
-                del self.nodal_loads[node_id]
-            # Eliminar restricciones del nodo
-            if node_id in self.boundary_conditions:
-                del self.boundary_conditions[node_id]
+            result["nodes_deleted"].append(node_id)
+        if node_id in self.nodal_loads:
+            del self.nodal_loads[node_id]
+        if node_id in self.boundary_conditions:
+            del self.boundary_conditions[node_id]
+        before_sl = len(self.surface_loads)
+        self.surface_loads = [
+            sl for sl in self.surface_loads
+            if sl.node_start != node_id and sl.node_end != node_id
+        ]
+        # node_deleted refleja el resultado neto: el nodo objetivo ya no
+        # esta en el modelo (lo borro el cascade o el del explicito).
+        result["node_deleted"] = node_id not in self.nodes
+        # Si el target estaba en nodes_preserved (cuando el cascade lo
+        # preservo por datos pero el usuario igualmente lo borra),
+        # quitarlo del reporte para coherencia.
+        result["nodes_preserved"] = [
+            n for n in result["nodes_preserved"] if n != node_id
+        ]
+        # Dedupe + sort para reporte ordenado y predecible.
+        result["nodes_deleted"] = sorted(set(result["nodes_deleted"]))
+        result["nodes_preserved"] = sorted(set(result["nodes_preserved"]))
+        result["elements_deleted"] = sorted(set(result["elements_deleted"]))
+
+        if before_sl != len(self.surface_loads) or result["node_deleted"]:
             self.is_modified = True
             self.is_solved = False
+        return result
+
+    def preview_node_cascade(self, node_id):
+        """Calcula sin mutar lo que pasaria con `remove_node_with_cascade`.
+
+        Util para mostrar un modal de confirmacion con preview del impacto
+        antes de borrar. Espejado de `_preview_element_cleanup`.
+
+        Retorna dict con:
+            - "elements_to_delete": list[int]
+            - "nodes_to_delete": list[int] (sin contar el objetivo)
+            - "nodes_to_preserve": list[int]
+        """
+        if node_id not in self.nodes:
+            return {"elements_to_delete": [], "nodes_to_delete": [],
+                    "nodes_to_preserve": []}
+
+        elements_to_delete = [
+            eid for eid, e in self.elements.items()
+            if node_id in e.node_ids
+        ]
+        # Conjunto de nodos que estarian en los elementos eliminados,
+        # excluyendo el objetivo (lo reportamos aparte).
+        candidate_nodes = set()
+        for eid in elements_to_delete:
+            for nid in self.elements[eid].node_ids:
+                if nid != node_id:
+                    candidate_nodes.add(nid)
+
+        nodes_to_delete = []
+        nodes_to_preserve = []
+        elements_after = {
+            eid: e for eid, e in self.elements.items()
+            if eid not in elements_to_delete
+        }
+        for nid in candidate_nodes:
+            if nid not in self.nodes:
+                continue
+            still_in_element = any(
+                nid in e.node_ids for e in elements_after.values()
+            )
+            if still_in_element:
+                continue
+            has_user_data = (
+                nid in self.nodal_loads
+                or nid in self.boundary_conditions
+                or any(sl.node_start == nid or sl.node_end == nid
+                       for sl in self.surface_loads)
+            )
+            if has_user_data:
+                nodes_to_preserve.append(nid)
+            else:
+                nodes_to_delete.append(nid)
+
+        return {
+            "elements_to_delete": sorted(elements_to_delete),
+            "nodes_to_delete": sorted(nodes_to_delete),
+            "nodes_to_preserve": sorted(nodes_to_preserve),
+        }
+
+    def is_node_referenced(self, node_id):
+        """Indica si un node_id esta referenciado por cualquier dato del
+        modelo (carga, BC, surface load, o elemento). Util para distinguir
+        nodos verdaderamente sin uso vs nodos con datos del usuario.
+
+        No verifica `self.nodes` -- solo dependencias externas al propio
+        registro de nodos.
+        """
+        if node_id in self.nodal_loads:
+            return True
+        if node_id in self.boundary_conditions:
+            return True
+        for sl in self.surface_loads:
+            if sl.node_start == node_id or sl.node_end == node_id:
+                return True
+        for elem in self.elements.values():
+            if node_id in elem.node_ids:
+                return True
+        return False
 
     def _next_node_id(self):
         """Retorna el siguiente ID de nodo disponible."""
@@ -101,12 +280,69 @@ class ProjectModel:
         self.is_solved = False
         return elem
 
-    def remove_element(self, elem_id):
-        """Elimina un elemento."""
-        if elem_id in self.elements:
-            del self.elements[elem_id]
-            self.is_modified = True
-            self.is_solved = False
+    def remove_element(self, elem_id, *, cleanup_orphans=True):
+        """Elimina un elemento y aplica auto-cleanup de nodos huerfanos.
+
+        Tras borrar el elemento, computa los nodos que quedaron sin
+        ninguna referencia (via `is_node_referenced`) y los elimina.
+        Los nodos que tienen datos del usuario (cargas, BCs, surface
+        loads) se preservan como huerfanos -- el panel de salud los
+        flaggeara, pero los datos no se pierden.
+
+        Parametros:
+            elem_id: ID del elemento a eliminar.
+            cleanup_orphans: si False, deshabilita el cleanup automatico
+                (modo legacy). Default True.
+
+        Retorna:
+            dict con tres claves:
+                - "deleted": True/False (si se borro el elemento)
+                - "nodes_deleted": list[int] de IDs eliminados por cleanup
+                - "nodes_preserved": list[int] de IDs que quedaron como
+                  huerfanos (estaban en el elemento pero tienen otras refs)
+        """
+        result = {"deleted": False, "nodes_deleted": [],
+                  "nodes_preserved": []}
+        if elem_id not in self.elements:
+            return result
+        # Snapshot de los nodos que el elemento usaba (incluye Q9 mid/center)
+        elem = self.elements[elem_id]
+        nodes_in_elem = set(elem.node_ids)
+        del self.elements[elem_id]
+        result["deleted"] = True
+        self.is_modified = True
+        self.is_solved = False
+
+        if not cleanup_orphans:
+            return result
+
+        # Auto-cleanup: para cada nodo que estaba en el elemento eliminado:
+        #   1) si sigue en otro elemento -> no es huerfano, ignorar
+        #   2) si tiene cargas/BCs/surface refs -> preservar (huerfano marcado)
+        #   3) sin referencias -> eliminar definitivamente
+        for nid in nodes_in_elem:
+            if nid not in self.nodes:
+                continue
+            in_another_element = any(
+                nid in e.node_ids for e in self.elements.values()
+            )
+            if in_another_element:
+                continue
+            has_user_data = (
+                nid in self.nodal_loads
+                or nid in self.boundary_conditions
+                or any(sl.node_start == nid or sl.node_end == nid
+                       for sl in self.surface_loads)
+            )
+            if has_user_data:
+                result["nodes_preserved"].append(nid)
+                continue
+            del self.nodes[nid]
+            result["nodes_deleted"].append(nid)
+
+        result["nodes_deleted"].sort()
+        result["nodes_preserved"].sort()
+        return result
 
     def _next_element_id(self):
         if not self.elements:
@@ -127,15 +363,94 @@ class ProjectModel:
             self.is_modified = True
             self.is_solved = False
 
-    def add_surface_load(self, element_id, node_start, node_end,
-                         q_start, q_end, angle=0.0):
-        """Agrega una carga superficial."""
-        load = SurfaceLoad(element_id, node_start, node_end,
-                           q_start, q_end, angle)
+    def add_surface_load(self, node_start, node_end,
+                         q_start=0.0, q_end=0.0, angle=0.0, element_id=None):
+        """Agrega una carga superficial. element_id es opcional."""
+        load = SurfaceLoad(node_start, node_end,
+                           q_start, q_end, angle, element_id)
         self.surface_loads.append(load)
         self.is_modified = True
         self.is_solved = False
         return load
+
+    # ─── Renombrado / cambio de ID con cascada ──────────────────────────
+
+    def change_node_id(self, old_id, new_id):
+        """Renumera un nodo y actualiza TODAS las referencias.
+
+        Mueve el nodo de `nodes[old_id]` a `nodes[new_id]` y actualiza:
+        - Su propio atributo `.id`.
+        - `nodal_loads[old_id]` -> `nodal_loads[new_id]` (mantiene la carga).
+        - `boundary_conditions[old_id]` -> idem.
+        - Todos los `element.node_ids` que contengan `old_id`.
+        - `surface_loads.node_start` / `node_end` que apunten a `old_id`.
+
+        Lanza ValueError si `old_id` no existe o `new_id` ya esta en uso.
+        """
+        if old_id == new_id:
+            return
+        if old_id not in self.nodes:
+            raise ValueError(f"Nodo {old_id} no existe")
+        if new_id in self.nodes:
+            raise ValueError(f"Nodo {new_id} ya existe")
+        node = self.nodes.pop(old_id)
+        node.id = new_id
+        self.nodes[new_id] = node
+        if old_id in self.nodal_loads:
+            load = self.nodal_loads.pop(old_id)
+            load.node_id = new_id
+            self.nodal_loads[new_id] = load
+        if old_id in self.boundary_conditions:
+            bc = self.boundary_conditions.pop(old_id)
+            bc.node_id = new_id
+            self.boundary_conditions[new_id] = bc
+        for elem in self.elements.values():
+            elem.node_ids = [new_id if n == old_id else n
+                             for n in elem.node_ids]
+        for sl in self.surface_loads:
+            if sl.node_start == old_id:
+                sl.node_start = new_id
+            if sl.node_end == old_id:
+                sl.node_end = new_id
+        self.is_modified = True
+        self.is_solved = False
+
+    def change_element_id(self, old_id, new_id):
+        """Renumera un elemento y actualiza referencias en surface_loads."""
+        if old_id == new_id:
+            return
+        if old_id not in self.elements:
+            raise ValueError(f"Elemento {old_id} no existe")
+        if new_id in self.elements:
+            raise ValueError(f"Elemento {new_id} ya existe")
+        elem = self.elements.pop(old_id)
+        elem.id = new_id
+        self.elements[new_id] = elem
+        for sl in self.surface_loads:
+            if sl.element_id == old_id:
+                sl.element_id = new_id
+        self.is_modified = True
+        self.is_solved = False
+
+    def rename_material(self, old_name, new_name):
+        """Renombra un material y actualiza element.material_name en cascada."""
+        if old_name == new_name:
+            return
+        if old_name not in self.materials:
+            raise ValueError(f"Material '{old_name}' no existe")
+        new_name = (new_name or "").strip()
+        if not new_name:
+            raise ValueError("El nombre del material no puede estar vacío")
+        if new_name in self.materials:
+            raise ValueError(f"Material '{new_name}' ya existe")
+        mat = self.materials.pop(old_name)
+        mat.name = new_name
+        self.materials[new_name] = mat
+        for elem in self.elements.values():
+            if elem.material_name == old_name:
+                elem.material_name = new_name
+        self.is_modified = True
+        self.is_solved = False
 
     # ─── Gestión de restricciones ───────────────────────────────────────
 
@@ -192,6 +507,7 @@ class ProjectModel:
             "default_thickness": self.default_thickness,
             "gravity": self.gravity,
             "include_gravity": self.include_gravity,
+            "custom_units": self.custom_units,
             "nodes": {str(k): v.to_dict() for k, v in self.nodes.items()},
             "elements": {str(k): v.to_dict() for k, v in self.elements.items()},
             "materials": {k: v.to_dict() for k, v in self.materials.items()},
@@ -201,6 +517,47 @@ class ProjectModel:
             "boundary_conditions": {str(k): v.to_dict()
                                     for k, v in self.boundary_conditions.items()},
         }
+
+    def restore_from_dict(self, data):
+        """Restaura el estado del proyecto IN-PLACE desde un diccionario.
+
+        A diferencia de `from_dict` (que es classmethod y crea una nueva
+        instancia), esta variante muta `self` reescribiendo todas las
+        colecciones internas. Es la entrada que usa `UndoStack` para que
+        las referencias `main_window.project`, `pre_tab.project`, etc.
+        sigan apuntando al mismo objeto tras un undo/redo.
+
+        Esquema de datos identico al de `from_dict` (ambos consumen el
+        mismo `to_dict`).
+        """
+        # Reusar from_dict para parseo y luego copiar atributos: evita
+        # duplicar la logica de deserializacion y mantiene un unico SoT.
+        rebuilt = ProjectModel.from_dict(data)
+        # Copiar TODOS los atributos serializables al self existente
+        self.project_name = rebuilt.project_name
+        self.analysis_type = rebuilt.analysis_type
+        self.element_type = rebuilt.element_type
+        self.unit_system = rebuilt.unit_system
+        self.default_thickness = rebuilt.default_thickness
+        self.gravity = rebuilt.gravity
+        self.include_gravity = rebuilt.include_gravity
+        self.custom_units = dict(rebuilt.custom_units)
+        self.nodes = rebuilt.nodes
+        self.elements = rebuilt.elements
+        self.materials = rebuilt.materials
+        self.nodal_loads = rebuilt.nodal_loads
+        self.surface_loads = rebuilt.surface_loads
+        self.boundary_conditions = rebuilt.boundary_conditions
+        # Estado de solucion: invalidar (el snapshot no la incluye, asi
+        # que tras restore quedaria inconsistente).
+        self.is_solved = False
+        self.displacements = None
+        self.global_K = None
+        self.global_F = None
+        self.stresses = {}
+        # is_modified queda en True: el restore ES una modificacion logica
+        # del estado actual (antes y despues son distintos).
+        self.is_modified = True
 
     @classmethod
     def from_dict(cls, data):
@@ -213,6 +570,11 @@ class ProjectModel:
         project.default_thickness = data.get("default_thickness", DEFAULT_THICKNESS)
         project.gravity = data.get("gravity", DEFAULT_GRAVITY)
         project.include_gravity = data.get("include_gravity", False)
+        cu = data.get("custom_units")
+        if isinstance(cu, dict):
+            project.custom_units.update(
+                {k: cu.get(k, "-") for k in ("longitud", "fuerza", "esfuerzo")}
+            )
 
         # Reconstituir objetos
         project.nodes = {

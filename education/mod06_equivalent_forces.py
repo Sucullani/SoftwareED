@@ -17,7 +17,7 @@ import numpy as np
 import tkinter as tk
 import ttkbootstrap as ttk
 
-from education.base_module import BaseEducationalModule
+from education.base_module import ProcessModule
 from education.components import (
     PlotPanel, ParamInput, TheoryDoc,
 )
@@ -28,42 +28,51 @@ from fem.jacobian import compute_jacobian
 from fem.gauss_quadrature import (
     GAUSS_POINTS_1D, get_gauss_points_for_element,
 )
+from config.settings import ELEMENT_Q4, ELEMENT_Q9
 
 
 MODE_EDGE = "Carga de arista q(s)"
 MODE_BODY = "Peso propio (gravedad)"
 
 
-class EquivalentForcesModule(BaseEducationalModule):
+class EquivalentForcesModule(ProcessModule):
     TITLE = "⑥ Vector de fuerzas equivalentes nodales"
     HAS_ANIMATION = True
     ANIMATION_DURATION_MS = 2500
 
-    EDGES_Q4 = {
-        "1-2": (0, 1, 0),   # (i, j, edge_eta = -1)  → variable xi
-        "2-3": (1, 2, 0),   # edge_xi = +1 → variable eta
-        "3-4": (2, 3, 0),
-        "4-1": (3, 0, 0),
+    # Mapping canónico de las 4 aristas macro a su parámetro natural fijo,
+    # compartido por Q4 y Q9. (var_name, fixed_val).
+    EDGE_NATURAL = {
+        "corner_1_2": ("eta", -1.0),
+        "corner_2_3": ("xi",   1.0),
+        "corner_3_4": ("eta",  1.0),
+        "corner_4_1": ("xi",  -1.0),
     }
 
     def __init__(self, parent, project, element_id):
-        self._element_type = "Q4"
-        self._n_nodes = 4
-        if project and project.elements.get(element_id):
-            et = project.elements[element_id].element_type
-            if "Q9" in str(et) or "9 nodos" in str(et):
-                self._element_type = "Q9"
-                self._n_nodes = 9
+        # element_type / n_nodes los autodetecta ProcessModule (vía base).
+        # Para evitar el chicken-and-egg con _build_edge_keys() que se llama
+        # antes de super().__init__, calculamos el flag is_q9 acá también.
+        is_q9 = (
+            project is not None
+            and getattr(project, "element_type", None) == ELEMENT_Q9
+        )
+        elem = project.elements.get(element_id) if project else None
+        if elem is not None and getattr(elem, "num_nodes", 0) == 9:
+            is_q9 = True
+        n_nodes = 9 if is_q9 else 4
 
+        self._edge_keys = (["1-5-2", "2-6-3", "3-7-4", "4-8-1"]
+                            if is_q9 else ["1-2", "2-3", "3-4", "4-1"])
         self._mode = MODE_EDGE
-        self._edge = "1-2"
+        self._edge = self._edge_keys[0]
         self._q = 1.0e4         # N/m (ejemplo)
         self._rho = 7800.0      # kg/m³
         self._g = 9.81          # m/s²
         self._theta = -90.0     # dirección de g [grados] (—90 = apunta -y)
 
         self._t_anim = 0.0       # 0..1 animación
-        self._F = np.zeros(2 * self._n_nodes)
+        self._F = np.zeros(2 * n_nodes)
         super().__init__(parent, project, element_id, width=1320, height=840)
 
     # ---------- controles ----------
@@ -103,7 +112,7 @@ class EquivalentForcesModule(BaseEducationalModule):
         self.var_edge = tk.StringVar(value=self._edge)
         ttk.Combobox(self.frm_edge, textvariable=self.var_edge,
                       state="readonly",
-                      values=list(self.EDGES_Q4.keys()),
+                      values=self._edge_keys,
                       bootstyle="info").pack(fill="x", pady=(0, 4))
         self.var_edge.trace_add("write", lambda *a: self._on_edge_changed())
         self.inp_q = ParamInput(
@@ -201,7 +210,7 @@ class EquivalentForcesModule(BaseEducationalModule):
         )
 
     def _recompute(self) -> None:
-        coords = self._node_coords()[: self._n_nodes]
+        coords = self._node_coords()[: self.n_nodes]
         if self._mode == MODE_EDGE:
             self._F = self._edge_force(coords)
         else:
@@ -210,8 +219,8 @@ class EquivalentForcesModule(BaseEducationalModule):
     def _edge_force(self, coords: np.ndarray) -> np.ndarray:
         """F_i = ∫ N_i · t(s) ds sobre la arista seleccionada.
         La carga actúa en la dirección normal exterior a la arista."""
-        N_fn, dN_fn = get_shape_functions(self._element_type)
-        F = np.zeros(2 * self._n_nodes)
+        N_fn, dN_fn = get_shape_functions(self.element_type)
+        F = np.zeros(2 * self.n_nodes)
 
         # Parametrización: xi o eta varían en [-1, 1]; el otro es fijo.
         edge_fix = self._edge_fix_param()  # ("eta", -1) por ejemplo
@@ -229,37 +238,35 @@ class EquivalentForcesModule(BaseEducationalModule):
             dN_nat = dN_fn(xi, eta)
             if var_name == "xi":
                 # varía eta: derivada respecto a eta
-                dx_ds = dN_nat[1] @ coords[: self._n_nodes, 0]
-                dy_ds = dN_nat[1] @ coords[: self._n_nodes, 1]
+                dx_ds = dN_nat[1] @ coords[: self.n_nodes, 0]
+                dy_ds = dN_nat[1] @ coords[: self.n_nodes, 1]
             else:
-                dx_ds = dN_nat[0] @ coords[: self._n_nodes, 0]
-                dy_ds = dN_nat[0] @ coords[: self._n_nodes, 1]
+                dx_ds = dN_nat[0] @ coords[: self.n_nodes, 0]
+                dy_ds = dN_nat[0] @ coords[: self.n_nodes, 1]
             ds_len = float(np.hypot(dx_ds, dy_ds))
             # Dirección normal exterior (rota tangente 90° hacia fuera)
             tx, ty = dx_ds / (ds_len or 1.0), dy_ds / (ds_len or 1.0)
             nx, ny = self._outward_normal(tx, ty, var_name, fixed_val)
             # contribución
-            for i in range(self._n_nodes):
+            for i in range(self.n_nodes):
                 F[2 * i] += Ns[i] * self._q * nx * ds_len * w
                 F[2 * i + 1] += Ns[i] * self._q * ny * ds_len * w
         return F
 
+    # ---- helpers de aristas ----
+    # Las etiquetas (1-2 / 1-5-2) se eligen en __init__ según is_q9.
+
+    # Mapeo etiqueta-de-combobox → índice canónico de arista (0..3).
+    _EDGE_KEY_TO_IDX = {
+        "1-2": 0, "2-3": 1, "3-4": 2, "4-1": 3,
+        "1-5-2": 0, "2-6-3": 1, "3-7-4": 2, "4-8-1": 3,
+    }
+
+    def _edge_idx(self) -> int:
+        return self._EDGE_KEY_TO_IDX.get(self._edge, 0)
+
     def _edge_fix_param(self):
-        # Q4: las 4 aristas del cuadrado natural
-        mapping = {
-            "1-2": ("xi", -1.0),   # nodo 1 a 2: eta = -1 → varía xi
-            "2-3": ("eta", 1.0),   # varía eta, xi = +1
-            "3-4": ("xi", 1.0),    # eta = +1
-            "4-1": ("eta", -1.0),  # xi = -1
-        }
-        # key corregida: 1-2 está en eta=-1 (varía xi)
-        corrected = {
-            "1-2": ("eta", -1.0),
-            "2-3": ("xi", 1.0),
-            "3-4": ("eta", 1.0),
-            "4-1": ("xi", -1.0),
-        }
-        return corrected[self._edge]
+        return self.EDGE_NATURAL[list(self.EDGE_NATURAL.keys())[self._edge_idx()]]
 
     @staticmethod
     def _outward_normal(tx: float, ty: float, var_name: str,
@@ -277,18 +284,18 @@ class EquivalentForcesModule(BaseEducationalModule):
 
     def _body_force(self, coords: np.ndarray) -> np.ndarray:
         """F_i = ∫∫ N_i · b dA, b = ρ g · (cos θ, sin θ)."""
-        N_fn, dN_fn = get_shape_functions(self._element_type)
-        F = np.zeros(2 * self._n_nodes)
+        N_fn, dN_fn = get_shape_functions(self.element_type)
+        F = np.zeros(2 * self.n_nodes)
         theta_rad = np.deg2rad(self._theta)
         bx = self._rho * self._g * np.cos(theta_rad)
         by = self._rho * self._g * np.sin(theta_rad)
 
-        pts, wts = get_gauss_points_for_element(self._element_type)
+        pts, wts = get_gauss_points_for_element(self.element_type)
         for (xi, eta), w in zip(pts, wts):
             Ns = N_fn(xi, eta)
             _, detJ, _ = compute_jacobian(dN_fn(xi, eta),
-                                            coords[: self._n_nodes])
-            for i in range(self._n_nodes):
+                                            coords[: self.n_nodes])
+            for i in range(self.n_nodes):
                 F[2 * i] += Ns[i] * bx * detJ * w
                 F[2 * i + 1] += Ns[i] * by * detJ * w
         return F
@@ -296,20 +303,26 @@ class EquivalentForcesModule(BaseEducationalModule):
     # ---------- dibujo ----------
     def _redraw(self) -> None:
         colors = _theme_colors()
-        coords = self._node_coords()[: self._n_nodes]
+        coords = self._node_coords()[: self.n_nodes]
 
         # ---- izquierda: elemento + flechitas distribuidas ----
         ax = self.left_panel.ax
         ax.clear()
         self._style_ax(ax, colors)
 
-        # contorno elemento
-        idx = list(range(self._n_nodes if self._n_nodes == 4 else 4)) + [0]
+        # contorno elemento (los 4 vértices macro) + nodos extra Q9
+        idx = [0, 1, 2, 3, 0]
         ax.plot(coords[idx, 0], coords[idx, 1], color="#4fa3ff", lw=1.8)
         ax.fill(coords[idx, 0], coords[idx, 1], color="#4fa3ff", alpha=0.10)
         ax.scatter(coords[:4, 0], coords[:4, 1], s=80, c="#ff9f43",
                     edgecolors=colors["fg"], zorder=5)
-        for i in range(4):
+        if self.n_nodes >= 8:
+            ax.scatter(coords[4:8, 0], coords[4:8, 1], s=40, c="#6fb8ff",
+                        edgecolors=colors["fg"], zorder=5)
+        if self.n_nodes >= 9:
+            ax.scatter(coords[8, 0], coords[8, 1], s=40, c="#b86fff",
+                        edgecolors=colors["fg"], zorder=5)
+        for i in range(min(self.n_nodes, len(coords))):
             ax.annotate(str(i + 1), (coords[i, 0], coords[i, 1]),
                          textcoords="offset points", xytext=(7, 7),
                          color=colors["fg"], fontsize=9)
@@ -352,7 +365,7 @@ class EquivalentForcesModule(BaseEducationalModule):
         var_name, fixed_val = edge_fix
         n_arrows = 7
         ss = np.linspace(-0.95, 0.95, n_arrows)
-        N_fn, dN_fn = get_shape_functions(self._element_type)
+        N_fn, dN_fn = get_shape_functions(self.element_type)
         starts = []
         normals = []
         for s in ss:
@@ -360,14 +373,14 @@ class EquivalentForcesModule(BaseEducationalModule):
                 xi, eta = fixed_val, s
             else:
                 xi, eta = s, fixed_val
-            p = N_fn(xi, eta) @ coords[: self._n_nodes]
+            p = N_fn(xi, eta) @ coords[: self.n_nodes]
             dN = dN_fn(xi, eta)
             if var_name == "xi":
-                dx = dN[1] @ coords[: self._n_nodes, 0]
-                dy = dN[1] @ coords[: self._n_nodes, 1]
+                dx = dN[1] @ coords[: self.n_nodes, 0]
+                dy = dN[1] @ coords[: self.n_nodes, 1]
             else:
-                dx = dN[0] @ coords[: self._n_nodes, 0]
-                dy = dN[0] @ coords[: self._n_nodes, 1]
+                dx = dN[0] @ coords[: self.n_nodes, 0]
+                dy = dN[0] @ coords[: self.n_nodes, 1]
             ln = float(np.hypot(dx, dy)) or 1.0
             tx, ty = dx / ln, dy / ln
             nx, ny = self._outward_normal(tx, ty, var_name, fixed_val)
@@ -380,15 +393,14 @@ class EquivalentForcesModule(BaseEducationalModule):
                          float(np.ptp(coords[:, 1])) or 1.0)
         arr_len = pad * np.sign(self._q) * 0.6
 
-        # Destinos: nodos extremos de la arista (para la animación)
+        # Destinos: nodos de la arista (2 en Q4, 3 en Q9). Cada flecha migra
+        # hacia el nodo más cercano.
         end_nodes = self._edge_end_nodes()
         end_points = coords[end_nodes]
 
         for p, (nx, ny) in zip(starts, normals):
-            # interpolación: de p hacia el extremo más cercano
-            d0 = np.linalg.norm(p - end_points[0])
-            d1 = np.linalg.norm(p - end_points[1])
-            target = end_points[0] if d0 < d1 else end_points[1]
+            dists = np.linalg.norm(end_points - p, axis=1)
+            target = end_points[int(np.argmin(dists))]
             curr = (1 - self._t_anim) * p + self._t_anim * target
             ax.annotate("", xy=(curr[0] - nx * arr_len,
                                  curr[1] - ny * arr_len),
@@ -398,7 +410,7 @@ class EquivalentForcesModule(BaseEducationalModule):
 
     def _draw_body_force_arrows(self, ax, coords) -> None:
         # grid de flechitas en el interior del elemento
-        N_fn, _ = get_shape_functions(self._element_type)
+        N_fn, _ = get_shape_functions(self.element_type)
         samples = np.linspace(-0.8, 0.8, 4)
         theta_rad = np.deg2rad(self._theta)
         bx = np.cos(theta_rad); by = np.sin(theta_rad)
@@ -409,11 +421,11 @@ class EquivalentForcesModule(BaseEducationalModule):
         starts = []
         for xi in samples:
             for eta in samples:
-                starts.append(N_fn(xi, eta) @ coords[: self._n_nodes])
+                starts.append(N_fn(xi, eta) @ coords[: self.n_nodes])
         starts = np.array(starts)
-        # destinos: nodos más cercanos
+        # destinos: cualquier nodo del elemento (incluye medios y centro en Q9)
         for p in starts:
-            d = np.linalg.norm(coords[:4] - p, axis=1)
+            d = np.linalg.norm(coords[: self.n_nodes] - p, axis=1)
             target = coords[int(np.argmin(d))]
             curr = (1 - self._t_anim) * p + self._t_anim * target
             ax.annotate("", xy=(curr[0] + bx * arr_len,
@@ -423,7 +435,8 @@ class EquivalentForcesModule(BaseEducationalModule):
                                           color="#ffd54f", lw=1.2))
 
     def _draw_nodal_arrows(self, ax, coords) -> None:
-        # flechas grandes en los 4 nodos esquineros, escaladas
+        # Flechas en cada nodo del elemento (4 en Q4, hasta 9 en Q9);
+        # tamaño proporcional a ||F_i|| y escalado al máximo.
         Fx = self._F[0::2]
         Fy = self._F[1::2]
         fmax = float(np.max(np.hypot(Fx, Fy)))
@@ -431,7 +444,8 @@ class EquivalentForcesModule(BaseEducationalModule):
             return
         pad = 0.25 * max(float(np.ptp(coords[:, 0])) or 1.0,
                           float(np.ptp(coords[:, 1])) or 1.0)
-        for i in range(4):
+        n_draw = min(self.n_nodes, len(coords), len(Fx))
+        for i in range(n_draw):
             fx, fy = Fx[i], Fy[i]
             mag = np.hypot(fx, fy)
             if mag < 1e-12:
@@ -448,12 +462,15 @@ class EquivalentForcesModule(BaseEducationalModule):
             )
 
     def _edge_end_nodes(self) -> list[int]:
-        return {
-            "1-2": [0, 1],
-            "2-3": [1, 2],
-            "3-4": [2, 3],
-            "4-1": [3, 0],
-        }[self._edge]
+        """Índices de los nodos que participan en la arista activa.
+        Q4: los 2 vértices. Q9: 3 nodos (inicio, medio, fin)."""
+        corners = [(0, 1), (1, 2), (2, 3), (3, 0)]
+        mids = [4, 5, 6, 7]
+        idx = self._edge_idx()
+        a, b = corners[idx]
+        if self.element_type == ELEMENT_Q9 and self.n_nodes >= 8:
+            return [a, mids[idx], b]
+        return [a, b]
 
     def _draw_force_bars(self, colors) -> None:
         ax = self.right_panel.ax
@@ -462,9 +479,9 @@ class EquivalentForcesModule(BaseEducationalModule):
         ax.tick_params(colors=colors["fg"])
         ax.grid(True, color=colors["grid"], lw=0.4, alpha=0.6)
 
-        n = 2 * self._n_nodes
+        n = 2 * self.n_nodes
         labels = []
-        for i in range(self._n_nodes):
+        for i in range(self.n_nodes):
             labels += [f"Fx{i + 1}", f"Fy{i + 1}"]
         pos = np.arange(n)
         vals = self._F
@@ -488,7 +505,7 @@ class EquivalentForcesModule(BaseEducationalModule):
         if not hasattr(self, "lbl_forces"):
             return
         lines = []
-        for i in range(self._n_nodes):
+        for i in range(self.n_nodes):
             fx = self._F[2 * i]
             fy = self._F[2 * i + 1]
             lines.append(f"n{i + 1}: ({fx:+.3e}, {fy:+.3e})")
