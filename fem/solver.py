@@ -94,16 +94,19 @@ def solve_system(project, *, body_force_fn=None):
     )
 
     # 5. Resolver K_red · u_free = F_red
-    u_free = solve(K_red, F_red)
+    #    K_red es el bloque libre-libre de una matriz de rigidez simetrica
+    #    definida positiva: `assume_a="pos"` usa la factorizacion de Cholesky
+    #    (mitad del trabajo que LU generico y mas estable). Falla con
+    #    LinAlgError si el sistema fuese singular (restricciones insuficientes),
+    #    caso que el validador de salud ya bloquea antes de llegar aqui.
+    u_free = solve(K_red, F_red, assume_a="pos")
 
     # 6. Reconstruir vector completo de desplazamientos.
     #    En DOFs libres: valor calculado. En DOFs restringidos: valor prescrito.
     u = np.zeros(project.total_dof)
-    for i, dof in enumerate(free_dofs):
-        u[dof] = u_free[i]
+    u[free_dofs] = u_free
     if u_prescribed is not None:
-        for dof in restrained_dofs:
-            u[dof] = u_prescribed[dof]
+        u[restrained_dofs] = u_prescribed[restrained_dofs]
 
     # 7. Calcular reacciones: R = K · u - F
     reactions = K @ u - F

@@ -24,7 +24,12 @@ def compute_jacobian(dN_nat, node_coords):
     #      [∂x/∂η, ∂y/∂η]]
     J = dN_nat @ node_coords  # (2, n_nodes) × (n_nodes, 2) = (2, 2)
 
-    det_J = np.linalg.det(J)
+    # det/inv cerrados a mano para 2x2: identicos a np.linalg pero ~10x mas
+    # rapidos al evitar el dispatch generico de LAPACK, y esto corre por cada
+    # punto de Gauss de cada elemento en cada solve. J siempre es 2x2 (2D).
+    a, b = J[0, 0], J[0, 1]
+    c, d = J[1, 0], J[1, 1]
+    det_J = a * d - b * c
 
     if abs(det_J) < 1e-15:
         raise ValueError(
@@ -32,7 +37,7 @@ def compute_jacobian(dN_nat, node_coords):
             "El elemento puede estar distorsionado o tener nodos coincidentes."
         )
 
-    inv_J = np.linalg.inv(J)
+    inv_J = np.array([[d, -b], [-c, a]]) / det_J
 
     return J, det_J, inv_J
 
