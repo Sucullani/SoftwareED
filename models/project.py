@@ -416,6 +416,9 @@ class ProjectModel:
                 sl.node_start = new_id
             if sl.node_end == old_id:
                 sl.node_end = new_id
+        # Renombrado in-place: el dict de nodos conserva identidad y tamano,
+        # asi que la validacion O(1) de la cache no lo detecta -> invalidar.
+        self._nim_cache = None
         self.is_modified = True
         self.is_solved = False
 
@@ -518,11 +521,26 @@ class ProjectModel:
     def node_index_map(self):
         """Mapping node_id -> indice ordinal (0-indexed) en el sistema lineal.
 
-        Orden estable: sorted(self.nodes.keys()). Se recomputa on-demand;
-        para loops, capturar el dict en variable local. Permite IDs no
-        contiguos (e.g. {1, 5, 50}) tras borrados.
+        Orden estable: sorted(self.nodes.keys()). Permite IDs no contiguos
+        (e.g. {1, 5, 50}) tras borrados.
+
+        Cacheado: la reconstruccion O(n log n) solo ocurre cuando cambia el
+        conjunto de nodos. La cache se valida en O(1) por (identidad del dict,
+        tamano), lo que cubre altas, bajas (cambian el tamano) y reasignaciones
+        como `self.nodes = ...` (cambian la identidad). El UNICO renombrado
+        in-place con mismo tamano y misma identidad es `change_node_id`, que
+        invalida la cache explicitamente. Cualquier flujo nuevo que renombre
+        IDs in-place sin pasar por `change_node_id` debe setear
+        `self._nim_cache = None`. El dict retornado se comparte con la cache:
+        los callers lo tratan como solo-lectura.
         """
-        return {nid: idx for idx, nid in enumerate(sorted(self.nodes.keys()))}
+        nodes = self.nodes
+        cache = getattr(self, "_nim_cache", None)
+        if cache is not None and cache[0] is nodes and cache[1] == len(nodes):
+            return cache[2]
+        m = {nid: idx for idx, nid in enumerate(sorted(nodes.keys()))}
+        self._nim_cache = (nodes, len(nodes), m)
+        return m
 
     def dof_x(self, node_id):
         """Indice DOF global de Ux para node_id (0-indexed)."""
