@@ -384,12 +384,13 @@ class AssemblyModule(CanvasOverlayModule):
             # Reparto: a cada DOF residual, asignamos su contribución al
             # primer elemento que contiene el nodo asociado. Es la misma
             # heurística que para nodal_loads.
+            # Mapa inverso indice->node_id construido UNA vez (antes estaba
+            # dentro del loop -> O(n_dof^2)).
+            inv_map = {v: k for k, v in idx_map.items()}
             for dof, val in enumerate(residual):
                 if abs(val) < 1e-12:
                     continue
                 node_idx = dof // 2
-                # node_id desde index_map inverso
-                inv_map = {v: k for k, v in idx_map.items()}
                 node_id = inv_map.get(node_idx)
                 if node_id is None:
                     continue
