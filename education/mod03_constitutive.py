@@ -38,13 +38,14 @@ import ttkbootstrap as ttk
 
 from education.overlay_module import CanvasOverlayModule
 from education.components import (
-    FormulaValueToggle, render_matrix_latex,
+    FormulaValueBlocksToggle, LatexMatrixImage,
 )
 
 from fem.constitutive import constitutive_matrix
 from config.settings import (
     ANALYSIS_PLANE_STRESS, ANALYSIS_PLANE_STRAIN,
     HEALTH_OK_COLOR, HEALTH_WARNING_COLOR, HEALTH_ERROR_COLOR,
+    EDU_AXES_BG,
 )
 
 
@@ -86,11 +87,19 @@ class ConstitutiveModule(CanvasOverlayModule):
             project, element_id
         )
         self._nu = self._nu_default
-        self._toggle: Optional[FormulaValueToggle] = None
+        self._toggle: Optional[FormulaValueBlocksToggle] = None
         self._dial_canvas: Optional[tk.Canvas] = None
-        self._lbl_material: Optional[ttk.Label] = None
+        self._entry_nu: Optional[ttk.Entry] = None
+        self._var_nu: Optional[tk.StringVar] = None
+        self._poisson_canvas: Optional[tk.Canvas] = None
         self._lbl_warning: Optional[ttk.Label] = None
-        self._badge_lbl: Optional[ttk.Label] = None
+        # Widgets LatexMatrixImage (live-update via set_matrix)
+        self._mat_formula: Optional[LatexMatrixImage] = None
+        self._mat_values: Optional[LatexMatrixImage] = None
+        self._lbl_values_title: Optional[tk.Label] = None
+        # Caso plano del ultimo render del panel de formula — para detectar
+        # cambio TP<->DP y rebuild de la matriz simbolica (cells distintas).
+        self._formula_case_rendered: Optional[str] = None
         super().__init__(main_window, project, element_id)
 
     # ── Resolución de material ─────────────────────────────────────
@@ -124,38 +133,14 @@ class ConstitutiveModule(CanvasOverlayModule):
         return ("Tensión Plana" if self.analysis_case == ANALYSIS_PLANE_STRESS
                 else "Deformación Plana")
 
-    # ── Construcción del overlay ───────────────────────────────────
+    # ── Construcción del overlay (compacto UX 2026) ───────────────
     def build_overlay(self, body):
-        # Banner: caso plano vigente (read-only). Cambiarlo es Modelo ▸
-        # Tipo de Análisis — el overlay sólo refleja.
-        banner = ttk.Frame(body)
-        banner.pack(fill="x", pady=(0, 6))
-        self._badge_lbl = ttk.Label(
-            banner,
-            text=f"Caso vigente: {self._case_label()}    ·    "
-                  f"(cambiarlo: Modelo ▸ Tipo de Análisis)",
-            font=("Segoe UI", 9, "bold"),
-            foreground="#90caf9",
-        )
-        self._badge_lbl.pack(anchor="w")
+        # Sin badge "caso vigente" (el alumno ya lo definió en Modelo).
+        # Sin label de material / E (igual). Sin instrucción "click en
+        # otro elemento" — el panel de módulos ya muestra qué elemento
+        # opera. La cinética del dial + el toggle f/v cuentan la historia.
 
-        # Material del elemento bajo análisis (read-only)
-        self._lbl_material = ttk.Label(
-            body, text="", font=("Consolas", 9),
-            foreground="#cfd2d8", justify="left",
-        )
-        self._lbl_material.pack(anchor="w", pady=(0, 4))
-        self._refresh_material_label()
-
-        ttk.Label(
-            body,
-            text="Click en otro elemento del canvas → cambia el material.",
-            font=("Segoe UI", 8), foreground="#9e9e9e",
-        ).pack(anchor="w", pady=(0, 6))
-
-        ttk.Separator(body).pack(fill="x", pady=(0, 6))
-
-        # ── Dial de Poisson (control físico cinético) ───────────────
+        # ── Dial de Poisson ────────────────────────────────────────
         ttk.Label(
             body, text="ν  (Poisson)",
             font=("Segoe UI", 10, "bold"),
@@ -167,25 +152,36 @@ class ConstitutiveModule(CanvasOverlayModule):
 
         self._dial_canvas = tk.Canvas(
             dial_frame, width=120, height=120,
-            bg="#222233", highlightthickness=0,
+            bg=EDU_AXES_BG, highlightthickness=0,
+            cursor="hand2",
         )
         self._dial_canvas.pack(side="left", padx=(0, 10))
 
-        # Slider lineal abajo del dial: redundancia útil para precisión.
-        slider_col = ttk.Frame(dial_frame)
-        slider_col.pack(side="left", fill="x", expand=True)
+        # Entry numérico al lado del dial: el dial da la metáfora física
+        # (rango [0, 0.5] visible de un vistazo + valor centrado), el Entry
+        # permite tipear un valor exacto con teclado. Una sola lectura
+        # ("0.250" centrado en el dial) + un solo input (Entry). Sin slider
+        # ni label numérico redundantes.
+        side_col = ttk.Frame(dial_frame)
+        side_col.pack(side="left", fill="x", expand=True)
 
-        self._var_nu = tk.DoubleVar(value=self._nu)
-        ttk.Scale(
-            slider_col, from_=self.NU_MIN, to=self.NU_MAX,
-            orient="horizontal", variable=self._var_nu,
-            command=lambda _v: self._on_nu_changed(),
-        ).pack(fill="x")
-        self._lbl_nu = ttk.Label(
-            slider_col, text="", font=("Consolas", 11, "bold"),
-            foreground="#ffd54f",
+        entry_row = ttk.Frame(side_col)
+        entry_row.pack(anchor="w", pady=(12, 0))
+        ttk.Label(
+            entry_row, text="ν =", font=("Consolas", 11, "bold"),
+            foreground="#9e9e9e",
+        ).pack(side="left", padx=(0, 4))
+        self._var_nu = tk.StringVar(value=f"{self._nu:.4f}")
+        self._entry_nu = ttk.Entry(
+            entry_row, textvariable=self._var_nu, width=8,
+            font=("Consolas", 11, "bold"), justify="center",
         )
-        self._lbl_nu.pack(anchor="w", pady=(2, 0))
+        self._entry_nu.pack(side="left")
+        # Commit en Enter o al salir del foco; mientras tipea no dispara
+        # (evita oscilaciones del dial a cada tecla).
+        self._entry_nu.bind("<Return>",   lambda _e: self._on_nu_entry_commit())
+        self._entry_nu.bind("<KP_Enter>", lambda _e: self._on_nu_entry_commit())
+        self._entry_nu.bind("<FocusOut>", lambda _e: self._on_nu_entry_commit())
 
         # Drag interactivo en el dial: click + arrastrar para barrer ν
         self._dial_canvas.bind("<ButtonPress-1>", self._on_dial_press)
@@ -193,10 +189,10 @@ class ConstitutiveModule(CanvasOverlayModule):
 
         # Botón "Reset al ν del material"
         ttk.Button(
-            slider_col, text="↺ Reset al ν del material",
+            side_col, text="↺ Reset al ν del material",
             bootstyle="secondary-outline-toolbutton",
             command=self._reset_nu_to_material,
-        ).pack(anchor="w", pady=(4, 0))
+        ).pack(anchor="w", pady=(6, 0))
 
         # Warning de locking (vacío inicialmente)
         self._lbl_warning = ttk.Label(
@@ -205,18 +201,46 @@ class ConstitutiveModule(CanvasOverlayModule):
         )
         self._lbl_warning.pack(anchor="w", pady=(0, 4))
 
+        # ── Probe físico: ν NO es un número abstracto, es la contracción
+        # lateral del material bajo tracción uniaxial. El alumno aplica
+        # mentalmente σx=1 y ve cómo el cuadrado se DEFORMA en tiempo
+        # real al mover el dial. Conecta la matriz D con el fenómeno
+        # físico (efecto Poisson) que da nombre a la constante. Materiales
+        # de referencia coloreados (corcho ν≈0, acero ν≈0.3, caucho ν≈0.49)
+        # anclan el rango numérico a la intuición.
+        probe_frame = ttk.Frame(body)
+        probe_frame.pack(fill="x", pady=(0, 2))
+        ttk.Label(
+            probe_frame,
+            text="Efecto Poisson — respuesta a tracción uniaxial  σx = 1:",
+            font=("Segoe UI", 8, "italic"), foreground="#9e9e9e",
+        ).pack(anchor="w")
+        self._poisson_canvas = tk.Canvas(
+            probe_frame, width=440, height=110,
+            bg=EDU_AXES_BG, highlightthickness=0,
+        )
+        self._poisson_canvas.pack(fill="x")
+
         ttk.Separator(body).pack(fill="x", pady=(2, 4))
 
-        # ── Toggle Fórmula ↔ Valores (requerimiento del usuario) ──
-        self._toggle = FormulaValueToggle(
+        # ── Toggle Fórmula ↔ Valores (Tk frames + LatexMatrixImage) ──
+        # Mismo patron que M4: cada panel pobla widgets Tk, la matriz se
+        # actualiza via set_matrix (sin re-render de axes). Render
+        # matplotlib-nativo via mathtext mathmode dentro del widget.
+        self._toggle = FormulaValueBlocksToggle(
             body,
-            render_formula=self._render_d_formula,
-            render_values=self._render_d_values,
-            initial=FormulaValueToggle.MODE_VALUES,
-            figsize=(5.4, 2.6),
-            dpi=100,
+            build_formula=self._build_formula_panel,
+            build_values=self._build_values_panel,
+            initial=FormulaValueBlocksToggle.MODE_VALUES,
         )
         self._toggle.pack(fill="both", expand=True)
+
+        # Cross-reference clickeable: D entra en el integrando de k_e.
+        self._pack_crossref(
+            body, "mod05",
+            "👉 Esta D entra en  k_e = ∫ BᵀDB |det J| t  (ver ⑤ Matriz K_e).",
+            wraplength=440,
+        )
 
         # Update inicial del dial y del label de ν
         self._refresh_nu_widgets()
@@ -264,13 +288,10 @@ class ConstitutiveModule(CanvasOverlayModule):
         self._E, self._nu_default, self._mat_name = self._resolve_material(
             self.project, elem_id
         )
-        # Si el alumno había desplazado el dial, conservamos el offset
-        # respecto al ν del material previo: lo más pedagógico es resetear
-        # al ν del nuevo material (es lo que ese material realmente es).
+        # Resetear al ν del nuevo material — es lo que ese material es.
         self._nu = self._nu_default
-        self._refresh_material_label()
         self._refresh_nu_widgets()
-        self._toggle.refresh()
+        self._refresh_d_widgets()
         self._mesh.redraw()
 
     # ── Dial: lógica de ángulo ↔ ν ─────────────────────────────────
@@ -314,42 +335,51 @@ class ConstitutiveModule(CanvasOverlayModule):
         nu = self._nu_for_pointer(event.x, event.y)
         self._set_nu(nu)
 
-    def _on_nu_changed(self):
+    def _on_nu_entry_commit(self):
+        """Commit del Entry: parsea, clampa, propaga al dial. Si el texto
+        no es numérico, revierte al último valor válido sin disparar."""
+        raw = self._var_nu.get().strip().replace(",", ".")
         try:
-            self._set_nu(float(self._var_nu.get()))
-        except (tk.TclError, ValueError):
-            pass
+            v = float(raw)
+        except (ValueError, tk.TclError):
+            # Revert al valor actual válido (formato canónico).
+            try:
+                self._var_nu.set(f"{self._nu:.4f}")
+            except tk.TclError:
+                pass
+            return
+        self._set_nu(v)
 
     def _set_nu(self, nu: float):
         nu = max(self.NU_MIN, min(self.NU_MAX, float(nu)))
         if abs(nu - self._nu) < 1e-5:
             return
         self._nu = nu
-        # Actualizar slider sin disparar callback en bucle
-        try:
-            self._var_nu.set(self._nu)
-        except tk.TclError:
-            pass
         self._refresh_nu_widgets()
-        if self._toggle is not None:
-            self._toggle.refresh()
+        self._refresh_d_widgets()
 
     def _reset_nu_to_material(self):
         self._set_nu(self._nu_default)
 
     # ── Refresh widgets reactivos ───────────────────────────────────
     def _refresh_nu_widgets(self):
-        # Label numérico bajo el slider
-        if self._lbl_nu is not None:
-            self._lbl_nu.configure(text=f"ν = {self._nu:.4f}")
+        # Escribir el StringVar del Entry (única fuente textual de ν).
+        # No disparamos callback porque el bind es a <Return>/<FocusOut>,
+        # no a un trace del StringVar.
+        if self._var_nu is not None:
+            try:
+                self._var_nu.set(f"{self._nu:.4f}")
+            except tk.TclError:
+                pass
         # Warning de volumetric locking (solo en DP cuando ν → 0.5)
         if self._lbl_warning is not None:
             warn = self._compute_locking_warning()
             self._lbl_warning.configure(
                 text=warn["text"], foreground=warn["color"],
             )
-        # Redibujar dial
+        # Redibujar dial + probe físico (ambos cambian con ν)
         self._draw_dial()
+        self._draw_poisson_probe()
 
     def _compute_locking_warning(self) -> dict:
         """Retorna {text, color} según la cercanía a la singularidad.
@@ -426,58 +456,240 @@ class ConstitutiveModule(CanvasOverlayModule):
         c.create_text(cx + r + 6, cy + r + 2, text="0.5",
                        fill="#ef5350", font=("Consolas", 8, "bold"))
 
-    def _refresh_material_label(self):
-        if self._lbl_material is None:
+    # ── Probe físico del efecto Poisson ─────────────────────────────
+    # Materiales canónicos de referencia (ν, nombre, color del chip).
+    # El alumno reconoce el material por la posición del ν en el dial
+    # y por el COMPORTAMIENTO visible del cuadrado deformado.
+    _MAT_REFS = (
+        (0.00, "corcho",            "#80deea"),
+        (0.20, "hormigón",          "#90caf9"),
+        (0.30, "acero",             "#a5d6a7"),
+        (0.35, "aluminio",          "#fff176"),
+        (0.45, "polímero blando",   "#ffb74d"),
+        (0.49, "caucho (cuasi-inc)","#ef9a9a"),
+    )
+    _PROBE_VIS_SCALE = 4.0   # exageración visual de la deformación
+
+    def _draw_poisson_probe(self):
+        """Cuadrado de material que se deforma según ν bajo σx=1 (TP).
+
+        Para tensión plana con σx=1, σy=0, τxy=0:
+            ε = D⁻¹ σ  →  εx = 1/E,  εy = -ν/E,  γxy = 0
+
+        Lo que importa pedagógicamente es el RATIO εy/εx = -ν — el alumno
+        ve directamente "cuánto se contrae el material lateralmente por
+        cada unidad de estiramiento". Para ν=0 no hay contracción
+        (corcho); para ν=0.49 la contracción es casi total (caucho).
+        """
+        c = self._poisson_canvas
+        if c is None:
             return
-        eid = self.element_id if self.element_id is not None else "—"
-        self._lbl_material.configure(
-            text=(f"Elemento E{eid}  ·  Material '{self._mat_name}'\n"
-                   f"E = {self._E:.3e} Pa")
+        c.delete("all")
+
+        W, H = 440, 110
+        side = 64
+        # Centro del cuadrado: corrido a la izquierda para dejar espacio
+        # a las flechas σ y a la escala lateral de materiales.
+        cx = 150
+        cy = H // 2 - 6
+
+        # Cuadrado de referencia (sin deformar) — punteado gris.
+        half = side // 2
+        c.create_rectangle(
+            cx - half, cy - half, cx + half, cy + half,
+            outline="#5a5a6e", width=1, dash=(2, 3),
         )
 
-    # ── Render del toggle ───────────────────────────────────────────
-    def _render_d_formula(self, ax):
-        # Renderizamos la matriz simbolica como matriz de strings, con
-        # prefijo mathtext que contiene el factor escalar (E/(1-nu^2) etc.).
-        # render_matrix_latex acepta cells de tipo str y los renderiza
-        # con fuente monospace + corchetes. mathtext NO soporta bmatrix
-        # asi que el rendering manual es la unica via robusta.
-        if self.analysis_case == ANALYSIS_PLANE_STRESS:
+        nu = self._nu
+        # Estiramiento normalizado a "1 unidad de ε" y exagerado por
+        # _PROBE_VIS_SCALE para que el efecto sea visible en pantalla
+        # con un dial de baja sensibilidad (ν~0.25 produciría 3 px sin
+        # exagerar). El RATIO entre εx y εy se preserva — es lo único
+        # que importa para enseñar Poisson.
+        s = self._PROBE_VIS_SCALE
+        dx = half * (1.0 + 0.25 * s)             # estiramiento horizontal fijo
+        dy = half * (1.0 - 0.25 * s * nu)        # contracción vertical ∝ ν
+
+        # Color del cuadrado deformado según el régimen de Poisson.
+        # Mapping ergonómico: cuanto más se contrae, más cálido el color.
+        if nu >= 0.475:
+            col_fill = "#ef5350"
+        elif nu >= 0.40:
+            col_fill = "#ffb74d"
+        elif nu >= 0.20:
+            col_fill = "#4fc3f7"
+        else:
+            col_fill = "#80deea"
+
+        c.create_rectangle(
+            cx - dx, cy - dy, cx + dx, cy + dy,
+            outline=col_fill, width=2.4, fill=col_fill, stipple="gray25",
+        )
+
+        # Flechas de tracción σx aplicadas en los bordes verticales del
+        # cuadrado DEFORMADO (siguen al cuadrado al estirarse).
+        arrow_len = 26
+        c.create_line(
+            cx - dx - arrow_len - 4, cy, cx - dx - 4, cy,
+            fill="#ffffff", arrow=tk.LAST, width=2,
+        )
+        c.create_line(
+            cx + dx + 4, cy, cx + dx + arrow_len + 4, cy,
+            fill="#ffffff", arrow=tk.LAST, width=2,
+        )
+        c.create_text(
+            cx - dx - arrow_len // 2 - 4, cy - 12,
+            text="σx", fill="#ffffff",
+            font=("Consolas", 9, "bold"),
+        )
+        c.create_text(
+            cx + dx + arrow_len // 2 + 4, cy - 12,
+            text="σx", fill="#ffffff",
+            font=("Consolas", 9, "bold"),
+        )
+
+        # Indicador de contracción lateral: brackets ↑↓ junto al lado
+        # derecho del cuadrado mostrando la altura final < original.
+        # Es la lectura clave: el alumno mide visualmente "cuánto se
+        # contrajo" y lo asocia con el valor de ν.
+        bracket_x = cx + dx + arrow_len + 18
+        c.create_line(
+            bracket_x, cy - dy, bracket_x, cy + dy,
+            fill="#dcdcdc", width=1.6,
+        )
+        c.create_line(
+            bracket_x - 4, cy - dy, bracket_x + 4, cy - dy,
+            fill="#dcdcdc", width=1.6,
+        )
+        c.create_line(
+            bracket_x - 4, cy + dy, bracket_x + 4, cy + dy,
+            fill="#dcdcdc", width=1.6,
+        )
+        # Ratio explícito (la fórmula clave)
+        c.create_text(
+            bracket_x + 10, cy,
+            text=f"εy/εx\n= {-nu:+.3f}",
+            fill="#dcdcdc", font=("Consolas", 9, "bold"),
+            anchor="w", justify="left",
+        )
+
+        # Mini-escala de materiales canónicos: una regla en la base del
+        # canvas con tics en los ν de referencia + marker triangular del
+        # ν actual deslizándose. Anclajes mnemónicos (corcho, acero,
+        # caucho) que estabilizan el aprendizaje del rango.
+        rule_y = H - 12
+        rule_x0 = 16
+        rule_x1 = W - 16
+        c.create_line(
+            rule_x0, rule_y, rule_x1, rule_y,
+            fill="#5a5a6e", width=1.2,
+        )
+        # Tics de los materiales de referencia
+        for nu_ref, name, col_ref in self._MAT_REFS:
+            t = nu_ref / self.NU_MAX
+            tx = rule_x0 + t * (rule_x1 - rule_x0)
+            c.create_line(
+                tx, rule_y - 3, tx, rule_y + 3,
+                fill=col_ref, width=1.6,
+            )
+            c.create_text(
+                tx, rule_y - 9,
+                text=name, fill=col_ref,
+                font=("Consolas", 7), anchor="s",
+            )
+        # Marker triangular del ν actual sobre la regla.
+        t_now = nu / self.NU_MAX
+        mx = rule_x0 + t_now * (rule_x1 - rule_x0)
+        c.create_polygon(
+            mx, rule_y + 1,
+            mx - 5, rule_y + 9,
+            mx + 5, rule_y + 9,
+            fill=col_fill, outline="#ffffff", width=1,
+        )
+
+    # ── Builders del toggle (Tk widgets, no axes compartido) ───────
+    @staticmethod
+    def _d_formula_cells_and_prefix(case: str):
+        r"""Cells `\dfrac{...}{...}` y prefijo escalar para la fórmula
+        simbólica de D según el caso plano. Centralizado para que el
+        builder inicial y el rebuild on case-change usen la misma
+        verdad."""
+        if case == ANALYSIS_PLANE_STRESS:
             cells = [
-                ["1",  "ν",  "0"],
-                ["ν",  "1",  "0"],
-                ["0",  "0",  "(1-ν)/2"],
+                ["1",      r"\nu",  "0"],
+                [r"\nu",   "1",     "0"],
+                ["0",      "0",     r"\dfrac{1-\nu}{2}"],
             ]
             prefix = r"\mathbf{D}_{TP}=\dfrac{E}{1-\nu^{2}}\,"
         else:
             cells = [
-                ["1-ν", "ν",   "0"],
-                ["ν",   "1-ν", "0"],
-                ["0",   "0",   "(1-2ν)/2"],
+                [r"1-\nu", r"\nu",   "0"],
+                [r"\nu",   r"1-\nu", "0"],
+                ["0",      "0",      r"\dfrac{1-2\nu}{2}"],
             ]
             prefix = r"\mathbf{D}_{DP}=\dfrac{E}{(1+\nu)(1-2\nu)}\,"
-        render_matrix_latex(
-            ax, cells, fontsize=12, color="#dcdcdc", prefix=prefix,
-        )
+        return cells, prefix
 
-    def _render_d_values(self, ax):
+    def _build_formula_panel(self, frame) -> None:
+        """Panel de la fórmula simbólica D(E, ν, caso) como LatexMatrixImage."""
+        case = self.analysis_case
+        cells, prefix = self._d_formula_cells_and_prefix(case)
+        self._mat_formula = LatexMatrixImage(
+            frame, matrix=cells, fmt="{}", fontsize=15,
+            prefix=prefix, cache_values=True,
+        )
+        self._mat_formula.pack(anchor="center", pady=(6, 6))
+        self._formula_case_rendered = case
+
+    def _build_values_panel(self, frame) -> None:
+        """Panel de valores numéricos de D — matriz live-update via
+        `set_matrix` cuando ν cambia."""
+        from config.settings import EDU_AXES_BG
+        self._lbl_values_title = tk.Label(
+            frame, text=f"ν = {self._nu:.3f}", bg=EDU_AXES_BG, fg="#dcdcdc",
+            font=("Consolas", 9, "bold"), anchor="center",
+        )
+        self._lbl_values_title.pack(fill="x", pady=(2, 2))
         try:
             D = constitutive_matrix(self._E, self._nu, self.analysis_case)
-        except Exception as exc:
-            ax.text(0.5, 0.5, f"Error: {exc}",
-                     ha="center", va="center",
-                     color="#e74c3c", fontsize=10,
-                     transform=ax.transAxes)
-            return
+        except Exception:
+            D = np.zeros((3, 3))
         scale, prefix_sci = self._scale_factor(D)
         Dn = D / scale
         prefix = self._latex_prefix(prefix_sci)
-        title = (f"{self._case_label()}  ·  "
-                  f"E = {self._E:.2e} Pa  ·  ν = {self._nu:.3f}")
-        render_matrix_latex(
-            ax, Dn, fmt="{:+.3f}", fontsize=12, color="#dcdcdc",
-            title=title, prefix=prefix,
+        self._mat_values = LatexMatrixImage(
+            frame, matrix=Dn, fmt="{:.3f}", fontsize=15,
+            prefix=prefix, cache_values=False,
         )
+        self._mat_values.pack(anchor="center", pady=(0, 6))
+
+    def _refresh_d_widgets(self) -> None:
+        """Re-renderiza valores (siempre, cambia con ν) y fórmula (solo
+        si cambió el caso TP↔DP)."""
+        case = self.analysis_case
+        # Valores: la matriz cambia con cada ν o cambio de material.
+        if self._mat_values is not None:
+            try:
+                D = constitutive_matrix(self._E, self._nu, case)
+                scale, prefix_sci = self._scale_factor(D)
+                Dn = D / scale
+                prefix = self._latex_prefix(prefix_sci)
+                self._mat_values.set_matrix(Dn, prefix=prefix)
+            except Exception:
+                pass
+        if self._lbl_values_title is not None:
+            try:
+                self._lbl_values_title.configure(text=f"ν = {self._nu:.3f}")
+            except tk.TclError:
+                pass
+        # Fórmula: solo si cambió TP↔DP (re-mount de cells distintas).
+        if self._mat_formula is not None and case != self._formula_case_rendered:
+            try:
+                cells, prefix = self._d_formula_cells_and_prefix(case)
+                self._mat_formula.set_matrix(cells, prefix=prefix)
+                self._formula_case_rendered = case
+            except Exception:
+                pass
 
     @staticmethod
     def _scale_factor(D: np.ndarray):

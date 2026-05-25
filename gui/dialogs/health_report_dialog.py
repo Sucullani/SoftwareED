@@ -40,28 +40,29 @@ EDUCATIONAL_HINTS = {
         "Sin restricciones, el modelo es libre de moverse en el espacio "
         "(tres modos de cuerpo rigido en 2D: dos traslaciones y una "
         "rotacion rigida del cuerpo en el plano XY). Aunque los elementos "
-        "plane stress/strain solo tienen 2 DOF por nodo (u, v) y no un DOF "
-        "rotacional explicito, el conjunto puede girar como solido rigido: "
+        "tension/deformacion plana solo tienen 2 GDL por nodo (u, v) y no "
+        "un GDL rotacional explicito, el conjunto puede girar como solido "
+        "rigido: "
         "esa rotacion se manifiesta como desplazamientos u, v que producen "
         "deformacion nula. Eso hace que la matriz K reducida sea singular: "
         "el sistema K_red u = F no tiene solucion unica.",
     HealthCode.INSUFFICIENT_RESTRAINTS:
         "En 2D necesitas suprimir 3 grados de libertad para eliminar los "
         "modos de cuerpo rigido: 2 traslaciones (en X y en Y) + 1 rotacion "
-        "rigida en el plano. Aunque los nodos plane stress/strain no tienen "
-        "DOF rotacional, el cuerpo completo puede girar y eso debe "
+        "rigida en el plano. Aunque los nodos de tension/deformacion plana "
+        "no tienen GDL rotacional, el cuerpo completo puede girar y eso debe "
         "bloquearse. Tipicamente: un nodo empotrado (Δx=Δy=0) y otro con "
         "Δy=0 a cierta distancia, o equivalente.",
     HealthCode.BC_ORPHAN_NODE:
         "Un nodo con restriccion pero sin elemento que lo conecte "
         "introduce una fila/columna en K que solo tiene la entrada "
         "diagonal (no hay rigidez relativa a otros nodos). Al imponer "
-        "la BC se elimina ese DOF, y el resto del sistema queda mal "
+        "la restriccion se elimina ese GDL, y el resto del sistema queda mal "
         "condicionado o singular segun el caso.",
     HealthCode.ELEM_NODE_MISSING:
         "El ensamblaje de K iterara sobre los node_ids del elemento "
-        "para mapear DOFs locales a globales. Si un node_id no existe, "
-        "el modelo es inconsistente y el solver no podra construir K.",
+        "para mapear GDLs locales a globales. Si un node_id no existe, "
+        "el modelo es inconsistente y el solucionador no podra construir K.",
     HealthCode.ELEM_MATERIAL_MISSING:
         "La matriz constitutiva D depende de E y nu (y t para 3D), "
         "que se leen del material asignado. Sin material valido no se "
@@ -81,8 +82,8 @@ EDUCATIONAL_HINTS = {
         "en todos los puntos de Gauss y la integracion da signos "
         "incorrectos. Solucion: invertir el orden (N1↔N3 o N2↔N4).",
     HealthCode.LOAD_ORPHAN_NODE:
-        "Las cargas nodales se mapean al vector global F via los DOFs "
-        "del nodo. Si el nodo no esta en ningun elemento, sus DOFs no "
+        "Las cargas nodales se mapean al vector global F via los GDLs "
+        "del nodo. Si el nodo no esta en ningun elemento, sus GDLs no "
         "se ensamblan a K y la fuerza queda \"colgando\" (no afecta el "
         "resultado).",
     HealthCode.UNUSED_MATERIAL:
@@ -102,6 +103,30 @@ EDUCATIONAL_HINTS = {
         "Sin elementos no hay matriz de rigidez K que ensamblar -- el "
         "modelo no representa un solido continuo. Crea al menos un "
         "elemento conectando 4 nodos (Q4) o 9 (Q9) para poder analizar.",
+    HealthCode.SUSPICIOUS_YOUNG_MODULUS:
+        "Heuristica de consistencia: el Modulo de Young de los "
+        "materiales estructurales tipicos va de ~1 GPa (madera blanda) "
+        "a ~500 GPa (ceramicas duras), pasando por ~30 GPa (concreto), "
+        "~70 GPa (aluminio), ~200 GPa (acero). Si tu E queda fuera de "
+        "ese rango al convertirlo a Pa, es muy probable que el sistema "
+        "de unidades elegido NO coincida con el valor que ingresaste "
+        "(ej. E=210000 con unidad Pa = 210 kPa, no acero — pero E=210000 "
+        "con unidad MPa = 210 GPa, si es acero). Revisa el menu Modelo > "
+        "Unidades, o usa la opcion 'convertir valores' al cambiar.",
+    HealthCode.SUSPICIOUS_MODEL_SCALE:
+        "Heuristica de consistencia: la mayoria de problemas MEF 2D "
+        "viven entre la escala milimetrica (probetas, MEMS) y la "
+        "kilometrica (presas, taludes). Si la extension de tu modelo "
+        "(max(span_x, span_y) convertido a metros) queda fuera de "
+        "0.1 mm — 10 km, lo mas probable es que las coordenadas esten "
+        "expresadas en otra unidad de longitud distinta de la "
+        "configurada. Cambialas o convierte el proyecto desde Unidades.",
+    HealthCode.GRAVITY_NO_DENSITY:
+        "El peso propio se calcula como una fuerza volumetrica F = ρ·g·V "
+        "por elemento. Si la densidad del material es cero (o no se "
+        "configuro), la fuerza por gravedad sera nula sin importar el "
+        "valor de g. Asigna densidad en Modelo > Materiales antes de "
+        "activar Incluir gravedad.",
 }
 
 
@@ -120,7 +145,10 @@ CODE_ICONS = {
     HealthCode.ZERO_NODAL_LOAD:         "0️⃣",
     HealthCode.ZERO_SURFACE_LOAD:       "0️⃣",
     HealthCode.NO_ELEMENTS:             "📭",
-    HealthCode.SUMMARY:                 "📊",
+    HealthCode.SUSPICIOUS_YOUNG_MODULUS: "📏",
+    HealthCode.SUSPICIOUS_MODEL_SCALE:   "📏",
+    HealthCode.GRAVITY_NO_DENSITY:       "🌍",
+    HealthCode.SUMMARY:                  "📊",
 }
 
 

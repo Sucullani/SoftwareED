@@ -62,17 +62,23 @@ class TheoryViewer(ttk.Toplevel):
                                   command=self._canvas.yview,
                                   bootstyle="round")
         self._canvas.configure(yscrollcommand=self._sb.set)
-        self._sb.pack(side="right", fill="y")
+        # Scrollbar NO se packea inicial — se muestra solo si hay overflow
+        # (ver `_sync_scrollbar_visibility`). Filosofia UX 2026: cero
+        # scrollbars visibles cuando no son necesarios.
         self._canvas.pack(side="left", fill="both", expand=True)
 
         self._inner = ttk.Frame(self._canvas)
         self._inner_id = self._canvas.create_window(
             (0, 0), window=self._inner, anchor="nw"
         )
-        self._inner.bind(
-            "<Configure>",
-            lambda e: self._canvas.configure(scrollregion=self._canvas.bbox("all")),
-        )
+
+        def _on_inner_configure(_evt):
+            self._canvas.configure(scrollregion=self._canvas.bbox("all"))
+            self._sync_scrollbar_visibility()
+
+        self._inner.bind("<Configure>", _on_inner_configure)
+        self._canvas.bind("<Configure>",
+                           lambda _e: self._sync_scrollbar_visibility())
 
         self._canvas.bind_all("<MouseWheel>", self._on_wheel)
 
@@ -84,6 +90,24 @@ class TheoryViewer(ttk.Toplevel):
         try:
             self._canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
         except Exception:
+            pass
+
+    def _sync_scrollbar_visibility(self) -> None:
+        """Muestra el scrollbar solo cuando hay overflow vertical."""
+        try:
+            self.update_idletasks()
+            req = self._inner.winfo_reqheight()
+            vis = self._canvas.winfo_height()
+        except tk.TclError:
+            return
+        try:
+            if req > vis + 1:
+                if not self._sb.winfo_ismapped():
+                    self._sb.pack(side="right", fill="y", before=self._canvas)
+            else:
+                if self._sb.winfo_ismapped():
+                    self._sb.pack_forget()
+        except tk.TclError:
             pass
 
     # ---------- pipeline ----------

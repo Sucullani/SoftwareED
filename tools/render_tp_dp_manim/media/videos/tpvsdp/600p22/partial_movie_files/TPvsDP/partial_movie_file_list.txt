@@ -1,0 +1,12 @@
+# This file is used internally by FFMPEG.
+file 'file:C:/Tesis/Tesis Software/SoftwareED/tools/render_tp_dp_manim/media/videos/tpvsdp/600p22/partial_movie_files/TPvsDP/2760756359_439070070_1172693388.mp4'
+file 'file:C:/Tesis/Tesis Software/SoftwareED/tools/render_tp_dp_manim/media/videos/tpvsdp/600p22/partial_movie_files/TPvsDP/2329991543_2704639868_1863906189.mp4'
+file 'file:C:/Tesis/Tesis Software/SoftwareED/tools/render_tp_dp_manim/media/videos/tpvsdp/600p22/partial_movie_files/TPvsDP/2329991543_4159973852_2778492268.mp4'
+file 'file:C:/Tesis/Tesis Software/SoftwareED/tools/render_tp_dp_manim/media/videos/tpvsdp/600p22/partial_movie_files/TPvsDP/2329991543_4213510434_2309103296.mp4'
+file 'file:C:/Tesis/Tesis Software/SoftwareED/tools/render_tp_dp_manim/media/videos/tpvsdp/600p22/partial_movie_files/TPvsDP/2329991543_3670541963_3962772844.mp4'
+file 'file:C:/Tesis/Tesis Software/SoftwareED/tools/render_tp_dp_manim/media/videos/tpvsdp/600p22/partial_movie_files/TPvsDP/2329991543_3306161983_2981554276.mp4'
+file 'file:C:/Tesis/Tesis Software/SoftwareED/tools/render_tp_dp_manim/media/videos/tpvsdp/600p22/partial_movie_files/TPvsDP/2329991543_2299308880_2349956130.mp4'
+file 'file:C:/Tesis/Tesis Software/SoftwareED/tools/render_tp_dp_manim/media/videos/tpvsdp/600p22/partial_movie_files/TPvsDP/2329991543_891910075_1214857773.mp4'
+file 'file:C:/Tesis/Tesis Software/SoftwareED/tools/render_tp_dp_manim/media/videos/tpvsdp/600p22/partial_movie_files/TPvsDP/2329991543_1206250508_1145910322.mp4'
+file 'file:C:/Tesis/Tesis Software/SoftwareED/tools/render_tp_dp_manim/media/videos/tpvsdp/600p22/partial_movie_files/TPvsDP/2329991543_3864283502_2539957063.mp4'
+file 'file:C:/Tesis/Tesis Software/SoftwareED/tools/render_tp_dp_manim/media/videos/tpvsdp/600p22/partial_movie_files/TPvsDP/2329991543_1111397693_282727562.mp4'

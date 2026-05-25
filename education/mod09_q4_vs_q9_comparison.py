@@ -1,451 +1,448 @@
 """
-M9 - Comparacion Q4 vs Q9 (sandbox, POST-PROCESO)
+Módulo 9 — Comparación Q4 vs Q9 (overlay, POST-PROCESO)
 
-Modulo educativo sandbox que permite al alumno comparar la precision y
-convergencia de elementos Q4 bilineales vs Q9 bicuadraticos sobre el MISMO
-modelo. El modulo opera sobre copias profundas del proyecto; nunca muta el
-`self.project` original.
+**Reescritura 2026-05**: migrado de Toplevel pesado a Overlay liviano
+on-demand. La versión anterior pre-computaba 8 paneles (Q4×4 niveles +
+Q9×4 niveles) en el `__init__`, lo que bloqueaba el UI durante varios
+segundos antes de pintar nada — el módulo "no cargaba al iniciar".
 
-Flujo:
-    1. Al abrir: clonar el proyecto 2 veces (sandbox_q4 y sandbox_q9).
-    2. Slider "nivel de refinamiento" N en {0, 1, 2}.
-    3. Al cambiar N: subdividir ambos sandbox, expandir uno a Q9, resolver
-       ambos y redibujar los 2 paneles de von Mises lado a lado.
-    4. Tabla numerica debajo con: numero de DOF, u_max, sigma_VM_max/min,
-       tiempo de solve y error relativo Q4 vs Q9.
+Diseño actual:
+    1. Hereda de `CanvasOverlayModule` (NO de `PostModule`/Toplevel).
+    2. Layout compacto: 2 paneles Q4 vs Q9 lado a lado + log-log debajo
+       + slider de nivel N=0..3 en el footer.
+    3. **Cómputo on-demand**: al cambiar de nivel, dispara el solve solo
+       si el resultado (kind, level) no está en cache. Usa `mesh.after`
+       para ceder al UI antes de bloquear con el solver.
+    4. Sandbox: `deepcopy(project)` al abrir; el original nunca se muta.
 
-El modulo NO requiere que el proyecto este resuelto; el modulo resuelve sus
-propias copias en cada cambio.
+Pedagogía:
+    El alumno recorre el refinamiento a su ritmo. Cada nivel cuesta
+    visiblemente el doble que el anterior, pero el módulo arranca
+    instantáneo con N=0 visible y el alumno *decide* cuándo invertir
+    cómputo en cada incremento. La convergencia se va trazando en el
+    log-log a medida que se computan los niveles.
 """
 
 from __future__ import annotations
 
 import copy
-import time
+from typing import Optional
+
 import tkinter as tk
 import ttkbootstrap as ttk
 import numpy as np
-import matplotlib
-matplotlib.use("TkAgg")
+
+try:
+    from PIL import ImageTk
+    HAS_PIL = True
+except ImportError:
+    HAS_PIL = False
+
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
-from education.base_module import PostModule
+from education.overlay_module import CanvasOverlayModule
+from config.settings import EDU_FIG_BG, EDU_AXES_BG, EDU_FG, EDU_FG_MUTED
 from fem.solver import solve_system
 from fem.stress import compute_all_stresses
-from fem.shape_functions import get_shape_functions
-from models.mesh_utils import subdivide_q4_mesh, expand_q4_to_q9, shrink_q9_to_q4
-from config.settings import ELEMENT_Q4, ELEMENT_Q9, fmt
+from models.mesh_utils import (
+    subdivide_q4_mesh, expand_q4_to_q9, shrink_q9_to_q4,
+)
+from gui.postprocessing.result_image_renderer import render_result_to_pil
 
 
-_COMPONENTS = [
-    ("Von Mises", "von_mises"),
-    (" σx",        "sigma_x"),
-    (" σy",        "sigma_y"),
-    (" τxy",       "tau_xy"),
-]
+_C_Q4 = "#4fa3ff"
+_C_Q9 = "#43a047"
+
+_MAX_LEVEL = 3
+_PANEL_W = 280
+_PANEL_H = 200
 
 
-class Q4vsQ9ComparisonModule(PostModule):
-    """Modulo M9: comparacion Q4 vs Q9 con subdivision de malla (sandbox).
+class Q4vsQ9ComparisonModule(CanvasOverlayModule):
+    """M9 overlay: comparación Q4 vs Q9 con refinamiento on-demand."""
 
-    Sandbox: trabaja sobre copias profundas, NO usa el helper auto-solve
-    de PostModule (cada copia se resuelve en _compute_side).
-    """
+    TITLE = "⑨  Q4 vs Q9  ·  refinamiento"
+    PHASE = "post"
+    OVERLAY_INITIAL_POS = (40, 40)
+    OVERLAY_WIDTH = 640
+    OVERLAY_HEIGHT = None
+    REQUIRES_ELEMENT = False
 
-    TITLE = "M9 · Comparacion Q4 vs Q9 (sandbox)"
-    HAS_ANIMATION = False
-    AUTO_SOLVE = False  # M9 gestiona sus propios solves por copia.
-
-    def __init__(self, parent, project, element_id):
+    def __init__(self, main_window, project, element_id):
+        # Sandbox: deepcopy normalizada a Q4 base. Hacemos el shrink ANTES
+        # de llamar al super() para que el cómputo on-demand siempre parta
+        # de la malla Q4 macro original.
         self._base_project = copy.deepcopy(project) if project else None
         if self._base_project is not None:
-            if any(e.num_nodes == 9 for e in self._base_project.elements.values()):
+            if any(e.num_nodes == 9
+                   for e in self._base_project.elements.values()):
                 shrink_q9_to_q4(self._base_project)
             self._base_project.file_path = None
             self._base_project.is_modified = False
-        self._level_var = None
-        self._comp_var = None
-        self._deform_var = None
 
-        self._result_q4 = None
-        self._result_q9 = None
+        # Estado
+        self._level = 0  # 0..3
+        self._comp_key = "von_mises"
+        # Cache de resultados: {(kind, level): {"project", "u_max"}}
+        self._cache: dict = {}
+        self._compute_pending: Optional[tuple] = None  # (kind, level) en curso
 
-        self._fig = None
-        self._canvas = None
-        self._ax_q4 = None
-        self._ax_q9 = None
-        self._cbar = None
+        # Widgets (placeholders; se inicializan en build_overlay)
+        self._lbl_status: Optional[tk.Label] = None
+        self._panel_q4: Optional[tk.Canvas] = None
+        self._panel_q9: Optional[tk.Canvas] = None
+        self._photo_q4: Optional["ImageTk.PhotoImage"] = None
+        self._photo_q9: Optional["ImageTk.PhotoImage"] = None
+        self._var_level: Optional[tk.IntVar] = None
+        self._var_comp: Optional[tk.StringVar] = None
+        self._fig: Optional[Figure] = None
+        self._ax_conv = None
+        self._canvas_mpl: Optional[FigureCanvasTkAgg] = None
+        self._progressbar: Optional[ttk.Progressbar] = None
+        self._progressbar_visible: bool = False
 
-        self._stats_labels = {}
+        super().__init__(main_window, project, element_id)
 
-        super().__init__(parent, project, element_id, width=1320, height=860)
-
-    # ------------------------------------------------------------------
-    # CONTROLES (panel izquierdo)
-    # ------------------------------------------------------------------
-    def build_controls(self, parent):
+    # ── Construcción del overlay ───────────────────────────────────
+    def build_overlay(self, body):
         if self._base_project is None or not self._base_project.elements:
-            ttk.Label(parent, text="El proyecto no tiene elementos. Carga un\n"
-                                    "ejemplo o define una malla antes de abrir M9.",
-                      bootstyle="warning", wraplength=240
-                      ).pack(anchor="w", padx=4, pady=8)
+            tk.Label(
+                body,
+                text="◎ Cargá un modelo con al menos un elemento.",
+                bg=EDU_AXES_BG, fg=EDU_FG_MUTED, font=("Segoe UI", 10),
+                wraplength=580,
+            ).pack(fill="both", expand=True, padx=8, pady=8)
             return
 
-        ttk.Label(parent, text="Nivel de refinamiento",
-                  font=("Segoe UI", 10, "bold")).pack(anchor="w", pady=(0, 4))
-        self._level_var = tk.IntVar(value=0)
-        for lvl, desc in ((0, "N=0 (malla original)"),
-                          (1, "N=1 (4× elementos)"),
-                          (2, "N=2 (16× elementos)")):
+        # Banner
+        ttk.Label(
+            body,
+            text=("Refinamiento h del mismo problema en Q4 y Q9. "
+                  "El log-log muestra la convergencia."),
+            font=("Segoe UI", 9, "italic"), foreground=EDU_FG_MUTED,
+            wraplength=600, justify="left",
+        ).pack(fill="x", padx=4, pady=(0, 4))
+
+        # Toolbar: selector de componente + slider de nivel
+        bar = ttk.Frame(body)
+        bar.pack(fill="x", pady=(0, 4))
+
+        ttk.Label(bar, text="Componente:",
+                   font=("Segoe UI", 9), foreground=EDU_FG_MUTED,
+                   ).pack(side="left", padx=(0, 4))
+        self._var_comp = tk.StringVar(value=self._comp_key)
+        for key, label in (("von_mises", "VM"),
+                            ("sigma_x",   "σx"),
+                            ("sigma_y",   "σy"),
+                            ("tau_xy",    "τxy")):
             ttk.Radiobutton(
-                parent, text=desc, value=lvl, variable=self._level_var,
-                bootstyle="info", command=self._on_param_change,
-            ).pack(anchor="w", padx=4, pady=1)
+                bar, text=label, value=key, variable=self._var_comp,
+                bootstyle="success-outline-toolbutton",
+                command=self._on_comp_change,
+            ).pack(side="left", padx=1)
 
-        ttk.Separator(parent).pack(fill="x", pady=8)
-
-        ttk.Label(parent, text="Componente",
-                  font=("Segoe UI", 10, "bold")).pack(anchor="w", pady=(0, 4))
-        self._comp_var = tk.StringVar(value="von_mises")
-        for label, val in _COMPONENTS:
+        ttk.Separator(bar, orient="vertical").pack(side="left",
+                                                     fill="y", padx=8)
+        ttk.Label(bar, text="N:",
+                   font=("Segoe UI", 9), foreground=EDU_FG_MUTED,
+                   ).pack(side="left", padx=(0, 4))
+        self._var_level = tk.IntVar(value=self._level)
+        for n in range(_MAX_LEVEL + 1):
             ttk.Radiobutton(
-                parent, text=label, value=val, variable=self._comp_var,
-                bootstyle="success", command=self._refresh_views,
-            ).pack(anchor="w", padx=4, pady=1)
+                bar, text=str(n), value=n, variable=self._var_level,
+                bootstyle="success-outline-toolbutton",
+                command=self._on_level_change,
+            ).pack(side="left", padx=1)
 
-        ttk.Separator(parent).pack(fill="x", pady=8)
+        # Status + barra de progreso indeterminada. La barra se muestra
+        # SOLO mientras hay un cómputo en vuelo (pack en _refresh_status,
+        # pack_forget cuando termina). Pedagógicamente comunica "estoy
+        # trabajando" sin necesitar estimar ETA del solver (que depende
+        # del nivel N y la geometría).
+        status_row = ttk.Frame(body)
+        status_row.pack(fill="x", padx=4, pady=(0, 2))
+        self._lbl_status = tk.Label(
+            status_row, text="", bg=EDU_AXES_BG, fg="#ffd54f",
+            font=("Consolas", 9), anchor="w",
+        )
+        self._lbl_status.pack(side="left", fill="x", expand=True)
+        self._progressbar = ttk.Progressbar(
+            status_row, mode="indeterminate", length=120,
+            bootstyle="success-striped",
+        )
+        # NO se packea acá — se muestra/oculta dinámicamente en
+        # _refresh_status según _compute_pending. Mantener una referencia
+        # al frame parent para repackear cuando aparezca.
+        self._progressbar_visible = False
 
-        self._deform_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(
-            parent, text="Mostrar malla deformada",
-            variable=self._deform_var, bootstyle="round-toggle",
-            command=self._refresh_views,
-        ).pack(anchor="w", padx=4, pady=2)
+        # Dos paneles lado a lado (Q4 / Q9) con encabezado de color por tipo
+        panels = ttk.Frame(body)
+        panels.pack(fill="x", pady=(0, 4))
 
-        ttk.Separator(parent).pack(fill="x", pady=8)
+        col_q4 = ttk.Frame(panels)
+        col_q4.pack(side="left", expand=True, fill="both", padx=(0, 4))
+        tk.Label(col_q4, text="Q4", bg=EDU_AXES_BG, fg=_C_Q4,
+                  font=("Segoe UI Semibold", 10)).pack(anchor="w")
+        self._panel_q4 = tk.Canvas(
+            col_q4, width=_PANEL_W, height=_PANEL_H,
+            bg=EDU_FIG_BG, highlightthickness=0,
+        )
+        self._panel_q4.pack()
 
-        ttk.Label(parent,
-                  text=("M9 trabaja sobre copias profundas del modelo: "
-                        "subdivide la malla y expande una copia a Q9 para "
-                        "comparar lado a lado. El proyecto original NO se "
-                        "modifica."),
-                  font=("Segoe UI", 8), foreground="#aaa", wraplength=240,
-                  justify="left",
-                  ).pack(anchor="w", pady=(0, 8))
+        col_q9 = ttk.Frame(panels)
+        col_q9.pack(side="left", expand=True, fill="both", padx=(4, 0))
+        tk.Label(col_q9, text="Q9", bg=EDU_AXES_BG, fg=_C_Q9,
+                  font=("Segoe UI Semibold", 10)).pack(anchor="w")
+        self._panel_q9 = tk.Canvas(
+            col_q9, width=_PANEL_W, height=_PANEL_H,
+            bg=EDU_FIG_BG, highlightthickness=0,
+        )
+        self._panel_q9.pack()
 
-        ttk.Button(parent, text="↻  Recalcular", bootstyle="info-outline",
-                   command=self._recompute_and_refresh,
-                   ).pack(anchor="w", padx=4, pady=(4, 12), fill="x")
+        # Log-log de convergencia
+        self._fig = Figure(figsize=(5.6, 2.4), dpi=100, facecolor=EDU_FIG_BG)
+        self._ax_conv = self._fig.add_subplot(111)
+        self._ax_conv.set_facecolor(EDU_AXES_BG)
+        self._ax_conv.tick_params(colors=EDU_FG, labelsize=7)
+        self._canvas_mpl = FigureCanvasTkAgg(self._fig, master=body)
+        self._canvas_mpl.get_tk_widget().pack(fill="x", padx=4, pady=(2, 2))
 
-    def _on_param_change(self):
-        self._recompute_and_refresh()
+        # Cross-reference decorativa (cierra la narrativa del pipeline; sin destino).
+        self._pack_crossref(
+            body, None,
+            "👉 Q9 converge más rápido que Q4 al mismo número de DOF — "
+            "el ratio de pendientes log-log lo evidencia.",
+            wraplength=600,
+        )
 
-    # ------------------------------------------------------------------
-    # VISUALIZACION (paneles Q4 | Q9 + tabla de stats)
-    # ------------------------------------------------------------------
-    def build_visualization(self, parent):
-        if self._base_project is None or not self._base_project.elements:
-            ttk.Label(parent, text="(modulo deshabilitado)",
-                      bootstyle="warning").pack(expand=True)
-            return
+        # Disparar cómputo inicial del N=0 sin bloquear el alumno: el
+        # overlay aparece inmediatamente con placeholders y el solver
+        # corre en el próximo idle del event loop.
+        self._schedule_compute("q4", 0)
+        self._schedule_compute("q9", 0)
 
-        top = ttk.Frame(parent)
-        top.pack(fill="both", expand=True)
-        bottom = ttk.Labelframe(parent, text=" Metricas comparativas ",
-                                 padding=10)
-        bottom.pack(fill="x", padx=4, pady=(6, 4))
-
-        self._fig = Figure(figsize=(9.0, 5.2), dpi=100, facecolor="#222233")
-        self._ax_q4 = self._fig.add_subplot(1, 2, 1)
-        self._ax_q9 = self._fig.add_subplot(1, 2, 2)
-        for ax in (self._ax_q4, self._ax_q9):
-            ax.set_facecolor("#222233")
-            ax.tick_params(colors="#dfdfdf")
-            ax.set_aspect("equal")
-        self._canvas = FigureCanvasTkAgg(self._fig, master=top)
-        self._canvas.get_tk_widget().pack(fill="both", expand=True)
-
-        self._build_stats_panel(bottom)
-
-        self._recompute_and_refresh()
-
-    def _build_stats_panel(self, parent):
-        parent.columnconfigure(0, weight=0)
-        parent.columnconfigure(1, weight=1)
-        parent.columnconfigure(2, weight=1)
-        parent.columnconfigure(3, weight=1)
-
-        headers = ("", "Q4", "Q9", "Diferencia")
-        for i, h in enumerate(headers):
-            ttk.Label(parent, text=h, font=("Segoe UI Semibold", 10),
-                      foreground="#4fa3ff" if i > 0 else "#dfdfdf",
-                      ).grid(row=0, column=i, sticky="w", padx=6, pady=2)
-
-        rows = [
-            ("num_elems",   "Elementos"),
-            ("num_dof",     "GDL (grados de libertad)"),
-            ("u_max",       "|u|_max"),
-            ("vm_max",      "σ_VM max"),
-            ("vm_min",      "σ_VM min"),
-            ("time_ms",     "Tiempo solve (ms)"),
-        ]
-        for r, (key, lbl) in enumerate(rows, start=1):
-            ttk.Label(parent, text=lbl).grid(row=r, column=0, sticky="w",
-                                              padx=6, pady=1)
-            for c, side in enumerate(("q4", "q9", "diff"), start=1):
-                lab = ttk.Label(parent, text="—",
-                                 foreground="#e0e0e0",
-                                 font=("Consolas", 10))
-                lab.grid(row=r, column=c, sticky="w", padx=6, pady=1)
-                self._stats_labels[(key, side)] = lab
-
-    # ------------------------------------------------------------------
-    # LOGICA DE COMPUTO (sandbox)
-    # ------------------------------------------------------------------
-    def _recompute_and_refresh(self):
-        if self._base_project is None or not self._base_project.elements:
-            return
-        level = int(self._level_var.get()) if self._level_var else 0
-
+    # ── Callbacks de cambio de estado ──────────────────────────────
+    def _on_level_change(self):
         try:
-            self._result_q4 = self._compute_side(level, as_q9=False)
-            self._result_q9 = self._compute_side(level, as_q9=True)
-        except Exception as exc:
-            for ax in (self._ax_q4, self._ax_q9):
-                ax.clear()
-                ax.text(0.5, 0.5, f"Error:\n{exc}", transform=ax.transAxes,
-                        ha="center", va="center", color="#ef5350")
-            if self._canvas is not None:
-                self._canvas.draw_idle()
+            self._level = int(self._var_level.get())
+        except (tk.TclError, ValueError):
             return
+        self._schedule_compute("q4", self._level)
+        self._schedule_compute("q9", self._level)
+        self._refresh_panels()
+        self._refresh_convergence()
+        self._refresh_status()
 
-        self._refresh_views()
-        self._refresh_stats()
-
-    def _compute_side(self, level, as_q9):
-        """Clona el base, subdivide, (opcional) expande a Q9, resuelve."""
-        proj = copy.deepcopy(self._base_project)
-        proj.file_path = None
-        if level > 0:
-            subdivide_q4_mesh(proj, levels=level)
-        if as_q9:
-            expand_q4_to_q9(proj)
-        t0 = time.perf_counter()
-        sol = solve_system(proj)
-        t1 = time.perf_counter()
-        elem_stresses, nodal_avg = compute_all_stresses(proj, sol)
-        return {
-            "project": proj,
-            "solution": sol,
-            "elem_stresses": elem_stresses,
-            "nodal_avg": nodal_avg,
-            "solve_ms": (t1 - t0) * 1000.0,
-        }
-
-    # ------------------------------------------------------------------
-    # RENDER (2 paneles lado a lado)
-    # ------------------------------------------------------------------
-    def _refresh_views(self):
-        if self._result_q4 is None or self._result_q9 is None:
+    def _on_comp_change(self):
+        if self._var_comp is None:
             return
-        comp_key = self._comp_var.get() if self._comp_var else "von_mises"
-        comp_label = next((lab.strip() for lab, v in _COMPONENTS
-                           if v == comp_key), comp_key)
-        show_deform = bool(self._deform_var.get()) if self._deform_var else False
+        self._comp_key = self._var_comp.get()
+        self._refresh_panels()
 
-        vmin, vmax = self._common_range(comp_key)
-        cmap = matplotlib.pyplot.get_cmap("plasma")
+    # ── Cómputo on-demand ──────────────────────────────────────────
+    def _schedule_compute(self, kind: str, level: int):
+        key = (kind, level)
+        if key in self._cache:
+            self._refresh_panels()
+            self._refresh_convergence()
+            self._refresh_status()
+            return
+        if self._compute_pending == key:
+            return
+        # Cedemos al event loop con un small after para que el spinner
+        # de status pinte ANTES de bloquear con el solver.
+        self._compute_pending = key
+        self._refresh_status()
+        try:
+            self._mesh.after(50, lambda k=kind, lv=level: self._compute_one(k, lv))
+        except tk.TclError:
+            pass
 
-        self._render_side(self._ax_q4, self._result_q4, comp_key, comp_label,
-                          vmin, vmax, cmap, title_prefix="Q4",
-                          show_deform=show_deform)
-        self._render_side(self._ax_q9, self._result_q9, comp_key, comp_label,
-                          vmin, vmax, cmap, title_prefix="Q9",
-                          show_deform=show_deform)
-
-        if self._cbar is not None:
+    def _compute_one(self, kind: str, level: int):
+        """Resuelve un (kind, level). Caro pero ya está cedido al UI."""
+        try:
+            proj = copy.deepcopy(self._base_project)
+            for _ in range(level):
+                subdivide_q4_mesh(proj, levels=1)
+            if kind == "q9":
+                expand_q4_to_q9(proj)
+            result = solve_system(proj)
+            stresses = compute_all_stresses(proj)
+            u_max = float(np.max(np.abs(result["displacements"])))
+            self._cache[(kind, level)] = {
+                "project": proj,
+                "stresses": stresses,
+                "u_max": u_max,
+                "n_dofs": int(result["displacements"].size),
+            }
+        except Exception:
+            self._cache[(kind, level)] = None
+        finally:
+            if self._compute_pending == (kind, level):
+                self._compute_pending = None
             try:
-                self._cbar.remove()
-            except Exception:
+                self._refresh_panels()
+                self._refresh_convergence()
+                self._refresh_status()
+            except tk.TclError:
                 pass
-            self._cbar = None
-        sm = matplotlib.cm.ScalarMappable(
-            norm=matplotlib.colors.Normalize(vmin=vmin, vmax=vmax), cmap=cmap
-        )
-        sm.set_array([])
-        self._cbar = self._fig.colorbar(sm, ax=[self._ax_q4, self._ax_q9],
-                                         fraction=0.03, pad=0.03)
-        self._cbar.ax.tick_params(colors="#dfdfdf")
-        self._cbar.set_label(comp_label, color="#dfdfdf")
 
-        self._canvas.draw_idle()
+    # ── Render ─────────────────────────────────────────────────────
+    def _refresh_panels(self):
+        self._render_panel(self._panel_q4, "q4", self._level, "_photo_q4")
+        self._render_panel(self._panel_q9, "q9", self._level, "_photo_q9")
 
-    def _common_range(self, comp_key):
-        """Rango [vmin, vmax] combinando Q4 y Q9 para colorbar homogeneo."""
-        vals = []
-        for result in (self._result_q4, self._result_q9):
-            for nid, nd in result["nodal_avg"].items():
-                vals.append(nd.get(comp_key, 0.0))
-        if not vals:
-            return 0.0, 1.0
-        vmin, vmax = float(min(vals)), float(max(vals))
-        if vmax - vmin < 1e-12:
-            vmax = vmin + 1.0
-        return vmin, vmax
-
-    def _render_side(self, ax, result, comp_key, comp_label,
-                     vmin, vmax, cmap, title_prefix, show_deform):
-        ax.clear()
-        ax.set_facecolor("#222233")
-        ax.tick_params(colors="#dfdfdf")
-        ax.set_aspect("equal")
-
-        proj = result["project"]
-        u = result["solution"]["u"]
-        N_fn, _ = get_shape_functions(proj.element_type)
-        n_nodes_elem = 4 if proj.element_type == ELEMENT_Q4 else 9
-
-        u_abs_max = float(np.max(np.abs(u))) if len(u) else 1.0
-        bbox = self._project_bbox(proj)
-        span = max(bbox[1] - bbox[0], bbox[3] - bbox[2], 1e-9)
-        deform_scale = (0.08 * span / u_abs_max) if (show_deform and u_abs_max > 0) else 0.0
-
-        n_sub = 6
-        xi = np.linspace(-1, 1, n_sub)
-        eta = np.linspace(-1, 1, n_sub)
-        XI, ETA = np.meshgrid(xi, eta)
-
-        for eid, elem in proj.elements.items():
-            try:
-                pts = np.array([
-                    [proj.nodes[n].x + deform_scale * u[2 * (n - 1)],
-                     proj.nodes[n].y + deform_scale * u[2 * (n - 1) + 1]]
-                    for n in elem.node_ids[:n_nodes_elem]
-                ])
-            except KeyError:
-                continue
-
-            v_nodes = np.array([
-                (result["nodal_avg"].get(n, {}) or {}).get(comp_key, 0.0)
-                for n in elem.node_ids[:n_nodes_elem]
-            ])
-
-            X = np.zeros_like(XI)
-            Y = np.zeros_like(XI)
-            Z = np.zeros_like(XI)
-            for r in range(n_sub):
-                for c in range(n_sub):
-                    Ns = N_fn(XI[r, c], ETA[r, c])
-                    X[r, c] = Ns @ pts[:, 0]
-                    Y[r, c] = Ns @ pts[:, 1]
-                    Z[r, c] = Ns @ v_nodes
-            ax.pcolormesh(X, Y, Z, cmap=cmap, vmin=vmin, vmax=vmax,
-                          shading="gouraud", antialiased=True)
-
-            # Contorno del elemento (vertices macro) para dibujar aristas
-            corners = pts[:4] if n_nodes_elem == 9 else pts
-            xs = list(corners[:, 0]) + [corners[0, 0]]
-            ys = list(corners[:, 1]) + [corners[0, 1]]
-            ax.plot(xs, ys, color="#ffffff", linewidth=0.35, alpha=0.55)
-
-        n_elems = proj.num_elements
-        n_dof = proj.total_dof
-        ax.set_title(f"{title_prefix} — elems={n_elems}, DOF={n_dof}",
-                     color="#dfdfdf", fontsize=10, pad=6)
-
-    @staticmethod
-    def _project_bbox(proj):
-        xs = [n.x for n in proj.nodes.values()]
-        ys = [n.y for n in proj.nodes.values()]
-        return min(xs), max(xs), min(ys), max(ys)
-
-    # ------------------------------------------------------------------
-    # TABLA DE STATS
-    # ------------------------------------------------------------------
-    def _refresh_stats(self):
-        if self._result_q4 is None or self._result_q9 is None:
+    def _render_panel(self, canvas: Optional[tk.Canvas], kind: str,
+                       level: int, photo_attr: str):
+        if canvas is None or not HAS_PIL:
             return
-        s4 = self._stats_of(self._result_q4)
-        s9 = self._stats_of(self._result_q9)
-        pairs = [
-            ("num_elems", f"{s4['num_elems']}",       f"{s9['num_elems']}"),
-            ("num_dof",   f"{s4['num_dof']}",         f"{s9['num_dof']}"),
-            ("u_max",     f"{s4['u_max']:.5e}",       f"{s9['u_max']:.5e}"),
-            ("vm_max",    fmt(s4['vm_max'], 'stress'), fmt(s9['vm_max'], 'stress')),
-            ("vm_min",    fmt(s4['vm_min'], 'stress'), fmt(s9['vm_min'], 'stress')),
-            ("time_ms",   f"{s4['time_ms']:.1f}",     f"{s9['time_ms']:.1f}"),
-        ]
-        for key, v4, v9 in pairs:
-            self._stats_labels[(key, "q4")].configure(text=v4)
-            self._stats_labels[(key, "q9")].configure(text=v9)
+        canvas.delete("all")
+        entry = self._cache.get((kind, level))
+        if entry is None:
+            if self._compute_pending == (kind, level):
+                canvas.create_text(_PANEL_W / 2, _PANEL_H / 2,
+                                    text="computando…",
+                                    fill=EDU_FG_MUTED,
+                                    font=("Consolas", 10))
+            else:
+                canvas.create_text(_PANEL_W / 2, _PANEL_H / 2,
+                                    text="(sin computar)",
+                                    fill=EDU_FG_MUTED,
+                                    font=("Consolas", 10))
+            return
 
-        # Diferencia relativa (referencia Q9 para u_max, vm_max, vm_min)
-        def _rel(a, b):
-            if abs(b) < 1e-15:
-                return "—"
-            return f"{100.0 * (a - b) / abs(b):+.2f} %"
+        proj = entry["project"]
+        node_values = self._extract_node_values(proj, entry["stresses"])
+        if not node_values:
+            canvas.create_text(_PANEL_W / 2, _PANEL_H / 2,
+                                text="(sin datos)",
+                                fill=EDU_FG_MUTED, font=("Consolas", 10))
+            return
+        vals = np.array(list(node_values.values()))
+        vmin, vmax = float(np.min(vals)), float(np.max(vals))
+        if vmax - vmin < 1e-12:
+            vmin -= 1e-6; vmax += 1e-6
+        img = render_result_to_pil(
+            proj, node_values, vmin, vmax,
+            width=_PANEL_W, height=_PANEL_H,
+            wireframe=True,
+        )
+        if img is None:
+            return
+        photo = ImageTk.PhotoImage(img)
+        setattr(self, photo_attr, photo)  # anti-GC
+        canvas.create_image(0, 0, anchor="nw", image=photo)
+        # Caption pequeño con el DOF count y u_max
+        canvas.create_text(
+            6, _PANEL_H - 14, anchor="w",
+            text=f"N={level}  DOF={entry['n_dofs']}  |u|max={entry['u_max']:.3g}",
+            fill="#ffffff", font=("Consolas", 8, "bold"),
+        )
 
-        self._stats_labels[("num_elems", "diff")].configure(
-            text=f"x{s9['num_elems'] / max(s4['num_elems'], 1):.0f}")
-        self._stats_labels[("num_dof", "diff")].configure(
-            text=f"x{s9['num_dof'] / max(s4['num_dof'], 1):.2f}")
-        self._stats_labels[("u_max", "diff")].configure(
-            text=_rel(s4["u_max"], s9["u_max"]))
-        self._stats_labels[("vm_max", "diff")].configure(
-            text=_rel(s4["vm_max"], s9["vm_max"]))
-        self._stats_labels[("vm_min", "diff")].configure(
-            text=_rel(s4["vm_min"], s9["vm_min"]))
-        ratio_t = s9["time_ms"] / max(s4["time_ms"], 1e-6)
-        self._stats_labels[("time_ms", "diff")].configure(
-            text=f"x{ratio_t:.1f}")
+    def _extract_node_values(self, proj, stresses) -> dict:
+        """Mapea project.nodes → escalar según self._comp_key."""
+        if stresses is None:
+            return {}
+        comp = stresses.get(self._comp_key)
+        if comp is None:
+            return {}
+        sorted_ids = sorted(proj.nodes.keys())
+        return {nid: float(comp[i]) for i, nid in enumerate(sorted_ids)
+                if i < len(comp)}
+
+    def _refresh_convergence(self):
+        if self._ax_conv is None:
+            return
+        ax = self._ax_conv
+        ax.clear()
+        ax.set_facecolor(EDU_AXES_BG)
+        ax.tick_params(colors=EDU_FG, labelsize=7)
+
+        for kind, color, label in (("q4", _C_Q4, "Q4"),
+                                     ("q9", _C_Q9, "Q9")):
+            xs, ys = [], []
+            for lv in range(_MAX_LEVEL + 1):
+                entry = self._cache.get((kind, lv))
+                if entry is None:
+                    continue
+                xs.append(entry["n_dofs"])
+                ys.append(entry["u_max"])
+            if xs:
+                ax.loglog(xs, ys, "-o", color=color, lw=1.6, label=label,
+                          markersize=5)
+
+        ax.set_xlabel("DOF", color=EDU_FG, fontsize=8)
+        ax.set_ylabel("|u|_max", color=EDU_FG, fontsize=8)
+        ax.grid(True, which="both", color="#444", lw=0.4, alpha=0.5)
+        ax.legend(loc="best", fontsize=8, facecolor=EDU_AXES_BG,
+                   edgecolor="none", labelcolor=EDU_FG)
+        try:
+            self._fig.tight_layout(pad=0.5)
+            self._canvas_mpl.draw_idle()
+        except tk.TclError:
+            pass
+
+    def _refresh_status(self):
+        if self._lbl_status is None:
+            return
+        try:
+            if self._compute_pending is not None:
+                k, lv = self._compute_pending
+                self._lbl_status.configure(
+                    text=f"⏳ computando {k.upper()} N={lv}…",
+                )
+                self._show_progress(True)
+            else:
+                n_q4 = sum(1 for k, _ in self._cache.keys() if k == "q4"
+                            and self._cache[(k, _)] is not None)
+                n_q9 = sum(1 for k, _ in self._cache.keys() if k == "q9"
+                            and self._cache[(k, _)] is not None)
+                total = 2 * (_MAX_LEVEL + 1)
+                done = n_q4 + n_q9
+                bar = self._ascii_bar(done, total, width=16)
+                self._lbl_status.configure(
+                    text=f"{bar}  Q4: {n_q4}/{_MAX_LEVEL + 1}   "
+                          f"Q9: {n_q9}/{_MAX_LEVEL + 1}   "
+                          f"(N actual = {self._level})"
+                )
+                self._show_progress(False)
+        except tk.TclError:
+            pass
+
+    def _show_progress(self, visible: bool) -> None:
+        """Muestra/oculta la barra indeterminate sin re-crear el widget.
+
+        Idempotente: si ya está en el estado pedido no hace nada (evita
+        flicker cuando _refresh_status se invoca en cascada por varios
+        _compute_one consecutivos)."""
+        if self._progressbar is None:
+            return
+        if visible == self._progressbar_visible:
+            return
+        try:
+            if visible:
+                self._progressbar.pack(side="right", padx=(8, 0))
+                self._progressbar.start(12)  # ms entre frames
+            else:
+                self._progressbar.stop()
+                self._progressbar.pack_forget()
+        except tk.TclError:
+            return
+        self._progressbar_visible = visible
 
     @staticmethod
-    def _stats_of(result):
-        proj = result["project"]
-        u = result["solution"]["u"]
-        vm_vals = [
-            (nd.get("von_mises", 0.0))
-            for nd in result["nodal_avg"].values()
-        ]
-        if not vm_vals:
-            vm_vals = [0.0]
-        return {
-            "num_elems": proj.num_elements,
-            "num_dof":   proj.total_dof,
-            "u_max":     float(np.max(np.abs(u))) if len(u) else 0.0,
-            "vm_max":    float(max(vm_vals)),
-            "vm_min":    float(min(vm_vals)),
-            "time_ms":   result["solve_ms"],
-        }
+    def _ascii_bar(done: int, total: int, width: int = 16) -> str:
+        """Barra ASCII compacta para el contador de cache (sin animación,
+        solo estado acumulado). `done` puede exceder `total` defensivamente."""
+        if total <= 0:
+            return "[" + " " * width + "]"
+        ratio = max(0.0, min(1.0, done / total))
+        filled = int(round(ratio * width))
+        return "[" + "█" * filled + "·" * (width - filled) + "]"
 
-    # ------------------------------------------------------------------
-    # TEORIA
-    # ------------------------------------------------------------------
-    def build_theory(self, doc, ctx):
-        doc.section("Por que Q9 converge mas rapido que Q4")
-        doc.para(
-            "Q4 es un elemento bilineal: sus funciones de forma son lineales "
-            "en xi y eta por separado. La deformacion resultante epsilon = B u "
-            "es CONSTANTE dentro de cada elemento para los terminos lineales "
-            "y no puede representar gradientes lineales de deformacion. Q9 "
-            "es biquadratico: representa gradientes lineales de deformacion "
-            "de forma exacta, lo que lo vuelve muchisimo mas preciso en "
-            "problemas con flexion o tensiones concentradas."
-        )
-        doc.section("Refinamiento h vs refinamiento p")
-        doc.para(
-            "Aumentar el nivel N del slider (h-refinement) subdivide cada "
-            "elemento en 4 sub-elementos, multiplicando el numero de DOF. "
-            "Pasar de Q4 a Q9 manteniendo la misma malla (p-refinement) "
-            "aumenta el orden del polinomio dentro de cada elemento. Ambas "
-            "tecnicas convergen a la solucion exacta, pero Q9 lo hace con "
-            "menos DOF totales en la mayoria de los problemas."
-        )
-        doc.section("Interpretacion de la tabla")
-        doc.para(
-            "La columna 'Diferencia' muestra (Q4 - Q9) / |Q9| en porcentaje "
-            "para u_max y sigma_VM (Q9 se toma como referencia mas precisa). "
-            "A medida que N crece, las dos columnas se acercan — ese es el "
-            "fenomeno de convergencia."
-        )
+    # ── Cleanup ────────────────────────────────────────────────────
+    def on_closed(self):
+        # Liberar referencias pesadas (cache de projects deepcopiados).
+        self._cache.clear()
+        self._base_project = None

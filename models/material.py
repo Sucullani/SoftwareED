@@ -1,38 +1,27 @@
 """
 Clase Material: Propiedades mecánicas del material.
+
+El atributo `color` fue eliminado en 2026-05 (no era consumido por el
+solver ni por el canvas — solo aparecia en el MaterialDialog y en el
+CSV export). Si se necesita reintroducir como mejora visual futura,
+agregar como campo opcional en `__init__` con backward-compat en
+`from_dict` (igual que se hizo con `gravity_x/gravity_y`).
 """
 
 # ─── Librería de materiales predefinidos ────────────────────────────────────
+# Solo Acero y Concreto: cubren ~90% de los problemas FEM de cursos de
+# ingenieria estructural / mecanica (Aluminio, Cobre, Titanio retirados —
+# el usuario los define con 'Nuevo' si los necesita).
 DEFAULT_MATERIALS = {
     "Acero Estructural": {
         "E": 200000.0,  # MPa
         "nu": 0.3,
         "density": 7850.0,  # kg/m³
-        "color": "#4fc3f7",
-    },
-    "Aluminio 6061-T6": {
-        "E": 68900.0,
-        "nu": 0.33,
-        "density": 2700.0,
-        "color": "#81c784",
     },
     "Concreto f'c=21 MPa": {
         "E": 21538.0,
         "nu": 0.2,
         "density": 2400.0,
-        "color": "#bdbdbd",
-    },
-    "Cobre": {
-        "E": 117000.0,
-        "nu": 0.34,
-        "density": 8960.0,
-        "color": "#ffb74d",
-    },
-    "Titanio Ti-6Al-4V": {
-        "E": 113800.0,
-        "nu": 0.342,
-        "density": 4430.0,
-        "color": "#ce93d8",
     },
 }
 
@@ -41,12 +30,11 @@ class Material:
     """Material elástico lineal isótropo."""
 
     def __init__(self, name="Acero Estructural", E=200000.0, nu=0.3,
-                 density=7850.0, color="#4fc3f7"):
+                 density=7850.0):
         self.name = name
         self.E = float(E)           # Módulo de Young
         self.nu = float(nu)         # Coeficiente de Poisson
         self.density = float(density)  # Densidad
-        self.color = color
 
     def validate(self):
         """Valida que las propiedades sean físicamente válidas."""
@@ -65,12 +53,14 @@ class Material:
             "E": self.E,
             "nu": self.nu,
             "density": self.density,
-            "color": self.color,
         }
 
     @classmethod
     def from_dict(cls, data):
-        return cls(**data)
+        # Backward-compat: ignorar `color` de archivos .edufem legacy.
+        clean = {k: v for k, v in data.items()
+                 if k in ("name", "E", "nu", "density")}
+        return cls(**clean)
 
     @classmethod
     def get_default_library(cls):

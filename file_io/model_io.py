@@ -31,8 +31,6 @@ from models.node import Node
 
 def _units_for(project):
     """Retorna dict {longitud, fuerza, esfuerzo} segun el sistema del proyecto."""
-    if project.unit_system == "Personalizado":
-        return dict(project.custom_units)
     return get_unit_labels(project.unit_system)
 
 
@@ -132,10 +130,10 @@ def export_model_csv(project, filepath):
         # ── materials.csv ──────────────────────────────────────────────────
         rows = []
         for mat in project.materials.values():
-            rows.append([mat.name, mat.E, mat.nu, mat.density, mat.color])
+            rows.append([mat.name, mat.E, mat.nu, mat.density])
         _write_csv_to_zip(
             zf, "materials.csv", units_comment,
-            ["Nombre", "E", "nu", "densidad", "color"], rows,
+            ["Nombre", "E", "nu", "densidad"], rows,
         )
         counts["materials"] = len(rows)
 
@@ -216,8 +214,11 @@ def import_model_csv(project, filepath, mode="replace"):
             if mode == "replace":
                 project.materials = {}
             for row in rows:
-                if len(row) < 5:
-                    row = row + [""] * (5 - len(row))
+                # Backward-compat: el CSV legacy tenia 5 cols (incluyendo
+                # `color`). Hoy son 4. Padear si vino mas corto, ignorar
+                # cualquier columna >= 4 si vino mas largo.
+                if len(row) < 4:
+                    row = row + [""] * (4 - len(row))
                 name = str(row[0]).strip()
                 if not name:
                     continue
@@ -227,7 +228,6 @@ def import_model_csv(project, filepath, mode="replace"):
                         E=_to_float(row[1], 200000.0),
                         nu=_to_float(row[2], 0.3),
                         density=_to_float(row[3], 0.0),
-                        color=str(row[4]).strip() or "#4fc3f7",
                     )
                 except Exception:
                     continue

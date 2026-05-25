@@ -1,0 +1,1087 @@
+"""
+latex_image: Renderiza matrices y expresiones LaTeX como PhotoImages
+embebibles en widgets Tk.
+
+Backend dual (UX 2026):
+    1. **pdflatex + fitz** (default cuando MiKTeX/TeX Live disponible):
+       compila via `config.latex_cache` y produce PNG con calidad
+       documento (`\\begin{bmatrix}` real, kerning AMS, tipografia CMU).
+       El cache persiste en disco entre sesiones.
+    2. **matplotlib mathtext** (fallback): render legacy con corchetes
+       manuales celda-por-celda. Sigue funcionando sin pdflatex.
+
+La decision es transparente para el caller: misma API. Si pdflatex no
+esta disponible, las llamadas degradan automaticamente al fallback.
+
+Componentes:
+    - `render_matrix_image(matrix, ...)` -> PhotoImage de la matriz.
+    - `render_expression_image(expr, ...)` -> PhotoImage de una expresion.
+    - `LatexMatrixImage` -> ttk.Label con API `set_matrix(...)`.
+    - `LatexExpressionImage` -> ttk.Label para expresiones escalares.
+
+Caché:
+    Dual: cache en disco del pipeline pdflatex (~/.edufem/latex_cache/)
+    + cache en memoria del fallback mathtext (~30-80 ms por render).
+    Para matrices con valores que cambian (live update en M2/M4), el
+    caller habilita `cache=False` para invalidar la memoria.
+"""
+
+from __future__ import annotations
+
+import io
+import math
+from typing import Optional, Sequence, Union
+
+import numpy as np
+import ttkbootstrap as ttk
+import matplotlib
+matplotlib.use("Agg")
+from matplotlib.figure import Figure
+from PIL import Image, ImageTk
+
+from config.settings import EDU_AXES_BG, EDU_FG, OVERLAY_BG
+
+
+def _ax_face_hex(ax) -> str:
+    """Color de fondo del axes en formato hex `#rrggbb`. Default
+    coherente con la paleta EDU si no se puede obtener."""
+    try:
+        c = ax.get_facecolor()
+        if isinstance(c, str):
+            return c if c.startswith("#") else "#2c2c2c"
+        r, g, b = int(c[0] * 255), int(c[1] * 255), int(c[2] * 255)
+        return f"#{r:02x}{g:02x}{b:02x}"
+    except Exception:
+        return "#2c2c2c"
+
+
+def _infer_bg(parent) -> str:
+    """Intenta deducir el bg efectivo del widget parent. Necesario porque
+    los modulos crean LatexMatrixImage/LatexExpressionImage dentro de
+    `ttk.Frame`s del tema `darkly`, cuyo bg NO es `OVERLAY_BG` directo
+    sino el del estilo del notebook/frame interno.
+
+    Orden de fallback:
+        1. parent.cget('background') / 'bg' (tk.Frame, tk.Label)
+        2. ttk.Style().lookup(parent.winfo_class(), 'background')
+        3. parent.winfo_rgb('background')
+        4. OVERLAY_BG (constante)
+    """
+    if parent is None:
+        return OVERLAY_BG
+    # 1) tk widgets devuelven el color directo
+    for opt in ("background", "bg"):
+        try:
+            val = parent.cget(opt)
+            if val and isinstance(val, str) and val.startswith("#"):
+                return val
+        except Exception:
+            pass
+    # 2) ttk lookup del estilo
+    try:
+        import tkinter.ttk as _ttk
+        style = _ttk.Style()
+        cls = parent.winfo_class()
+        val = style.lookup(cls, "background")
+        if val and isinstance(val, str) and val.startswith("#"):
+            return val
+    except Exception:
+        pass
+    # 3) winfo_rgb (devuelve tupla 0..65535)
+    try:
+        r, g, b = parent.winfo_rgb("SystemButtonFace")
+        return f"#{r >> 8:02x}{g >> 8:02x}{b >> 8:02x}"
+    except Exception:
+        pass
+    # 4) ultima carta
+    return OVERLAY_BG
+
+
+# Tipado laxo: aceptamos numpy, sympy.Matrix, lista de listas, escalares.
+MatrixLike = Union[np.ndarray, Sequence[Sequence], object]
+
+
+_CACHE: dict = {}
+
+
+# ─── API pública ────────────────────────────────────────────────────
+
+
+def render_matrix_image(
+    matrix: MatrixLike,
+    *,
+    fmt: str = "{:.3g}",
+    fontsize: int = 14,
+    color: str = EDU_FG,
+    prefix: str = "",
+    bg: Optional[str] = None,
+    dpi: int = 140,
+    cache: bool = True,
+) -> ImageTk.PhotoImage:
+    """Renderiza una matriz como PhotoImage con corchetes NATIVOS LaTeX
+    (`\\left[...\\right]`) usando `\\substack` por columna.
+
+    Mathtext NO soporta `\\begin{bmatrix}` ni `\\matrix` (son AMS-LaTeX,
+    requieren pdflatex). PERO `\\substack` SI esta y permite armar
+    matrices visualmente equivalentes con corchetes nativos
+    dimensionados automaticamente.
+
+    Composicion: prefijo y cuerpo de la matriz se rendean como
+    `TextArea` separados y se empaquetan con `HPacker(align="center")`
+    para que sus centros geometricos coincidan verticalmente. Resuelve
+    el quirk de mathtext donde `\\substack` se posiciona sobre el
+    baseline (no sobre el eje matematico), que hacia que un render
+    combinado `prefix + substack` dejara al prefijo abajo a la
+    izquierda del bbox cropped.
+
+    Compensacion de tamaño: `\\substack` rendea en subscript-style (~60%
+    del normal). El factor `fs * 1.7` (calibrado en
+    `_fit_fontsize_for_shape`) lo lleva a tamano "documento LaTeX".
+    """
+    if bg is None:
+        bg = OVERLAY_BG
+
+    cells = _matrix_to_strings(matrix, fmt=fmt)
+    if cells is None or cells.size == 0:
+        return render_expression_image("(matriz\\ vacía)", fontsize=fontsize,
+                                       color=color, bg=bg, dpi=dpi)
+    rows, cols = cells.shape
+
+    if cache:
+        key = ("matrix", _cells_key(cells), fontsize, color, prefix, bg, dpi)
+        cached = _CACHE.get(key)
+        if cached is not None:
+            return cached
+
+    try:
+        photo = _render_matrix_via_packer_to_photoimage(
+            cells, prefix=prefix, fontsize=fontsize, color=color,
+            bg=bg, dpi=dpi,
+        )
+    except Exception:
+        try:
+            import matplotlib.pyplot as _plt
+            _plt.close("all")
+        except Exception:
+            pass
+        img = Image.new("RGBA", (1, 1), (0, 0, 0, 0))
+        photo = ImageTk.PhotoImage(img)
+
+    if cache:
+        _CACHE[key] = photo
+    return photo
+
+
+def _build_matrix_packer(
+    cells: np.ndarray, *, prefix: str, fontsize: int, color: str,
+):
+    """Construye un `HPacker` `(prefijo + matriz)` con vertical-center
+    alignment. Usa `TextArea` para que el render sea matplotlib-nativo
+    (mismo path que cualquier `ax.text` mathtext, sin composicion PIL
+    ni resampling).
+
+    Returns the packer + the effective `fs_substack` (para que el
+    caller pueda ajustar margenes/figsizes si lo necesita).
+    """
+    from matplotlib.offsetbox import TextArea, HPacker
+
+    rows, cols = cells.shape
+    fs = _fit_fontsize_for_shape(rows, cols, fontsize)
+    fs_substack = max(9, int(round(fs * 1.7)))
+
+    matrix_expr = _build_substack_matrix_expr(cells, prefix="")
+    children = []
+
+    # Prefijo: limpiar thin spaces trailing (innecesarios al componer
+    # via HPacker, eran para concatenacion mathtext) y normalizar
+    # `\dfrac`/`\tfrac` -> `\frac` para que la altura sea compatible
+    # con la del substack (subscript-style).
+    norm_prefix = _normalize_prefix_fractions(prefix).strip()
+    while norm_prefix.endswith(("\\,", "\\;", "\\!")):
+        norm_prefix = norm_prefix[:-2].rstrip()
+    if norm_prefix:
+        children.append(TextArea(
+            f"${norm_prefix}$",
+            textprops=dict(fontsize=fs_substack, color=color, family="serif"),
+        ))
+
+    children.append(TextArea(
+        matrix_expr,
+        textprops=dict(fontsize=fs_substack, color=color, family="serif"),
+    ))
+
+    sep_pt = max(2, int(fs_substack * 0.25))
+    packer = HPacker(children=children, align="center", pad=0, sep=sep_pt)
+    return packer, fs_substack
+
+
+def _render_matrix_via_packer_to_pil(
+    cells: np.ndarray, *, prefix: str, fontsize: int, color: str,
+    bg: str, dpi: int,
+) -> Image.Image:
+    """Render del packer matplotlib-nativo a `PIL.Image` con bbox tight.
+
+    Composicion 100% en matplotlib (HPacker + TextArea) — sin paste
+    PIL, sin resampling intermedio. La PIL.Image final viene directa
+    del PNG generado por Agg.
+    """
+    from matplotlib.offsetbox import AnchoredOffsetbox
+
+    packer, _ = _build_matrix_packer(
+        cells, prefix=prefix, fontsize=fontsize, color=color,
+    )
+
+    fig = Figure(figsize=(0.01, 0.01), dpi=dpi, facecolor=bg)
+    ax = fig.add_axes([0, 0, 1, 1])
+    ax.set_facecolor(bg)
+    ax.axis("off")
+    box = AnchoredOffsetbox(
+        loc="center", child=packer, frameon=False, pad=0,
+        bbox_to_anchor=(0.5, 0.5), bbox_transform=ax.transAxes,
+    )
+    ax.add_artist(box)
+
+    buf = io.BytesIO()
+    try:
+        fig.savefig(buf, format="png", bbox_inches="tight", pad_inches=0.04,
+                    facecolor=bg, dpi=dpi)
+    finally:
+        try:
+            fig.clf()
+        except Exception:
+            pass
+    buf.seek(0)
+    return Image.open(buf).convert("RGBA")
+
+
+def _render_matrix_via_packer_to_photoimage(
+    cells: np.ndarray, *, prefix: str, fontsize: int, color: str,
+    bg: str, dpi: int,
+) -> ImageTk.PhotoImage:
+    """Wrap del `PIL.Image` del packer como `PhotoImage` Tk. Aplica el
+    downscale LANCZOS 50% estandar (super-sampling AA + tamano de
+    widget coherente con el resto de la UI educativa)."""
+    img = _render_matrix_via_packer_to_pil(
+        cells, prefix=prefix, fontsize=fontsize, color=color,
+        bg=bg, dpi=dpi,
+    )
+    w, h = img.size
+    img = img.resize((max(1, w // 2), max(1, h // 2)), Image.LANCZOS)
+    return ImageTk.PhotoImage(img)
+
+
+# ─── Builders LaTeX para matrices via substack ─────────────────────────────
+
+
+def _build_substack_matrix_expr(cells: np.ndarray, *, prefix: str = "") -> str:
+    """Construye la expresion mathtext `$prefix \\left[ \\substack{col1}
+    <SP> \\substack{col2> \\right]$`.
+
+    Spacing auto: `\\quad` para matrices ≤ 9 cols, `\\,` (thin) para
+    matrices anchas (Q9 18 cols).
+
+    El prefix se normaliza: `\\dfrac` → `\\frac` para evitar
+    superposicion vertical con la matriz substack (que esta en
+    subscript-style).
+    """
+    rows, cols = cells.shape
+    if rows == 0 or cols == 0:
+        return "$\\left[\\,\\right]$"
+
+    col_substacks = []
+    for j in range(cols):
+        items = [_cell_for_substack_atom(str(cells[i, j])) for i in range(rows)]
+        body = r" \\ ".join(items)
+        col_substacks.append(r"\substack{" + body + r"}")
+
+    # Auto-spacing: `\quad` da mejor legibilidad para matrices educativas
+    # ≤ 9 cols (Q4 8 GDLs, D 3×3, K_e 8×8). Para matrices muy anchas
+    # (Q9 B 3×18) usar `\,` evita salirse del ancho del overlay.
+    sep = r" \, " if cols > 9 else r" \quad "
+    inner = sep.join(col_substacks)
+    bracketed = r"\left[ " + inner + r" \right]"
+
+    # Normalizacion del prefix: `\dfrac` (display-style) genera alturas
+    # incompatibles con substack (subscript-style) → superposicion. Usar
+    # `\frac` para mantener todo en una proporcion visual consistente.
+    norm_prefix = _normalize_prefix_fractions(prefix)
+
+    if norm_prefix:
+        return f"${norm_prefix} {bracketed}$"
+    return f"${bracketed}$"
+
+
+def _normalize_prefix_fractions(prefix: str) -> str:
+    """Convierte `\\dfrac` y `\\tfrac` a `\\frac` en el prefix.
+
+    Razon: el prefix se renderiza al mismo fontsize que la matriz
+    substack (que esta en subscript-style). Si el prefix usa `\\dfrac`
+    (display-style), su altura visual es mucho mayor que la matriz y
+    se superponen verticalmente. `\\frac` mantiene proporciones.
+    """
+    if not prefix:
+        return prefix
+    return prefix.replace(r"\dfrac", r"\frac").replace(r"\tfrac", r"\frac")
+
+
+def _cell_for_substack_atom(raw: str) -> str:
+    """Convierte una celda string a forma mathtext-ready DENTRO de un
+    `\\substack{...}` (math mode).
+
+    Reglas:
+       - vacio → `\\,` (espacio thin para conservar altura de fila)
+       - `...` → `\\ldots`
+       - numericos (`+0.234`) → tal cual (math mode los acepta)
+       - Unicode math (∂, ξ) → conversion a comandos LaTeX
+       - sintaxis LaTeX explicita (`\\partial`) → tal cual
+       - texto alfabetico plano → `\\mathrm{...}` (no italizar)
+       - `\\dfrac` dentro de celdas → `\\frac` (mismo motivo que el prefix)
+    """
+    s = str(raw).strip()
+    if not s:
+        return r"\,"
+    if s in ("...", "…"):
+        return r"\ldots"
+    if all(c.isdigit() or c in "+-.eE " for c in s):
+        return s
+    # Convertir Unicode primero.
+    converted = _unicode_math_to_latex(s)
+    # Normalizar fracciones para mantener altura consistente.
+    converted = converted.replace(r"\dfrac", r"\frac").replace(r"\tfrac", r"\frac")
+    if converted != s:
+        return converted
+    if "\\" in s:
+        return s.replace(r"\dfrac", r"\frac").replace(r"\tfrac", r"\frac")
+    return r"\mathrm{" + s + r"}"
+
+
+def render_expression_image(
+    expr: str,
+    *,
+    fontsize: int = 14,
+    color: str = EDU_FG,
+    bg: Optional[str] = None,
+    dpi: int = 140,
+    cache: bool = True,
+) -> ImageTk.PhotoImage:
+    """Renderiza una expresión LaTeX (mathtext) como PhotoImage. Render
+    sincrono con Computer Modern (rcParams `mathtext.fontset = "cm"`).
+
+    Soporta el subset mathtext de matplotlib: sub/super-indices, `\\dfrac`,
+    `\\tfrac`, `\\sqrt`, `\\partial`, `\\sum`, `\\int`, griegas, etc.
+    NO soporta `\\begin{bmatrix}` — para matrices usar `render_matrix_image`.
+
+    Strings con Unicode math (∂, ξ, η, ...) se convierten a comandos
+    LaTeX automaticamente — el caller puede pasar lo que sea legible.
+
+    Latencia: ~30-150 ms cold, instantaneo con cache de memoria.
+    """
+    if bg is None:
+        bg = OVERLAY_BG
+
+    if not expr.strip():
+        img = Image.new("RGBA", (1, 1), (0, 0, 0, 0))
+        return ImageTk.PhotoImage(img)
+
+    # Convertir Unicode math a comandos LaTeX (idempotente si ya viene
+    # en sintaxis LaTeX). Wrap en `$...$` si el caller no lo hizo.
+    body = _unicode_math_to_latex(expr.strip("$").strip())
+    text = f"${body}$"
+
+    if cache:
+        key = ("expr", text, fontsize, color, bg, dpi)
+        cached = _CACHE.get(key)
+        if cached is not None:
+            return cached
+
+    photo = _safe_render_mathtext_expression(text, body, fontsize=fontsize,
+                                              color=color, bg=bg, dpi=dpi)
+    if cache:
+        _CACHE[key] = photo
+    return photo
+
+
+def _pdflatex_available() -> bool:
+    """Cached check de pdflatex. Wrapper sobre latex_cache para evitar
+    imports circulares en topo modulo."""
+    try:
+        from config import latex_cache
+        return latex_cache.is_latex_available()
+    except Exception:
+        return False
+
+
+def _placeholder_for_matrix(
+    rows: int, cols: int, *, prefix: str, fontsize: int, bg: str,
+) -> ImageTk.PhotoImage:
+    """Placeholder dimensionado al tamaño aproximado de la matriz LaTeX
+    que vendra del async swap. Evita que el widget "salte" cuando
+    llega el PNG real."""
+    char_w = max(4, int(fontsize * 0.55))
+    # ~7 chars por celda promedio + corchetes + espaciado
+    cell_chars = 7
+    bracket_pad = 8
+    prefix_w = (len(prefix) * char_w + 12) if prefix else 0
+    width = max(50, min(1400, prefix_w + cols * cell_chars * char_w + bracket_pad * 2))
+    row_h = int(fontsize * 1.7)
+    height = max(20, rows * row_h + bracket_pad)
+    try:
+        img = Image.new("RGB", (width, height), bg)
+        return ImageTk.PhotoImage(img)
+    except Exception:
+        img = Image.new("RGBA", (1, 1), (0, 0, 0, 0))
+        return ImageTk.PhotoImage(img)
+
+
+def _placeholder_for_expression(
+    body: str, *, fontsize: int, bg: str,
+) -> ImageTk.PhotoImage:
+    """Placeholder PNG del mismo color que el bg, tamaño aproximado al
+    render LaTeX esperado.
+
+    Estimacion: ~6.5 px/char a fontsize 12 (CMU). Para fontsize distinto
+    escala linealmente. Alto = fontsize * 1.8. Sirve para que el layout
+    Tk asigne espacio razonable al widget antes de que llegue el swap
+    async — sin que el widget "salte" cuando llega el PNG real.
+    """
+    char_w = max(4, int(fontsize * 0.55))
+    width = max(20, min(1200, len(body) * char_w))
+    height = max(12, int(fontsize * 1.8))
+    try:
+        img = Image.new("RGB", (width, height), bg)
+        return ImageTk.PhotoImage(img)
+    except Exception:
+        img = Image.new("RGBA", (1, 1), (0, 0, 0, 0))
+        return ImageTk.PhotoImage(img)
+
+
+def _safe_render_mathtext_expression(
+    text: str, raw_expr: str, *,
+    fontsize: int, color: str, bg: str, dpi: int,
+) -> ImageTk.PhotoImage:
+    """Intenta render mathtext; si falla (sintaxis no soportada), cae a
+    monospace plain. Garantiza retornar SIEMPRE un PhotoImage valido."""
+    # Intento 1: mathtext con `$...$` y family=serif (CM).
+    try:
+        fig = Figure(figsize=(0.01, 0.01), dpi=dpi, facecolor=bg)
+        fig.patch.set_alpha(1.0)
+        ax = fig.add_axes([0, 0, 1, 1])
+        ax.set_facecolor(bg)
+        ax.axis("off")
+        ax.text(0, 0, text, fontsize=fontsize, color=color, family="serif")
+        return _fig_to_photoimage(fig, dpi=dpi)
+    except Exception:
+        try:
+            import matplotlib.pyplot as _plt
+            _plt.close("all")
+        except Exception:
+            pass
+
+    # Intento 2: texto plano monospace (sin parsing mathtext).
+    try:
+        fig = Figure(figsize=(0.01, 0.01), dpi=dpi, facecolor=bg)
+        fig.patch.set_alpha(1.0)
+        ax = fig.add_axes([0, 0, 1, 1])
+        ax.set_facecolor(bg)
+        ax.axis("off")
+        plain = raw_expr.replace("$", "")
+        ax.text(0, 0, plain, fontsize=max(8, fontsize - 2),
+                color=color, family="monospace")
+        return _fig_to_photoimage(fig, dpi=dpi)
+    except Exception:
+        try:
+            import matplotlib.pyplot as _plt
+            _plt.close("all")
+        except Exception:
+            pass
+
+    # Intento 3: placeholder transparente 1x1 (ultimo recurso).
+    img = Image.new("RGBA", (1, 1), (0, 0, 0, 0))
+    return ImageTk.PhotoImage(img)
+
+
+# ─── Widgets Tk ─────────────────────────────────────────────────────
+
+
+class LatexMatrixImage(ttk.Label):
+    """ttk.Label que muestra una matriz como imagen LaTeX.
+
+    Reemplazo de `render_matrix_latex(ax, ...)` cuando se quiere que la
+    matriz viva como widget Tk independiente (sin competir por el espacio
+    de un Axes con captions u otras matrices). Tk hace el layout.
+
+    Uso típico:
+        widget = LatexMatrixImage(parent, matrix=B, prefix=r"\\mathbf{B}=",
+                                  fontsize=11)
+        widget.pack(fill="x", pady=2)
+        # Más tarde, cuando ξ,η cambien:
+        widget.set_matrix(new_B)
+    """
+
+    def __init__(
+        self,
+        parent,
+        *,
+        matrix: Optional[MatrixLike] = None,
+        fmt: str = "{:.3g}",
+        fontsize: int = 14,
+        color: str = EDU_FG,
+        prefix: str = "",
+        bg: Optional[str] = None,
+        dpi: int = 140,
+        cache_values: bool = False,
+        **label_kwargs,
+    ):
+        # Si no se especifica bg, inferir del parent para que el PNG
+        # matchee EXACTAMENTE el fondo del ttk.Frame contenedor (cambia
+        # segun el tema darkly del notebook/frame interno).
+        if bg is None:
+            bg = _infer_bg(parent)
+        self._fmt = fmt
+        self._fontsize = fontsize
+        self._color = color
+        self._prefix = prefix
+        self._bg = bg
+        self._dpi = dpi
+        self._cache_values = cache_values
+        photo = (render_matrix_image(matrix, fmt=fmt, fontsize=fontsize,
+                                     color=color, prefix=prefix, bg=bg, dpi=dpi,
+                                     cache=cache_values)
+                 if matrix is not None else None)
+        super().__init__(parent, image=photo, background=bg, **label_kwargs)
+        self._photo_ref = photo  # anti-GC
+
+    def set_matrix(self, matrix: MatrixLike, *, prefix: Optional[str] = None) -> None:
+        """Reemplaza la matriz mostrada. Si `prefix` se pasa explícitamente,
+        actualiza también el prefijo (útil cuando cambia el caso TP↔DP)."""
+        if prefix is not None:
+            self._prefix = prefix
+        photo = render_matrix_image(
+            matrix, fmt=self._fmt, fontsize=self._fontsize, color=self._color,
+            prefix=self._prefix, bg=self._bg, dpi=self._dpi,
+            cache=self._cache_values,
+        )
+        self.configure(image=photo)
+        self._photo_ref = photo
+
+    def set_style(self, *, fontsize: Optional[int] = None,
+                  color: Optional[str] = None, bg: Optional[str] = None) -> None:
+        """Cambia parámetros de estilo (provoca re-render en próxima
+        set_matrix)."""
+        if fontsize is not None:
+            self._fontsize = fontsize
+        if color is not None:
+            self._color = color
+        if bg is not None:
+            self._bg = bg
+            try:
+                self.configure(background=bg)
+            except Exception:
+                pass
+
+
+class LatexExpressionImage(ttk.Label):
+    """ttk.Label que muestra una expresión mathtext (no-matriz) como imagen.
+
+    Variante de `LatexMath` con la misma API pero usando la cache compartida
+    de `latex_image`. Para usos nuevos preferir éste; `LatexMath` queda
+    como compat retrocompat con módulos que ya lo importan.
+    """
+
+    def __init__(
+        self,
+        parent,
+        expr: str = "",
+        *,
+        fontsize: int = 14,
+        color: str = EDU_FG,
+        bg: Optional[str] = None,
+        dpi: int = 140,
+        cache: bool = True,
+        **label_kwargs,
+    ):
+        if bg is None:
+            bg = _infer_bg(parent)
+        self._fontsize = fontsize
+        self._color = color
+        self._bg = bg
+        self._dpi = dpi
+        self._cache = cache
+        photo = (render_expression_image(expr, fontsize=fontsize, color=color,
+                                         bg=bg, dpi=dpi, cache=cache)
+                 if expr else None)
+        super().__init__(parent, image=photo, background=bg, **label_kwargs)
+        self._expr = expr
+        self._photo_ref = photo
+
+    def set_expression(self, expr: str) -> None:
+        if expr == self._expr:
+            return
+        self._expr = expr
+        photo = (render_expression_image(expr, fontsize=self._fontsize,
+                                         color=self._color, bg=self._bg,
+                                         dpi=self._dpi, cache=self._cache)
+                 if expr else None)
+        self.configure(image=photo)
+        self._photo_ref = photo
+
+
+# ─── Helpers ────────────────────────────────────────────────────────
+
+
+def _fig_to_pil(fig: Figure, *, dpi: int) -> Image.Image:
+    """Serializa una Figure a PNG (bbox_inches='tight') y la convierte
+    a PIL.Image RGBA. Cierra la figura para liberar RAM. Reduce 50%
+    para suavizado anti-alias (high-DPI render scaled down)."""
+    buf = io.BytesIO()
+    try:
+        fig.savefig(buf, format="png", bbox_inches="tight", pad_inches=0.04,
+                    facecolor=fig.get_facecolor(), dpi=dpi)
+    finally:
+        try:
+            fig.clf()
+        except Exception:
+            pass
+    buf.seek(0)
+    img = Image.open(buf).convert("RGBA")
+    w, h = img.size
+    # Reducción 50% — el render a 140 DPI con downscale a 70 DPI efectivo
+    # produce anti-aliasing limpio sobre fondo oscuro.
+    return img.resize((max(1, w // 2), max(1, h // 2)), Image.LANCZOS)
+
+
+def _fig_to_photoimage(fig: Figure, *, dpi: int) -> ImageTk.PhotoImage:
+    """Wrapper sobre `_fig_to_pil` para retornar `ImageTk.PhotoImage`."""
+    return ImageTk.PhotoImage(_fig_to_pil(fig, dpi=dpi))
+
+
+def place_matrix_in_axes(
+    ax,
+    matrix: MatrixLike,
+    *,
+    fmt: str = "{:.3g}",
+    fontsize: int = 14,
+    color: str = EDU_FG,
+    prefix: str = "",
+    bg: Optional[str] = None,
+    dpi: int = 200,
+    margin: float = 0.04,
+) -> bool:
+    """Coloca una matriz centrada en un `Axes` matplotlib.
+
+    El render se hace via HPacker matplotlib-nativo (sin paste PIL,
+    sin composicion en RGBA), salido como PIL.Image desde
+    `savefig(..., dpi=200, bbox_inches="tight")`. Despues se coloca
+    sobre el axes con `OffsetImage` + `AnnotationBbox` con `zoom`
+    calculado para preservar aspecto y entrar en el axes con `margin`
+    de respiro.
+
+    `dpi=200` produce un raster de alta resolucion; el zoom-down via
+    LANCZOS de `OffsetImage(interpolation="lanczos")` da un downscale
+    limpio. No se llama a `AnchoredOffsetbox` directo (que ignoraria
+    el tamano del axes y dejaria la matriz overflow-eada en figuras
+    chicas como las del FormulaValueToggle 6x2.6 in).
+
+    Retorna True si se renderizo OK, False si la matriz era vacia."""
+    from matplotlib.offsetbox import OffsetImage, AnnotationBbox
+
+    if bg is None:
+        bg = _ax_face_hex(ax)
+    cells = _matrix_to_strings(matrix, fmt=fmt)
+    if cells is None or cells.size == 0:
+        return False
+
+    pil_img = _render_matrix_via_packer_to_pil(
+        cells, prefix=prefix, fontsize=fontsize, color=color,
+        bg=bg, dpi=dpi,
+    )
+    arr = np.asarray(pil_img)
+    img_h, img_w = arr.shape[:2]
+    if img_h <= 0 or img_w <= 0:
+        return False
+
+    fig = ax.figure
+    # `dpi_cor=False`: el zoom mapea 1:1 entre pixel del array y pixel
+    # display. Sin esto, OffsetImage multiplica por `fig.dpi/72` y la
+    # imagen sale ~1.4x mas grande de lo esperado.
+    imagebox = OffsetImage(arr, interpolation="lanczos", dpi_cor=False)
+    ab = AnnotationBbox(
+        imagebox, (0.5, 0.5), xycoords="axes fraction",
+        frameon=False, pad=0, box_alignment=(0.5, 0.5),
+    )
+    ax.add_artist(ab)
+
+    def _fit_zoom(event=None):
+        """Re-compute OffsetImage zoom para fit-to-axes preservando
+        aspect. Se llama en cada `draw_event` para que sobreviva a
+        `tight_layout`, resize de figure y cambios de DPI."""
+        try:
+            bbox = ax.get_window_extent()
+            ax_w = bbox.width
+            ax_h = bbox.height
+            if ax_w <= 0 or ax_h <= 0 or img_w <= 0 or img_h <= 0:
+                return
+            z = min(ax_w / img_w, ax_h / img_h) * (1.0 - margin)
+            if z > 0 and abs(imagebox.get_zoom() - z) > 1e-3:
+                imagebox.set_zoom(z)
+        except Exception:
+            pass
+
+    # Compute inicial usando `get_position()` (pre-tight_layout).
+    pos = ax.get_position()
+    fig_w_in, fig_h_in = fig.get_size_inches()
+    ax_w_px = max(1.0, pos.width * fig_w_in * fig.dpi)
+    ax_h_px = max(1.0, pos.height * fig_h_in * fig.dpi)
+    z0 = min(ax_w_px / img_w, ax_h_px / img_h) * (1.0 - margin)
+    imagebox.set_zoom(max(z0, 0.01))
+
+    # Hook al evento de draw para reajustar tras tight_layout/resize.
+    fig.canvas.mpl_connect("draw_event", _fit_zoom)
+    return True
+
+
+def _matrix_to_strings(matrix: MatrixLike, *, fmt: str) -> Optional[np.ndarray]:
+    """Convierte una matriz heterogénea a un array 2D de strings."""
+    try:
+        import sympy as sp
+        if isinstance(matrix, sp.MatrixBase):
+            r, c = matrix.shape
+            out = np.empty((r, c), dtype=object)
+            for i in range(r):
+                for j in range(c):
+                    out[i, j] = sp.pretty(matrix[i, j], use_unicode=False)
+            return out
+    except Exception:
+        pass
+
+    arr = np.asarray(matrix, dtype=object)
+    if arr.ndim == 0:
+        arr = arr.reshape(1, 1)
+    if arr.ndim == 1:
+        arr = arr.reshape(-1, 1)
+    if arr.ndim != 2:
+        return None
+    out = np.empty(arr.shape, dtype=object)
+    for i in range(arr.shape[0]):
+        for j in range(arr.shape[1]):
+            v = arr[i, j]
+            if isinstance(v, (int, float, np.floating, np.integer)):
+                out[i, j] = fmt.format(float(v))
+            else:
+                s = str(v)
+                # Truncado solo para texto plano largo. Si la celda tiene
+                # sintaxis LaTeX (`\dfrac{1-\nu}{2}` = 18 chars), NO
+                # truncar — rompe el parser mathtext. Umbral subido a 32
+                # para acomodar expresiones tipicas tipo `\dfrac{a+b}{c}`.
+                if "\\" not in s and len(s) > 32:
+                    s = s[:31] + "…"
+                out[i, j] = s
+    return out
+
+
+def _max_cell_chars(cells: np.ndarray) -> int:
+    """Max longitud (en caracteres) de cualquier celda — usado para el
+    cómputo de ancho de figura."""
+    m = 1
+    for row in cells:
+        for c in row:
+            n = len(str(c))
+            if n > m:
+                m = n
+    return m
+
+
+def _fit_fontsize_for_shape(rows: int, cols: int, base: int) -> int:
+    """Heuristica de shrink calibrada para el factor de compensacion
+    `1.7` aplicado en `render_matrix_image`.
+
+    Matrices pequenas (Jacobiano 2x2, D 3x3, B Q4 3x8): conservan el
+    `base` para que el render salga "documento LaTeX". Matrices anchas
+    (B Q9 3x18, K Q9 18x18): bajan agresivamente para no salirse del
+    overlay.
+    """
+    n = max(rows, cols)
+    if n <= 4:
+        return base
+    if n <= 6:
+        return max(11, base - 1)
+    if n <= 9:
+        return max(10, base - 2)
+    if n <= 12:
+        return max(9, base - 3)
+    if n <= 18:
+        return max(7, base - 5)
+    return max(6, base - 6)
+
+
+def _cells_key(cells: np.ndarray) -> tuple:
+    """Key cacheable para el contenido de la matriz."""
+    return tuple(tuple(row) for row in cells)
+
+
+def clear_cache() -> None:
+    """Vacía la cache global. Útil cuando cambia el tema (colores) o se
+    quiere liberar RAM."""
+    _CACHE.clear()
+
+
+# ─── Backend pdflatex: cache-hit-only (sin bloquear) + helpers ─────────────
+#
+# Politica anti-lag (2026-05):
+#   - Las funciones puras `render_*_image` SOLO chequean el cache disco;
+#     NO compilan. Si miss, devuelven mathtext rapido.
+#   - Los widgets LatexMatrixImage / LatexExpressionImage agendan el
+#     compile en un thread daemon (`_schedule_async_upgrade`). Cuando
+#     termina, hacen `widget.after(0, swap_photo)` en el main thread.
+#   - Resultado: cold render = mathtext instantaneo. ~2-3 s despues,
+#     swap silencioso al PNG LaTeX. Refresh siguiente con misma matriz
+#     = cache hit directo desde la primera llamada.
+
+
+def _build_latex_body_matrix(cells: np.ndarray, prefix: str) -> Optional[str]:
+    """Construye el body LaTeX completo para una matriz. Retorna None si
+    la matriz esta vacia (caller cae al fallback)."""
+    rows, cols = cells.shape
+    if rows == 0 or cols == 0:
+        return None
+    rows_tex = [" & ".join(_cell_for_latex(c) for c in row) for row in cells]
+    body_matrix = r"\begin{bmatrix} " + r" \\ ".join(rows_tex) + r" \end{bmatrix}"
+    return f"{prefix} {body_matrix}" if prefix else body_matrix
+
+
+def _latex_dpi_for_fontsize(fontsize: int) -> int:
+    """DPI de compile pdflatex calibrado al fontsize mathtext equivalente.
+    Mathtext fontsize ~12 ≈ pdflatex CMU 11pt @ dpi 204; ~14 ≈ dpi 238."""
+    return max(160, int(fontsize * 17))
+
+
+def _load_cached_latex_png(
+    body: str, *, fontsize: int, color: str, bg: str,
+) -> Optional[ImageTk.PhotoImage]:
+    """Carga el PNG si esta en cache disco. NO compila. Retorna None si
+    pdflatex no esta o el body no esta cacheado."""
+    try:
+        from config import latex_cache
+    except Exception:
+        return None
+    if not latex_cache.is_latex_available():
+        return None
+
+    target_dpi = _latex_dpi_for_fontsize(fontsize)
+    try:
+        # Check sin compile: replica el hashing del cache y mira disco.
+        # latex_cache no expone esto directo; usamos get_or_compile que
+        # hace cache check FIRST y retorna inmediato si hit.
+        # Para garantizar no-compile, validamos con un hash manual.
+        key = _make_latex_key(body, target_dpi, color, bg)
+        png = latex_cache.cache_dir() / f"{key}.png"
+        if not (png.exists() and png.stat().st_size > 0):
+            return None
+        img = Image.open(png).convert("RGBA")
+        w, h = img.size
+        img = img.resize((max(1, w // 2), max(1, h // 2)), Image.LANCZOS)
+        return ImageTk.PhotoImage(img)
+    except Exception:
+        return None
+
+
+def _make_latex_key(body: str, dpi: int, color: str, bg: str) -> str:
+    """Replica el `_make_key` de latex_cache (sin exponer al import path
+    interno de latex_cache). Mantenelo sincronizado."""
+    import hashlib
+    payload = f"v1|{body}|{dpi}|{color}|{bg}".encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()[:16]
+
+
+def _try_load_expression_latex_from_cache(
+    body: str, *, fontsize: int, color: str, bg: str,
+) -> Optional[ImageTk.PhotoImage]:
+    """Wrapper de `_load_cached_latex_png` para expresiones."""
+    return _load_cached_latex_png(body, fontsize=fontsize, color=color, bg=bg)
+
+
+def _try_load_matrix_latex_from_cache(
+    cells: np.ndarray, *, prefix: str, fontsize: int, color: str, bg: str,
+) -> Optional[ImageTk.PhotoImage]:
+    """Wrapper para matrices."""
+    body = _build_latex_body_matrix(cells, prefix)
+    if body is None:
+        return None
+    return _load_cached_latex_png(body, fontsize=fontsize, color=color, bg=bg)
+
+
+def schedule_async_latex_upgrade(
+    widget,
+    *,
+    body: str,
+    fontsize: int,
+    color: str,
+    bg: str,
+) -> None:
+    """Agenda en thread daemon la compilacion pdflatex de `body` y, al
+    terminar, hace `widget.configure(image=new_photo)` desde el main
+    thread via `widget.after(0, ...)`.
+
+    Si pdflatex no esta o compile falla, no hace nada (el widget
+    conserva su render mathtext inicial). Idempotente: el cache de
+    latex_cache deduplica compiles concurrentes con la misma key.
+    """
+    try:
+        from config import latex_cache
+    except Exception:
+        return
+    if not latex_cache.is_latex_available():
+        return
+
+    target_dpi = _latex_dpi_for_fontsize(fontsize)
+
+    def _worker():
+        try:
+            png = latex_cache.get_or_compile(
+                body, dpi=target_dpi, color=color, bg=bg,
+            )
+        except Exception:
+            return
+        if png is None or not png.exists():
+            return
+        try:
+            img = Image.open(png).convert("RGBA")
+            w, h = img.size
+            img = img.resize((max(1, w // 2), max(1, h // 2)), Image.LANCZOS)
+        except Exception:
+            return
+
+        # Cambio de UI debe correr en main thread.
+        def _swap():
+            try:
+                # Anti-race: si el widget fue destruido entre el spawn
+                # del thread y este callback, `winfo_exists` retorna 0.
+                if not widget.winfo_exists():
+                    return
+                photo = ImageTk.PhotoImage(img)
+                widget.configure(image=photo)
+                # Guardar referencia anti-GC en el widget.
+                widget._latex_async_photo_ref = photo  # type: ignore[attr-defined]
+            except Exception:
+                pass
+
+        try:
+            widget.after(0, _swap)
+        except Exception:
+            pass
+
+    import threading
+    t = threading.Thread(target=_worker, name="EduFEM-LatexAsync", daemon=True)
+    t.start()
+
+
+def _cell_for_mathtext(raw: str) -> str:
+    """Convierte una celda raw a string mathtext-ready para `ax.text`.
+
+    Reglas:
+       - numero (`+0.234`, `1e-3`) -> tal cual, sin math mode (alineacion
+         tabular se preserva)
+       - `"..."` o `"…"` -> `r"$\\ldots$"`
+       - todo lo demas (Unicode math, sintaxis LaTeX, simbolos) -> convertir
+         Unicode + wrap en `$...$` para que mathtext renderice
+    """
+    s = str(raw)
+    if not s:
+        return ""
+    if s in ("...", "…"):
+        return r"$\ldots$"
+    if all(c.isdigit() or c in "+-.eE " for c in s):
+        return s
+    converted = _unicode_math_to_latex(s)
+    return f"${converted}$"
+
+
+def _cell_for_latex(cell) -> str:
+    """Normaliza una celda (string desde _matrix_to_strings) para LaTeX
+    matematico. Casos:
+       - "..." -> `\\ldots`
+       - numeros (+0.234) -> tal cual (math mode los acepta nativo)
+       - chars de math Unicode (∂, ξ, η, etc.) -> convertir a comandos
+         LaTeX y dejar en math mode (los modulos pasan "∂x/∂ξ" como
+         celda; CMU Roman NO tiene esos glifos asi que sin conversion
+         pdflatex falla silenciosamente)
+       - texto que ya parece sintaxis LaTeX math (`\\partial x`) -> tal cual
+       - todo lo demas -> `\\text{...}` con escape de chars especiales
+    """
+    s = str(cell)
+    if s in ("...", "…"):
+        return r"\ldots"
+    if all(c.isdigit() or c in "+-.eE " for c in s):
+        return s
+    # Si parece sintaxis LaTeX math (contiene \\backslash y solo chars
+    # de math), usar tal cual.
+    if "\\" in s and not any(c.isalpha() and c not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ\\{}_^/+-*= " for c in s):
+        return s
+    # Si contiene math Unicode, convertir y devolver en math mode.
+    converted = _unicode_math_to_latex(s)
+    if converted != s:
+        return converted
+    # Texto plain con chars especiales: protege con \\text.
+    safe = (s.replace("\\", r"\textbackslash{}")
+              .replace("&", r"\&")
+              .replace("%", r"\%")
+              .replace("$", r"\$")
+              .replace("#", r"\#")
+              .replace("_", r"\_")
+              .replace("{", r"\{")
+              .replace("}", r"\}"))
+    return rf"\text{{{safe}}}"
+
+
+# Mapa Unicode math -> LaTeX. Cubre los chars que los modulos
+# educativos pasan en strings de matriz (∂x/∂ξ, ξ, η, etc.) y en
+# expresiones generales. Si un char no esta aqui, queda como esta y
+# pdflatex lo intentara (puede fallar segun el paquete cargado).
+_UNICODE_MATH_MAP = {
+    # Letras griegas minusculas
+    "α": r"\alpha", "β": r"\beta", "γ": r"\gamma", "δ": r"\delta",
+    "ε": r"\varepsilon", "ζ": r"\zeta", "η": r"\eta", "θ": r"\theta",
+    "ι": r"\iota", "κ": r"\kappa", "λ": r"\lambda", "μ": r"\mu",
+    "ν": r"\nu", "ξ": r"\xi", "π": r"\pi", "ρ": r"\rho",
+    "σ": r"\sigma", "τ": r"\tau", "υ": r"\upsilon", "φ": r"\varphi",
+    "ϕ": r"\phi", "χ": r"\chi", "ψ": r"\psi", "ω": r"\omega",
+    # Letras griegas mayusculas
+    "Α": "A", "Β": "B", "Γ": r"\Gamma", "Δ": r"\Delta",
+    "Ε": "E", "Ζ": "Z", "Η": "H", "Θ": r"\Theta",
+    "Ι": "I", "Κ": "K", "Λ": r"\Lambda", "Μ": "M",
+    "Ν": "N", "Ξ": r"\Xi", "Ο": "O", "Π": r"\Pi",
+    "Ρ": "P", "Σ": r"\Sigma", "Τ": "T", "Υ": r"\Upsilon",
+    "Φ": r"\Phi", "Χ": "X", "Ψ": r"\Psi", "Ω": r"\Omega",
+    # Operadores y simbolos comunes
+    "∂": r"\partial", "∇": r"\nabla", "∞": r"\infty",
+    "∫": r"\int", "∑": r"\sum", "∏": r"\prod",
+    "√": r"\sqrt", "·": r"\cdot", "×": r"\times", "÷": r"\div",
+    "±": r"\pm", "∓": r"\mp", "≈": r"\approx", "≠": r"\neq",
+    "≤": r"\leq", "≥": r"\geq", "≪": r"\ll", "≫": r"\gg",
+    "→": r"\to", "←": r"\leftarrow", "↔": r"\leftrightarrow",
+    "⇒": r"\Rightarrow", "⇐": r"\Leftarrow", "⇔": r"\Leftrightarrow",
+    "∈": r"\in", "∉": r"\notin", "⊂": r"\subset", "⊃": r"\supset",
+    "∪": r"\cup", "∩": r"\cap", "∅": r"\emptyset",
+    "°": r"^{\circ}",
+}
+
+
+def _unicode_math_to_latex(s: str) -> str:
+    """Reemplaza chars Unicode math por sus comandos LaTeX. Inserta
+    espacios despues de comandos para evitar ambiguedad
+    (`\\partial x` no `\\partialx`)."""
+    if not s:
+        return s
+    out = []
+    for ch in s:
+        rep = _UNICODE_MATH_MAP.get(ch)
+        if rep is None:
+            out.append(ch)
+        else:
+            # Si el reemplazo termina en letra (`\partial`, `\xi`),
+            # agregamos espacio para separar del char siguiente.
+            if rep[-1].isalpha():
+                out.append(rep + " ")
+            else:
+                out.append(rep)
+    return "".join(out)

@@ -67,6 +67,9 @@ class HealthCode:
     NEGATIVE_JACOBIAN       = "negative_jacobian"
     ZERO_NODAL_LOAD         = "zero_nodal_load"
     ZERO_SURFACE_LOAD       = "zero_surface_load"
+    SUSPICIOUS_YOUNG_MODULUS= "suspicious_young_modulus"
+    SUSPICIOUS_MODEL_SCALE  = "suspicious_model_scale"
+    GRAVITY_NO_DENSITY      = "gravity_no_density"
     # Info
     SUMMARY                 = "summary"
 
@@ -149,6 +152,8 @@ def validate_project(project) -> HealthReport:
     _check_unused_materials(project, report)
     _check_negative_jacobians(project, report)
     _check_zero_loads(project, report)
+    _check_unit_consistency(project, report)
+    _check_gravity_density(project, report)
 
     # ─── Info ────────────────────────────────────────────────────────
     _add_summary(project, report)
@@ -253,8 +258,8 @@ def _check_restraints(project, report):
         report.errors.append(HealthIssue(
             severity=Severity.ERROR,
             code=HealthCode.INSUFFICIENT_RESTRAINTS,
-            message=f"Solo hay {total_restrained} DOF restringido(s). Se "
-                    f"necesitan al menos 3 DOF (2 traslaciones + 1 rotacion "
+            message=f"Solo hay {total_restrained} GDL restringido(s). Se "
+                    f"necesitan al menos 3 GDL (2 traslaciones + 1 rotacion "
                     f"rigida en el plano) para suprimir los modos de cuerpo "
                     f"rigido en 2D.",
         ))
@@ -273,7 +278,7 @@ def _check_bc_orphan_nodes(project, report):
                 severity=Severity.ERROR,
                 code=HealthCode.BC_ORPHAN_NODE,
                 message=f"Nodo {nid} tiene restriccion pero no pertenece "
-                        f"a ningun elemento (DOF colgante restringido).",
+                        f"a ningun elemento (GDL colgante restringido).",
                 target_kind="bc", target_id=nid,
                 fixable=True,
             ))
@@ -363,6 +368,104 @@ def _check_zero_loads(project, report):
             ))
 
 
+# ─── Heuristicas de consistencia de unidades ─────────────────────────
+# Rango fisico tipico (en SI base): E del orden 1 GPa a 200 GPa cubre
+# desde maderas hasta aceros estructurales. Modelos tipicos miden entre
+# 1 mm y 1 km (escala lab -> obra de ingenieria). Fuera de eso → warning,
+# probable error de unidades.
+_E_TYPICAL_MIN_PA = 1.0e8   # 100 MPa (madera blanda, casos limite)
+_E_TYPICAL_MAX_PA = 5.0e11  # 500 GPa (cubre incluso ceramicas duras)
+_MODEL_SCALE_MIN_M = 1.0e-4  # 0.1 mm
+_MODEL_SCALE_MAX_M = 1.0e4   # 10 km
+
+
+def _check_unit_consistency(project, report):
+    """Heuristicas de orden de magnitud para detectar mismatch entre los
+    numeros del modelo y el sistema de unidades activo. Skip si el sistema
+    no se encuentra en UNIT_SYSTEMS (caso extremo: archivo corrupto).
+    """
+    from config.units import UNIT_SYSTEMS, _STRESS_TO_PA, _LENGTH_TO_M
+
+    cfg = UNIT_SYSTEMS.get(project.unit_system)
+    if cfg is None:
+        return
+    stress_label = cfg.get("esfuerzo")
+    length_label = cfg.get("longitud")
+    stress_factor = _STRESS_TO_PA.get(stress_label) if stress_label else None
+    length_factor = _LENGTH_TO_M.get(length_label) if length_label else None
+
+    # ─── E de materiales en uso ─────────────────────────────────────
+    if stress_factor is not None and project.materials:
+        used_mat_names = {e.material_name for e in project.elements.values()
+                          if getattr(e, "material_name", None)}
+        for name, mat in project.materials.items():
+            if used_mat_names and name not in used_mat_names:
+                continue  # solo evaluar materiales asignados
+            E_pa = mat.E * stress_factor
+            if E_pa < _E_TYPICAL_MIN_PA or E_pa > _E_TYPICAL_MAX_PA:
+                expected_in_unit = (
+                    f"{_E_TYPICAL_MIN_PA / stress_factor:.3g} - "
+                    f"{_E_TYPICAL_MAX_PA / stress_factor:.3g} {stress_label}"
+                )
+                report.warnings.append(HealthIssue(
+                    severity=Severity.WARNING,
+                    code=HealthCode.SUSPICIOUS_YOUNG_MODULUS,
+                    message=(f"Material '{name}': E = {mat.E:g} {stress_label} "
+                             f"esta fuera del rango fisico tipico "
+                             f"({expected_in_unit}). ¿Las unidades son las "
+                             f"correctas?"),
+                    target_kind="material", target_id=name,
+                    fixable=False,
+                    extra={"E_pa": E_pa, "expected_unit": stress_label},
+                ))
+
+    # ─── Escala del modelo ──────────────────────────────────────────
+    if length_factor is not None and project.nodes:
+        xs = [n.x for n in project.nodes.values()]
+        ys = [n.y for n in project.nodes.values()]
+        span_x = max(xs) - min(xs) if xs else 0.0
+        span_y = max(ys) - min(ys) if ys else 0.0
+        max_span = max(span_x, span_y)
+        if max_span > 0:
+            span_m = max_span * length_factor
+            if span_m < _MODEL_SCALE_MIN_M or span_m > _MODEL_SCALE_MAX_M:
+                report.warnings.append(HealthIssue(
+                    severity=Severity.WARNING,
+                    code=HealthCode.SUSPICIOUS_MODEL_SCALE,
+                    message=(f"Extension del modelo: {max_span:g} {length_label} "
+                             f"(= {span_m:.3g} m). Esta fuera del rango habitual "
+                             f"(0.1 mm a 10 km). ¿La unidad de longitud es la "
+                             f"correcta?"),
+                    target_kind="project", target_id=None,
+                    fixable=False,
+                    extra={"span_m": span_m, "expected_unit": length_label},
+                ))
+
+
+def _check_gravity_density(project, report):
+    """Si gravedad esta activa, verificar que los materiales tengan
+    densidad > 0 (sino F = rho * g * V = 0).
+    """
+    if not project.include_gravity:
+        return
+    used_mat_names = {e.material_name for e in project.elements.values()
+                      if getattr(e, "material_name", None)}
+    for name in used_mat_names:
+        mat = project.materials.get(name)
+        if mat is None:
+            continue
+        if getattr(mat, "density", 0) <= 0:
+            report.warnings.append(HealthIssue(
+                severity=Severity.WARNING,
+                code=HealthCode.GRAVITY_NO_DENSITY,
+                message=(f"Gravedad activa pero el material '{name}' tiene "
+                         f"densidad = {getattr(mat, 'density', 0):g}. La "
+                         f"fuerza volumetrica F = ρ·g·V sera nula."),
+                target_kind="material", target_id=name,
+                fixable=False,
+            ))
+
+
 def _add_summary(project, report):
     """Contadores generales: nodos, elementos, DOF totales/libres/
     restringidos. Siempre se incluyen como info."""
@@ -379,7 +482,7 @@ def _add_summary(project, report):
     report.info.append(HealthIssue(
         severity=Severity.INFO,
         code=HealthCode.SUMMARY,
-        message=f"{n_nodes} nodos, {n_elements} elementos, {n_total_dof} DOF "
+        message=f"{n_nodes} nodos, {n_elements} elementos, {n_total_dof} GDL "
                 f"totales ({n_free} libres, {n_restrained} restringidos).",
         extra={
             "n_nodes": n_nodes, "n_elements": n_elements,

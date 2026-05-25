@@ -84,13 +84,13 @@ def _convert_project_coords(project, from_length, to_length):
 
 def _project_length_unit(project):
     """Longitud del sistema de unidades actual ('m', 'mm', ...) o None si
-    'Personalizado' o unit_system no reconocido.
+    `unit_system` no esta en `UNIT_SYSTEMS`.
     """
     cfg = UNIT_SYSTEMS.get(project.unit_system)
     if cfg is None:
         return None
     lu = cfg.get("longitud", "").strip()
-    return lu if lu and lu != "-" else None
+    return lu or None
 
 
 class DxfImportDialog:

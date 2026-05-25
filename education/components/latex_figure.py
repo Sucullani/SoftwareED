@@ -2,16 +2,19 @@
 latex_figure: utilidades para renderizar matrices y expresiones LaTeX
 en un eje matplotlib.
 
-Implementación:
-    - render_matrix_latex   → renderizado MANUAL por celdas individuales,
-                              robusto independientemente de la versión de
-                              matplotlib (mathtext NO soporta `\\begin{bmatrix}`
-                              en versiones públicas; el fallback a str(array)
-                              era ilegible).
-    - render_expression_latex → mathtext (sin compilador externo) para
-                              expresiones simples (fracciones, super/subíndices,
-                              \\dfrac, \\sqrt, \\partial, etc.). NO incluir
-                              entornos de matriz en estas expresiones.
+Backend dual (UX 2026):
+    1. **pdflatex + fitz** (default cuando MiKTeX disponible): compila
+       el body, rasteriza a PNG y lo `imshow`-ea en el axes. Calidad
+       documento, `\\begin{bmatrix}` real.
+    2. **mathtext manual** (fallback): renderizado por celdas con
+       corchetes manuales. Robusto sin pdflatex.
+
+Funciones:
+    - render_matrix_latex     -> dibuja matriz en un ax (auto-upgrade).
+    - render_expression_latex -> dibuja expresion escalar (auto-upgrade).
+
+Si MiKTeX esta instalado, los modulos M1..M7 que usan estas funciones
+heredan el upgrade SIN tocar su codigo (transparente).
 """
 
 from __future__ import annotations
@@ -27,8 +30,8 @@ import numpy as np
 def render_matrix_latex(
     ax,
     matrix,
-    fmt: str = "{:+.3g}",
-    fontsize: int = 12,
+    fmt: str = "{:.3g}",
+    fontsize: int = 14,
     color: str = "white",
     title: Optional[str] = None,
     prefix: str = "",
@@ -58,111 +61,27 @@ def render_matrix_latex(
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
 
-    # Convertir a array de strings
-    cells = _matrix_to_strings(matrix, fmt=fmt)
-    if cells is None or cells.size == 0:
+    # Backend: matplotlib nativo (vector). `place_matrix_in_axes` arma
+    # un `HPacker(TextArea + TextArea, align="center")` y lo coloca con
+    # `AnchoredOffsetbox(loc="center", bbox_to_anchor=(0.5, 0.5))` en
+    # el axes. Sin rasterizacion intermedia, sin composicion PIL, sin
+    # resampling — la calidad es la misma que un `ax.text` mathtext.
+    # El `align="center"` del HPacker garantiza que prefijo y cuerpo
+    # de la matriz tengan sus centros geometricos alineados (resuelve
+    # el quirk de mathtext con `\substack`).
+    try:
+        from .latex_image import place_matrix_in_axes
+        ok = place_matrix_in_axes(
+            ax, matrix, fmt=fmt, fontsize=fontsize, color=color,
+            prefix=prefix,
+        )
+    except Exception:
+        ok = False
+
+    if not ok:
         ax.text(0.5, 0.5, "(matriz vacía)",
                  ha="center", va="center", color=color,
                  transform=ax.transAxes, fontsize=fontsize)
-        if title:
-            ax.set_title(title, color=color, fontsize=fontsize + 1, pad=6)
-        return
-
-    rows, cols = cells.shape
-    # Auto-shrink fontsize en matrices grandes (Q9 B = 3×18)
-    fs = _fit_fontsize_for_shape(rows, cols, fontsize)
-
-    # Layout: el prefijo va a la izquierda, luego los corchetes envuelven
-    # la grilla. Calculamos posiciones en unidades del axes (0..1).
-    # Diseño: márgenes simétricos verticales, prefijo en x≈0.05, grilla
-    # centrada, corchetes en los bordes de la grilla.
-
-    # Estimación de ancho de columna en proporción al ancho del axes.
-    # Una grilla de N columnas con strings de ~6 chars típicos cabe bien
-    # con paso = 0.85/cols, dejando 0.075 de cada lado para corchetes y
-    # prefijo. Para matrices muy anchas (Q9 B con 18 cols) el fontsize
-    # reducido compensa.
-    margin_left = 0.10 if prefix else 0.04
-    margin_right = 0.04
-    grid_left = margin_left
-    grid_right = 1.0 - margin_right
-    grid_width = grid_right - grid_left
-
-    if cols == 1:
-        col_xs = [0.5 * (grid_left + grid_right)]
-    else:
-        col_xs = [grid_left + grid_width * (j + 0.5) / cols
-                  for j in range(cols)]
-
-    if rows == 1:
-        row_ys = [0.5]
-    else:
-        # de arriba (alto y) hacia abajo (bajo y). Margen vertical 0.18.
-        row_top = 0.82
-        row_bot = 0.18
-        row_ys = [row_top - (row_top - row_bot) * (i / max(1, rows - 1))
-                  for i in range(rows)]
-
-    # Render del prefijo (mathtext) — lo dibujamos a la altura central de
-    # la matriz, justo a la izquierda del corchete izquierdo.
-    if prefix:
-        try:
-            ax.text(0.005, 0.5, f"${prefix}$",
-                     ha="left", va="center", fontsize=fs + 1,
-                     color=color, transform=ax.transAxes)
-        except Exception:
-            ax.text(0.005, 0.5, prefix.replace("\\mathbf", "")
-                                       .replace("{", "").replace("}", ""),
-                     ha="left", va="center", fontsize=fs, color=color,
-                     family="monospace", transform=ax.transAxes)
-
-    # Render de cada celda como texto plano (no mathtext: los números no
-    # necesitan parsing y así evitamos el problema de '+' como operador)
-    for i in range(rows):
-        for j in range(cols):
-            txt = cells[i, j]
-            ax.text(col_xs[j], row_ys[i], txt,
-                     ha="center", va="center",
-                     fontsize=fs, color=color,
-                     family="monospace",
-                     transform=ax.transAxes)
-
-    # Corchetes a los lados de la grilla — líneas L invertidas.
-    # Tamaño vertical: cubre las filas con un pequeño extra arriba/abajo.
-    if rows == 1:
-        bracket_top = 0.62
-        bracket_bot = 0.38
-    else:
-        bracket_top = max(row_ys) + 0.07
-        bracket_bot = min(row_ys) - 0.07
-    bracket_top = min(0.94, bracket_top)
-    bracket_bot = max(0.06, bracket_bot)
-
-    bracket_l_x = grid_left - 0.012
-    bracket_r_x = grid_right + 0.012
-    tick = 0.018  # longitud del "pie" del corchete
-
-    # Corchete izquierdo: vertical + dos pies
-    ax.plot([bracket_l_x, bracket_l_x],
-             [bracket_top, bracket_bot],
-             color=color, lw=1.6, transform=ax.transAxes,
-             clip_on=False, solid_capstyle="butt")
-    ax.plot([bracket_l_x, bracket_l_x + tick],
-             [bracket_top, bracket_top],
-             color=color, lw=1.6, transform=ax.transAxes, clip_on=False)
-    ax.plot([bracket_l_x, bracket_l_x + tick],
-             [bracket_bot, bracket_bot],
-             color=color, lw=1.6, transform=ax.transAxes, clip_on=False)
-    # Corchete derecho
-    ax.plot([bracket_r_x, bracket_r_x],
-             [bracket_top, bracket_bot],
-             color=color, lw=1.6, transform=ax.transAxes, clip_on=False)
-    ax.plot([bracket_r_x, bracket_r_x - tick],
-             [bracket_top, bracket_top],
-             color=color, lw=1.6, transform=ax.transAxes, clip_on=False)
-    ax.plot([bracket_r_x, bracket_r_x - tick],
-             [bracket_bot, bracket_bot],
-             color=color, lw=1.6, transform=ax.transAxes, clip_on=False)
 
     if title:
         ax.set_title(title, color=color, fontsize=fontsize + 1, pad=6)
@@ -189,16 +108,25 @@ def render_expression_latex(
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
 
-    text = expr if expr.startswith("$") else f"${expr}$"
+    # Convertir Unicode math (∂, ξ, η, ...) a comandos LaTeX para que
+    # mathtext con fontset=cm renderice con tipografia matematica real.
+    try:
+        from .latex_image import _unicode_math_to_latex
+        body = _unicode_math_to_latex(expr.strip("$").strip())
+    except Exception:
+        body = expr.strip("$").strip()
+    text = f"${body}$"
+
     try:
         ax.text(0.5, 0.5, text,
                  ha="center", va="center",
-                 fontsize=fontsize, color=color, transform=ax.transAxes)
+                 fontsize=fontsize, color=color,
+                 family="serif", transform=ax.transAxes)
     except Exception:
         ax.text(0.5, 0.5, expr.replace("$", ""),
                  ha="center", va="center",
                  fontsize=max(8, fontsize - 2), color=color,
-                 family="monospace", transform=ax.transAxes)
+                 family="serif", transform=ax.transAxes)
     if title:
         ax.set_title(title, color=color, fontsize=fontsize + 1, pad=6)
 
@@ -206,7 +134,7 @@ def render_expression_latex(
 # ─── Helpers ──────────────────────────────────────────────────────────────
 
 
-def _matrix_to_strings(matrix, fmt: str = "{:+.3g}") -> Optional[np.ndarray]:
+def _matrix_to_strings(matrix, fmt: str = "{:.3g}") -> Optional[np.ndarray]:
     """Convierte una matriz heterogénea (numpy / sympy / lista) a un array
     2D de strings listos para ax.text(). Maneja escalares y vectores 1D.
     """
@@ -237,22 +165,132 @@ def _matrix_to_strings(matrix, fmt: str = "{:+.3g}") -> Optional[np.ndarray]:
                 out[i, j] = fmt.format(float(v))
             else:
                 s = str(v)
-                if len(s) > 14:
-                    s = s[:13] + "…"
+                # No truncar si la celda tiene sintaxis LaTeX (\\dfrac,
+                # \\sum, etc). Umbral 32 acomoda expresiones tipicas.
+                if "\\" not in s and len(s) > 32:
+                    s = s[:31] + "…"
                 out[i, j] = s
     return out
 
 
 def _fit_fontsize_for_shape(rows: int, cols: int, base: int) -> int:
-    """Heurística: matrices anchas (Q9 B con 18 cols) → fuente más chica
-    para que quepa en el axes."""
+    """Heuristica de shrink calibrada para el factor de compensacion
+    `1.7` aplicado al substack (`fs_substack = fs * 1.7`). Matrices
+    pequenas (D 3x3, Jacobiano 2x2) conservan el `base`; matrices
+    anchas (Q9 B 3x18, K 18x18) bajan agresivamente para no salirse
+    del axes."""
     n = max(rows, cols)
     if n <= 4:
         return base
     if n <= 6:
-        return max(9, base - 2)
+        return max(11, base - 1)
     if n <= 9:
-        return max(8, base - 3)
+        return max(10, base - 2)
     if n <= 12:
-        return max(7, base - 4)
-    return max(6, base - 5)
+        return max(9, base - 3)
+    if n <= 18:
+        return max(7, base - 5)
+    return max(6, base - 6)
+
+
+# ─── Upgrade transparente: backend pdflatex via imshow ──────────────────────
+
+
+def _ax_face_hex(ax) -> str:
+    """Color de fondo del axes en formato hex `#rrggbb`. Defaults a un
+    gris muy oscuro coherente con la paleta EDU si el ax no esta colored."""
+    try:
+        c = ax.get_facecolor()
+        if isinstance(c, str):
+            return c if c.startswith("#") else "#2c2c2c"
+        # tupla (r, g, b, a) en 0..1
+        r, g, b = int(c[0] * 255), int(c[1] * 255), int(c[2] * 255)
+        return f"#{r:02x}{g:02x}{b:02x}"
+    except Exception:
+        return "#2c2c2c"
+
+
+def _try_imshow_expression_pdflatex(
+    ax, body: str, *, color: str, fontsize: int, title: Optional[str],
+) -> bool:
+    """Compila `body` via latex_cache y lo muestra como `imshow` sobre el
+    ax. Retorna True si OK; False si pdflatex no esta disponible o
+    compile fallo (el caller debe usar el fallback)."""
+    try:
+        from config import latex_cache
+        from PIL import Image
+    except Exception:
+        return False
+
+    if not latex_cache.is_latex_available():
+        return False
+
+    bg = _ax_face_hex(ax)
+    # DPI proporcional al fontsize objetivo. Calibrado para mathtext
+    # fontsize ~14 -> pdflatex dpi ~240 en CMU.
+    target_dpi = max(160, int(fontsize * 17))
+    try:
+        png_path = latex_cache.get_or_compile(
+            body, dpi=target_dpi, color=color, bg=bg,
+        )
+    except Exception:
+        return False
+    if png_path is None or not png_path.exists():
+        return False
+
+    try:
+        img = Image.open(png_path).convert("RGB")
+    except Exception:
+        return False
+
+    arr = np.asarray(img)
+    # extent (0,1)x(0,1) coincide con set_xlim/set_ylim hechos arriba.
+    # `aspect="auto"` evita que el axes recorte la imagen si la relacion
+    # del bbox del axes no matchea exactamente el de la imagen.
+    ax.imshow(arr, extent=(0, 1, 0, 1), aspect="auto", interpolation="lanczos")
+    if title:
+        ax.set_title(title, color=color, fontsize=fontsize + 1, pad=6)
+    return True
+
+
+def _try_imshow_matrix_pdflatex(
+    ax, cells: np.ndarray, *, prefix: str, color: str,
+    fontsize: int, title: Optional[str],
+) -> bool:
+    """Construye `<prefix> \\begin{bmatrix} ... \\end{bmatrix}` y lo
+    `imshow`-ea en el ax. Reusa la calidad documento del pipeline pdflatex
+    en vez del render manual celda-por-celda."""
+    rows, cols = cells.shape
+    if rows == 0 or cols == 0:
+        return False
+
+    rows_tex = [" & ".join(_cell_for_latex(c) for c in row) for row in cells]
+    body_matrix = r"\begin{bmatrix} " + r" \\ ".join(rows_tex) + r" \end{bmatrix}"
+    if prefix:
+        body = f"{prefix} {body_matrix}"
+    else:
+        body = body_matrix
+
+    return _try_imshow_expression_pdflatex(
+        ax, body, color=color, fontsize=fontsize, title=title,
+    )
+
+
+def _cell_for_latex(cell) -> str:
+    """Normaliza una celda para math-mode LaTeX. Misma logica que
+    `latex_image._cell_for_latex` — duplicada para que `latex_figure` no
+    dependa de `latex_image`."""
+    s = str(cell)
+    if s in ("...", "…"):
+        return r"\ldots"
+    if all(c.isdigit() or c in "+-.eE " for c in s):
+        return s
+    safe = (s.replace("\\", r"\textbackslash{}")
+              .replace("&", r"\&")
+              .replace("%", r"\%")
+              .replace("$", r"\$")
+              .replace("#", r"\#")
+              .replace("_", r"\_")
+              .replace("{", r"\{")
+              .replace("}", r"\}"))
+    return rf"\text{{{safe}}}"

@@ -1,81 +1,113 @@
 """
 Launcher compartido para los modulos educativos M0..M9.
 
-Modos de presentación (propuesta UX 2026):
-    - Toplevel (legacy): el modulo abre una ventana propia, hereda de
-      `BaseEducationalModule`. Apropiado para modulos amplios o con
-      comparacion lado-a-lado independiente del modelo (M1, M4, M5,
-      M7, M9).
-    - Overlay: el modulo se posa sobre el MeshCanvas compartido como un
-      panel flotante. Hereda de `CanvasOverlayModule`. Apropiado para
-      modulos que operan sobre la malla real (M0, M2, M3, M6, M8).
+**Arquitectura 2026-05**: TODOS los modulos son Overlay (heredan de
+`CanvasOverlayModule`). El patron Toplevel + `base_module.py` fue
+descartado — cada modulo es unico en su overlay y no comparte una
+clase base de jerarquia compleja. Los helpers reusables viven en
+`education/components/`, no en una base abstracta.
 
-El launcher detecta automáticamente el modo inspeccionando la clase:
-    - Si tiene método de clase `activate(main_window, project, elem_id)`
-      → modo Overlay (singleton suave).
-    - Si no → modo Toplevel: instancia normal `cls(parent, project, elem_id)`.
+El launcher dispatchea via duck typing: si la clase expone classmethod
+`activate(main_window, project, elem_id)`, es Overlay. Caso contrario
+caemos al modo Toplevel legacy (mantenido como fallback defensivo
+por si en el futuro un modulo amerita Toplevel propio, sin compartir
+infraestructura con otros).
 
 Modulos organizados por fase del flujo FEM:
 - pre  : M0 (calidad de malla, Overlay)
-- proc : M1..M6 (mapeo, B, D, K, ensamblaje, fuerzas equivalentes)
-- post : M7 (discontinuidad/promediado), M8 (principales, Overlay), M9
+- proc : M1..M7 — orden canonico del calculo FEM
+    M1 Mapeo iso + funciones de forma N (xy↔ξη)
+    M2 Jacobiano det J (Overlay, surface 3D + toggle F/V)
+    M3 Matriz constitutiva D (por material)
+    M4 Matriz B (Overlay, snap a Gauss)
+    M5 Rigidez K + integracion Gauss (fusion: integral imposible)
+    M6 Fuerzas equivalentes nodales
+    M7 Ensamblaje K, F + BCs (sparsity + vuelo Bezier)
+- post : M9 (convergencia Q4 vs Q9)
+
+Nota: el ex-M7 (discontinuidad / vista 3D) y ex-M8 (cruces principales +
+Mohr) fueron consolidados en el flujo nativo del Post-Proceso:
+  - 3D del campo + slider Crudo↔Suavizado -> boton "🧊 Vista 3D" en
+    toolbar Post (gui/postprocessing/surface_3d_viewer.py).
+  - Cruces σ1/σ2 sobre la malla -> toggle "Cruces principales" en
+    toolbar Post (gui/postprocessing/principal_cross_layer.py).
+  - Circulo de Mohr -> panel "Detalles" del probe (clic derecho).
+    (gui/postprocessing/details_panel.py).
+Esta consolidacion eliminada la fragmentacion pedagogica: las vistas
+viven donde se usan, no como modulos aislados.
 """
 
 import importlib
-from tkinter import messagebox, simpledialog
+from tkinter import messagebox
 
 
 MODULE_MAP = {
-    "mod00": ("education.mod00_mesh_quality",        "MeshQualityModule"),
-    "mod01": ("education.mod01_iso_mapping",         "IsoMappingModule"),
-    "mod02": ("education.mod02_b_matrix",            "BMatrixModule"),
-    "mod03": ("education.mod03_constitutive",        "ConstitutiveModule"),
-    "mod04": ("education.mod04_stiffness_gauss",     "StiffnessGaussModule"),
-    "mod05": ("education.mod05_assembly",            "AssemblyModule"),
-    "mod06": ("education.mod06_equivalent_forces",   "EquivalentForcesModule"),
-    "mod07": ("education.mod07_stress_discontinuity","StressDiscontinuityModule"),
-    "mod08": ("education.mod08_principal_stresses",  "PrincipalStressesModule"),
-    "mod09": ("education.mod09_q4_vs_q9_comparison", "Q4vsQ9ComparisonModule"),
+    "mod00":  ("education.mod00_mesh_quality",        "MeshQualityModule"),
+    "mod01":  ("education.mod01_iso_mapping",         "IsoMappingModule"),
+    "mod02":  ("education.mod02_jacobian",            "JacobianModule"),
+    "mod03":  ("education.mod03_constitutive",        "ConstitutiveModule"),
+    "mod04":  ("education.mod04_b_matrix",            "BMatrixModule"),
+    # Narrativa M5 → M5b: M5 muestra la rigidez ANALÍTICA (integral
+    # imposible); M5b muestra la SOLUCIÓN NUMÉRICA (cuadratura de Gauss).
+    "mod05":  ("education.mod05_stiffness",           "StiffnessElementModule"),
+    "mod05b": ("education.mod05b_gauss",              "GaussQuadratureModule"),
+    "mod06":  ("education.mod06_equivalent_forces",   "EquivalentForcesModule"),
+    "mod07":  ("education.mod07_assembly",            "AssemblyModule"),
+    "mod09":  ("education.mod09_q4_vs_q9_comparison", "Q4vsQ9ComparisonModule"),
 }
 
-# Agrupacion pedagogica por fase del flujo FEM. M3 (Matriz constitutiva D)
-# vive en proc porque la matriz D depende del material asignado a CADA
-# elemento — en un modelo con varios materiales, cada elemento tiene su
-# propia D. Por eso la exploración por-elemento es natural en la fase de
-# Proceso (donde se calcula B, D, K para cada elemento). El submenú
-# Modelo > Tipo de Análisis solo muestra videos didácticos de TP/DP.
+# Agrupacion pedagogica por fase del flujo FEM, alineada con el ORDEN
+# CANONICO del calculo FEM:
+#   1. Mapeo iso + funciones de forma  (M1)
+#   2. Jacobiano (det J, distorsion local)  (M2)
+#   3. Matriz constitutiva D (E, nu, TP/DP)  (M3)
+#   4. Matriz B (gradiente, J^-1)  (M4)
+#   5. Cuadratura de Gauss (motivacion: integral imposible)  (M5)
+#   5b. Matriz K_e (acumulacion PG a PG)  (M5b)
+#   6. Fuerzas equivalentes nodales  (M6)
+#   7. Ensamblaje K, F + BCs (vuelo Bezier + sparsity)  (M7)
+#
+# Split 2026-05 de M5: el toplevel original "Rigidez K + Gauss" combinaba
+# DOS conceptos en un panel grande (1380×880). Lo separamos en dos overlays
+# chicos (~520 px) que se referencian explícitamente — M5 muestra el
+# integrando y los PG, M5b muestra la acumulación. Cada uno cuenta una
+# historia más simple y respeta la convención overlay-único.
 MODULE_PHASE = {
     "pre":  ["mod00"],
-    "proc": ["mod01", "mod02", "mod03", "mod04", "mod05", "mod06"],
-    "post": ["mod07", "mod08", "mod09"],
+    "proc": ["mod01", "mod02", "mod03", "mod04",
+              "mod05", "mod05b", "mod06", "mod07"],
+    "post": ["mod09"],
 }
 
 # Etiquetas y descripciones para el launcher_panel (UI homogenea entre fases)
 MODULE_META = {
-    "mod00": ("Ⓜ Calidad de malla",
-              "Jacobiano · aspect ratio · Robinson"),
-    "mod01": ("① Coordenadas, N y Jacobiano",
-              "Mapeo isoparametrico, det J"),
-    "mod02": ("② Matriz B (Deformacion)",
-              "∂N/∂x con J⁻¹, snap a Gauss"),
-    "mod03": ("③ Matriz constitutiva D",
-              "D(E,ν, caso) por material del elemento"),
-    "mod04": ("④ Rigidez e integracion Gauss",
-              "Integrando + cuadratura"),
-    "mod05": ("⑤ Ensamblaje K, F + BCs",
-              "Flying elements"),
-    "mod06": ("⑥ Fuerzas equivalentes",
-              "Carga arista / peso propio"),
-    "mod07": ("⑦ Discontinuidad σ",
-              "Crudo vs promediado · 3D toggle"),
-    "mod08": ("⑧ Direcciones σ1/σ2",
-              "Cruces principales + Mohr"),
-    "mod09": ("⑨ Comparacion Q4 vs Q9",
-              "Sandbox: h/p-refinement · convergencia"),
+    "mod00":  ("Ⓜ Calidad de malla",
+               "Jacobiano · aspect ratio · Robinson"),
+    "mod01":  ("① Mapeo iso + funciones N",
+               "Coordenadas naturales (ξ,η) ↔ (x,y)"),
+    "mod02":  ("② Jacobiano  det J(ξ,η)",
+               "Distorsion local, superficie 3D"),
+    "mod03":  ("③ Matriz constitutiva D",
+               "D(E,ν, caso) por material del elemento"),
+    "mod04":  ("④ Matriz B (Deformacion)",
+               "∂N/∂x con J⁻¹, snap a Gauss"),
+    "mod05":  ("⑤ Matriz K_e (rigidez)",
+               "k_e = ∫∫ BᵀDB |det J| t  ·  imposible analiticamente"),
+    "mod05b": ("⑤′ Cuadratura de Gauss",
+               "Solucion numerica: suma w_p · BᵀDB en PGs"),
+    "mod06":  ("⑥ Fuerzas equivalentes",
+               "Carga arista / peso propio"),
+    "mod07":  ("⑦ Ensamblaje K, F + BCs",
+               "Vuelo Bezier · sparsity pattern"),
+    "mod09":  ("⑨ Comparacion Q4 vs Q9",
+               "Sandbox: h/p-refinement · convergencia"),
 }
 
 # Modulos que NO requieren un elemento especifico (operan sobre toda la malla)
-_GLOBAL_MODULES = {"mod00", "mod07", "mod08", "mod09"}
+# Publico: consumido por los paneles educativos para no desactivar visualmente
+# los botones de modulos globales cuando no hay seleccion.
+GLOBAL_MODULES = {"mod00", "mod09"}
+_GLOBAL_MODULES = GLOBAL_MODULES  # alias retrocompat interno
 
 
 def list_modules_for_phase(phase):
@@ -138,31 +170,51 @@ def open_module(parent_tk, project, mod_key, mesh_canvas=None, elem_id=None):
         )
         return False
 
+    # Resolvemos la clase ANTES de decidir el flujo de elem_id: los
+    # overlays toleran abrir sin elemento (esperan el click del alumno
+    # en el canvas con el módulo ya visible — UX "abrir y elegir", sin
+    # diálogo intermedio). Los toplevels todavía requieren elemento al
+    # construir.
+    try:
+        module_name, class_name = MODULE_MAP[mod_key]
+        mod = importlib.import_module(module_name)
+        cls = getattr(mod, class_name)
+    except Exception as e:
+        messagebox.showerror("Error", f"Error al cargar modulo:\n{e}")
+        return False
+
+    is_overlay = _is_overlay_module(cls)
+
     if not is_global:
-        # Modulos por elemento: pedir uno si no se proporciono.
         if elem_id is None:
             elem_ids = sorted(project.elements.keys())
             if len(elem_ids) == 1:
+                # Auto-pick si solo hay un elemento (UX óptima).
                 elem_id = elem_ids[0]
             else:
-                elem_id = simpledialog.askinteger(
-                    "Seleccionar Elemento",
-                    f"Ingrese el ID del elemento ({elem_ids[0]}-{elem_ids[-1]}):",
-                    initialvalue=elem_ids[0],
-                    minvalue=elem_ids[0],
-                    maxvalue=elem_ids[-1],
-                    parent=parent_tk,
-                )
-                if elem_id is None:
-                    return False
-                if elem_id not in project.elements:
-                    messagebox.showerror("Error",
-                                         f"El elemento {elem_id} no existe.")
-                    return False
+                # **UX 2026 unificada**: el modulo se abre con `element_id
+                # =None` y se actualiza apenas el alumno clickee un
+                # elemento real (via `on_selection_changed` -> hook
+                # `on_element_selected`). Eliminado el modal `askinteger`
+                # porque rompe el flujo "click en canvas = single source
+                # of truth" y obliga a tipear un numero antes de ver el
+                # modulo.
+                elem_id = None
 
-        if mesh_canvas is not None:
+        # Sincronizar selección del canvas SOLO si el elemento target no
+        # está ya seleccionado como único. Antes usábamos
+        # `highlight_element` que tiene semántica "second-click deselects"
+        # — al abrir el módulo con el elemento ya seleccionado, lo
+        # apagaba (visible como botón de módulo en gris). Usamos
+        # `replace_element_selection({eid})` que es idempotente.
+        if mesh_canvas is not None and elem_id is not None:
             try:
-                mesh_canvas.highlight_element(elem_id)
+                already_unique = (
+                    elem_id in mesh_canvas.selected_elements
+                    and len(mesh_canvas.selected_elements) == 1
+                )
+                if not already_unique:
+                    mesh_canvas.replace_element_selection({elem_id})
             except Exception:
                 pass
     else:
@@ -171,18 +223,19 @@ def open_module(parent_tk, project, mod_key, mesh_canvas=None, elem_id=None):
         if elem_id is None:
             elem_id = sorted(project.elements.keys())[0]
 
+    # Resolver main_window: necesario para overlay modules.
+    main_window = _resolve_main_window(parent_tk, mesh_canvas)
+
     try:
-        module_name, class_name = MODULE_MAP[mod_key]
-        mod = importlib.import_module(module_name)
-        cls = getattr(mod, class_name)
-
-        # Resolver main_window: necesario para overlay modules. Buscamos
-        # el atributo en parent_tk; si no existe, asumimos que parent_tk
-        # ES el main_window (caso típico cuando se invoca desde el menú).
-        main_window = getattr(parent_tk, "main_window", None) or parent_tk
-
-        if _is_overlay_module(cls):
-            # Modo overlay: la clase gestiona su propio singleton.
+        if is_overlay:
+            if main_window is None or not hasattr(main_window, "mesh_canvas"):
+                messagebox.showerror(
+                    "Error",
+                    "El modo Overlay requiere un MeshCanvas activo. "
+                    "Volvé a abrir desde el menú Educación o desde la "
+                    "sub-pestaña Educación de la fase actual.",
+                )
+                return False
             cls.activate(main_window, project, elem_id)
         else:
             # Modo toplevel: instancia con parent Tk estandar.
@@ -191,3 +244,33 @@ def open_module(parent_tk, project, mod_key, mesh_canvas=None, elem_id=None):
     except Exception as e:
         messagebox.showerror("Error", f"Error al abrir modulo:\n{e}")
         return False
+
+
+def _resolve_main_window(parent_tk, mesh_canvas):
+    """Resuelve el MainWindow a partir de los args del launcher.
+
+    El menú principal pasa `parent_tk=self.root` (un Tk vacío) y el
+    `mesh_canvas` real; las pestañas pasan `parent_tk=self` (que tiene
+    `main_window` como atributo). Necesitamos cubrir ambos.
+    """
+    # 1. parent_tk tiene main_window (las pestañas: pre_tab/proc_tab/post_tab)
+    cand = getattr(parent_tk, "main_window", None)
+    if cand is not None and hasattr(cand, "mesh_canvas"):
+        return cand
+    # 2. mesh_canvas guarda main_window en __init__
+    if mesh_canvas is not None:
+        cand = getattr(mesh_canvas, "main_window", None)
+        if cand is not None and hasattr(cand, "mesh_canvas"):
+            return cand
+    # 3. parent_tk tiene mesh_canvas directo (es el MainWindow)
+    if hasattr(parent_tk, "mesh_canvas"):
+        return parent_tk
+    # 4. walk-up por widget tree desde parent_tk
+    cur = parent_tk
+    for _ in range(10):  # safety bound
+        if cur is None:
+            break
+        if hasattr(cur, "mesh_canvas"):
+            return cur
+        cur = getattr(cur, "master", None)
+    return None

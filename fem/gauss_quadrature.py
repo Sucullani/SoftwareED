@@ -20,6 +20,21 @@ GAUSS_POINTS_1D = {
         "points": np.array([-np.sqrt(3.0 / 5.0), 0.0, np.sqrt(3.0 / 5.0)]),
         "weights": np.array([5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0]),
     },
+    # Gauss-Legendre 4-pt: usado por compute_error_norms (orden p+1 para Q9).
+    4: {
+        "points": np.array([
+            -0.8611363115940526,
+            -0.3399810435848563,
+             0.3399810435848563,
+             0.8611363115940526,
+        ]),
+        "weights": np.array([
+            0.3478548451374538,
+            0.6521451548625461,
+            0.6521451548625461,
+            0.3478548451374538,
+        ]),
+    },
 }
 
 

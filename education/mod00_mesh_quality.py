@@ -48,7 +48,7 @@ from fem.mesh_quality import (
     robinson_aspect, robinson_taper, midside_center_admissibility,
     internal_angles,
 )
-from config.settings import ELEMENT_Q4, ELEMENT_Q9
+from config.settings import ELEMENT_Q4, ELEMENT_Q9, EDU_AXES_BG
 
 
 # Paleta de calidad (alineada con HEALTH_*).
@@ -89,48 +89,55 @@ class MeshQualityModule(CanvasOverlayModule):
         self._ax_hist: Optional = None
         self._canvas_mpl: Optional[FigureCanvasTkAgg] = None
         self._lbl_status: Optional[ttk.Label] = None
+        self._btn_reset: Optional[ttk.Button] = None
 
         super().__init__(main_window, project, element_id)
 
-    # ── Construcción del overlay ───────────────────────────────────
+    # ── Construcción del overlay (compacto UX 2026) ───────────────
     def build_overlay(self, body):
-        ttk.Label(
-            body, text="Hover sobre un elemento para ver su radar.",
-            font=("Segoe UI", 9), foreground="#90caf9",
-        ).pack(anchor="w")
-        ttk.Label(
-            body, text=("Drag de un nodo del elemento bajo cursor → distorsiona "
-                         "interactivamente (no muta el modelo)."),
-            font=("Segoe UI", 8), foreground="#9e9e9e", wraplength=360,
-            justify="left",
-        ).pack(anchor="w", pady=(0, 6))
-
-        ttk.Separator(body).pack(fill="x", pady=(0, 4))
-
-        # Status del elemento bajo cursor (texto compacto)
+        # Status del elemento bajo cursor. El color verde/amarillo/rojo de
+        # la malla + el radar reactivo al hover ya comunican la idea
+        # central — sin hints textuales de "hover sobre la malla" ni
+        # "drag de un nodo".
         self._lbl_status = ttk.Label(
-            body, text="(hover sobre la malla)",
-            font=("Consolas", 9), foreground="#cfd2d8",
+            body, text="", font=("Consolas", 9), foreground="#cfd2d8",
             justify="left", wraplength=360,
         )
-        self._lbl_status.pack(anchor="w", pady=(0, 4))
+        self._lbl_status.pack(anchor="w", pady=(0, 2))
 
-        # Figura: radar arriba (cuadrado), histograma horizontal abajo.
+        # Figura: radar arriba (polar), histograma horizontal abajo.
         fig_frame = ttk.Frame(body)
         fig_frame.pack(fill="both", expand=True)
 
         self._fig = Figure(figsize=(3.8, 4.2), dpi=100)
-        self._fig.patch.set_facecolor("#222233")
+        from education.components.edu_plot_style import (
+            apply_edu_style_figure, apply_edu_style_2d, apply_edu_style_polar,
+        )
+        apply_edu_style_figure(self._fig)
         self._ax_radar = self._fig.add_subplot(2, 1, 1, projection="polar")
         self._ax_hist  = self._fig.add_subplot(2, 1, 2)
+        apply_edu_style_polar(self._ax_radar)
+        apply_edu_style_2d(self._ax_hist, show_spines=False)
         self._canvas_mpl = FigureCanvasTkAgg(self._fig, master=fig_frame)
         self._canvas_mpl.get_tk_widget().pack(fill="both", expand=True)
 
-        ttk.Button(
-            body, text="↺ Resetear distorsión",
+        # Botón reset distorsión: SOLO visible si hay distorsión activa
+        # (lo creamos invisible — el método `_show_reset_if_distorted`
+        # lo grídea cuando el alumno empieza a arrastrar nodos).
+        self._btn_reset = ttk.Button(
+            body, text="↺ Reset",
             bootstyle="secondary-outline-toolbutton",
             command=self._reset_distortion,
-        ).pack(anchor="e", pady=(4, 0))
+        )
+        # NO pack al inicio — se muestra solo cuando hay algo que resetear
+
+        # Cross-reference clickeable al siguiente paso del pipeline FEM
+        # (el método `_pack_crossref` se agrega en `overlay_module.py` por D2).
+        self._pack_crossref(
+            body, "mod02",
+            "👉 Una malla sana ⇒ det J > 0 en cada Gauss. Ver ② Jacobiano.",
+            wraplength=360,
+        )
 
         self._refresh_overlay()
 
@@ -138,27 +145,34 @@ class MeshQualityModule(CanvasOverlayModule):
     def on_activated(self):
         # Hover de elementos (capa educativa nativa)
         self._mesh.on_hover_element = self._on_hover_element
-        # Drag de nodos: enganchamos los 3 eventos del tk.Canvas
+        # Drag de nodos:
+        #   - PRESS: click consumer del MeshCanvas. Si agarra un nodo del
+        #     elemento bajo cursor, consume el click — la malla NO cambia
+        #     de selección por debajo del drag (uniforme con M2/M4/M5b).
+        #   - MOTION + RELEASE: binds aditivos al tk.Canvas, independientes
+        #     del hit-test (no compiten con nada del canvas).
+        self._click_consumer = self._on_node_press_consume
+        self._mesh.add_click_consumer(self._click_consumer)
         c = self._mesh.canvas
-        self._bid_press = c.bind("<ButtonPress-1>", self._on_node_press,
-                                   add="+")
-        self._bid_move  = c.bind("<B1-Motion>", self._on_node_drag, add="+")
-        self._bid_rel   = c.bind("<ButtonRelease-1>", self._on_node_release,
-                                   add="+")
+        self._bid_move = c.bind("<B1-Motion>", self._on_node_drag, add="+")
+        self._bid_rel  = c.bind("<ButtonRelease-1>", self._on_node_release,
+                                  add="+")
         # Render inicial con los colores de calidad
         self._mesh.redraw()
 
     def on_closed(self):
         self._mesh.on_hover_element = None
+        try:
+            self._mesh.remove_click_consumer(self._click_consumer)
+        except Exception:
+            pass
         c = self._mesh.canvas
-        for bid in (getattr(self, "_bid_press", None),
-                    getattr(self, "_bid_move", None),
-                    getattr(self, "_bid_rel", None)):
+        for bid_pair in ((getattr(self, "_bid_move", None), "<B1-Motion>"),
+                          (getattr(self, "_bid_rel",  None), "<ButtonRelease-1>")):
+            bid, evt = bid_pair
             if bid:
                 try:
-                    c.unbind("<ButtonPress-1>", bid)
-                    c.unbind("<B1-Motion>", bid)
-                    c.unbind("<ButtonRelease-1>", bid)
+                    c.unbind(evt, bid)
                 except Exception:
                     pass
 
@@ -257,13 +271,17 @@ class MeshQualityModule(CanvasOverlayModule):
         self._mesh.redraw()
 
     # ── Drag de nodo (distorsión interactiva, no muta el project) ──
-    def _on_node_press(self, event):
-        # Solo si el cursor cae sobre un nodo del elemento bajo cursor
+    def _on_node_press_consume(self, event) -> bool:
+        """Click consumer: si el click cae sobre un nodo del elemento bajo
+        cursor, inicia el drag y consume el click (return True). Si no
+        agarra ningún nodo, retorna False — el canvas ejecuta su hit-test
+        normal y el alumno puede cambiar de selección.
+        """
         if self._hover_elem_id is None or self.project is None:
-            return
+            return False
         elem = self.project.elements.get(self._hover_elem_id)
         if elem is None:
-            return
+            return False
         candidate = None
         best_d = float("inf")
         for nid in elem.node_ids:
@@ -277,12 +295,13 @@ class MeshQualityModule(CanvasOverlayModule):
                 best_d = d
                 candidate = nid
         if candidate is None or best_d > _DRAG_HIT_PX:
-            return
+            return False
         self._dragging_node = candidate
         node = self.project.nodes[candidate]
         # Inicio del drag en coords-mundo (cursor)
         wx, wy = self._mesh.screen_to_world(event.x, event.y)
         self._drag_started_at = (wx - node.x, wy - node.y)
+        return True
 
     def _on_node_drag(self, event):
         if self._dragging_node is None or self._drag_started_at is None:
@@ -300,6 +319,7 @@ class MeshQualityModule(CanvasOverlayModule):
         self._distortion[self._dragging_node] = (dx, dy)
         self._refresh_overlay()
         self._mesh.redraw()
+        self._show_reset_if_distorted()
 
     def _on_node_release(self, _event):
         if self._dragging_node is None:
@@ -315,6 +335,26 @@ class MeshQualityModule(CanvasOverlayModule):
         self._distortion.clear()
         self._refresh_overlay()
         self._mesh.redraw()
+        self._show_reset_if_distorted()
+
+    def _show_reset_if_distorted(self):
+        """Muestra/oculta el botón Reset según si hay distorsión activa.
+
+        Sin distorsión: botón oculto (sin ruido). Con distorsión: visible
+        en la esquina inferior derecha del overlay."""
+        if self._btn_reset is None:
+            return
+        has_dist = any(
+            abs(dx) > 1e-9 or abs(dy) > 1e-9
+            for dx, dy in self._distortion.values()
+        )
+        try:
+            if has_dist:
+                self._btn_reset.pack(anchor="e", pady=(2, 0))
+            else:
+                self._btn_reset.pack_forget()
+        except Exception:
+            pass
 
     # ── Coords con distorsión aplicada (para todas las métricas) ──
     def _coords_with_distortion(self, elem) -> Optional[np.ndarray]:
@@ -334,7 +374,10 @@ class MeshQualityModule(CanvasOverlayModule):
         # ── Radar del elemento bajo cursor ────────────────────────
         ax = self._ax_radar
         ax.clear()
-        ax.set_facecolor("#222233")
+        from education.components.edu_plot_style import (
+            apply_edu_style_polar, EDU_PLOT_LABEL_COLOR, EDU_PLOT_TITLE_COLOR,
+        )
+        apply_edu_style_polar(ax)
         ax.set_theta_zero_location("N")
         ax.set_theta_direction(-1)
 
@@ -378,17 +421,18 @@ class MeshQualityModule(CanvasOverlayModule):
                     angles += angles[:1]
                     vals_loop = vals + vals[:1]
 
-                    ax.plot(angles, vals_loop, color=_BAD, linewidth=2)
-                    ax.fill(angles, vals_loop, color=_BAD, alpha=0.25)
+                    # Linea/fill mas finos y suaves — radar legible sin ruido.
+                    ax.plot(angles, vals_loop, color=_BAD, linewidth=1.1)
+                    ax.fill(angles, vals_loop, color=_BAD, alpha=0.18)
                     ax.set_xticks(angles[:-1])
-                    ax.set_xticklabels(cats, color="#dcdcdc", fontsize=9)
+                    ax.set_xticklabels(cats, color=EDU_PLOT_LABEL_COLOR,
+                                         fontsize=8)
                     ax.set_yticks([0.25, 0.5, 0.75, 1.0])
-                    ax.set_yticklabels(["", "", "", ""], color="#888")
+                    ax.set_yticklabels(["", "", "", ""])
                     ax.set_ylim(0, 1)
-                    ax.tick_params(colors="#dcdcdc")
-                    ax.grid(True, color="#404055", linewidth=0.5)
                     ax.set_title(f"E{elem.id}  ·  radar 4 ejes",
-                                 color="#dcdcdc", fontsize=9, pad=10)
+                                 color=EDU_PLOT_TITLE_COLOR,
+                                 fontsize=9, pad=8)
 
                     if self._lbl_status is not None:
                         self._lbl_status.configure(text=(
@@ -401,8 +445,8 @@ class MeshQualityModule(CanvasOverlayModule):
                          transform=ax.transAxes, fontsize=8)
         else:
             ax.text(0.5, 0.5, "(hover sobre la malla)",
-                     ha="center", va="center", color="#9e9e9e",
-                     transform=ax.transAxes, fontsize=9)
+                     ha="center", va="center", color="#7a7e88",
+                     transform=ax.transAxes, fontsize=8)
             ax.set_xticks([]); ax.set_yticks([])
             if self._lbl_status is not None:
                 self._lbl_status.configure(text="(hover sobre un elemento)")
@@ -410,7 +454,10 @@ class MeshQualityModule(CanvasOverlayModule):
         # ── Histograma compacto: cuántos elementos por status ────
         ax2 = self._ax_hist
         ax2.clear()
-        ax2.set_facecolor("#222233")
+        from education.components.edu_plot_style import (
+            apply_edu_style_2d, EDU_PLOT_LABEL_COLOR, EDU_PLOT_TITLE_COLOR,
+        )
+        apply_edu_style_2d(ax2, show_spines=False)
         counts = {"Buena": 0, "Aceptable": 0, "Mala": 0}
         if self.project and self.project.elements:
             for e in self.project.elements.values():
@@ -427,18 +474,17 @@ class MeshQualityModule(CanvasOverlayModule):
         cats = list(counts.keys())
         vals = [counts[k] for k in cats]
         bar_colors = [_GOOD, _OK, _BAD]
-        bars = ax2.barh(cats, vals, color=bar_colors)
-        ax2.tick_params(colors="#dcdcdc", labelsize=8)
-        for spine in ax2.spines.values():
-            spine.set_color("#404055")
+        # Alpha bajo para que las barras no compitan visualmente.
+        bars = ax2.barh(cats, vals, color=bar_colors, alpha=0.78,
+                          edgecolor="none", height=0.6)
         ax2.set_title(f"Distribución ({sum(vals)} elem)",
-                      color="#dcdcdc", fontsize=9, pad=4)
+                      color=EDU_PLOT_TITLE_COLOR, fontsize=9, pad=4)
         # Valor numérico al final de cada barra
         max_v = max(vals) if max(vals) > 0 else 1
         for bar, v in zip(bars, vals):
             ax2.text(bar.get_width() + max_v * 0.02,
                      bar.get_y() + bar.get_height() / 2,
-                     str(v), color="#dcdcdc", fontsize=8,
+                     str(v), color=EDU_PLOT_LABEL_COLOR, fontsize=8,
                      va="center")
 
         try:

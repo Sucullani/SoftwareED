@@ -29,10 +29,14 @@ class ProjectModel:
         self.element_type = DEFAULT_ELEMENT_TYPE
         self.unit_system = DEFAULT_UNIT_SYSTEM
         self.default_thickness = DEFAULT_THICKNESS
-        self.gravity = DEFAULT_GRAVITY
+        # Gravedad como VECTOR (gx, gy) en m/s². Default (0, -DEFAULT_GRAVITY)
+        # = gravedad terrestre estandar apuntando hacia -Y. Generaliza el
+        # campo legacy `gravity` (escalar) — desde 2026-05-16 movido al
+        # menu Modelo > Gravedad despues de Materiales (jerarquia FEM).
+        # Backward-compat: `from_dict` migra `gravity: 9.81` -> `(0, -9.81)`.
+        self.gravity_x = 0.0
+        self.gravity_y = -DEFAULT_GRAVITY
         self.include_gravity = False
-        # Etiquetas cuando unit_system == "Personalizado"
-        self.custom_units = {"longitud": "-", "fuerza": "-", "esfuerzo": "-"}
 
         # Datos del modelo
         self.nodes = {}              # {id: Node}
@@ -454,13 +458,40 @@ class ProjectModel:
 
     # ─── Gestión de restricciones ───────────────────────────────────────
 
-    def set_boundary_condition(self, node_id, restrain_x, restrain_y):
-        """Agrega o actualiza una restricción de desplazamiento."""
+    def set_boundary_condition(self, node_id, restrain_x, restrain_y,
+                               ux_value=0.0, uy_value=0.0):
+        """Agrega o actualiza una restricción de desplazamiento.
+
+        Los parametros opcionales `ux_value` / `uy_value` permiten imponer
+        desplazamientos prescritos no-cero (necesario para MMS y similares).
+        Si quedan en 0.0 (default), el comportamiento es el clasico:
+        restraint == desplazamiento nulo.
+        """
         self.boundary_conditions[node_id] = BoundaryCondition(
-            node_id, restrain_x, restrain_y
+            node_id, restrain_x, restrain_y, ux_value, uy_value
         )
         self.is_modified = True
         self.is_solved = False
+
+    def get_prescribed_displacement_vector(self):
+        """Vector u_pre de tamano total_dof con valores prescritos en los
+        DOFs restringidos y 0 en el resto. Si ninguna BC tiene valor no
+        nulo, retorna None (signal de que la rama clasica del solver alcanza).
+        """
+        import numpy as np
+        any_nonzero = any(bc.has_prescribed_displacement
+                          for bc in self.boundary_conditions.values())
+        if not any_nonzero:
+            return None
+        idx_map = self.node_index_map
+        u_pre = np.zeros(self.total_dof)
+        for bc in self.boundary_conditions.values():
+            base = 2 * idx_map[bc.node_id]
+            if bc.restrain_x:
+                u_pre[base] = bc.ux_value
+            if bc.restrain_y:
+                u_pre[base + 1] = bc.uy_value
+        return u_pre
 
     def remove_boundary_condition(self, node_id):
         if node_id in self.boundary_conditions:
@@ -483,17 +514,97 @@ class ProjectModel:
         """Total de grados de libertad del modelo."""
         return self.num_nodes * 2
 
+    @property
+    def node_index_map(self):
+        """Mapping node_id -> indice ordinal (0-indexed) en el sistema lineal.
+
+        Orden estable: sorted(self.nodes.keys()). Se recomputa on-demand;
+        para loops, capturar el dict en variable local. Permite IDs no
+        contiguos (e.g. {1, 5, 50}) tras borrados.
+        """
+        return {nid: idx for idx, nid in enumerate(sorted(self.nodes.keys()))}
+
+    def dof_x(self, node_id):
+        """Indice DOF global de Ux para node_id (0-indexed)."""
+        return 2 * self.node_index_map[node_id]
+
+    def dof_y(self, node_id):
+        """Indice DOF global de Uy para node_id (0-indexed)."""
+        return 2 * self.node_index_map[node_id] + 1
+
     def get_restrained_dofs(self):
         """Retorna la lista de todos los GDL restringidos (0-indexed)."""
+        idx_map = self.node_index_map
         dofs = []
         for bc in self.boundary_conditions.values():
-            dofs.extend(bc.get_restrained_dofs())
+            base = 2 * idx_map[bc.node_id]
+            if bc.restrain_x:
+                dofs.append(base)
+            if bc.restrain_y:
+                dofs.append(base + 1)
         return sorted(dofs)
 
     def get_free_dofs(self):
         """Retorna la lista de GDL libres."""
         restrained = set(self.get_restrained_dofs())
         return [i for i in range(self.total_dof) if i not in restrained]
+
+    # ─── Conversion de unidades ─────────────────────────────────────────
+
+    def convert_units(self, factors):
+        """Multiplica TODAS las cantidades dimensionales del proyecto por
+        los factores dados — preservando el modelo fisico cuando el sistema
+        de unidades cambia. NO cambia `unit_system` (eso es responsabilidad
+        del caller, que tipicamente acaba de cambiarlo y llama aqui).
+
+        `factors` es el dict devuelto por `config.units.get_conversion_factors`:
+            length             — coords, espesor
+            force              — fuerzas puntuales Fx, Fy
+            stress             — Modulo de Young E
+            force_per_length   — cargas distribuidas q
+            acceleration       — gravedad (gx, gy)
+
+        DENSIDAD (kg/m³ o equivalente) NO se convierte aqui — la unidad de
+        masa no esta en nuestro sistema de 3-tupla (L, F, sigma). El usuario
+        debe reingresar densidad manualmente si su nuevo sistema usa otra
+        unidad de masa. La solucion existente (is_solved) se invalida porque
+        la matriz K depende de E y la malla en unidades nuevas.
+        """
+        fl = factors["length"]
+        ff = factors["force"]
+        fs = factors["stress"]
+        fql = factors["force_per_length"]
+        fa = factors["acceleration"]
+
+        # Coords nodales
+        for node in self.nodes.values():
+            node.x *= fl
+            node.y *= fl
+        # Espesor por defecto y override por elemento
+        self.default_thickness *= fl
+        for elem in self.elements.values():
+            if getattr(elem, "thickness", None) is not None:
+                elem.thickness *= fl
+        # Material: solo E. Densidad y nu sin conversion.
+        for mat in self.materials.values():
+            mat.E *= fs
+        # Cargas
+        for load in self.nodal_loads.values():
+            load.fx *= ff
+            load.fy *= ff
+        for sl in self.surface_loads:
+            sl.q_start *= fql
+            sl.q_end *= fql
+        # Gravedad (aceleracion)
+        self.gravity_x *= fa
+        self.gravity_y *= fa
+        # Invalidar solucion: K depende de E, F de cargas, todo cambio.
+        self.is_solved = False
+        self.displacements = None
+        self.global_K = None
+        self.global_F = None
+        self.stresses = {}
+        self.is_modified = True
 
     # ─── Serialización ──────────────────────────────────────────────────
 
@@ -505,9 +616,9 @@ class ProjectModel:
             "element_type": self.element_type,
             "unit_system": self.unit_system,
             "default_thickness": self.default_thickness,
-            "gravity": self.gravity,
+            "gravity_x": self.gravity_x,
+            "gravity_y": self.gravity_y,
             "include_gravity": self.include_gravity,
-            "custom_units": self.custom_units,
             "nodes": {str(k): v.to_dict() for k, v in self.nodes.items()},
             "elements": {str(k): v.to_dict() for k, v in self.elements.items()},
             "materials": {k: v.to_dict() for k, v in self.materials.items()},
@@ -539,9 +650,9 @@ class ProjectModel:
         self.element_type = rebuilt.element_type
         self.unit_system = rebuilt.unit_system
         self.default_thickness = rebuilt.default_thickness
-        self.gravity = rebuilt.gravity
+        self.gravity_x = rebuilt.gravity_x
+        self.gravity_y = rebuilt.gravity_y
         self.include_gravity = rebuilt.include_gravity
-        self.custom_units = dict(rebuilt.custom_units)
         self.nodes = rebuilt.nodes
         self.elements = rebuilt.elements
         self.materials = rebuilt.materials
@@ -566,15 +677,25 @@ class ProjectModel:
         project.project_name = data.get("project_name", "Proyecto")
         project.analysis_type = data.get("analysis_type", DEFAULT_ANALYSIS_TYPE)
         project.element_type = data.get("element_type", DEFAULT_ELEMENT_TYPE)
-        project.unit_system = data.get("unit_system", DEFAULT_UNIT_SYSTEM)
+        # Backward-compat: el modo "Personalizado" se eliminó en 2026-05.
+        # Los .edufem legacy con ese sistema se migran al default y se
+        # descarta `custom_units` (los strings personalizados eran solo
+        # rotulos sin factores reales — no se pierde informacion fisica).
+        loaded_us = data.get("unit_system", DEFAULT_UNIT_SYSTEM)
+        if loaded_us == "Personalizado":
+            loaded_us = DEFAULT_UNIT_SYSTEM
+        project.unit_system = loaded_us
         project.default_thickness = data.get("default_thickness", DEFAULT_THICKNESS)
-        project.gravity = data.get("gravity", DEFAULT_GRAVITY)
+        # Gravedad como vector (gx, gy). Backward-compat: si el .edufem
+        # legacy tiene `gravity` (escalar), migrarlo a (0, -gravity).
+        if "gravity_x" in data or "gravity_y" in data:
+            project.gravity_x = float(data.get("gravity_x", 0.0))
+            project.gravity_y = float(data.get("gravity_y", -DEFAULT_GRAVITY))
+        else:
+            legacy = float(data.get("gravity", DEFAULT_GRAVITY))
+            project.gravity_x = 0.0
+            project.gravity_y = -legacy
         project.include_gravity = data.get("include_gravity", False)
-        cu = data.get("custom_units")
-        if isinstance(cu, dict):
-            project.custom_units.update(
-                {k: cu.get(k, "-") for k in ("longitud", "fuerza", "esfuerzo")}
-            )
 
         # Reconstituir objetos
         project.nodes = {

@@ -54,6 +54,7 @@ from typing import Callable, Optional, Tuple
 import tkinter as tk
 
 from gui.widgets.canvas_overlay import CanvasOverlay
+from config.settings import EDU_AXES_BG, HEALTH_ERROR_COLOR
 
 
 # Registry de instancias activas: (id(main_window), cls) -> instance.
@@ -61,6 +62,43 @@ from gui.widgets.canvas_overlay import CanvasOverlay
 # lugar de duplicarlo. Singleton suave: distintos main_windows pueden
 # tener cada uno su instancia.
 _ACTIVE: dict = {}
+
+# Listeners notificados cuando `_ACTIVE` cambia (activate / cleanup).
+# Cada listener recibe `(main_window, active_module_keys: set[str])` donde
+# `active_module_keys` son los `mod_key` resueltos vía el module_launcher
+# (p. ej. "mod04"). Usado por el breadcrumb del status bar para iluminar
+# el chip del módulo activo.
+_OVERLAY_CHANGE_LISTENERS: list = []
+
+
+def subscribe_overlay_change(callback) -> None:
+    """Registra un callback `(main_window, mod_keys)` que se invoca cada
+    vez que un módulo overlay se abre o cierra. El callback se llama
+    sincronamente desde `activate()` / `_cleanup()` — debe ser barato."""
+    if callback not in _OVERLAY_CHANGE_LISTENERS:
+        _OVERLAY_CHANGE_LISTENERS.append(callback)
+
+
+def _notify_overlay_change(main_window) -> None:
+    """Notifica a los listeners el estado actual de overlays activos."""
+    try:
+        from education.module_launcher import MODULE_MAP
+    except Exception:
+        MODULE_MAP = {}
+    target_id = id(main_window) if main_window is not None else None
+    active_keys = set()
+    for (mw_id, cls), _inst in _ACTIVE.items():
+        if mw_id != target_id:
+            continue
+        for mk, (_mod, cls_name) in MODULE_MAP.items():
+            if cls.__name__ == cls_name:
+                active_keys.add(mk)
+                break
+    for cb in list(_OVERLAY_CHANGE_LISTENERS):
+        try:
+            cb(main_window, active_keys)
+        except Exception:
+            pass
 
 
 class CanvasOverlayModule:
@@ -85,7 +123,19 @@ class CanvasOverlayModule:
     # ── Construcción / activación ──────────────────────────────────
     @classmethod
     def activate(cls, main_window, project, element_id):
-        """Punto de entrada del launcher. Singleton por (main_window, cls)."""
+        """Punto de entrada del launcher. Singleton por (main_window, cls).
+
+        Política de overlay único: al abrir un módulo overlay nuevo, se
+        cierran AUTOMÁTICAMENTE todos los demás overlays activos en el
+        mismo `main_window`. Razón pedagógica: dos overlays superponen
+        sus capas en el canvas (p.ej. los vuelos de M7 quedaban marcados
+        cuando el alumno abría M4 sin cerrar M7), generando ruido visual
+        y confusión sobre "qué módulo está hablando ahora". Convención
+        explícita: el alumno explora UN concepto a la vez.
+
+        Reabrir la MISMA clase mantiene la instancia (lift + opcional
+        cambio de elemento) — no destruye y recrea innecesariamente.
+        """
         key = (id(main_window), cls)
         existing = _ACTIVE.get(key)
         if existing is not None:
@@ -98,8 +148,22 @@ class CanvasOverlayModule:
                 if element_id is not None and element_id != existing.element_id:
                     existing.set_element(element_id)
                 return existing
+
+        # Cerrar otros overlays activos en este main_window (convención
+        # de overlay único). Iteramos sobre snapshot para que el .close()
+        # — que muta `_ACTIVE` vía _cleanup — no rompa el loop.
+        target_id = id(main_window)
+        others = [(k, v) for k, v in list(_ACTIVE.items())
+                  if k[0] == target_id and k[1] is not cls]
+        for _k, inst in others:
+            try:
+                inst.close()
+            except Exception:
+                pass
+
         inst = cls(main_window, project, element_id)
         _ACTIVE[key] = inst
+        _notify_overlay_change(main_window)
         return inst
 
     def __init__(self, main_window, project, element_id):
@@ -134,15 +198,34 @@ class CanvasOverlayModule:
         # Capa educativa — bound method que se borrará en _cleanup.
         self._layer = self._draw_layer_wrapper
 
-        # Snapshots de callbacks del canvas para restaurarlos al cerrar.
-        self._saved_on_element_select = self._mesh.on_element_select
-        self._saved_on_node_select = self._mesh.on_node_select
-        self._saved_on_hover_element = self._mesh.on_hover_element
+        # **API moderna**: el MeshCanvas dispara `on_selection_changed(dict)`
+        # cuando cambia cualquier selección. Las legacy `on_element_select`
+        # / `on_node_select` (que el código previo intentaba enganchar) están
+        # MUERTAS — no las dispara ningún flujo del canvas actual. Por eso
+        # los overlays no se actualizaban al clickear otro elemento.
+        #
+        # Nos encadenamos al callback existente (proc_tab / post_tab / etc.)
+        # con un wrapper que primero invoca al previo y después decodifica
+        # la selección para reenviar a los hooks per-element/per-node de los
+        # módulos. Multi-select silencioso (no propagamos a los hooks — la
+        # mayoría de módulos operan sobre UN elemento por convención).
+        #
+        # Implementación: el wrapper es una CLOSURE (no un bound method),
+        # porque necesitamos colgarle el atributo `_overlay_edu_chain` para
+        # que `_cleanup` lo identifique en `_cleanup`. Los bound methods en
+        # Python NO permiten asignación de atributos (`'method' object has
+        # no attribute ...`). Las funciones regulares sí.
+        self._prev_selection_cb = self._mesh.on_selection_changed
+        self._last_seen_eid: Optional[int] = self.element_id
+        self._last_seen_nid: Optional[int] = None
+        self._chained_selection_cb = self._make_selection_chain(
+            self._prev_selection_cb
+        )
+        self._mesh.on_selection_changed = self._chained_selection_cb
 
-        # Wireamos nuestros handlers (los módulos sobrescriben los que
-        # necesitan; la base reroutea hacia métodos overrideables).
-        self._mesh.on_element_select = self._handle_element_click
-        self._mesh.on_node_select = self._handle_node_click
+        # Snapshot del hover callback para restaurarlo al cerrar (algunos
+        # módulos como M0 lo sobrescriben en `on_activated`).
+        self._saved_on_hover_element = self._mesh.on_hover_element
 
         # Construir contenido del overlay (template method)
         try:
@@ -181,6 +264,14 @@ class CanvasOverlayModule:
         """
         self.set_element(elem_id)
 
+    def on_element_deselected(self) -> None:
+        """Callback: el usuario deseleccionó TODOS los elementos (Esc,
+        click en zona vacía, etc.). Default: limpia self.element/_id y
+        refresca — la capa educativa desaparece junto con el contexto.
+        Subclases pueden override si necesitan limpiar estado adicional.
+        """
+        self.set_element(None)
+
     def on_node_selected(self, node_id: int) -> None:
         """Callback override: el usuario clickeó un nodo en el canvas.
 
@@ -209,6 +300,42 @@ class CanvasOverlayModule:
         """Hook ANTES de la limpieza estándar. Default: no-op."""
         return None
 
+    # ── Helper: cross-ref clickeable al pie del overlay ────────────
+    def _pack_crossref(self, parent, target_module_id: Optional[str],
+                       text: str, wraplength: int = 480):
+        """Pinta una etiqueta `👉 ...` clickeable que abre el módulo
+        `target_module_id` reusando el elemento actual.
+
+        Si `target_module_id` es None (caso M7 → "Post-Proceso"), la
+        etiqueta queda como label decorativo sin click.
+        """
+        import ttkbootstrap as ttk_local
+        lbl = ttk_local.Label(
+            parent, text=text,
+            font=("Segoe UI", 9), foreground="#ffd54f",
+            wraplength=wraplength, justify="left",
+        )
+        lbl.pack(fill="x", padx=4, pady=(4, 0))
+        if target_module_id:
+            lbl.configure(cursor="hand2")
+            lbl.bind("<Button-1>",
+                      lambda _e, t=target_module_id: self._open_crossref(t))
+        return lbl
+
+    def _open_crossref(self, target_module_id: str) -> None:
+        """Abre otro módulo overlay con el mismo elemento.
+
+        El propio `cls.activate()` del módulo destino cerrará a éste por
+        la política de overlay único — no hace falta close() explícito.
+        """
+        try:
+            from education.module_launcher import open_module
+            open_module(self.main_window, self.project, target_module_id,
+                         mesh_canvas=self._mesh,
+                         elem_id=self.element_id)
+        except Exception:
+            pass
+
     # ── API pública ────────────────────────────────────────────────
     def set_element(self, elem_id: Optional[int]) -> None:
         """Cambia el elemento bajo análisis y refresca."""
@@ -232,19 +359,73 @@ class CanvasOverlayModule:
     def _resolve_mesh_canvas(self, main_window):
         return getattr(main_window, "mesh_canvas", None)
 
-    def _handle_element_click(self, elem_id):
-        try:
-            self.on_element_selected(elem_id)
-        except Exception:
-            pass
-        # No re-disparar el callback original — el módulo overlay TOMA el
-        # control del canvas mientras esté activo. Al cerrar se restauran.
+    def _make_selection_chain(self, prev):
+        """Factory que devuelve una closure encadenada al callback `prev`.
 
-    def _handle_node_click(self, node_id):
-        try:
-            self.on_node_selected(node_id)
-        except Exception:
-            pass
+        La closure es una función regular (no bound method) para poder
+        colgarle el atributo `_overlay_edu_chain` que `_cleanup` usa para
+        identificarla. Captura `prev` y `self` por defecto para evitar
+        late binding.
+
+        Reglas de "cambio significativo":
+          • Single-element selection que difiere del último visto →
+            `on_element_selected(eid)`.
+          • Single-node selection que difiere del único visto →
+            `on_node_selected(nid)`.
+          • DESELECCIÓN total de elementos (0 elementos seleccionados,
+            habiendo visto uno antes) → `on_element_deselected()`. La
+            capa educativa debe desaparecer junto con el chip `#N` del
+            panel de módulos — el alumno limpió el contexto.
+          • Multi-select: no propagamos a hooks (los módulos operan
+            sobre UN elemento; mostrar `N` cosas a la vez confunde).
+        """
+
+        def _chained(sel, _prev=prev, _self=self):
+            if _prev is not None:
+                try:
+                    _prev(sel)
+                except Exception:
+                    pass
+
+            elems = sel.get("elements", set()) if sel else set()
+            nodes = sel.get("nodes", set()) if sel else set()
+            eid = next(iter(elems)) if len(elems) == 1 else None
+            nid = next(iter(nodes)) if len(nodes) == 1 else None
+
+            if eid is not None and eid != _self._last_seen_eid:
+                _self._last_seen_eid = eid
+                try:
+                    _self.on_element_selected(eid)
+                except Exception:
+                    pass
+            elif eid is None and not elems and _self._last_seen_eid is not None:
+                # Caso deselección explícita (set vacío). Solo propagamos
+                # si el último visto era un elemento real — evita disparar
+                # `on_element_deselected` por estados intermedios donde el
+                # canvas envía un sel vacío justo antes de re-poblar.
+                _self._last_seen_eid = None
+                try:
+                    _self.on_element_deselected()
+                except Exception:
+                    pass
+
+            if nid is not None and nid != _self._last_seen_nid:
+                _self._last_seen_nid = nid
+                try:
+                    _self.on_node_selected(nid)
+                except Exception:
+                    pass
+
+            # Multi-select de elementos o de nodos: solo resetear el
+            # "último visto" para que la próxima selección single dispare
+            # incluso si vuelve al mismo id. No propagamos a hooks.
+            if eid is None and len(elems) > 1:
+                _self._last_seen_eid = None
+            if nid is None:
+                _self._last_seen_nid = None
+
+        _chained._overlay_edu_chain = True
+        return _chained
 
     def _draw_layer_wrapper(self, mesh_canvas):
         # Wrapper que aisla excepciones: una capa rota NO bloquea redraw.
@@ -259,13 +440,14 @@ class CanvasOverlayModule:
             child.destroy()
         lbl = tk.Label(
             body, text=f"⚠ Error al construir el overlay:\n\n{msg}",
-            bg="#222233", fg="#ef5350", font=("Segoe UI", 10),
+            bg=EDU_AXES_BG, fg=HEALTH_ERROR_COLOR, font=("Segoe UI", 10),
             justify="left", anchor="w", wraplength=400,
         )
         lbl.pack(fill="both", expand=True, padx=10, pady=10)
 
     def _cleanup(self) -> None:
-        # Hook usuario antes de la limpieza estándar
+        # Hook usuario ANTES de tocar el canvas — el módulo puede querer
+        # cancelar after_id pendientes, borrar tags privados, etc.
         try:
             self.on_closed()
         except Exception:
@@ -274,19 +456,34 @@ class CanvasOverlayModule:
         # Restaurar callbacks del canvas
         try:
             if self._mesh is not None:
-                if self._mesh.on_element_select is self._handle_element_click:
-                    self._mesh.on_element_select = self._saved_on_element_select
-                if self._mesh.on_node_select is self._handle_node_click:
-                    self._mesh.on_node_select = self._saved_on_node_select
+                # Desencadenar `on_selection_changed`: si nuestro wrapper
+                # sigue siendo el callback activo, lo reemplazamos por el
+                # previo. Si otro overlay/tab encadenó después de nosotros,
+                # el wrapper actual NO es el nuestro — en ese caso no
+                # tocamos nada (rompería el chain) y dejamos que el GC
+                # eventualmente libere el closure.
+                if getattr(self._mesh.on_selection_changed,
+                             "_overlay_edu_chain", False) \
+                        and self._mesh.on_selection_changed \
+                        is self._chained_selection_cb:
+                    self._mesh.on_selection_changed = self._prev_selection_cb
+
                 # on_hover_element: si el módulo lo sobrescribió, restaurar.
-                # Comparamos por identidad: cualquier handler nuestro debe
-                # ser un attr del módulo, no el original.
                 if (self._mesh.on_hover_element is not None
                         and self._mesh.on_hover_element
                         is not self._saved_on_hover_element):
                     self._mesh.on_hover_element = self._saved_on_hover_element
-                # Quitar nuestra capa de dibujo
+
+                # Quitar nuestra capa de dibujo. `remove_overlay_layer`
+                # YA dispara `redraw()` internamente, así que tras esto
+                # el canvas queda limpio de items dibujados por nuestra
+                # capa. Defensivo extra: forzamos un redraw adicional por
+                # si la capa nunca corrió (overlay con error en build).
                 self._mesh.remove_overlay_layer(self._layer)
+                try:
+                    self._mesh.redraw()
+                except Exception:
+                    pass
         except Exception:
             pass
 
@@ -294,11 +491,23 @@ class CanvasOverlayModule:
         cls = type(self)
         key = (id(self.main_window), cls)
         _ACTIVE.pop(key, None)
+        _notify_overlay_change(self.main_window)
 
 
 def is_active(main_window, cls) -> bool:
     """Retorna True si el módulo `cls` está activo en este main_window."""
     return (id(main_window), cls) in _ACTIVE
+
+
+def is_any_overlay_active(main_window) -> bool:
+    """Retorna True si CUALQUIER módulo overlay está activo en este
+    main_window. Consultado por `MeshCanvas._on_click` para suprimir la
+    rama "second-click deselects" mientras hay un módulo abierto — el
+    elemento bajo análisis queda pinneado por la duración del módulo."""
+    target_id = id(main_window) if main_window is not None else None
+    if target_id is None:
+        return False
+    return any(k[0] == target_id for k in _ACTIVE.keys())
 
 
 def deactivate_all(main_window) -> None:

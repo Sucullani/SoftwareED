@@ -43,7 +43,8 @@ def _build_complex_model():
     # Configuracion global
     p.analysis_type = "Tensión Plana"
     p.element_type = "Q4 - Cuadrilátero 4 nodos"
-    p.gravity = 9.81
+    p.gravity_x = 0.0
+    p.gravity_y = -9.81
     p.include_gravity = True
     return p
 
@@ -57,8 +58,10 @@ def _projects_equal(p1, p2):
         return False, f"element_type: {p1.element_type} != {p2.element_type}"
     if p1.unit_system != p2.unit_system:
         return False, f"unit_system: {p1.unit_system} != {p2.unit_system}"
-    if p1.gravity != p2.gravity:
-        return False, f"gravity: {p1.gravity} != {p2.gravity}"
+    if p1.gravity_x != p2.gravity_x:
+        return False, f"gravity_x: {p1.gravity_x} != {p2.gravity_x}"
+    if p1.gravity_y != p2.gravity_y:
+        return False, f"gravity_y: {p1.gravity_y} != {p2.gravity_y}"
     if p1.include_gravity != p2.include_gravity:
         return False, f"include_gravity: {p1.include_gravity} != {p2.include_gravity}"
     # Nodos

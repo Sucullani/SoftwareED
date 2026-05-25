@@ -349,7 +349,7 @@ class PreProcessTab:
     def _build_education_panel(self):
         """Sub-pestana con modulos educativos asociados al PRE-PROCESO."""
         from education.module_launcher import (
-            list_modules_for_phase, open_module,
+            list_modules_for_phase, open_module, GLOBAL_MODULES,
         )
 
         def _on_open(mod_key):
@@ -361,8 +361,9 @@ class PreProcessTab:
             )
             if ok:
                 self.main_window.set_status(f"Modulo educativo abierto: {mod_key}")
+            return ok  # el panel marca ✓ solo si realmente abrio
 
-        render_module_buttons(
+        self._edu_panel = render_module_buttons(
             self.education_frame,
             modules=list_modules_for_phase("pre"),
             on_open=_on_open,
@@ -371,13 +372,30 @@ class PreProcessTab:
             header_color=PHASE_PRE_COLOR,
             subtitle=("Conceptos relacionados con la preparacion del modelo:\n"
                       "calidad geometrica de la malla, tipos de elemento."),
+            global_modules=GLOBAL_MODULES,
         )
+
+    def wire_canvas(self):
+        """Inicializa el panel de modulos con la seleccion actual del canvas.
+
+        El callback `on_selection_changed` del canvas ya esta cableado a
+        `_on_canvas_selection_changed` por `_wire_canvas_callbacks` — ese
+        handler tambien refresca el panel educativo. Aqui solo establecemos
+        el estado inicial coherente."""
+        canvas = getattr(self.main_window, "mesh_canvas", None)
+        if canvas is None or getattr(self, "_edu_panel", None) is None:
+            return
+        try:
+            sel = canvas.get_selection()
+            elems = sel.get("elements", set())
+            elem_id = next(iter(elems)) if len(elems) == 1 else None
+            self._edu_panel.update_selection(elem_id)
+        except Exception:
+            pass
 
     # ─── Helpers de unidades ────────────────────────────────────────────
 
     def _get_units(self):
-        if self.project.unit_system == "Personalizado":
-            return self.project.custom_units
         return get_unit_labels(self.project.unit_system)
 
     def update_unit_headers(self):
@@ -412,11 +430,8 @@ class PreProcessTab:
         self.nodes_tree.column("y", width=110, anchor=CENTER)
         self._configure_row_tags(self.nodes_tree)
 
-        scrollbar = ttk.Scrollbar(self.nodes_frame, orient=VERTICAL,
-                                  command=self.nodes_tree.yview)
-        self.nodes_tree.configure(yscrollcommand=scrollbar.set)
-        self.nodes_tree.pack(fill=BOTH, expand=YES, padx=5, pady=5, side=LEFT)
-        scrollbar.pack(fill=Y, side=RIGHT, pady=5, padx=(0, 5))
+        # Scrollbar omitido: la rueda del mouse sobre Treeview es nativa en Tk.
+        self.nodes_tree.pack(fill=BOTH, expand=YES, padx=5, pady=5)
 
         self.nodes_tree.bind("<Double-1>", self._on_node_double_click)
         self.nodes_tree.bind("<<TreeviewSelect>>", self._on_node_select)
@@ -482,11 +497,8 @@ class PreProcessTab:
         self.elements_tree.column("material", width=140, anchor=CENTER)
         self._configure_row_tags(self.elements_tree)
 
-        scrollbar = ttk.Scrollbar(self.elements_frame, orient=VERTICAL,
-                                  command=self.elements_tree.yview)
-        self.elements_tree.configure(yscrollcommand=scrollbar.set)
-        self.elements_tree.pack(fill=BOTH, expand=YES, padx=5, pady=5, side=LEFT)
-        scrollbar.pack(fill=Y, side=RIGHT, pady=5, padx=(0, 5))
+        # Scrollbar omitido: la rueda del mouse sobre Treeview es nativa en Tk.
+        self.elements_tree.pack(fill=BOTH, expand=YES, padx=5, pady=5)
 
         self.elements_tree.bind("<Double-1>", self._on_element_double_click)
         self.elements_tree.bind("<<TreeviewSelect>>", self._on_element_select)
@@ -508,11 +520,8 @@ class PreProcessTab:
         self.loads_tree.column("fy", width=110, anchor=CENTER)
         self._configure_row_tags(self.loads_tree)
 
-        scrollbar = ttk.Scrollbar(self.loads_frame, orient=VERTICAL,
-                                  command=self.loads_tree.yview)
-        self.loads_tree.configure(yscrollcommand=scrollbar.set)
-        self.loads_tree.pack(fill=BOTH, expand=YES, padx=5, pady=5, side=LEFT)
-        scrollbar.pack(fill=Y, side=RIGHT, pady=5, padx=(0, 5))
+        # Scrollbar omitido: la rueda del mouse sobre Treeview es nativa en Tk.
+        self.loads_tree.pack(fill=BOTH, expand=YES, padx=5, pady=5)
 
         self.loads_tree.bind("<Double-1>", self._on_load_double_click)
         self.loads_tree.bind("<<TreeviewSelect>>", self._on_load_select)
@@ -541,11 +550,8 @@ class PreProcessTab:
         self.constraints_tree.column("ry", width=110, anchor=CENTER)
         self._configure_row_tags(self.constraints_tree)
 
-        scrollbar = ttk.Scrollbar(self.constraints_frame, orient=VERTICAL,
-                                  command=self.constraints_tree.yview)
-        self.constraints_tree.configure(yscrollcommand=scrollbar.set)
-        self.constraints_tree.pack(fill=BOTH, expand=YES, padx=5, pady=5, side=LEFT)
-        scrollbar.pack(fill=Y, side=RIGHT, pady=5, padx=(0, 5))
+        # Scrollbar omitido: la rueda del mouse sobre Treeview es nativa en Tk.
+        self.constraints_tree.pack(fill=BOTH, expand=YES, padx=5, pady=5)
 
         # Solo doble-click edita: por consistencia con el resto de las
         # tablas. El toggle por click simple fue eliminado para evitar
@@ -573,17 +579,18 @@ class PreProcessTab:
         )
         self.surface_tree.heading("n_start", text="N. Inicio", anchor=CENTER)
         self.surface_tree.heading("n_end", text="N. Final", anchor=CENTER)
+        # Anchos rebalanceados: los IDs de nodo son enteros cortos -> 70 px;
+        # las cargas q llevan unidades en el header (ej. "q Inicio [kN/m]")
+        # y valores con decimales -> 120 px; el angulo es corto -> 80 px.
         for col in ("n_start", "n_end"):
-            self.surface_tree.column(col, width=110, anchor=CENTER)
-        for col in ("q_start", "q_end", "angle"):
-            self.surface_tree.column(col, width=95, anchor=CENTER)
+            self.surface_tree.column(col, width=70, anchor=CENTER)
+        for col in ("q_start", "q_end"):
+            self.surface_tree.column(col, width=100, anchor=CENTER)
+        self.surface_tree.column("angle", width=80, anchor=CENTER)
         self._configure_row_tags(self.surface_tree)
 
-        scrollbar = ttk.Scrollbar(self.surface_frame, orient=VERTICAL,
-                                  command=self.surface_tree.yview)
-        self.surface_tree.configure(yscrollcommand=scrollbar.set)
-        self.surface_tree.pack(fill=BOTH, expand=YES, padx=5, pady=5, side=LEFT)
-        scrollbar.pack(fill=Y, side=RIGHT, pady=5, padx=(0, 5))
+        # Scrollbar omitido: la rueda del mouse sobre Treeview es nativa en Tk.
+        self.surface_tree.pack(fill=BOTH, expand=YES, padx=5, pady=5)
 
         self.surface_tree.bind("<Double-1>", self._on_surface_double_click)
         self.surface_tree.bind("<<TreeviewSelect>>", self._on_surface_select)
@@ -2638,6 +2645,14 @@ class PreProcessTab:
                 self.constraints_tree, canvas.selected_constraints)
             self._apply_canvas_selected_tags(
                 self.surface_tree, canvas.selected_surfaces)
+            # Tambien refrescar el panel de modulos educativos.
+            if getattr(self, "_edu_panel", None) is not None:
+                try:
+                    elems = canvas.selected_elements
+                    eid = next(iter(elems)) if len(elems) == 1 else None
+                    self._edu_panel.update_selection(eid)
+                except Exception:
+                    pass
             return
 
         self._syncing_from_canvas = True
@@ -2649,6 +2664,15 @@ class PreProcessTab:
             self._refresh_surface_tree()
         finally:
             self._syncing_from_canvas = False
+
+        # Sincronizar panel de modulos educativos con la seleccion.
+        if getattr(self, "_edu_panel", None) is not None:
+            try:
+                elems = canvas.selected_elements
+                elem_id = next(iter(elems)) if len(elems) == 1 else None
+                self._edu_panel.update_selection(elem_id)
+            except Exception:
+                pass
 
     def _apply_canvas_selected_tags(self, tree, ids):
         """Togglea el tag `canvas_selected` en filas existentes sin

@@ -14,14 +14,20 @@ matplotlib.use("TkAgg")
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 
+from config.settings import (
+    EDU_AXES_BG, EDU_FIG_BG, EDU_GRID, EDU_FG, HEALTH_INFO_COLOR,
+)
 
-# Paleta coherente con el tema 'darkly' de ttkbootstrap
+
+# Paleta coherente con `darkly` y EDU_* (UX 2026 pase 4): rebindeada a
+# las constantes canónicas — antes literales #222233 / #dfdfdf / #404055
+# desalineados con el chrome del Toplevel.
 _DARK_THEME = {
-    "bg": "#222233",
-    "fg": "#dfdfdf",
-    "grid": "#404055",
-    "panel": "#2b2b3c",
-    "accent": "#4fa3ff",
+    "bg":     EDU_AXES_BG,
+    "fg":     EDU_FG,
+    "grid":   EDU_GRID,
+    "panel":  EDU_FIG_BG,
+    "accent": HEALTH_INFO_COLOR,
 }
 
 

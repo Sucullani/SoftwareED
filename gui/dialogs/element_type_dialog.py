@@ -1,19 +1,34 @@
 """
-ElementTypeDialog: diálogo del menú Modelo para configurar el tipo de
-elemento (Q4 / Q9) con recursos visuales educativos.
+ElementTypeDialog: dialogo del menu Modelo para configurar el tipo de
+elemento (Q4 / Q9).
 
-Dos pestañas:
-  · "Comparación visual"      — Q4 vs Q9 lado a lado con nodos numerados.
-  · "Transición Q4 ↔ Q9"      — WebP animado generado en Claude Design
-                                 que muestra el ciclo bidireccional sobre
-                                 un elemento distorsionado canónico (loop
-                                 seamless de 7 s, autoplay, sin controles
-                                 visibles). NO muta el modelo.
+Layout minimalista (760x660, alineado al patron de AnalysisTypeDialog):
+un unico video del cantilever Q4 vs Q9 (`resources/videos/
+cantilever_q4_q9.webp`) que muestra ambos casos en paralelo + 2
+toolbutton radios en grid 50/50 alineados con las columnas del video.
+Seleccionar 'Q4' = elegir la columna izquierda gris de lo que el alumno
+esta viendo; seleccionar 'Q9' = la columna derecha naranja.
 
-Para aplicar el cambio al modelo real se selecciona Q4 / Q9 arriba y se
-acepta — eso dispara `expand_q4_to_q9` o `shrink_q9_to_q4` (con
-confirmación modal en el segundo caso porque se descartan los nodos
-internos huérfanos sin cargas/BCs).
+Tres toques creativos aprovechando que el video tiene identidad
+cromatica por columna (Q4=gris, Q9=naranja):
+  1. Cada chip se colorea con la paleta de su columna del video:
+     - Q4: bootstyle `secondary-toolbutton` (gris)
+     - Q9: bootstyle `warning-toolbutton` (naranja PHASE_PROC_COLOR)
+     → color-continuity: el alumno asocia "chip gris abajo ↔ columna
+     gris arriba" sin esfuerzo.
+  2. Cada chip incluye un mini-icono PIL del layout de nodos del
+     elemento: 4 puntos en 2x2 para Q4, 9 puntos en 3x3 para Q9.
+     Es una previsualizacion visual del concepto que el chip representa.
+  3. El texto de cada chip incluye el conteo de GDL (informacion clave
+     para decidir costo/precision): "Q4 · 8 GDL", "Q9 · 18 GDL".
+
+Una linea de hint operativa preservada del diseño anterior: en Q9 los
+5 nodos internos se generan automaticamente. Es info no obvia que
+previene confusion cuando el alumno ve nodos aparecer al cambiar de
+tipo, asi que sobrevive como italic muted de una linea.
+
+Q9 -> Q4 dispara modal de confirmacion porque descarta nodos medios y
+centroide sin datos (los con cargas/BCs se preservan como huerfanos).
 """
 
 import os
@@ -22,174 +37,162 @@ import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 from tkinter import messagebox
 
-import numpy as np
+from PIL import Image, ImageDraw, ImageTk
 
 from config.settings import (
-    ELEMENT_TYPES, ELEMENT_Q4, ELEMENT_Q9,
-    CANVAS_NODE_COLOR, CANVAS_NODE_MID_COLOR, CANVAS_NODE_CENTER_COLOR,
+    ELEMENT_Q4, ELEMENT_Q9,
+    LABEL_BG, TEXT_MUTED_FG, ORPHAN_NODE_FG,
+    PHASE_PROC_COLOR,
 )
-from education.components import PlotPanel
 from education.components.plot_panel import _theme_colors
 from gui.widgets.webp_player import WebpPlayer
 from models.mesh_utils import expand_q4_to_q9, shrink_q9_to_q4
 
 
-VIDEO_FILE = os.path.join("resources", "videos", "q4_q9_transition.webp")
+VIDEO_PATH = os.path.join("resources", "videos", "cantilever_q4_q9.webp")
 
+# Misma anchura y video que AnalysisTypeDialog. La altura es 60 px
+# mayor (720 vs 660) porque ElementTypeDialog tiene UN renglon de hint
+# adicional ("En Q9 los 5 nodos internos se generan automaticamente")
+# que AnalysisTypeDialog no tiene. Con 660 los botones del footer
+# quedaban clipeados fuera del area visible del Toplevel.
+VIDEO_W, VIDEO_H = 720, 480
+DIALOG_W, DIALOG_H = 760, 720
 
-# Coordenadas del mini-elemento sintético en el dominio natural [-1, 1]²
-# usado SOLO en la pestaña "Comparación visual" (la transición se reemplazó
-# por un video MP4 prerenderizado).
-_DEMO_CORNERS = np.array([
-    [-1.0, -1.0],   # N1
-    [ 1.0, -1.0],   # N2
-    [ 1.0,  1.0],   # N3
-    [-1.0,  1.0],   # N4
-])
-_DEMO_MIDS = np.array([
-    [ 0.0, -1.0],   # N5 (medio 1-2)
-    [ 1.0,  0.0],   # N6 (medio 2-3)
-    [ 0.0,  1.0],   # N7 (medio 3-4)
-    [-1.0,  0.0],   # N8 (medio 4-1)
-])
-_DEMO_CENTER = np.array([0.0, 0.0])  # N9
+# Color de cada chip pickea la identidad cromatica de su columna del
+# video (Q4=gris, Q9=naranja). Si en el futuro el video cambia su
+# paleta, actualizar aqui.
+_Q4_DOT_COLOR = "#cdd2d8"   # gris claro (matches Q4 column header)
+_Q9_DOT_COLOR = PHASE_PROC_COLOR  # naranja (matches Q9 column header)
 
 
 class ElementTypeDialog:
-    """Ventana modal para configurar Tipo de Elemento (Q4 ↔ Q9)."""
+    """Ventana modal para configurar Tipo de Elemento (Q4 / Q9)."""
 
     def __init__(self, parent, project, main_window=None):
         self.project = project
         self.main_window = main_window
         self.parent = parent
+        self._video = None
+        # Refs anti-GC para los iconos PIL embebidos en los chips
+        self._icon_q4: ImageTk.PhotoImage | None = None
+        self._icon_q9: ImageTk.PhotoImage | None = None
 
         self.dialog = ttk.Toplevel(parent)
         self.dialog.title("🔲  Tipo de Elemento")
-        self.dialog.geometry("820x680")
+        self.dialog.geometry(f"{DIALOG_W}x{DIALOG_H}")
         self.dialog.transient(parent)
         self.dialog.grab_set()
         self.dialog.resizable(False, False)
         self.dialog.protocol("WM_DELETE_WINDOW", self._on_cancel)
 
-        # Variable local: NO mutar el project hasta Aceptar.
         self.element_var = tk.StringVar(value=project.element_type)
-        self._video = None
 
         self._build()
-        self._draw_comparison()
+        # Diferir carga del video para que el container tenga tamaño
+        # real antes del primer render (si no, escala a 1×1 px).
+        self.dialog.after(120, self._load_video)
         self._center()
 
     # ─── Layout ─────────────────────────────────────────────────────────
     def _build(self):
-        main = ttk.Frame(self.dialog, padding=14)
+        main = ttk.Frame(self.dialog, padding=18)
         main.pack(fill=BOTH, expand=YES)
 
-        self._build_header(main)
-        self._build_notebook(main)
+        self._build_video(main)
+        self._build_selector(main)
+        self._build_hint(main)
         self._build_footer(main)
 
-    def _build_header(self, parent):
-        ttk.Label(
-            parent, text="Tipo de Elemento Finito",
-            font=("Segoe UI", 13, "bold"),
-        ).pack(anchor=W, pady=(0, 4))
+    def _build_video(self, parent):
+        """Container fijo 720x480 con el WebpPlayer adentro.
+        `pack_propagate(False)` evita que el frame se ajuste al contenido."""
+        container = ttk.Frame(parent, width=VIDEO_W, height=VIDEO_H)
+        container.pack_propagate(False)
+        container.pack(pady=(0, 14))
+        self.video_frame = container
+
+        self._video = WebpPlayer(
+            container, scaled=True,
+            background=_theme_colors()["bg"],
+        )
+        self._video.pack(fill=BOTH, expand=YES)
+
+    def _build_selector(self, parent):
+        """Dos toolbutton radios en grid 50/50, alineados con las
+        columnas Q4|Q9 del video. Cada chip color-matches su columna:
+        Q4 gris, Q9 naranja. Mini-icono con layout de nodos a la
+        izquierda del texto."""
+        # Generar iconos PIL antes de los chips (32px cuadrado → suficiente
+        # para ver 2x2 vs 3x3 sin saturar el chip).
+        self._icon_q4 = self._make_node_icon(grid=2, color=_Q4_DOT_COLOR)
+        self._icon_q9 = self._make_node_icon(grid=3, color=_Q9_DOT_COLOR)
+
+        sel = ttk.Frame(parent)
+        sel.pack(fill=X, pady=(0, 6))
+        sel.columnconfigure(0, weight=1, uniform="case")
+        sel.columnconfigure(1, weight=1, uniform="case")
+
+        ttk.Radiobutton(
+            sel, text="  Q4 — Bilineal  ·  8 GDL",
+            image=self._icon_q4, compound=LEFT,
+            variable=self.element_var, value=ELEMENT_Q4,
+            bootstyle="secondary-toolbutton",
+        ).grid(row=0, column=0, sticky="ew", padx=(0, 6), ipady=10)
+
+        ttk.Radiobutton(
+            sel, text="  Q9 — Bicuadrático  ·  18 GDL",
+            image=self._icon_q9, compound=LEFT,
+            variable=self.element_var, value=ELEMENT_Q9,
+            bootstyle="warning-toolbutton",
+        ).grid(row=0, column=1, sticky="ew", padx=(6, 0), ipady=10)
+
+    def _make_node_icon(self, grid: int, color: str,
+                        size: int = 32) -> ImageTk.PhotoImage:
+        """Genera un mini-icono RGBA con un cuadrado outline y `grid×grid`
+        puntos en una grilla regular. Para Q4 grid=2 (4 corners), para
+        Q9 grid=3 (corners + mids + centro). Pedagogicamente: el alumno
+        ve el layout de nodos del elemento dentro del propio chip."""
+        img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(img)
+
+        pad = 5
+        inner = size - 2 * pad
+        # Outline del elemento (cuadrado fino con el color del chip)
+        draw.rectangle(
+            [pad, pad, pad + inner, pad + inner],
+            outline=color, width=1,
+        )
+        # Puntos en la grilla
+        dot_r = max(2, size // 14)
+        step = inner / (grid - 1) if grid > 1 else 0
+        for i in range(grid):
+            for j in range(grid):
+                cx = pad + int(round(j * step))
+                cy = pad + int(round(i * step))
+                draw.ellipse(
+                    [cx - dot_r, cy - dot_r, cx + dot_r, cy + dot_r],
+                    fill=color,
+                )
+        return ImageTk.PhotoImage(img)
+
+    def _build_hint(self, parent):
+        """Hint operacional Q9 preservado: una sola linea italic muted
+        que previene confusion cuando el alumno ve nodos aparecer al
+        cambiar tipo. (AnalysisTypeDialog NO tiene equivalente porque
+        TP/DP no tiene una sutileza operacional analoga.)"""
         ttk.Label(
             parent,
-            text=("Define cuántos nodos tiene cada elemento y, por tanto,"
-                  " el orden de las funciones de forma."),
-            foreground="#aaa", font=("Segoe UI", 9),
-        ).pack(anchor=W, pady=(0, 10))
-
-        sel_frame = ttk.Labelframe(parent, text="  Selección  ", padding=10)
-        sel_frame.pack(fill=X, pady=(0, 10))
-        for et in ELEMENT_TYPES:
-            ttk.Radiobutton(
-                sel_frame, text=et, variable=self.element_var, value=et,
-                bootstyle="info",
-            ).pack(anchor=W, pady=2)
-
-    def _build_notebook(self, parent):
-        nb = ttk.Notebook(parent, bootstyle="info")
-        nb.pack(fill=BOTH, expand=YES, pady=(0, 10))
-
-        # ── Tab 1: Comparación visual ────────────────────────────────
-        tab_cmp = ttk.Frame(nb, padding=6)
-        nb.add(tab_cmp, text="  Comparación visual  ")
-        self.cmp_panel = PlotPanel(
-            tab_cmp, figsize=(7.4, 3.2), subplots=(1, 2),
-            show_toolbar=False,
-        )
-        self.cmp_panel.pack(fill=BOTH, expand=YES)
-
-        # ── Tab 2: Transición Q4 ↔ Q9 (video prerenderizado) ─────────
-        tab_anim = ttk.Frame(nb, padding=6)
-        nb.add(tab_anim, text="  Transición Q4 ↔ Q9  ")
-
-        # Banner superior con énfasis en la BIDIRECCIONALIDAD del cambio.
-        banner = ttk.Frame(tab_anim)
-        banner.pack(fill=X, pady=(0, 6))
-
-        ttk.Label(
-            banner,
-            text="↔  Configuración bidireccional",
-            font=("Segoe UI", 11, "bold"),
-            foreground=CANVAS_NODE_CENTER_COLOR,
-        ).pack(anchor=W)
-        ttk.Label(
-            banner,
-            text=("El cambio Q4 ↔ Q9 se aplica en ambos sentidos sobre "
-                  "un mismo elemento distorsionado canónico:\n"
-                  "    Q4 → Q9   se generan los 4 nodos medios de arista "
-                  "(N5..N8) y el centroide (N9), las aristas pasan a ser "
-                  "bicuadráticas (curvas).\n"
-                  "    Q9 → Q4   se truncan los nodos internos sin "
-                  "datos y las aristas vuelven a ser rectas."),
-            font=("Segoe UI", 9), foreground="#cfd2d8",
-            justify=LEFT, wraplength=760,
-        ).pack(anchor=W, pady=(2, 0))
-
-        # Reproductor de WebP animado (autoplay + loop seamless, sin controles).
-        video_frame = ttk.Frame(tab_anim, relief="flat")
-        video_frame.pack(fill=BOTH, expand=YES, pady=(6, 0))
-
-        if os.path.exists(VIDEO_FILE):
-            try:
-                self._video = WebpPlayer(
-                    video_frame, scaled=True,
-                    background=_theme_colors()["bg"],
-                )
-                self._video.pack(fill=BOTH, expand=YES)
-                self._video.load(VIDEO_FILE)
-                # Pequeño delay para que el widget esté montado y haya
-                # capturado su tamaño antes de iniciar la reproducción.
-                self.dialog.after(150, self._video.play)
-            except Exception:
-                self._video = None
-
-        if self._video is None:
-            # Degradación si el WebP no existe o falla la carga.
-            ttk.Label(
-                video_frame,
-                text=(f"Video no disponible.\n\n"
-                      f"Esperado en: {VIDEO_FILE}\n"
-                      f"Asegurate de que el archivo existe."),
-                foreground="#d68545", font=("Segoe UI", 9),
-                justify=CENTER,
-            ).pack(expand=YES)
-
-        ttk.Label(
-            tab_anim,
-            text=("⚠ Demostración educativa: el video NO modifica el "
-                  "modelo. Para aplicar el cambio al modelo real, "
-                  "seleccioná Q4 o Q9 arriba y presioná Aceptar."),
-            foreground="#d68545", font=("Segoe UI", 8), justify=LEFT,
-            wraplength=760,
-        ).pack(anchor=W, pady=(6, 0))
+            text=("En Q9, los 5 nodos internos (medios + centroide) "
+                  "se generan automáticamente."),
+            font=("Segoe UI", 9, "italic"),
+            foreground=TEXT_MUTED_FG,
+            wraplength=700, justify=LEFT, anchor="w",
+        ).pack(fill=X, pady=(0, 14))
 
     def _build_footer(self, parent):
         btn_bar = ttk.Frame(parent)
         btn_bar.pack(fill=X)
-
         ttk.Button(
             btn_bar, text="Cancelar", bootstyle="secondary",
             command=self._on_cancel, width=12,
@@ -199,78 +202,33 @@ class ElementTypeDialog:
             command=self._on_accept, width=12,
         ).pack(side=RIGHT, padx=4)
 
-    # ─── Dibujo: Comparación ────────────────────────────────────────────
-    def _draw_comparison(self):
-        colors = _theme_colors()
-        ax_q4, ax_q9 = self.cmp_panel.axes
+    # ─── Ciclo de vida del video ────────────────────────────────────────
+    def _load_video(self):
+        if not os.path.exists(VIDEO_PATH):
+            self._show_missing_video()
+            return
+        try:
+            self._video.load(VIDEO_PATH)
+            self.dialog.after(80, self._video.play)
+        except Exception as exc:
+            self._show_missing_video(exc=exc)
 
-        for ax, n_nodes, title in (
-            (ax_q4, 4, "Q4 · Cuadrilátero bilineal"),
-            (ax_q9, 9, "Q9 · Cuadrilátero bicuadrático"),
-        ):
-            ax.clear()
-            self._style_natural_axes(ax, colors)
-
-            # Polígono del elemento (los 4 corners)
-            poly = np.vstack([_DEMO_CORNERS, _DEMO_CORNERS[0]])
-            ax.plot(poly[:, 0], poly[:, 1],
-                    color=colors["accent"], linewidth=1.6, alpha=0.9)
-
-            # Corners siempre visibles
-            for i, (x, y) in enumerate(_DEMO_CORNERS, start=1):
-                ax.scatter([x], [y], s=110, color=CANVAS_NODE_COLOR,
-                           edgecolors="white", linewidths=0.8, zorder=5)
-                ax.annotate(str(i), (x, y),
-                            xytext=(8, 8), textcoords="offset points",
-                            color=colors["fg"], fontsize=10,
-                            fontweight="bold")
-
-            # Mids + centro: solo en Q9
-            if n_nodes == 9:
-                for i, (x, y) in enumerate(_DEMO_MIDS, start=5):
-                    ax.scatter([x], [y], s=80, color=CANVAS_NODE_MID_COLOR,
-                               edgecolors="white", linewidths=0.6, zorder=5)
-                    ax.annotate(str(i), (x, y),
-                                xytext=(8, 8), textcoords="offset points",
-                                color=colors["fg"], fontsize=9)
-                cx, cy = _DEMO_CENTER
-                ax.scatter([cx], [cy], s=80, color=CANVAS_NODE_CENTER_COLOR,
-                           edgecolors="white", linewidths=0.6, zorder=5)
-                ax.annotate("9", (cx, cy),
-                            xytext=(8, 8), textcoords="offset points",
-                            color=colors["fg"], fontsize=9)
-
-            ax.set_title(title, color=colors["fg"], fontsize=10, pad=8)
-            ax.text(
-                -0.95, -0.92,
-                f"{n_nodes} nodos\n{2 * n_nodes} DOF",
-                color=colors["fg"], fontsize=8,
-                bbox=dict(facecolor=colors["panel"], edgecolor=colors["grid"],
-                          boxstyle="round,pad=0.3"),
-            )
-
-        self.cmp_panel.figure.tight_layout()
-        self.cmp_panel.redraw()
-
-    @staticmethod
-    def _style_natural_axes(ax, colors):
-        """Estilo coherente para los ejes en coordenadas naturales [-1,1]²."""
-        ax.set_xlim(-1.3, 1.3)
-        ax.set_ylim(-1.3, 1.3)
-        ax.set_aspect("equal")
-        ax.set_facecolor(colors["panel"])
-        ax.grid(True, color=colors["grid"], linewidth=0.5, alpha=0.6)
-        for spine in ax.spines.values():
-            spine.set_color(colors["grid"])
-        ax.tick_params(colors=colors["fg"], labelsize=8)
-        ax.set_xticks([-1, 0, 1])
-        ax.set_yticks([-1, 0, 1])
-        ax.set_xlabel("ξ", color=colors["fg"], fontsize=9)
-        ax.set_ylabel("η", color=colors["fg"], fontsize=9)
+    def _show_missing_video(self, exc=None):
+        for w in self.video_frame.winfo_children():
+            w.destroy()
+        self._video = None
+        msg = (f"Video no disponible.\n\n"
+               f"Esperado en: {VIDEO_PATH}")
+        if exc:
+            msg += f"\n\nError: {exc}"
+        tk.Label(
+            self.video_frame, text=msg,
+            bg=LABEL_BG, fg=ORPHAN_NODE_FG,
+            font=("Segoe UI", 9), justify=CENTER,
+        ).pack(expand=YES, padx=20, pady=20)
 
     # ─── Limpieza del video ─────────────────────────────────────────────
     def _stop_video(self):
-        """Detiene la reproducción del video y libera el thread interno."""
         if self._video is not None:
             try:
                 self._video.stop()
@@ -281,7 +239,6 @@ class ElementTypeDialog:
     def _on_accept(self):
         new_et = self.element_var.get()
         if new_et == self.project.element_type:
-            # Sin cambio real: cerrar sin tocar nada.
             self._on_cancel()
             return
 
@@ -313,7 +270,6 @@ class ElementTypeDialog:
                 return
             shrink_q9_to_q4(self.project)
         else:
-            # Modelo vacío o tipo coherente sin elementos: solo registrar.
             self.project.element_type = new_et
 
         self.project.is_modified = True
@@ -347,6 +303,10 @@ class ElementTypeDialog:
         self.dialog.update_idletasks()
         w = self.dialog.winfo_width()
         h = self.dialog.winfo_height()
+        sw = self.dialog.winfo_screenwidth()
+        sh = self.dialog.winfo_screenheight()
         x = self.parent.winfo_x() + (self.parent.winfo_width() - w) // 2
         y = self.parent.winfo_y() + (self.parent.winfo_height() - h) // 2
-        self.dialog.geometry(f"+{max(x, 0)}+{max(y, 0)}")
+        x = max(0, min(x, sw - w))
+        y = max(0, min(y, sh - h - 50))
+        self.dialog.geometry(f"+{x}+{y}")

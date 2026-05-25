@@ -34,7 +34,8 @@ from gui.dialogs.material_dialog import MaterialDialog
 from gui.dialogs.about_dialog import AboutDialog
 from gui.dialogs.element_type_dialog import ElementTypeDialog
 from gui.dialogs.analysis_type_dialog import AnalysisTypeDialog
-from gui.dialogs.units_gravity_dialog import UnitsGravityDialog
+from gui.dialogs.units_dialog import UnitsDialog
+from gui.dialogs.gravity_dialog import GravityDialog
 from gui.dialogs.dxf_import_dialog import DxfImportDialog
 
 
@@ -86,6 +87,26 @@ class MainWindow:
         self._refresh_menu_state()
         self.set_status("Bienvenido a EduFEM. Cree un nuevo proyecto o cargue el ejemplo.")
 
+        # ─── matplotlib mathtext con Computer Modern ────────────────────
+        # Configura rcParams para que mathtext renderice con las fuentes
+        # CM bundleadas en matplotlib. Reemplaza el pipeline pdflatex
+        # (lag 2-3s + dependencia MiKTeX) por render sincrono ~30-100ms
+        # con calidad documento equivalente. Llamar ANTES de cualquier
+        # widget para que el primer render ya use CM.
+        try:
+            from config.matplotlib_config import configure_latex_style, warmup_mathtext
+            configure_latex_style()
+            # Cold-start de matplotlib mathtext (font cache + parser init)
+            # tarda ~1s la primera vez. Ejecutar en background asi el
+            # primer modulo educativo abierto NO paga ese tiempo.
+            import threading
+            threading.Thread(
+                target=warmup_mathtext, name="EduFEM-MathtextWarmup",
+                daemon=True,
+            ).start()
+        except Exception:
+            pass
+
     # ═════════════════════════════════════════════════════════════════════
     # LAYOUT PRINCIPAL
     # ═════════════════════════════════════════════════════════════════════
@@ -128,6 +149,44 @@ class MainWindow:
         # ANTES de que existiera mesh_canvas.
         if hasattr(self.pre_tab, "_wire_canvas_callbacks"):
             self.pre_tab._wire_canvas_callbacks()
+
+        # Conectar paneles de modulos educativos (Pre/Proc/Post) al canvas
+        # para reaccionar a la seleccion (iluminacion + chip #N).
+        for tab in (self.pre_tab, self.proc_tab, self.post_tab):
+            if hasattr(tab, "wire_canvas"):
+                try:
+                    tab.wire_canvas()
+                except Exception:
+                    pass
+
+        # Fijar ancho inicial del panel lateral a 1/3 del ancho de pantalla.
+        # El `width=420` del left_panel es ignorado por Panedwindow al
+        # maximizar; sin `sashpos` el ratio weight=2:3 dejaria ~40% al
+        # panel izquierdo. Diferimos via `after` para que el Panedwindow
+        # ya este mapeado tras `state("zoomed")`.
+        self.root.after(150, self._set_initial_sash)
+
+    def _set_initial_sash(self):
+        """Fija la posicion del sash del Panedwindow en 1/3 del ancho de
+        la pantalla. Idempotente: si el Panedwindow aun no tiene ancho
+        real (el `state('zoomed')` puede tardar un par de ticks en
+        propagar el resize), reagenda."""
+        try:
+            self.main_paned.update_idletasks()
+            paned_width = self.main_paned.winfo_width()
+            # Si el Panedwindow aun no tiene tamano util, reagendar.
+            # `sashpos` con paned_width ≈ 1 resulta en sash en posicion 0,
+            # lo que se ve como "panel lateral nulo" al iniciar en blanco.
+            if paned_width < 100:
+                self.root.after(80, self._set_initial_sash)
+                return
+            x = max(320, self.root.winfo_screenwidth() // 3)
+            # Clampear al ancho real del Panedwindow para que el sash no
+            # quede fuera de rango (deja al menos 200 px al panel derecho).
+            x = min(x, paned_width - 200)
+            self.main_paned.sashpos(0, x)
+        except (tk.TclError, IndexError):
+            self.root.after(100, self._set_initial_sash)
 
     # ═════════════════════════════════════════════════════════════════════
     # BARRA DE MENU — 4 menús: Archivo, Modelo, Educación, Ayuda
@@ -214,22 +273,29 @@ class MainWindow:
         self._build_recent_menu()
 
         # ─── Menu Modelo ─────────────────────────────────────────────────
-        # Orden FEM: geometría (elemento) → cómo medimos (unidades) →
-        # de qué está hecho (material) → qué problema resolvemos (análisis).
-        # El tipo de análisis va al final porque la matriz D depende del
-        # material seleccionado (D = D(E, ν, caso plano)).
+        # Orden FEM (5 items): geometría (elemento) → cómo medimos (unidades)
+        # → de qué está hecho (material) → qué fuerzas volumétricas actúan
+        # (gravedad, depende de ρ) → qué problema resolvemos (análisis).
+        # Gravedad va DESPUÉS de Materiales porque la fuerza volumétrica
+        # F = ρ·g·V depende de la densidad — es una carga, no una unidad.
+        # Análisis va al final porque la matriz D depende del material
+        # seleccionado (D = D(E, ν, caso plano)).
         menu_modelo = tk.Menu(self.menubar, tearoff=0)
         menu_modelo.add_command(
             label="🔲  Tipo de Elemento…",
             command=self._open_element_type_dialog,
         )
         menu_modelo.add_command(
-            label="📏  Unidades y Gravedad…",
-            command=self._open_units_gravity_dialog,
+            label="📏  Unidades…",
+            command=self._open_units_dialog,
         )
         menu_modelo.add_command(
             label="🧱  Materiales…",
             command=self._on_material_properties,
+        )
+        menu_modelo.add_command(
+            label="🌍  Gravedad…",
+            command=self._open_gravity_dialog,
         )
         menu_modelo.add_command(
             label="🔬  Tipo de Análisis…",
@@ -247,21 +313,62 @@ class MainWindow:
             label="⌨  Atajos de Teclado", accelerator="Ctrl+/",
             command=self._on_shortcuts,
         )
+        # Hub de teoría MEF — antes vivía como botón "?" dentro de cada
+        # módulo educativo. Movido al menú principal (UX 2026): la teoría
+        # es transversal, no de un módulo específico.
+        menu_ayuda.add_command(
+            label="📘  Teoría MEF",
+            command=self._on_open_theory_hub,
+        )
         menu_ayuda.add_separator()
 
-        # Submenu con las dos variantes del ejemplo canónico (Q4 y Q9).
-        # Vive en Ayuda — los ejemplos son material didáctico, no archivos
-        # del usuario.
+        # Submenu con los tres casos de estudio del software, cada uno en
+        # variantes Q4 y Q9. Vive en Ayuda porque los ejemplos son material
+        # didactico, no archivos del usuario.
         example_menu = tk.Menu(menu_ayuda, tearoff=0)
-        example_menu.add_command(
+
+        # ─── Cuadrado de validación (4 elementos, ejemplo canónico) ────
+        canon_menu = tk.Menu(example_menu, tearoff=0)
+        canon_menu.add_command(
             label="Q4 — cuadrilátero bilineal",
             accelerator="Ctrl+E",
-            command=self._on_load_example,
+            command=lambda: self._on_load_example("canon_q4"),
         )
-        example_menu.add_command(
+        canon_menu.add_command(
             label="Q9 — cuadrilátero bicuadrático",
-            command=lambda: self._on_load_example(q9=True),
+            command=lambda: self._on_load_example("canon_q9"),
         )
+        example_menu.add_cascade(
+            label="Cuadrado de validación (4 elementos)", menu=canon_menu)
+
+        # ─── Viga de Timoshenko ───────────────────────────────────────
+        timoshenko_menu = tk.Menu(example_menu, tearoff=0)
+        timoshenko_menu.add_command(
+            label="Q4 — bilineal (esperado: shear-locking)",
+            command=lambda: self._on_load_example("timoshenko_q4"),
+        )
+        timoshenko_menu.add_command(
+            label="Q9 — bicuadrático (error < 0,3% vs analítico)",
+            command=lambda: self._on_load_example("timoshenko_q9"),
+        )
+        example_menu.add_cascade(
+            label="Viga de Timoshenko (simple apoyada)",
+            menu=timoshenko_menu)
+
+        # ─── Membrana de Cook (benchmark trapezoidal 1974) ────────────
+        cook_menu = tk.Menu(example_menu, tearoff=0)
+        cook_menu.add_command(
+            label="Q4 — bilineal (esperado: convergencia lenta)",
+            command=lambda: self._on_load_example("cook_q4"),
+        )
+        cook_menu.add_command(
+            label="Q9 — bicuadrático (converge a u_y ≈ 23,95)",
+            command=lambda: self._on_load_example("cook_q9"),
+        )
+        example_menu.add_cascade(
+            label="Membrana de Cook (benchmark histórico)",
+            menu=cook_menu)
+
         menu_ayuda.add_cascade(label="🧪  Cargar Ejemplo", menu=example_menu)
         menu_ayuda.add_separator()
 
@@ -296,6 +403,47 @@ class MainWindow:
         )
         # No pack inicial — se gestiona desde _update_ortho_indicator.
 
+        # Breadcrumb del pipeline FEM. Mini-tira de chips Ⓜ ① ② ③ ④ ⑤ ⑤' ⑥ ⑦ ⑨
+        # que se ilumina cuando hay un módulo overlay activo. Click en chip
+        # abre ese módulo manteniendo el elemento actual. Comparte conjunto
+        # de visitados con la sesión (no se persiste). Se autoinicializa
+        # invisible (pack_forget) hasta que se abra el primer overlay.
+        self._breadcrumb_visited: set = set()
+        self._breadcrumb_chips: dict = {}  # mod_key -> tk.Label
+        self._breadcrumb_frame = ttk.Frame(self.status_frame, bootstyle="dark")
+        for mod_key, label in (
+            ("mod00",  "Ⓜ"),
+            ("mod01",  "①"),
+            ("mod02",  "②"),
+            ("mod03",  "③"),
+            ("mod04",  "④"),
+            ("mod05",  "⑤"),
+            ("mod05b", "⑤′"),
+            ("mod06",  "⑥"),
+            ("mod07",  "⑦"),
+            ("mod09",  "⑨"),
+        ):
+            chip = tk.Label(
+                self._breadcrumb_frame, text=label,
+                fg="#555", bg="#1c1e22",
+                font=("Segoe UI", 10, "bold"), padx=6, pady=4,
+                cursor="hand2",
+            )
+            chip.pack(side=LEFT)
+            chip.bind(
+                "<Button-1>",
+                lambda _e, k=mod_key: self._on_breadcrumb_click(k),
+            )
+            self._breadcrumb_chips[mod_key] = chip
+        # No packear el frame inicialmente — aparece al abrir el primer overlay.
+
+        # Subscribirse a cambios de overlay activo para iluminar chips.
+        try:
+            from education.overlay_module import subscribe_overlay_change
+            subscribe_overlay_change(self._on_overlay_change)
+        except Exception:
+            pass
+
         self.info_label = ttk.Label(
             self.status_frame, text="",
             bootstyle="inverse-dark", font=("Segoe UI", 9), padding=(10, 4),
@@ -328,6 +476,49 @@ class MainWindow:
     def set_status(self, message):
         """Actualiza el mensaje de la barra de estado."""
         self.status_label.config(text=f"  {message}")
+
+    def _on_breadcrumb_click(self, mod_key: str) -> None:
+        """Click en un chip del breadcrumb: abre el módulo destino."""
+        try:
+            from education.module_launcher import open_module
+            open_module(
+                self, self.project, mod_key,
+                mesh_canvas=getattr(self, "mesh_canvas", None),
+                elem_id=None,
+            )
+        except Exception:
+            pass
+
+    def _on_overlay_change(self, main_window, active_mod_keys: set) -> None:
+        """Callback de `subscribe_overlay_change`: ilumina el chip del módulo
+        activo + marca todos los visitados acumulados.
+
+        Solo reacciona a eventos del propio `main_window`.
+        """
+        if main_window is not self:
+            return
+        if not hasattr(self, "_breadcrumb_chips"):
+            return
+        # Acumular visitados (no se "olvidan" al cerrar el módulo).
+        self._breadcrumb_visited.update(active_mod_keys)
+        # Mostrar / ocultar el frame: visible solo si hay actividad alguna
+        # (overlay abierto AHORA o módulo ya visitado en esta sesión).
+        has_any = bool(active_mod_keys) or bool(self._breadcrumb_visited)
+        try:
+            if has_any:
+                self._breadcrumb_frame.pack(side=LEFT, padx=(2, 4))
+            else:
+                self._breadcrumb_frame.pack_forget()
+        except tk.TclError:
+            return
+        # Pintar cada chip según estado.
+        for mod_key, chip in self._breadcrumb_chips.items():
+            if mod_key in active_mod_keys:
+                chip.configure(fg="#ffd54f")  # activo
+            elif mod_key in self._breadcrumb_visited:
+                chip.configure(fg="#ffffff")  # visitado
+            else:
+                chip.configure(fg="#555")     # no visitado
 
     def _update_status_info(self):
         """Actualiza la informacion del modelo en la barra de estado."""
@@ -496,11 +687,15 @@ class MainWindow:
         b("<Control-z>", lambda e: self._on_undo())
         b("<Control-y>", lambda e: self._on_redo())
         b("<Control-Shift-Z>", lambda e: self._on_redo())
-        # Ctrl+1..6 para módulos educativos M1..M6 (M3 = matriz D, opera
-        # por elemento porque depende del material asignado al elemento).
-        for i in range(1, 7):
+        # Ctrl+1..8 para módulos educativos en orden canónico FEM.
+        # Mapeo: Ctrl+1=mod01 ... Ctrl+5=mod05 (Gauss) ·
+        # Ctrl+6=mod05b (K_e acumulación, "5 prima") · Ctrl+7=mod06 (fuerzas)
+        # · Ctrl+8=mod07 (ensamblaje).
+        _kbd_map = ["mod01", "mod02", "mod03", "mod04",
+                     "mod05", "mod05b", "mod06", "mod07"]
+        for i, mod_key in enumerate(_kbd_map, start=1):
             key = f"<Control-Key-{i}>"
-            b(key, lambda e, idx=i: self._open_education_module(f"mod0{idx}"))
+            b(key, lambda e, mk=mod_key: self._open_education_module(mk))
         # Esc cascada global. Orden de prioridad:
         # 1) Modo dibujo (su handler ya gestiona puntos pendientes / salir)
         # 2) Cell editor abierto en spreadsheet (cierra el editor)
@@ -585,8 +780,16 @@ class MainWindow:
         except Exception as e:
             messagebox.showerror("Error", f"No se pudo abrir el proyecto:\n{e}")
 
-    def _on_load_example(self, q9: bool = False):
-        """Carga el ejemplo de prueba (9 nodos, 4 elementos) en Q4 o Q9."""
+    def _on_load_example(self, variant: str = "canon_q4"):
+        """Carga uno de los ejemplos didacticos del software.
+
+        Variantes soportadas (atajo Ctrl+E carga "canon_q4"):
+            "canon_q4" / "canon_q9" -- cuadrado de validacion (9 nodos, 4 elems)
+            "timoshenko_q4" / "timoshenko_q9" -- viga simple apoyada
+                                                 (docs/vyv/, comparable con
+                                                 docs/Timoshenko,sap2000.pdf)
+            "cook_q4" / "cook_q9" -- membrana trapezoidal de Cook (1974)
+        """
         if self.project.is_modified:
             resp = messagebox.askyesnocancel(
                 "Cargar Ejemplo", "Se perderán los datos actuales. ¿Guardar?"
@@ -596,14 +799,44 @@ class MainWindow:
             if resp:
                 self._on_save_project()
 
-        if q9:
+        # Despacho por variante: cada bloque importa el loader perezosamente
+        # y compone un mensaje informativo para la status bar.
+        if variant == "canon_q9":
             from tests.example_data import load_example_project_q9
             self.project = load_example_project_q9(P=1000.0)
             variant_msg = (
                 "Ejemplo Q9: 9 nodos vértices + medios + centroides, "
                 "4 elementos bicuadráticos, E=225000, ν=0.2, P=1000 N"
             )
-        else:
+        elif variant == "timoshenko_q4":
+            from tests.example_data import load_example_timoshenko_q4
+            self.project = load_example_timoshenko_q4()
+            variant_msg = (
+                "Viga Timoshenko Q4 (14×4): L=14 m, H=1,20 m, "
+                "E=217370 kgf/cm², q=5000 kgf/m. F5 para resolver."
+            )
+        elif variant == "timoshenko_q9":
+            from tests.example_data import load_example_timoshenko_q9
+            self.project = load_example_timoshenko_q9()
+            variant_msg = (
+                "Viga Timoshenko Q9 (14×4 macro): error < 0,3% vs analítico "
+                "para σ_x y δ_máx. Validada en docs/vyv/ con SAP2000."
+            )
+        elif variant == "cook_q4":
+            from tests.example_data import load_example_cook_q4
+            self.project = load_example_cook_q4()
+            variant_msg = (
+                "Membrana de Cook Q4 (8×8): u_y(48,52) esperado ~22,08 "
+                "(error -7,8% vs ref 23,95 — shear-locking parcial)."
+            )
+        elif variant == "cook_q9":
+            from tests.example_data import load_example_cook_q9
+            self.project = load_example_cook_q9()
+            variant_msg = (
+                "Membrana de Cook Q9 (8×8 macro): u_y(48,52) esperado ~23,93 "
+                "(error -0,10% vs ref 23,95)."
+            )
+        else:  # "canon_q4" o cualquier valor desconocido
             from tests.example_data import load_example_project
             self.project = load_example_project(P=1000.0)
             variant_msg = (
@@ -674,7 +907,13 @@ class MainWindow:
             messagebox.showerror("Error", f"No se pudo guardar:\n{e}")
 
     def _on_export_pdf(self):
-        """Exporta la Memoria de Cálculo (PDF) con los resultados del análisis."""
+        """Exporta la Memoria de Cálculo (PDF) — documento educativo paso
+        a paso del análisis FEM, con fórmulas LaTeX, matrices y diagramas.
+
+        Compila vía pylatex + pdflatex (requiere MiKTeX/TeX Live instalado).
+        La compilación corre en un hilo aparte para no congelar la GUI;
+        un diálogo de progreso indeterminado acompaña al usuario.
+        """
         if not self.project.is_solved:
             messagebox.showwarning(
                 "Aviso",
@@ -694,30 +933,76 @@ class MainWindow:
         if not filepath:
             return
 
+        from file_io.memoria_calculo import (
+            generate_memoria_calculo, MemoriaCalculoError,
+        )
+        from fem.stress import compute_all_stresses
+
+        solution = self.post_tab.solution
+        nodal_stresses = self.post_tab.nodal_stresses
         try:
-            import importlib
-            pdf_module = importlib.import_module("file_io.pdf_report")
-            generate_pdf_report = pdf_module.generate_pdf_report
+            element_stresses, _ = compute_all_stresses(self.project, solution)
+        except Exception:
+            element_stresses = None
 
-            solution = self.post_tab.solution
-            nodal_stresses = self.post_tab.nodal_stresses
+        # Dialog de progreso (no bloqueante para la GUI; el thread worker
+        # llama root.after(0, ...) para actualizarlo desde el otro hilo).
+        progress = _PDFProgressDialog(self.root)
 
-            generate_pdf_report(
-                self.project, solution, nodal_stresses,
-                filepath, contour_figure=None,
-            )
+        # Estado del worker (escrito desde el thread, leido desde el main).
+        result_state = {"path": None, "error": None}
 
+        def _on_progress(stage: str, pct: float) -> None:
+            self.root.after(0, progress.update_stage, stage, pct)
+
+        def _worker():
+            try:
+                path = generate_memoria_calculo(
+                    self.project, solution, element_stresses, nodal_stresses,
+                    filepath, progress_callback=_on_progress,
+                )
+                result_state["path"] = path
+            except Exception as e:
+                result_state["error"] = e
+            finally:
+                self.root.after(0, _on_done)
+
+        def _on_done():
+            try:
+                progress.close()
+            except Exception:
+                pass
+            err = result_state["error"]
+            path = result_state["path"]
+            if err is not None:
+                messagebox.showerror(
+                    "Error",
+                    f"Error al generar la Memoria de Cálculo:\n{err}"
+                )
+                return
+            if path is None:
+                messagebox.showerror(
+                    "Error",
+                    "La generación terminó sin producir archivo."
+                )
+                return
             self.set_status(
-                f"Memoria de Cálculo exportada: {os.path.basename(filepath)}"
+                f"Memoria de Cálculo exportada: {os.path.basename(path)}"
             )
-            messagebox.showinfo(
-                "Memoria de Cálculo exportada",
-                f"Documento guardado exitosamente en:\n{filepath}",
-            )
-        except Exception as e:
-            messagebox.showerror(
-                "Error", f"Error al generar la Memoria de Cálculo:\n{e}"
-            )
+            try:
+                respuesta = messagebox.askyesno(
+                    "Memoria de Cálculo exportada",
+                    f"Documento guardado exitosamente en:\n{path}\n\n"
+                    f"¿Abrir el PDF ahora?",
+                )
+                if respuesta:
+                    os.startfile(path)
+            except Exception:
+                pass
+
+        import threading
+        thread = threading.Thread(target=_worker, daemon=True)
+        thread.start()
 
     def _on_export_model(self):
         """Exporta TODO el modelo (nodos, elementos, materiales, cargas, BCs)
@@ -942,7 +1227,8 @@ class MainWindow:
             pass
 
     # ═════════════════════════════════════════════════════════════════════
-    # HANDLERS — MODELO (3 diálogos pop-up autónomos)
+    # HANDLERS — MODELO (5 diálogos pop-up autónomos en orden FEM:
+    # elemento → unidades → materiales → gravedad → análisis)
     # ═════════════════════════════════════════════════════════════════════
 
     def _open_element_type_dialog(self):
@@ -951,8 +1237,11 @@ class MainWindow:
     def _open_analysis_type_dialog(self):
         AnalysisTypeDialog(self.root, self.project, self)
 
-    def _open_units_gravity_dialog(self):
-        UnitsGravityDialog(self.root, self.project, self)
+    def _open_units_dialog(self):
+        UnitsDialog(self.root, self.project, self)
+
+    def _open_gravity_dialog(self):
+        GravityDialog(self.root, self.project, self)
 
     def _on_material_properties(self):
         MaterialDialog(self.root, self.project, self)
@@ -972,6 +1261,17 @@ class MainWindow:
             mod_key=mod_key,
             mesh_canvas=self.mesh_canvas,
         )
+
+    def _on_open_theory_hub(self):
+        """Abre el hub de teoría FEM (Ayuda ▸ Teoría FEM).
+
+        Reemplaza al botón '?' que cada módulo educativo tenía en su
+        header. La teoría es transversal a los módulos y vive en un
+        único documento navegable accesible desde cualquier parte del
+        flujo, no solo cuando un módulo está abierto.
+        """
+        from gui.dialogs.theory_hub_dialog import open_theory_hub
+        open_theory_hub(self.root)
 
     # ═════════════════════════════════════════════════════════════════════
     # HANDLERS — VISTA / ANALISIS
@@ -1049,9 +1349,10 @@ class MainWindow:
         1) Si el foco esta en un Entry/Combobox -> el widget maneja su
            Esc (cell editor, draw entry, dialogos). No interferimos.
         2) Si modo dibujo activo -> su handler (cancela puntos o desactiva)
-        3) Si hay seleccion en canvas -> limpiarla (asi desaparecen las
+        3) Si modo consulta (probe) activo con pines -> limpiar pines
+        4) Si hay seleccion en canvas -> limpiarla (asi desaparecen las
            filas fantasma de las sub-pestañas)
-        4) Sino -> no pasa nada
+        5) Sino -> no pasa nada
         """
         # 1) Si hay un Entry/Combobox enfocado, dejarlo manejar su Esc.
         if self._is_entry_focused():
@@ -1063,7 +1364,18 @@ class MainWindow:
                 return
         except Exception:
             pass
-        # 3) Selecciones en canvas (limpia tambien las filas fantasma
+        # 3) Consulta interactiva: si hay pines, limpiarlos. Si no hay
+        # pines pero el modo esta activo, dejar que la cascada siga (el
+        # usuario puede querer limpiar tambien una seleccion residual).
+        try:
+            probe = getattr(self.post_tab, "probe_overlay", None)
+            if probe is not None and probe.active and probe.has_pinned():
+                probe.clear_pinned()
+                self.set_status("Probes limpiadas")
+                return
+        except Exception:
+            pass
+        # 4) Selecciones en canvas (limpia tambien las filas fantasma
         # via callback on_selection_changed)
         try:
             sel = self.mesh_canvas.get_selection()
@@ -1121,12 +1433,14 @@ class MainWindow:
             "Análisis\n"
             "  F5               Resolver modelo\n\n"
             "Educación\n"
-            "  Ctrl+1           M1 · Mapeo Isoparamétrico\n"
-            "  Ctrl+2           M2 · Matriz B\n"
+            "  Ctrl+1           M1 · Mapeo iso + funciones N\n"
+            "  Ctrl+2           M2 · Jacobiano det J\n"
             "  Ctrl+3           M3 · Matriz Constitutiva D\n"
-            "  Ctrl+4           M4 · Rigidez + Gauss\n"
-            "  Ctrl+5           M5 · Ensamblaje\n"
-            "  Ctrl+6           M6 · Fuerzas Equivalentes\n\n"
+            "  Ctrl+4           M4 · Matriz B\n"
+            "  Ctrl+5           M5 · Matriz K_e (rigidez analítica)\n"
+            "  Ctrl+6           M5' · Cuadratura de Gauss\n"
+            "  Ctrl+7           M6 · Fuerzas Equivalentes\n"
+            "  Ctrl+8           M7 · Ensamblaje K, F + BCs\n\n"
             "Vista\n"
             "  F                Ajustar Vista\n"
             "  F11              Pantalla Completa\n"
@@ -1167,18 +1481,27 @@ class MainWindow:
         if tab_index == 0:
             # Volver a Pre-Proceso: el canvas debe mostrar solo geometria,
             # no la deformada / mapa de colores / isolineas que dejo Post.
+            # Tambien desactivar el probe overlay y las vistas avanzadas
+            # (cruces principales + 3D) cuyos bindings/vistas no tienen
+            # sentido fuera de Post.
+            self.post_tab.deactivate_probe_overlay()
+            self.post_tab.deactivate_advanced_views()
             self.mesh_canvas.clear_results_overlay()
             self.pre_tab.refresh()
         elif tab_index == 1:
             # Modo dibujo no tiene sentido fuera de Pre-Proceso.
             if self.mesh_canvas.is_draw_mode_active():
                 self.mesh_canvas.disable_draw_mode()
+            self.post_tab.deactivate_probe_overlay()
+            self.post_tab.deactivate_advanced_views()
             self.mesh_canvas.clear_results_overlay()
             self.proc_tab.refresh()
         elif tab_index == 2:
             if self.mesh_canvas.is_draw_mode_active():
                 self.mesh_canvas.disable_draw_mode()
             self.post_tab.auto_solve()
+            # Reactivar probe si el usuario lo dejo ON en una visita previa
+            self.post_tab.maybe_reactivate_probe_overlay()
 
         self.mesh_canvas.redraw()
         self._refresh_menu_state()
@@ -1198,3 +1521,83 @@ class MainWindow:
         """Inicia el bucle principal de la aplicacion."""
         self.root.protocol("WM_DELETE_WINDOW", self._on_exit)
         self.root.mainloop()
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# Dialogo de progreso para la compilacion del PDF (Memoria de Calculo).
+# ═════════════════════════════════════════════════════════════════════════
+
+class _PDFProgressDialog:
+    """Toplevel minimalista con label + Progressbar indeterminado.
+
+    Pensado para acompañar la compilacion de la Memoria de Calculo (que
+    corre en un thread aparte). El thread llama `update_stage` via
+    `main_window.after(0, ...)` para evitar tocar Tk desde otro hilo.
+
+    No es modal con grab_set: la GUI sigue interactiva, pero el dialog
+    queda topmost y subordinado a la ventana padre.
+    """
+
+    def __init__(self, parent):
+        self._parent = parent
+        try:
+            self.top = tk.Toplevel(parent)
+            self.top.title("Generando Memoria de Cálculo")
+            self.top.transient(parent)
+            self.top.resizable(False, False)
+            # No grab_set — el usuario puede seguir mirando la GUI.
+            frame = ttk.Frame(self.top, padding=16)
+            frame.pack(fill=BOTH, expand=YES)
+            self._lbl = ttk.Label(
+                frame,
+                text="Inicializando…",
+                font=("Segoe UI", 10),
+            )
+            self._lbl.pack(anchor="w", pady=(0, 8))
+            self._bar = ttk.Progressbar(
+                frame, mode="indeterminate", length=320,
+                bootstyle="info",
+            )
+            self._bar.pack(fill="x")
+            self._bar.start(12)
+            # Centrar respecto al padre.
+            self.top.update_idletasks()
+            try:
+                px = parent.winfo_rootx()
+                py = parent.winfo_rooty()
+                pw = parent.winfo_width()
+                ph = parent.winfo_height()
+                w = self.top.winfo_width()
+                h = self.top.winfo_height()
+                x = px + (pw - w) // 2
+                y = py + (ph - h) // 2
+                self.top.geometry(f"+{x}+{y}")
+            except Exception:
+                pass
+            # Bloquear cierre con la X (hasta que termine).
+            self.top.protocol("WM_DELETE_WINDOW", lambda: None)
+        except Exception:
+            self.top = None
+            self._lbl = None
+            self._bar = None
+
+    def update_stage(self, stage: str, pct: float) -> None:
+        if self._lbl is None:
+            return
+        try:
+            self._lbl.config(text=stage)
+        except Exception:
+            pass
+
+    def close(self) -> None:
+        if self.top is None:
+            return
+        try:
+            self._bar.stop()
+        except Exception:
+            pass
+        try:
+            self.top.destroy()
+        except Exception:
+            pass
+        self.top = None

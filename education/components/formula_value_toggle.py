@@ -41,9 +41,14 @@ import ttkbootstrap as ttk
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
+from config.settings import EDU_FG, OVERLAY_BG
 
-_TOGGLE_BG_DARK = "#222233"
-_TOGGLE_FG_FALLBACK = "#dcdcdc"
+
+# Bg del toggle alineado con el OVERLAY_BG (=ttk darkly TFrame bg).
+# Antes era EDU_AXES_BG = #2c2c2c, producia rectangulo visible sobre
+# el OVERLAY_BG = #222222. Cambio en 2026-05.
+_TOGGLE_BG_DARK = OVERLAY_BG
+_TOGGLE_FG_FALLBACK = EDU_FG
 
 
 class FormulaValueToggle(ttk.Frame):

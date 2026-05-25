@@ -7,6 +7,8 @@ La operación inversa `shrink_q9_to_q4` trunca cada elemento Q9 a sus 4 vértice
 y elimina los nodos medios/centroides que queden huérfanos (sin cargas ni BCs).
 """
 
+import numpy as np
+
 from config.settings import ELEMENT_Q4, ELEMENT_Q9, NUMERICAL_TOLERANCE
 
 
@@ -384,6 +386,145 @@ def recompute_q9_midnodes(project, elem):
         project.is_solved = False
 
     return touched
+
+
+def generate_structured_quad_mesh(corners, nx, ny, *,
+                                  element_type=ELEMENT_Q4,
+                                  material_name=None,
+                                  thickness=1.0,
+                                  analysis_type=None):
+    """Genera una malla estructurada de nx*ny elementos sobre el
+    cuadrilatero definido por `corners` (4 vertices en CCW).
+
+    Mapeo bilineal del cuadrado logico (s,t) in [0,1]^2 al cuadrilatero
+    fisico usando las 4 funciones de forma Q4. Admite cuadrilateros
+    generales (no solo rectangulos) -- usado para el dominio trapezoidal
+    de la membrana de Cook.
+
+    Si element_type == ELEMENT_Q9, tras generar los Q4 se llama
+    `expand_q4_to_q9` para producir los mid/center nodes.
+
+    Parametros:
+        corners: lista de 4 (x, y) en CCW. Idealmente desde la esquina
+            inferior-izquierda, pero el mapeo bilineal es invariante a
+            rotaciones del orden de los corners (siempre se mapea
+            corners[0] a (s=0,t=0), corners[1] a (1,0), corners[2] a (1,1),
+            corners[3] a (0,1)).
+        nx, ny: numero de elementos en cada direccion logica.
+        element_type: ELEMENT_Q4 o ELEMENT_Q9.
+        material_name: nombre del material a asignar a cada elemento.
+            Si es None, se usa el primero de la libreria default.
+        thickness: espesor por elemento.
+        analysis_type: tipo de analisis. Si es None, usa el default del
+            modelo.
+
+    Retorna:
+        project: ProjectModel con la malla generada.
+    """
+    from models.project import ProjectModel
+
+    if len(corners) != 4:
+        raise ValueError("Se requieren exactamente 4 esquinas.")
+    if nx < 1 or ny < 1:
+        raise ValueError("nx y ny deben ser >= 1.")
+
+    project = ProjectModel()
+    project.element_type = ELEMENT_Q4
+    project.default_thickness = float(thickness)
+    if analysis_type is not None:
+        project.analysis_type = analysis_type
+
+    if material_name is None:
+        material_name = list(project.materials.keys())[0]
+    elif material_name not in project.materials:
+        # Crear material con defaults para que add_element no falle.
+        from models.material import Material
+        project.materials[material_name] = Material(name=material_name)
+
+    # Bilinear mapping desde el cuadrado [0,1]^2 al cuadrilatero fisico.
+    # P(s,t) = (1-s)(1-t)*c0 + s(1-t)*c1 + s*t*c2 + (1-s)t*c3
+    c0, c1, c2, c3 = [np.asarray(c, dtype=float) for c in corners]
+
+    def map_st(s, t):
+        return ((1 - s) * (1 - t) * c0
+                + s * (1 - t) * c1
+                + s * t * c2
+                + (1 - s) * t * c3)
+
+    # Crear nodos en orden row-major (i = columna s, j = fila t)
+    node_grid = {}  # (i, j) -> node_id
+    for j in range(ny + 1):
+        t = j / ny
+        for i in range(nx + 1):
+            s = i / nx
+            xy = map_st(s, t)
+            node = project.add_node(float(xy[0]), float(xy[1]))
+            node_grid[(i, j)] = node.id
+
+    # Crear elementos Q4 con conectividad CCW
+    for j in range(ny):
+        for i in range(nx):
+            n_sw = node_grid[(i,     j)]
+            n_se = node_grid[(i + 1, j)]
+            n_ne = node_grid[(i + 1, j + 1)]
+            n_nw = node_grid[(i,     j + 1)]
+            project.add_element(
+                node_ids=[n_sw, n_se, n_ne, n_nw],
+                thickness=thickness,
+                material_name=material_name,
+            )
+
+    if element_type == ELEMENT_Q9:
+        expand_q4_to_q9(project)
+
+    project.is_modified = False  # malla recien generada, no "modificada por usuario"
+    return project
+
+
+def boundary_node_ids(project, edge, *, tol=None):
+    """Lista de node_ids ordenada que cae sobre la arista `edge` del
+    bounding box del modelo. Util para fijar BCs en mallas estructuradas
+    sin hardcodear IDs.
+
+    edge: una de "left", "right", "top", "bottom".
+    tol: tolerancia geometrica. Por defecto 1e-9 * extent del modelo.
+
+    Para Q9 incluye los mid-nodes de las aristas exteriores (estan en
+    el borde geometrico).
+    """
+    if edge not in ("left", "right", "top", "bottom"):
+        raise ValueError(f"edge debe ser left/right/top/bottom, no {edge!r}")
+    if not project.nodes:
+        return []
+
+    xs = [n.x for n in project.nodes.values()]
+    ys = [n.y for n in project.nodes.values()]
+    x_min, x_max = min(xs), max(xs)
+    y_min, y_max = min(ys), max(ys)
+    extent = max(x_max - x_min, y_max - y_min, 1.0)
+    if tol is None:
+        tol = 1e-9 * extent
+
+    if edge == "left":
+        target = x_min
+        match = lambda n: abs(n.x - target) <= tol
+        key = lambda n: n.y
+    elif edge == "right":
+        target = x_max
+        match = lambda n: abs(n.x - target) <= tol
+        key = lambda n: n.y
+    elif edge == "bottom":
+        target = y_min
+        match = lambda n: abs(n.y - target) <= tol
+        key = lambda n: n.x
+    else:  # top
+        target = y_max
+        match = lambda n: abs(n.y - target) <= tol
+        key = lambda n: n.x
+
+    matching = [(key(n), nid) for nid, n in project.nodes.items() if match(n)]
+    matching.sort()
+    return [nid for _, nid in matching]
 
 
 def find_edge_midnode(elem, node_start, node_end):

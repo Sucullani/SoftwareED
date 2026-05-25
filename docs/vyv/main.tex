@@ -1,0 +1,48 @@
+% Documento standalone para compilar el capitulo de Verificacion y Validacion
+% (V&V) de EduFEM en formato Vancouver (numerico secuencial).
+%
+% Build:
+%   pdflatex main.tex
+%   biber main
+%   pdflatex main.tex
+%   pdflatex main.tex
+%
+% Asume MiKTeX o TeX Live con biber.
+
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish]{babel}
+\usepackage[a4paper,margin=2.5cm]{geometry}
+
+\usepackage{amsmath, amssymb, mathtools}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{siunitx}
+\sisetup{output-decimal-marker={,}, group-separator={\,}}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{float}
+\usepackage{xcolor}
+\usepackage{csquotes}
+
+\usepackage[backend=biber, style=numeric-comp, sorting=none]{biblatex}
+\addbibresource{referencias.bib}
+
+\usepackage[colorlinks=true, linkcolor=black, citecolor=blue!50!black,
+            urlcolor=blue!50!black]{hyperref}
+
+\title{Verificación y Validación del software EduFEM}
+\author{}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\input{capitulo_vyv}
+
+\printbibliography[heading=bibnumbered, title={Referencias bibliográficas}]
+
+\end{document}

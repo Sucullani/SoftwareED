@@ -122,18 +122,46 @@ class MeshCanvas(ttk.Frame):
         # quita en cleanup. Aisla la logica didactica (glow Gauss, cruces
         # principales, particle rain) sin contaminar el core del canvas.
         self._overlay_layers = []
+        # ─── Click consumers (modulos educativos) ──────────────────────
+        # Lista de callables (event) -> bool. Se invocan al INICIO de
+        # _on_click, en orden de registro. Si alguno retorna True, el
+        # hit-test estandar del canvas se OMITE — el consumer ya manejo
+        # el click (ej. snap a punto Gauss, inicio de drag de nodo).
+        # Patron uniforme para todos los modulos overlay con interaccion
+        # de click: evita que select_element() dispare "second-click
+        # deselects" cuando el alumno clickea sobre un Gauss del
+        # elemento ya seleccionado por el modulo.
+        self._click_consumers = []
         # Callback opcional: callable(elem_id|None) — notifica cuando el
         # cursor pasa sobre un elemento distinto. Lo usa M0 para mostrar el
         # radar flotante anclado al cursor.
         self.on_hover_element = None
         self._hover_elem_id = None
 
+        # Modo "consulta interactiva" del Post-Proceso. Cuando esta activo,
+        # gui/postprocessing/probe_overlay.py bindea sus propios handlers
+        # con add="+"; el _on_click hace early-return para no crear
+        # selecciones (el patron es espejo de draw_mode_active).
+        self.probe_mode_active = False
+
+        # Modo de contorno CRUDO (esfuerzos discontinuos entre elementos).
+        # Cuando `element_result_grid` no es None, el render del filled
+        # gradient usa estos valores per-element pre-computados en lugar
+        # de `result_values` (nodal promediado). Materializa visualmente
+        # la naturaleza C0 del MEF Galerkin: ε = ∂u/∂x salta en bordes,
+        # asi que σ tambien.
+        # Formato: {elem_id: ndarray(n+1, n+1)} donde grid[i,j] es el
+        # valor en (xi=-1+2i/n, eta=-1+2j/n) ya evaluado con
+        # σ = D·B(ξ,η)·u_e (no es interpolacion lineal -- es el campo
+        # real del MEF). post_tab._compute_raw_grid lo arma.
+        self.element_result_grid = None
+
         # ─── Toolbar ────────────────────────────────────────────────────
         toolbar = ttk.Frame(self)
         toolbar.pack(fill=X, padx=2, pady=(2, 0))
 
         ttk.Label(
-            toolbar, text="  Modelo FEM",
+            toolbar, text="  Modelo MEF",
             font=("Segoe UI", 10, "bold")
         ).pack(side=LEFT, padx=3)
 
@@ -254,10 +282,12 @@ class MeshCanvas(ttk.Frame):
             return 0, 0
         x, y = node.x, node.y
         if self.show_deformed and self.displacements is not None:
-            idx = 2 * (nid - 1)
-            if idx + 1 < len(self.displacements):
-                x += self.deform_scale * self.displacements[idx]
-                y += self.deform_scale * self.displacements[idx + 1]
+            ord_idx = self.project.node_index_map.get(nid)
+            if ord_idx is not None:
+                idx = 2 * ord_idx
+                if idx + 1 < len(self.displacements):
+                    x += self.deform_scale * self.displacements[idx]
+                    y += self.deform_scale * self.displacements[idx + 1]
         return self.world_to_screen(x, y)
 
     def _get_node_world_deformed(self, nid):
@@ -267,10 +297,12 @@ class MeshCanvas(ttk.Frame):
             return 0, 0
         x, y = node.x, node.y
         if self.show_deformed and self.displacements is not None:
-            idx = 2 * (nid - 1)
-            if idx + 1 < len(self.displacements):
-                x += self.deform_scale * self.displacements[idx]
-                y += self.deform_scale * self.displacements[idx + 1]
+            ord_idx = self.project.node_index_map.get(nid)
+            if ord_idx is not None:
+                idx = 2 * ord_idx
+                if idx + 1 < len(self.displacements):
+                    x += self.deform_scale * self.displacements[idx]
+                    y += self.deform_scale * self.displacements[idx + 1]
         return x, y
 
     # ═════════════════════════════════════════════════════════════════════
@@ -285,8 +317,10 @@ class MeshCanvas(ttk.Frame):
         if self.show_deformed and self.displacements is not None:
             self._draw_original_mesh_ghost()
 
-        # Gradiente suave de resultados (debajo de aristas)
-        if self.result_values:
+        # Gradiente suave de resultados (debajo de aristas).
+        # Acepta ambos modos: nodal promediado (suavizado) o per-element
+        # (crudo, con saltos en bordes — naturaleza C0 del MEF Galerkin).
+        if self.result_values or self.element_result_grid:
             self._draw_gradient_elements()
 
         self._draw_elements()
@@ -303,7 +337,10 @@ class MeshCanvas(ttk.Frame):
 
         self._draw_highlight()
 
-        if self.result_values:
+        # Colorbar e isolineas: ambos modos los soportan (nodal o per-element).
+        # El _draw_colorbar consume result_vmin/result_vmax/result_label que
+        # ambos setters dejan correctamente configurados.
+        if self.result_values or self.element_result_grid:
             if self.show_isolines:
                 self._draw_isolines()
             self._draw_colorbar()
@@ -409,8 +446,71 @@ class MeshCanvas(ttk.Frame):
         r[m4] = 1.0; g[m4] = 1.0 - (t[m4] - 0.75) / 0.25
         return r, g, b
 
+    def _get_grid_values(self, elem, n):
+        """Devuelve una grilla (n+1, n+1) de valores en (xi, eta) para el
+        render del gradient, segun el modo activo:
+
+          - element_result_grid (modo CRUDO): grilla pre-computada por
+            post_tab usando compute_raw en cada punto. Para invariantes
+            (VM, σ1, σ2) interpola componentes y los compone POR PUNTO --
+            unica forma fisicamente correcta de visualizar funciones no
+            lineales del tensor de esfuerzos.
+
+          - result_values (modo SUAVIZADO o U): valores nodales unicos.
+            Se interpola bilinealmente con las 4 shape functions Q4.
+
+        Retorna (grid_array_shape_n+1xn+1, ok) o (None, False).
+        """
+        nids = elem.node_ids[:4]
+        # Modo CRUDO: la grilla ya viene pre-computada. Si el tamaño no
+        # coincide con `n` del render hacemos resample por nearest -- caso
+        # raro, normalmente post_tab pasa el mismo n que usa el canvas.
+        if self.element_result_grid is not None:
+            grid = self.element_result_grid.get(elem.id)
+            if grid is None:
+                return None, False
+            if grid.shape == (n + 1, n + 1):
+                return grid, True
+            # Resample tosco si el tamaño difiere (no deberia pasar)
+            from numpy import linspace
+            gn = grid.shape[0] - 1
+            out = np.zeros((n + 1, n + 1))
+            for i in range(n + 1):
+                for j in range(n + 1):
+                    gi = int(round(i * gn / n))
+                    gj = int(round(j * gn / n))
+                    out[i, j] = grid[gi, gj]
+            return out, True
+        # Modo SUAVIZADO: interpolacion bilineal de los 4 valores nodales
+        # promediados. EXACTO para componentes lineales (Sx, Sy, Txy en
+        # Q4 alineado, Ux, Uy en cualquier Q4); aproximacion razonable
+        # para invariantes (VM, σ1, σ2) porque el campo suavizado ya
+        # absorbio las no-linealidades en el promedio nodal.
+        if self.result_values is not None:
+            if not all(nid in self.project.nodes
+                       and nid in self.result_values for nid in nids):
+                return None, False
+            nv = [float(self.result_values[nid]) for nid in nids]
+            grid = np.zeros((n + 1, n + 1))
+            xs = np.linspace(-1.0, 1.0, n + 1)
+            for i, xi in enumerate(xs):
+                for j, eta in enumerate(xs):
+                    N0 = (1 - xi) * (1 - eta) * 0.25
+                    N1 = (1 + xi) * (1 - eta) * 0.25
+                    N2 = (1 + xi) * (1 + eta) * 0.25
+                    N3 = (1 - xi) * (1 + eta) * 0.25
+                    grid[i, j] = N0*nv[0] + N1*nv[1] + N2*nv[2] + N3*nv[3]
+            return grid, True
+        return None, False
+
     def _draw_gradient_elements(self):
-        """Gradiente Gouraud: subdivision + rasterizacion de triangulos con PIL."""
+        """Gradiente Gouraud: subdivision + rasterizacion de triangulos con PIL.
+
+        Itera por elemento, genera grilla 7x7 de (sx, sy, val), subdivide en
+        2 triangulos por celda y los rasteriza con interpolacion baricentrica.
+        Los `val` provienen de _get_grid_values (modo crudo: pre-computado
+        con compute_raw real; modo suavizado: bilineal de corners nodales).
+        """
         if not HAS_PIL:
             self._draw_gradient_polygons()
             return
@@ -425,32 +525,34 @@ class MeshCanvas(ttk.Frame):
 
         for elem in self.project.elements.values():
             nids = elem.node_ids[:4]
-            if not all(nid in self.project.nodes and nid in self.result_values
-                       for nid in nids):
+            if not all(nid in self.project.nodes for nid in nids):
+                continue
+            grid, ok = self._get_grid_values(elem, n)
+            if not ok:
                 continue
 
             nc = []
-            nv = []
             for nid in nids:
                 x, y = self._get_node_world_deformed(nid)
                 nc.append((x, y))
-                nv.append(self.result_values[nid])
 
-            # Generar grilla de puntos en coords naturales
+            # Generar grilla de puntos en coords pantalla; el valor sale
+            # de `grid[i, j]` (ya en el campo correcto).
             pts_grid = {}  # (i,j) -> (sx, sy, val)
             for i in range(n + 1):
                 xi = -1 + 2 * i / n
                 for j in range(n + 1):
                     eta = -1 + 2 * j / n
-                    N = [(1 - xi) * (1 - eta) / 4,
-                         (1 + xi) * (1 - eta) / 4,
-                         (1 + xi) * (1 + eta) / 4,
-                         (1 - xi) * (1 + eta) / 4]
-                    wx = sum(N[k] * nc[k][0] for k in range(4))
-                    wy = sum(N[k] * nc[k][1] for k in range(4))
-                    val = sum(N[k] * nv[k] for k in range(4))
+                    N0 = (1 - xi) * (1 - eta) * 0.25
+                    N1 = (1 + xi) * (1 - eta) * 0.25
+                    N2 = (1 + xi) * (1 + eta) * 0.25
+                    N3 = (1 - xi) * (1 + eta) * 0.25
+                    wx = (N0*nc[0][0] + N1*nc[1][0]
+                          + N2*nc[2][0] + N3*nc[3][0])
+                    wy = (N0*nc[0][1] + N1*nc[1][1]
+                          + N2*nc[2][1] + N3*nc[3][1])
                     sx, sy = self.world_to_screen(wx, wy)
-                    pts_grid[(i, j)] = (sx, sy, val)
+                    pts_grid[(i, j)] = (sx, sy, float(grid[i, j]))
 
             # Subdividir en triangulos y rasterizar cada uno
             for i in range(n):
@@ -524,19 +626,24 @@ class MeshCanvas(ttk.Frame):
         img[iy, ix, 3] = 255
 
     def _draw_gradient_polygons(self):
-        """Fallback: gradiente con sub-poligonos si PIL no esta disponible."""
+        """Fallback: gradiente con sub-poligonos si PIL no esta disponible.
+
+        Consume la misma grilla (n+1, n+1) que `_draw_gradient_elements`
+        para que el modo crudo (con valores ya pre-computados) y el
+        suavizado se vean coherentes incluso sin PIL.
+        """
         n = 10
         for elem in self.project.elements.values():
             nids = elem.node_ids[:4]
-            if not all(nid in self.project.nodes and nid in self.result_values
-                       for nid in nids):
+            if not all(nid in self.project.nodes for nid in nids):
+                continue
+            grid, ok = self._get_grid_values(elem, n)
+            if not ok:
                 continue
             nc = []
-            nv = []
             for nid in nids:
                 x, y = self._get_node_world_deformed(nid)
                 nc.append((x, y))
-                nv.append(self.result_values[nid])
             for i in range(n):
                 xi0 = -1 + 2 * i / n
                 xi1 = -1 + 2 * (i + 1) / n
@@ -545,16 +652,20 @@ class MeshCanvas(ttk.Frame):
                     eta1 = -1 + 2 * (j + 1) / n
                     corners = [(xi0, eta0), (xi1, eta0),
                                (xi1, eta1), (xi0, eta1)]
+                    # Indices del corner en la grilla (i, j) (i+1, j) etc.
+                    corner_idx = [(i, j), (i + 1, j),
+                                  (i + 1, j + 1), (i, j + 1)]
                     pts = []
                     val_sum = 0.0
-                    for xi, eta in corners:
+                    for k, (xi, eta) in enumerate(corners):
                         N = [(1 - xi) * (1 - eta) / 4,
                              (1 + xi) * (1 - eta) / 4,
                              (1 + xi) * (1 + eta) / 4,
                              (1 - xi) * (1 + eta) / 4]
-                        x = sum(N[k] * nc[k][0] for k in range(4))
-                        y = sum(N[k] * nc[k][1] for k in range(4))
-                        v = sum(N[k] * nv[k] for k in range(4))
+                        x = sum(N[m] * nc[m][0] for m in range(4))
+                        y = sum(N[m] * nc[m][1] for m in range(4))
+                        gi, gj = corner_idx[k]
+                        v = float(grid[gi, gj])
                         sx, sy = self.world_to_screen(x, y)
                         pts.extend([sx, sy])
                         val_sum += v
@@ -566,8 +677,14 @@ class MeshCanvas(ttk.Frame):
     # ═════════════════════════════════════════════════════════════════════
 
     def _draw_isolines(self):
-        """Dibuja curvas de nivel usando marching squares por elemento."""
-        if not self.result_values:
+        """Dibuja curvas de nivel usando marching squares por elemento.
+
+        En modo CRUDO (element_result_grid activo) las isolineas pueden
+        saltar entre elementos vecinos -- es coherente con la naturaleza
+        discontinua del campo. Cada elemento se evalua localmente con su
+        propia grilla pre-computada.
+        """
+        if not (self.result_values or self.element_result_grid):
             return
 
         n_levels = self.isoline_count
@@ -585,18 +702,21 @@ class MeshCanvas(ttk.Frame):
         n_grid = 16
         for elem in self.project.elements.values():
             nids = elem.node_ids[:4]
-            if not all(nid in self.project.nodes and nid in self.result_values
-                       for nid in nids):
+            if not all(nid in self.project.nodes for nid in nids):
                 continue
-
+            # Grilla de valores (n_grid x n_grid). En suavizado se interpola
+            # bilineal desde los 4 nodos; en crudo, se resamplea desde la
+            # grilla pre-computada por compute_raw_grid (nativa 7x7).
+            grid_vals, ok = self._get_grid_values(elem, n_grid - 1)
+            if not ok:
+                continue
             nc = []
-            nv = []
             for nid in nids:
                 x, y = self._get_node_world_deformed(nid)
                 nc.append((x, y))
-                nv.append(self.result_values[nid])
 
-            # Crear grilla de coordenadas/valores
+            # Crear grilla de coordenadas (xi, eta) -> (x, y) fisicas y
+            # poblar gv a partir de grid_vals (alineado al mismo n_grid).
             xi_arr = np.linspace(-1, 1, n_grid)
             eta_arr = np.linspace(-1, 1, n_grid)
             gx = np.zeros((n_grid, n_grid))
@@ -613,7 +733,10 @@ class MeshCanvas(ttk.Frame):
                          (1 - xi) * (1 + eta) / 4]
                     gx[cj, ci] = sum(N[k] * nc[k][0] for k in range(4))
                     gy[cj, ci] = sum(N[k] * nc[k][1] for k in range(4))
-                    gv[cj, ci] = sum(N[k] * nv[k] for k in range(4))
+                    # IMPORTANTE: grid_vals viene con orientacion (i=xi, j=eta);
+                    # gv usa (cj=eta_idx, ci=xi_idx) para coincidir con la
+                    # marcha de marching squares de abajo.
+                    gv[cj, ci] = float(grid_vals[ci, cj])
 
             for level in levels:
                 for ci in range(n_grid - 1):
@@ -1359,6 +1482,28 @@ class MeshCanvas(ttk.Frame):
             self._on_draw_click(event)
             return
 
+        # Modo consulta interactiva del Post: el ProbeOverlay tiene su
+        # propio handler bindeado con add="+" que ejecuta primero (pinea
+        # la probe). Aqui solo evitamos crear selecciones que serian
+        # ruidosas para el caso de uso.
+        if self.probe_mode_active:
+            return
+
+        # Click consumers (modulos educativos: snap a Gauss, drag de
+        # nodo). Iteramos sobre snapshot para que un consumer que se
+        # auto-desregistra no rompa el loop. Si alguno consume, NO
+        # ejecutamos el hit-test estandar — el modulo ya manejo el
+        # click. Esto evita la oscilacion "se prende/apaga" del panel
+        # de modulos cuando el alumno clickea sobre un punto Gauss del
+        # elemento bajo analisis (select_element con was_only=True lo
+        # deseleccionaba).
+        for consumer in list(self._click_consumers):
+            try:
+                if consumer(event):
+                    return
+            except Exception:
+                pass
+
         sx, sy = event.x, event.y
         wx, wy = self.screen_to_world(sx, sy)
         # Detectar modifiers: Ctrl agrega/quita del set, Shift extiende
@@ -1639,6 +1784,19 @@ class MeshCanvas(ttk.Frame):
                 self.selected_elements.add(elem_id)
         else:
             was_only = (self.selected_elements == {elem_id})
+            # Suprimir "second-click deselects" si hay un módulo overlay
+            # educativo activo en este main_window. Mientras el módulo
+            # vive, el elemento bajo análisis es el contrato implícito —
+            # clickearlo de nuevo no debe perder el contexto. Para limpiar
+            # explícitamente: Esc, click en zona vacía, o cerrar el módulo.
+            # Import diferido para no acoplar el canvas al package education.
+            if was_only:
+                try:
+                    from education.overlay_module import is_any_overlay_active
+                    if is_any_overlay_active(self.main_window):
+                        was_only = False
+                except Exception:
+                    pass
             self._clear_all_sets_silent()
             if not was_only:
                 self.selected_elements.add(elem_id)
@@ -1767,8 +1925,9 @@ class MeshCanvas(ttk.Frame):
     # CAPA EDUCATIVA — overlay layers + hooks
     # ═════════════════════════════════════════════════════════════════════
     #
-    # Los modulos educativos en modo overlay (M0/M2/M3/M6/M8) usan estos
-    # hooks para pintar su capa didactica SOBRE la malla sin abrir ventana.
+    # Los modulos educativos en modo overlay (M0/M2/M3/M6) y vistas del
+    # Post (probe_overlay, principal_cross_layer) usan estos hooks para
+    # pintar capas SOBRE la malla sin abrir ventana.
     # Reglas:
     #   - Cada modulo registra UN solo layer al activarse y lo quita al
     #     cerrar el overlay. El layer es un callable(canvas) que dibuja
@@ -1781,6 +1940,28 @@ class MeshCanvas(ttk.Frame):
     #     la API soporta multiples capas concurrentes (apilamiento por
     #     orden de registro).
     # ═════════════════════════════════════════════════════════════════════
+
+    def add_click_consumer(self, callback):
+        """Registra un consumer de click. callable(event) -> bool.
+
+        Se invoca al inicio de `_on_click` (en orden de registro). Si
+        retorna True, el hit-test estandar del canvas NO se ejecuta —
+        el consumer asumio responsabilidad sobre ese click.
+
+        Uso tipico: modulos educativos en modo overlay que necesitan
+        snap a punto Gauss / inicio de drag SIN disparar la rama
+        "second-click deselects" de select_element() cuando el alumno
+        clickea sobre el elemento ya seleccionado.
+
+        Idempotente: no duplica registros.
+        """
+        if callback is not None and callback not in self._click_consumers:
+            self._click_consumers.append(callback)
+
+    def remove_click_consumer(self, callback):
+        """Quita un click consumer registrado (no falla si no existia)."""
+        if callback in self._click_consumers:
+            self._click_consumers.remove(callback)
 
     def add_overlay_layer(self, layer):
         """Registra una capa de dibujo educativa.
@@ -2086,11 +2267,43 @@ class MeshCanvas(ttk.Frame):
         self.redraw()
 
     def set_result_values(self, values, label="Resultado"):
+        """Modo SUAVIZADO (nodal): valores promediados por nodo.
+
+        Apaga el modo crudo si estaba activo: ambos modos son mutuamente
+        excluyentes en el render.
+        """
         self.result_values = values
+        self.element_result_grid = None  # apagar modo crudo
         self.result_label = label
         vals = list(values.values())
         self.result_vmin = min(vals) if vals else 0
         self.result_vmax = max(vals) if vals else 1
+        if self.result_vmin == self.result_vmax:
+            self.result_vmax = self.result_vmin + 1
+        self.redraw()
+
+    def set_element_result_grid(self, element_grids, label="Resultado"):
+        """Modo CRUDO: grillas pre-computadas por elemento.
+
+        element_grids: dict {elem_id: ndarray(n+1, n+1)} donde grid[i, j]
+            es el valor escalar en (xi=-1+2i/n, eta=-1+2j/n) ya evaluado
+            via fem.probe_query.compute_raw_grid (campo real del MEF, no
+            interpolacion lineal de corners). Para invariantes (VM, σ1,
+            σ2) los valores ya estan computados POR PUNTO con los
+            componentes σx/σy/τxy correctos -- evita el error de 50-800%
+            que tenia el path bilineal de 4 corners.
+
+        El render del filled gradient muestra los saltos en bordes entre
+        elementos -- es la verdad del campo σ del MEF Galerkin.
+        """
+        self.element_result_grid = element_grids
+        self.result_values = None  # apagar modo suavizado
+        self.result_label = label
+        all_vals = np.concatenate(
+            [np.asarray(g).flatten() for g in element_grids.values()]
+        ) if element_grids else np.array([0.0, 1.0])
+        self.result_vmin = float(all_vals.min())
+        self.result_vmax = float(all_vals.max())
         if self.result_vmin == self.result_vmax:
             self.result_vmax = self.result_vmin + 1
         self.redraw()
@@ -2132,6 +2345,7 @@ class MeshCanvas(ttk.Frame):
         isolineas) sin tocar el status bar. Llamar al volver de Post a
         Pre/Proc para que el canvas vuelva a mostrar solo geometria."""
         self.result_values = None
+        self.element_result_grid = None
         self.result_label = ""
         self.show_deformed = False
         self.displacements = None

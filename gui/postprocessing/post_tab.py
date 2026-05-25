@@ -14,11 +14,11 @@ import numpy as np
 from config.settings import (
     DECIMALS_FORCE, DECIMALS_STRESS, DECIMALS_DISPLACEMENT, fmt,
     PHASE_POST_COLOR, PHASE_POST_BOOTSTYLE,
-    HEALTH_WARNING_COLOR, HEALTH_ERROR_COLOR, LABEL_BG,
+    CANVAS_SELECTED_COLOR,
 )
 from gui.widgets.phase_banner import build_phase_banner
 from gui.widgets.module_launcher_panel import render_module_buttons
-from models.model_health import validate_project, Severity
+from models.model_health import validate_project
 
 
 class PostProcessTab:
@@ -32,6 +32,11 @@ class PostProcessTab:
         # Estado de resultados
         self.solution = None
         self.nodal_stresses = None
+        self.element_stresses = None   # consumido por ProbeOverlay
+        self.probe_overlay = None      # se instancia tras primer auto_solve
+
+        # Vistas avanzadas (lazy, dependen de is_solved)
+        self.surface_3d_viewer = None      # Toplevel 3D del campo
 
         self._build_panel()
 
@@ -46,11 +51,11 @@ class PostProcessTab:
             subtitle="Resultados · esfuerzos · interpretacion pedagogica",
         )
 
-        # Banner de salud del modelo (warnings). Solo se muestra cuando
-        # hay warnings tras validar; los errores criticos abren el modal
-        # bloqueante en su lugar. Construye y oculta -- se rellena cuando
-        # auto_solve detecta warnings.
-        self._build_health_banner()
+        # Banner de salud removido del Post: el badge ✓/⚠/✗ del status bar
+        # global y el HealthReportDialog modal antes del solve cubren todo
+        # el feedback de warnings/errores. El modelo (validate_project)
+        # sigue intacto y el dialogo se sigue abriendo bloqueante en
+        # `auto_solve` cuando hay errores criticos.
 
         self.notebook = ttk.Notebook(self.frame, bootstyle=PHASE_POST_BOOTSTYLE)
         self.notebook.pack(fill=BOTH, expand=YES)
@@ -65,7 +70,7 @@ class PostProcessTab:
         self.notebook.add(self.results_frame, text="  Resultados  ")
         self._build_results_tab()
 
-        # Sub-tab 3: Modulos educativos (M7 discontinuidad, M8 principales)
+        # Sub-tab 3: Modulos educativos (M9 convergencia Q4 vs Q9)
         self.education_frame = ttk.Frame(self.notebook)
         self.notebook.add(self.education_frame, text="  🎓 Educacion  ")
         self._build_education_tab()
@@ -73,7 +78,7 @@ class PostProcessTab:
     def _build_education_tab(self):
         """Modulos educativos del POST-PROCESO."""
         from education.module_launcher import (
-            list_modules_for_phase, open_module,
+            list_modules_for_phase, open_module, GLOBAL_MODULES,
         )
 
         def _on_open(mod_key):
@@ -85,55 +90,68 @@ class PostProcessTab:
             )
             if ok:
                 self.main_window.set_status(f"Modulo educativo abierto: {mod_key}")
+            return ok  # el panel marca ✓ solo si realmente abrio
 
-        render_module_buttons(
+        self._edu_panel = render_module_buttons(
             self.education_frame,
             modules=list_modules_for_phase("post"),
             on_open=_on_open,
             bootstyle=f"{PHASE_POST_BOOTSTYLE}-outline",
             header_text="Modulos Educativos · Post-Proceso",
             header_color=PHASE_POST_COLOR,
-            subtitle=("Interpretacion de resultados: continuidad de esfuerzos,\n"
-                      "direcciones principales y circulo de Mohr.\n"
-                      "Requieren modelo resuelto (F5)."),
+            subtitle=("Comparacion Q4 vs Q9 y convergencia h-refinement.\n"
+                      "Las vistas 3D, cruces principales y circulo de Mohr\n"
+                      "estan integradas en la toolbar y en el clic derecho\n"
+                      "del probe. Requiere modelo resuelto (F5)."),
+            global_modules=GLOBAL_MODULES,
         )
+
+    def wire_canvas(self):
+        """Conecta el panel educativo al canvas para iluminacion reactiva.
+
+        El post solo tiene M9 (sandbox global, no requiere elemento) por
+        ahora — el wiring es defensivo por si en el futuro se agrega un
+        modulo por-elemento al post."""
+        canvas = getattr(self.main_window, "mesh_canvas", None)
+        if canvas is None or getattr(self, "_edu_panel", None) is None:
+            return
+        prev = canvas.on_selection_changed
+        if prev is not None and getattr(prev, "_post_edu_chain", False):
+            return  # ya cableado
+
+        def _chained(sel: dict, _prev=prev):
+            if _prev is not None:
+                try:
+                    _prev(sel)
+                except Exception:
+                    pass
+            try:
+                elems = sel.get("elements", set()) if sel else set()
+                eid = next(iter(elems)) if len(elems) == 1 else None
+                self._edu_panel.update_selection(eid)
+            except Exception:
+                pass
+
+        _chained._post_edu_chain = True
+        canvas.on_selection_changed = _chained
+        try:
+            self._edu_panel.update_selection(None)
+        except Exception:
+            pass
 
     # ═════════════════════════════════════════════════════════════════════
     # SUB-TAB: VISUALIZACION
     # ═════════════════════════════════════════════════════════════════════
 
     def _build_visualization_tab(self):
-        """Controles de visualizacion con auto-update."""
-        # Scroll container
-        scroll_canvas = tk.Canvas(self.viz_frame, highlightthickness=0)
-        scrollbar = ttk.Scrollbar(self.viz_frame, orient=VERTICAL,
-                                  command=scroll_canvas.yview)
-        container = ttk.Frame(scroll_canvas)
-        container.bind(
-            "<Configure>",
-            lambda e: scroll_canvas.configure(scrollregion=scroll_canvas.bbox("all"))
-        )
-        scroll_canvas.create_window((0, 0), window=container, anchor=NW)
-        scroll_canvas.configure(yscrollcommand=scrollbar.set)
-        scrollbar.pack(side=RIGHT, fill=Y)
-        scroll_canvas.pack(side=LEFT, fill=BOTH, expand=YES)
+        """Controles de visualizacion con auto-update.
 
-        # ─── Estado del analisis ─────────────────────────────────────────
-        self.status_frame = ttk.Labelframe(container, text="Estado del Análisis",
-                                           bootstyle="success")
-        self.status_frame.pack(fill=X, padx=10, pady=(10, 5))
-
-        self.solve_status = ttk.Label(
-            self.status_frame, text="Estado: Sin resolver",
-            font=("Segoe UI", 10, "bold"), foreground="#ffa726",
-        )
-        self.solve_status.pack(padx=10, pady=5, anchor=W)
-
-        self.model_info = ttk.Label(
-            self.status_frame, text="",
-            font=("Consolas", 8), foreground="#aaa", wraplength=360,
-        )
-        self.model_info.pack(padx=10, pady=(0, 5), anchor=W)
+        Sin scroll: el contenido (Tipo de Resultado, Deformada, Isolineas,
+        Inspeccion del campo) cabe en cualquier pantalla 1080p+ con el
+        ancho actual del panel lateral. En pantallas mas chicas el
+        contenido podria cortarse abajo (decision documentada).
+        """
+        container = self.viz_frame
 
         # ─── Tipo de Resultado ───────────────────────────────────────────
         result_frame = ttk.Labelframe(container, text="Tipo de Resultado",
@@ -205,12 +223,79 @@ class PostProcessTab:
         iso_spin.pack(side=LEFT, padx=5)
         iso_spin.bind("<Return>", lambda e: self._on_result_changed())
 
+        # ─── Inspeccion del campo (probe + Gauss + Vista 3D) ─────────────
+        # Conjunto de herramientas para inspeccionar el campo de resultados
+        # ya resuelto:
+        #   - Crudo / Suavizado: cambia el metodo de calculo de σ tanto en
+        #     el contorno como en el probe.
+        #   - Mostrar puntos Gauss: marca los PG en el canvas (snap del probe).
+        #   - Vista 3D: abre Toplevel con plot_surface del resultado activo.
+        # El probe se activa automaticamente al entrar al Post (sin toggle
+        # master); hover -> tooltip transitorio, click -> pin, click derecho
+        # -> panel Detalles + circulo de Mohr. Ver probe_overlay.py.
+        probe_frame = ttk.Labelframe(
+            container, text="Inspección del campo",
+            bootstyle="success",
+        )
+        probe_frame.pack(fill=X, padx=10, pady=5)
+
+        # Modo de calculo + boton 3D en la misma fila para ahorrar vertical.
+        # Default "smooth": preserva la apariencia historica del Post
+        # (contorno continuo). El alumno cambia a "raw" conscientemente
+        # cuando quiere ver los saltos C0 del MEF.
+        mode_row = ttk.Frame(probe_frame)
+        mode_row.pack(fill=X, padx=15, pady=(8, 4))
+        ttk.Label(
+            mode_row, text="σ:",
+            font=("Segoe UI", 8),
+        ).pack(side=LEFT, padx=(0, 6))
+        self.probe_smooth_var = tk.StringVar(value="smooth")
+        ttk.Radiobutton(
+            mode_row, text="Crudo", value="raw",
+            variable=self.probe_smooth_var, bootstyle="success-toolbutton",
+            command=self._on_probe_mode_changed,
+        ).pack(side=LEFT, padx=2)
+        ttk.Radiobutton(
+            mode_row, text="Suavizado", value="smooth",
+            variable=self.probe_smooth_var, bootstyle="success-toolbutton",
+            command=self._on_probe_mode_changed,
+        ).pack(side=LEFT, padx=2)
+        # Separador + boton Vista 3D pegados a los radios (side=LEFT).
+        # Distincion visual del par Crudo/Suavizado:
+        #   - Radios: verde toolbutton (toggle agrupado, modo del campo)
+        #   - Boton: azul sólido (accion separada, abre Toplevel)
+        # Separador vertical refuerza que es un grupo distinto.
+        # Layout estable al cambiar el ancho del panel: el espacio sobrante
+        # queda a la derecha del boton, no entre radios y boton.
+        ttk.Separator(mode_row, orient=VERTICAL).pack(
+            side=LEFT, fill=Y, padx=8, pady=2,
+        )
+        ttk.Button(
+            mode_row, text="🧊 Vista 3D",
+            bootstyle="info",
+            command=self._on_open_surface_3d,
+        ).pack(side=LEFT, padx=(0, 0))
+
+        # Toggle Gauss
+        self.probe_show_gauss_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(
+            probe_frame, text="Mostrar puntos Gauss",
+            variable=self.probe_show_gauss_var, bootstyle="info-round-toggle",
+            command=self._on_probe_gauss_toggled,
+        ).pack(anchor=W, padx=15, pady=(0, 8))
+
     # ═════════════════════════════════════════════════════════════════════
     # SUB-TAB: RESULTADOS NUMERICOS
     # ═════════════════════════════════════════════════════════════════════
 
     def _build_results_tab(self):
-        """Tabla de resultados numericos."""
+        """Tabla de resultados numericos.
+
+        Patron heredado del Pre: headers con unidades del project, anchos
+        de columna generosos para el formato cientifico de los
+        desplazamientos, seleccion de celda individual para copiar UN
+        valor sin modificarlo (read-only) via Ctrl+C.
+        """
         container = ttk.Frame(self.results_frame)
         container.pack(fill=BOTH, expand=YES, padx=5, pady=5)
 
@@ -224,16 +309,16 @@ class PostProcessTab:
 
         ttk.Label(sel_frame, text="Mostrar:").pack(side=LEFT)
         self.table_type_var = tk.StringVar(value="Desplazamientos")
-        ttk.Combobox(
+        table_combo = ttk.Combobox(
             sel_frame, textvariable=self.table_type_var,
             values=["Desplazamientos", "Esfuerzos", "Reacciones"],
             state="readonly", width=18
-        ).pack(side=LEFT, padx=5)
-
-        ttk.Button(
-            sel_frame, text="Actualizar", bootstyle="danger-outline",
-            command=self._update_table
-        ).pack(side=LEFT, padx=5)
+        )
+        table_combo.pack(side=LEFT, padx=5)
+        # Auto-update al cambiar la selección. El bind a <<ComboboxSelected>>
+        # reemplaza al botón "Actualizar" eliminado.
+        table_combo.bind("<<ComboboxSelected>>",
+                         lambda _e: self._update_table())
 
         table_frame = ttk.Frame(container)
         table_frame.pack(fill=BOTH, expand=YES, padx=10, pady=5)
@@ -243,23 +328,46 @@ class PostProcessTab:
             table_frame, columns=columns, show="headings",
             bootstyle="danger", height=15, selectmode="extended",
         )
+        # Headers iniciales (se sobreescriben en _update_table con unidades).
         self.results_tree.heading("node", text="Nodo", anchor=CENTER)
-        self.results_tree.heading("v1", text="Ux", anchor=CENTER)
-        self.results_tree.heading("v2", text="Uy", anchor=CENTER)
-        self.results_tree.heading("v3", text="|U|", anchor=CENTER)
-        self.results_tree.heading("v4", text="", anchor=CENTER)
-        self.results_tree.heading("v5", text="", anchor=CENTER)
-        self.results_tree.heading("v6", text="", anchor=CENTER)
-        for col in columns:
-            self.results_tree.column(col, width=60, anchor=CENTER)
+        for col in ("v1", "v2", "v3", "v4", "v5", "v6"):
+            self.results_tree.heading(col, text="", anchor=CENTER)
+        # Anchos: ID corto (55px) + valores anchos (115px) para alojar el
+        # formato cientifico de desplazamientos (ej. "5.12345e-04" ≈ 11 chars).
+        self.results_tree.column("node", width=55, anchor=CENTER, stretch=False)
+        for col in ("v1", "v2", "v3", "v4", "v5", "v6"):
+            self.results_tree.column(col, width=115, anchor=CENTER, stretch=False)
 
-        scrollbar = ttk.Scrollbar(table_frame, orient=VERTICAL,
-                                  command=self.results_tree.yview)
-        self.results_tree.configure(yscrollcommand=scrollbar.set)
+        # Scrollbar omitido: la rueda del mouse sobre Treeview es nativa en Tk.
         self.results_tree.pack(fill=BOTH, expand=YES, side=LEFT)
-        scrollbar.pack(fill=Y, side=RIGHT)
 
-        # Atajos de copiado (TSV al portapapeles, pegable en Excel)
+        # ─── Selección de celda individual (read-only copyable) ──────────
+        # Treeview no soporta seleccion de celda nativa; emulamos:
+        #   - Click sobre celda guarda (iid, col_id, value) en _selected_cell
+        #   - Un tk.Label amarillo se posiciona via place() encima de la
+        #     celda como feedback visual (la fila sigue azul-seleccionada
+        #     por el comportamiento nativo de Treeview).
+        #   - Ctrl+C copia SOLO ese valor cuando hay celda activa; sin
+        #     celda activa, copia las filas seleccionadas en TSV.
+        self._selected_cell = None  # (iid, col_name, value) o None
+        # Overlay amarillo lazy: se crea al primer click. Reutiliza el
+        # mismo color amarillo que `CANVAS_SELECTED_COLOR` del canvas para
+        # consistencia cromatica con el resto de la GUI.
+        self._cell_highlight = tk.Label(
+            self.results_tree,
+            bg=CANVAS_SELECTED_COLOR, fg="#000000",
+            font=("Segoe UI", 9, "bold"),
+            anchor=CENTER, borderwidth=0, padx=0, pady=0,
+        )
+        self._cell_highlight.place_forget()
+        self.results_tree.bind("<Button-1>", self._on_results_cell_click,
+                               add="+")
+        # Si la fila/scroll cambia, esconder el highlight (la celda puede
+        # haberse desplazado o ya no existir).
+        self.results_tree.bind("<<TreeviewSelect>>",
+                               self._on_results_selection_changed, add="+")
+
+        # Atajos de copiado
         self.results_tree.bind("<Control-c>", self._copy_results_tsv)
         self.results_tree.bind("<Control-C>", self._copy_results_tsv)
         self.results_tree.bind("<Control-a>", self._select_all_results)
@@ -269,103 +377,28 @@ class PostProcessTab:
     # AUTO-SOLVE (se llama al activar la pestana Post-Proceso)
     # ═════════════════════════════════════════════════════════════════════
 
-    def _build_health_banner(self):
-        """Construye el banner de warnings (oculto por defecto). Aparece
-        cuando `auto_solve` detecta warnings no-criticos. Es no-bloqueante:
-        solo informa, el usuario puede cerrarlo con la X."""
-        self.health_banner = tk.Frame(
-            self.frame, bg=LABEL_BG, highlightthickness=1,
-            highlightbackground=HEALTH_WARNING_COLOR,
-        )
-        # No hace pack -> queda oculto hasta que se llame
-        # `_show_health_banner`.
-        self._health_banner_visible = False
-
-        inner = tk.Frame(self.health_banner, bg=LABEL_BG)
-        inner.pack(fill=X, padx=10, pady=8)
-
-        # Icono + texto
-        tk.Label(
-            inner, text="⚠", fg=HEALTH_WARNING_COLOR, bg=LABEL_BG,
-            font=("Segoe UI", 14, "bold"),
-        ).pack(side=LEFT, padx=(0, 10))
-
-        self.health_banner_text = tk.Label(
-            inner, text="", fg="#e8e8ea", bg=LABEL_BG,
-            font=("Segoe UI", 9), justify=LEFT, anchor=W, wraplength=600,
-        )
-        self.health_banner_text.pack(side=LEFT, fill=X, expand=YES)
-
-        # Botones de accion (a la derecha)
-        btn_frame = tk.Frame(inner, bg=LABEL_BG)
-        btn_frame.pack(side=RIGHT)
-
-        ttk.Button(
-            btn_frame, text="Ver detalle",
-            bootstyle="warning-outline",
-            command=self._on_show_health_details,
-        ).pack(side=LEFT, padx=(0, 4))
-
-        ttk.Button(
-            btn_frame, text="✕", bootstyle="secondary-link", width=3,
-            command=self._hide_health_banner,
-        ).pack(side=LEFT)
-
-    def _show_health_banner(self, report):
-        """Muestra el banner con el resumen de warnings del report."""
-        self._last_report = report
-        n = len(report.warnings)
-        if n == 1:
-            txt = f"1 advertencia detectada: {report.warnings[0].message}"
-        else:
-            txt = (f"{n} advertencias en el modelo. "
-                   f"El analisis procedera, pero conviene revisar.")
-        self.health_banner_text.config(text=txt)
-        if not self._health_banner_visible:
-            self.health_banner.pack(fill=X, before=self.notebook,
-                                    padx=8, pady=(0, 6))
-            self._health_banner_visible = True
-
-    def _hide_health_banner(self):
-        if self._health_banner_visible:
-            self.health_banner.pack_forget()
-            self._health_banner_visible = False
-
-    def _on_show_health_details(self):
-        """Abre el HealthReportDialog con el ultimo report (modal pero
-        sin bloquear el solve, porque ya se resolvio o se va a resolver).
-        """
-        if not hasattr(self, "_last_report") or self._last_report is None:
-            return
-        from gui.dialogs.health_report_dialog import HealthReportDialog
-        dlg = HealthReportDialog(
-            self.frame.winfo_toplevel(), self._last_report, self.project,
-            main_window=self.main_window, allow_continue=False,
-        )
-        dlg.show()
-        # Si el usuario aplico fixes, re-validar y refrescar el banner
-        if dlg.fixes_applied > 0:
-            new_report = validate_project(self.project)
-            if new_report.has_warnings():
-                self._show_health_banner(new_report)
-            else:
-                self._hide_health_banner()
-            self._last_report = new_report
-
     def auto_solve(self):
         """Resuelve automaticamente si hay modelo valido y no esta resuelto.
 
-        Antes del solve, ejecuta `validate_project` (panel de salud):
+        Antes del solve, ejecuta `validate_project`:
           - errores criticos -> abre HealthReportDialog modal y bloquea
             hasta que el usuario los corrija o decida "resolver de todos
             modos"
-          - solo warnings -> muestra banner no-bloqueante arriba del
-            notebook y procede con el solve
-          - modelo sano -> oculta el banner y resuelve directo
+          - warnings o modelo sano -> resuelve directo. Los warnings se
+            reflejan en el badge ⚠ del status bar global, y el usuario
+            puede clickearlo para abrir el HealthReportDialog en modo
+            consulta.
         """
         # Si ya esta resuelto, solo actualizar display (no re-validar para
-        # evitar abrir el modal en cada cambio de tab post-solve).
+        # evitar abrir el modal en cada cambio de tab post-solve). Hace
+        # falta repintar porque el cambio Pre/Proc -> Post pasa por
+        # clear_results_overlay() que vacia el canvas; sin el _on_result_changed
+        # aqui se ve la malla sin colores. Tambien reactivamos el probe si
+        # el usuario lo dejo ON en una visita previa.
         if self.solution is not None and self.project.is_solved:
+            self._on_result_changed()
+            self._update_table()
+            self.maybe_reactivate_probe_overlay()
             return
 
         # ─── Validacion previa ────────────────────────────────────────
@@ -387,13 +420,10 @@ class PostProcessTab:
             if report.has_errors() and result != "continue":
                 # Usuario cancelo y aun hay errores. Lo regresamos al
                 # Pre-Proceso para que pueda corregirlos.
-                self.solve_status.config(
-                    text=f"✗ {len(report.errors)} error(es) sin resolver — "
-                         f"corrija desde Pre-Proceso",
-                    foreground=HEALTH_ERROR_COLOR,
+                self.main_window.set_status(
+                    f"✗ {len(report.errors)} error(es) sin resolver — "
+                    f"corrija desde Pre-Proceso"
                 )
-                self._hide_health_banner()
-                self._last_report = report
                 try:
                     self.main_window.notebook.select(0)
                     self.main_window.set_status(
@@ -402,17 +432,6 @@ class PostProcessTab:
                 except Exception:
                     pass
                 return
-            # Si quedaron warnings tras los fixes, mostrar banner
-            if report.has_warnings():
-                self._show_health_banner(report)
-            else:
-                self._hide_health_banner()
-        elif report.has_warnings():
-            self._show_health_banner(report)
-            self._last_report = report
-        else:
-            self._hide_health_banner()
-            self._last_report = report
 
         # Chequeos de pre-requisitos minimos (redundantes con el
         # validador, pero el usuario puede haber clickeado "continuar
@@ -420,20 +439,18 @@ class PostProcessTab:
         # intentar resolver y dejar que el solver tire una excepcion
         # explicita si no puede).
         if not self.project.elements:
-            self.solve_status.config(
-                text="Sin modelo — defina nodos y elementos",
-                foreground=HEALTH_ERROR_COLOR,
+            self.main_window.set_status(
+                "Sin modelo — defina nodos y elementos"
             )
             return
 
         if not self.project.boundary_conditions:
-            self.solve_status.config(
-                text="Sin restricciones — defina condiciones de contorno",
-                foreground=HEALTH_ERROR_COLOR,
+            self.main_window.set_status(
+                "Sin restricciones — defina condiciones de contorno"
             )
             return
 
-        self.solve_status.config(text="Resolviendo...", foreground="#4fc3f7")
+        self.main_window.set_status("Resolviendo...")
         self.frame.update_idletasks()
 
         try:
@@ -441,7 +458,7 @@ class PostProcessTab:
             from fem.stress import compute_all_stresses
 
             self.solution = solve_system(self.project)
-            _, self.nodal_stresses = compute_all_stresses(
+            self.element_stresses, self.nodal_stresses = compute_all_stresses(
                 self.project, self.solution
             )
 
@@ -449,27 +466,11 @@ class PostProcessTab:
             self.project.displacements = self.solution["u"]
             self.project.global_K = self.solution["K"]
             self.project.global_F = self.solution["F"]
+            self.project.stresses = self.element_stresses
 
-            u = self.solution["u"]
-            R = self.solution["reactions"]
-            restrained = self.solution["restrained_dofs"]
-
-            max_ux = max(abs(u[i]) for i in range(0, len(u), 2))
-            max_uy = max(abs(u[i]) for i in range(1, len(u), 2))
-
-            info = (
-                f"GDL: {len(u)} total, "
-                f"{len(self.solution['free_dofs'])} libres, "
-                f"{len(restrained)} restringidos\n"
-                f"Max |Ux|: {max_ux:.{DECIMALS_DISPLACEMENT}e}   "
-                f"Max |Uy|: {max_uy:.{DECIMALS_DISPLACEMENT}e}"
+            self.main_window.set_status(
+                "✓ Resuelto — seleccione un resultado para visualizar"
             )
-            self.model_info.config(text=info)
-            self.solve_status.config(
-                text="✓ RESUELTO — Seleccione resultado para visualizar",
-                foreground="#81c784"
-            )
-            self.main_window.set_status("Análisis completado automáticamente.")
             self.main_window._update_status_info()
             # Refrescar estado del menú/toolbar (habilitar Exportar, etc.)
             if hasattr(self.main_window, "_refresh_menu_state"):
@@ -479,62 +480,184 @@ class PostProcessTab:
             self._on_result_changed()
             self._update_table()
 
+            # Activacion automatica de la consulta interactiva: el
+            # overlay se prende solo (no requiere checkbox master). Si
+            # re-solve y el overlay ya estaba activo, refresca refs a
+            # la nueva solucion (pines existentes se re-evaluan).
+            self.maybe_reactivate_probe_overlay()
+
         except Exception as e:
-            self.solve_status.config(
-                text=f"✗ Error: {str(e)[:60]}",
-                foreground="#ef5350"
-            )
+            self.main_window.set_status(f"✗ Error al resolver: {str(e)[:60]}")
             messagebox.showerror("Error al resolver", str(e))
+
+    # ═════════════════════════════════════════════════════════════════════
+    # CONSULTA INTERACTIVA (probe overlay)
+    # ═════════════════════════════════════════════════════════════════════
+
+    def _ensure_probe_overlay(self):
+        """Instancia el ProbeOverlay la primera vez que se necesita.
+
+        Lazy-load para evitar import cycle al inicializar post_tab antes
+        que el MeshCanvas (las pestañas se construyen antes del canvas).
+        """
+        if self.probe_overlay is None:
+            from gui.postprocessing.probe_overlay import ProbeOverlay
+            self.probe_overlay = ProbeOverlay(
+                self.main_window.mesh_canvas, self, self.main_window,
+            )
+        # Mantener la referencia al project actualizada (si cambio via
+        # New / Open / undo, el listener `_update_all_project_refs` lo
+        # propaga; aqui solo aseguramos coherencia local).
+        self.probe_overlay.project = self.project
+        # Sincronizar modos actuales antes de activar (en caso de que el
+        # usuario haya tocado los toggles antes del primer auto_solve).
+        self.probe_overlay.smooth_mode = (
+            self.probe_smooth_var.get() == "smooth"
+        )
+        self.probe_overlay.show_gauss = self.probe_show_gauss_var.get()
+
+    def _on_probe_mode_changed(self):
+        """Switch crudo <-> suavizado.
+
+        Afecta DOS cosas:
+          1) Probes pinneadas y tooltip del hover (recompute via probe_overlay).
+          2) Contorno global del Post: en modo crudo se dibujan los esfuerzos
+             discontinuos entre elementos (per-element-per-node); en suavizado
+             el contorno usa los valores nodales promediados (clasico).
+        """
+        smooth = (self.probe_smooth_var.get() == "smooth")
+        if self.probe_overlay is not None:
+            self.probe_overlay.set_smooth_mode(smooth)
+        # Refrescar contorno con el nuevo modo
+        self._on_result_changed()
+
+    def _on_probe_gauss_toggled(self):
+        # El toggle puede pulsarse antes del primer auto_solve. En ese
+        # caso solo recordamos el valor; al activar el overlay se aplica.
+        if self.probe_overlay is not None:
+            self.probe_overlay.set_show_gauss(self.probe_show_gauss_var.get())
+
+    def deactivate_probe_overlay(self):
+        """Llamado desde MainWindow._on_tab_changed al salir de Post.
+
+        Apaga el modo. La consulta interactiva NO requiere toggle manual:
+        al volver a Post se reactiva automaticamente via
+        maybe_reactivate_probe_overlay.
+        """
+        if self.probe_overlay is not None and self.probe_overlay.active:
+            self.probe_overlay.deactivate()
+
+    def maybe_reactivate_probe_overlay(self):
+        """Llamado tras auto_solve exitoso cuando se entra (o vuelve) a Post.
+
+        Activacion automatica: si hay solucion valida, el overlay se
+        prende. Sin checkbox master -- la consulta es siempre-on en Post.
+        """
+        if not self.solution:
+            return
+        self._ensure_probe_overlay()
+        self.probe_overlay.activate(
+            self.solution, self.element_stresses, self.nodal_stresses,
+        )
+        # Refrescar refs de las vistas avanzadas si estan abiertas
+        # (cambio de project / re-solve sin perder estado UI).
+        if self.surface_3d_viewer is not None:
+            try:
+                self.surface_3d_viewer.update_solution(
+                    self.solution, self.nodal_stresses,
+                )
+            except Exception:
+                pass
+
+    # ═════════════════════════════════════════════════════════════════════
+    # VISUALIZACION AVANZADA (Vista 3D)
+    # ═════════════════════════════════════════════════════════════════════
+
+    def _on_open_surface_3d(self):
+        """Abre (o levanta) la Vista 3D del campo activo en el Post.
+
+        El Toplevel es no-modal: el usuario sigue interactuando con la
+        toolbar del post (cambiar de result_type, modo crudo/suavizado)
+        y el 3D actualiza automaticamente.
+        """
+        if not self.solution or not self.nodal_stresses:
+            self.main_window.set_status(
+                "Resolvé el modelo (F5) antes de abrir la vista 3D"
+            )
+            return
+        # Si ya esta abierto, traer al frente.
+        if (self.surface_3d_viewer is not None
+                and self.surface_3d_viewer.winfo_exists()):
+            try:
+                self.surface_3d_viewer.lift()
+                self.surface_3d_viewer.focus_force()
+                self.surface_3d_viewer.refresh()
+            except Exception:
+                pass
+            return
+        from gui.postprocessing.surface_3d_viewer import Surface3DViewer
+        self.surface_3d_viewer = Surface3DViewer(
+            self.frame.winfo_toplevel(),
+            self.project, self.solution, self.nodal_stresses,
+            self, self.main_window,
+        )
+
+    def deactivate_advanced_views(self):
+        """Llamado desde MainWindow._on_tab_changed al salir de Post.
+
+        Cierra el Toplevel 3D. La consulta del probe se gestiona aparte
+        via `deactivate_probe_overlay`.
+        """
+        if (self.surface_3d_viewer is not None
+                and self.surface_3d_viewer.winfo_exists()):
+            try:
+                self.surface_3d_viewer.destroy()
+            except Exception:
+                pass
+            self.surface_3d_viewer = None
 
     # ═════════════════════════════════════════════════════════════════════
     # VISUALIZACION REACTIVA (auto-update al cambiar radio buttons)
     # ═════════════════════════════════════════════════════════════════════
 
     def _on_result_changed(self):
-        """Callback: actualiza visualizacion al cambiar cualquier opcion."""
+        """Callback: actualiza visualizacion al cambiar cualquier opcion.
+
+        Dos rutas segun el modo de calculo de esfuerzos:
+          - SUAVIZADO (default): valores nodales promediados -> contorno
+            continuo entre elementos (convencion clasica).
+          - CRUDO: valores per-element-per-node via compute_raw evaluado
+            en los 4 corners -> el contorno muestra saltos en bordes,
+            que es la naturaleza C0 del MEF Galerkin.
+
+        El modo se controla con probe_smooth_var ("raw" o "smooth").
+        Para Ux/Uy/|U| no hay diferencia (los desplazamientos son C0
+        continuos) -- ambas rutas terminan en set_result_values.
+        """
         if not self.solution:
             return
 
         result_type = self.result_var.get()
         u = self.solution["u"]
-        node_values = {}
+        canvas = self.main_window.mesh_canvas
 
         labels = {
             "Ux": "Ux", "Uy": "Uy", "Umag": "|U|",
             "Sx": "σx", "Sy": "σy", "Txy": "τxy",
             "S1": "σ1", "S2": "σ2", "VM": "Von Mises",
         }
-
-        for nid in sorted(self.project.nodes.keys()):
-            ux = u[2 * (nid - 1)]
-            uy = u[2 * (nid - 1) + 1]
-
-            if result_type == "Ux":
-                node_values[nid] = ux
-            elif result_type == "Uy":
-                node_values[nid] = uy
-            elif result_type == "Umag":
-                node_values[nid] = np.sqrt(ux**2 + uy**2)
-            elif result_type in ("Sx", "Sy", "Txy", "S1", "S2", "VM"):
-                stress_key = {
-                    "Sx": "sigma_x", "Sy": "sigma_y", "Txy": "tau_xy",
-                    "S1": "sigma_1", "S2": "sigma_2", "VM": "von_mises"
-                }[result_type]
-                if self.nodal_stresses and nid in self.nodal_stresses:
-                    node_values[nid] = self.nodal_stresses[nid][stress_key]
-                else:
-                    node_values[nid] = 0.0
-
         label = labels.get(result_type, result_type)
-        canvas = self.main_window.mesh_canvas
+        is_stress = result_type in ("Sx", "Sy", "Txy", "S1", "S2", "VM")
+        raw_mode = (
+            hasattr(self, "probe_smooth_var")
+            and self.probe_smooth_var.get() == "raw"
+        )
 
-        # Configurar isolineas
+        # Configurar isolineas y deformada antes (no dependen del modo).
         canvas.set_isolines(
             self.show_isolines_var.get(),
             self.isoline_count_var.get()
         )
-
-        # Configurar deformada
         if self.show_deformed_var.get():
             canvas.displacements = u
             max_disp = np.max(np.abs(u))
@@ -547,38 +670,135 @@ class PostProcessTab:
                     coords[:, 0].max() - coords[:, 0].min(),
                     coords[:, 1].max() - coords[:, 1].min()
                 )
-                canvas.deform_scale = model_size * 0.1 / max_disp * self.scale_var.get()
+                canvas.deform_scale = (
+                    model_size * 0.1 / max_disp * self.scale_var.get()
+                )
             canvas.show_deformed = True
         else:
             canvas.show_deformed = False
             canvas.displacements = None
 
-        # Actualizar resultados (esto redibuja el canvas)
+        # ─ Ruta CRUDO (per-element pre-computada) para esfuerzos ─────────
+        # Usa compute_raw_grid: evalua D·B(ξ,η)·u_e en una grilla 7x7 por
+        # elemento. Para invariantes (VM, σ1, σ2) calcula los componentes
+        # y compone el invariante POR PUNTO -- crucial: interpolar el
+        # invariante entre corners da error 50-800% (Von Mises no lineal).
+        if is_stress and raw_mode and self.element_stresses:
+            element_grids = self._compute_raw_grid(result_type, n=6)
+            if element_grids:
+                canvas.set_element_result_grid(element_grids, label)
+                self.main_window.set_status(
+                    f"Visualizando: {label} (crudo, D·B·uₑ por punto)"
+                )
+                return
+            # Si compute_raw_grid fallo (datos faltantes), caer a suavizado.
+
+        # ─ Ruta SUAVIZADO (nodal promediado) ─────────────────────────────
+        idx_map = self.project.node_index_map
+        node_values = {}
+        for nid in sorted(self.project.nodes.keys()):
+            base = 2 * idx_map[nid]
+            ux = u[base]
+            uy = u[base + 1]
+            if result_type == "Ux":
+                node_values[nid] = ux
+            elif result_type == "Uy":
+                node_values[nid] = uy
+            elif result_type == "Umag":
+                node_values[nid] = np.sqrt(ux**2 + uy**2)
+            elif is_stress:
+                stress_key = {
+                    "Sx": "sigma_x", "Sy": "sigma_y", "Txy": "tau_xy",
+                    "S1": "sigma_1", "S2": "sigma_2", "VM": "von_mises"
+                }[result_type]
+                if self.nodal_stresses and nid in self.nodal_stresses:
+                    node_values[nid] = self.nodal_stresses[nid][stress_key]
+                else:
+                    node_values[nid] = 0.0
+
         canvas.set_result_values(node_values, label)
-        self.main_window.set_status(f"Visualizando: {label}")
+        suffix = (
+            " (suavizado, Σ Nᵢ·σᵢ̄)" if (is_stress and not raw_mode) else ""
+        )
+        self.main_window.set_status(f"Visualizando: {label}{suffix}")
+
+        # Sincronizar Surface3DViewer si esta abierto. Cambiar VM↔σx en el
+        # post repinta el 3D automaticamente -- el usuario no pierde
+        # contexto. Refresh tardio (despues de set_result_values) para que
+        # el 3D y el contorno 2D queden coherentes.
+        if (self.surface_3d_viewer is not None
+                and self.surface_3d_viewer.winfo_exists()):
+            try:
+                self.surface_3d_viewer.refresh()
+            except Exception:
+                pass
+
+    def _compute_raw_grid(self, result_type, n=6):
+        """Pre-computa la grilla (n+1, n+1) del campo de esfuerzo seleccionado
+        en cada elemento, usando fem.probe_query.compute_raw_grid.
+
+        Returna {elem_id: ndarray(n+1, n+1)} con valores del campo `result_type`
+        evaluados via D·B(ξ,η)·u_e en cada (ξ_i, η_j) ∈ [-1,1]².
+
+        Para invariantes (VM, σ1, σ2) los valores ya estan calculados con
+        los componentes σx/σy/τxy correctos POR PUNTO (no interpolando el
+        invariante entre corners, que da error grosero por la no-linealidad).
+        """
+        from fem.probe_query import compute_raw_grid
+
+        stress_key = {
+            "Sx": "sigma_x", "Sy": "sigma_y", "Txy": "tau_xy",
+            "S1": "sigma_1", "S2": "sigma_2", "VM": "von_mises",
+        }.get(result_type)
+        if stress_key is None:
+            return None
+
+        result = {}
+        for elem_id in self.project.elements:
+            all_grids = compute_raw_grid(self.project, self.solution,
+                                          elem_id, n=n)
+            if all_grids is None:
+                return None
+            result[elem_id] = all_grids[stress_key]
+        return result if result else None
 
     # ═════════════════════════════════════════════════════════════════════
     # TABLA DE RESULTADOS
     # ═════════════════════════════════════════════════════════════════════
 
+    def _get_units(self):
+        """Espejo de pre_tab._get_units: devuelve {longitud, fuerza, esfuerzo}
+        del proyecto."""
+        from config.units import get_unit_labels
+        return get_unit_labels(self.project.unit_system)
+
     def _update_table(self):
         self.results_tree.delete(*self.results_tree.get_children())
+        # Limpiar celda seleccionada (y su overlay) al reconstruir contenido
+        self._clear_cell_highlight()
         if not self.solution:
             return
+
+        u_labels = self._get_units()
+        L = u_labels.get("longitud", "-")
+        F = u_labels.get("fuerza", "-")
+        S = u_labels.get("esfuerzo", "-")
 
         table_type = self.table_type_var.get()
         u = self.solution["u"]
 
         if table_type == "Desplazamientos":
-            self.results_tree.heading("v1", text="Ux")
-            self.results_tree.heading("v2", text="Uy")
-            self.results_tree.heading("v3", text="|U|")
+            self.results_tree.heading("v1", text=f"Ux [{L}]")
+            self.results_tree.heading("v2", text=f"Uy [{L}]")
+            self.results_tree.heading("v3", text=f"|U| [{L}]")
             self.results_tree.heading("v4", text="")
             self.results_tree.heading("v5", text="")
             self.results_tree.heading("v6", text="")
+            idx_map = self.project.node_index_map
             for nid in sorted(self.project.nodes.keys()):
-                ux = u[2 * (nid - 1)]
-                uy = u[2 * (nid - 1) + 1]
+                base = 2 * idx_map[nid]
+                ux = u[base]
+                uy = u[base + 1]
                 umag = np.sqrt(ux**2 + uy**2)
                 self.results_tree.insert(
                     "", END,
@@ -590,12 +810,12 @@ class PostProcessTab:
                 )
 
         elif table_type == "Esfuerzos":
-            self.results_tree.heading("v1", text="σx")
-            self.results_tree.heading("v2", text="σy")
-            self.results_tree.heading("v3", text="τxy")
-            self.results_tree.heading("v4", text="σ1")
-            self.results_tree.heading("v5", text="σ2")
-            self.results_tree.heading("v6", text="VM")
+            self.results_tree.heading("v1", text=f"σx [{S}]")
+            self.results_tree.heading("v2", text=f"σy [{S}]")
+            self.results_tree.heading("v3", text=f"τxy [{S}]")
+            self.results_tree.heading("v4", text=f"σ1 [{S}]")
+            self.results_tree.heading("v5", text=f"σ2 [{S}]")
+            self.results_tree.heading("v6", text=f"VM [{S}]")
             if self.nodal_stresses:
                 for nid in sorted(self.nodal_stresses.keys()):
                     s = self.nodal_stresses[nid]
@@ -613,18 +833,20 @@ class PostProcessTab:
                     )
 
         elif table_type == "Reacciones":
-            self.results_tree.heading("v1", text="Rx")
-            self.results_tree.heading("v2", text="Ry")
+            self.results_tree.heading("v1", text=f"Rx [{F}]")
+            self.results_tree.heading("v2", text=f"Ry [{F}]")
             self.results_tree.heading("v3", text="")
             self.results_tree.heading("v4", text="")
             self.results_tree.heading("v5", text="")
             self.results_tree.heading("v6", text="")
             R = self.solution["reactions"]
+            idx_map = self.project.node_index_map
             for bc in sorted(self.project.boundary_conditions.values(),
                              key=lambda b: b.node_id):
                 nid = bc.node_id
-                rx = R[2 * (nid - 1)] if bc.restrain_x else 0
-                ry = R[2 * (nid - 1) + 1] if bc.restrain_y else 0
+                base = 2 * idx_map[nid]
+                rx = R[base] if bc.restrain_x else 0
+                ry = R[base + 1] if bc.restrain_y else 0
                 self.results_tree.insert(
                     "", END, values=(nid, fmt(rx, "force"),
                                      fmt(ry, "force"), "", "", "", "")
@@ -637,11 +859,107 @@ class PostProcessTab:
             self.results_tree.selection_set(children)
         return "break"
 
+    def _on_results_cell_click(self, event):
+        """Detecta click sobre una celda y la marca como 'celda seleccionada'.
+
+        Pinta un Label amarillo con el valor encima de la celda (feedback
+        visual) y guarda `(iid, col_name, value)` en `self._selected_cell`
+        para que `Ctrl+C` posterior copie solo ese valor (read-only — la
+        celda no se edita).
+        """
+        region = self.results_tree.identify("region", event.x, event.y)
+        if region != "cell":
+            self._clear_cell_highlight()
+            return
+        iid = self.results_tree.identify_row(event.y)
+        col_id = self.results_tree.identify_column(event.x)  # "#1", "#2", ...
+        if not iid or not col_id:
+            self._clear_cell_highlight()
+            return
+        try:
+            col_idx = int(col_id.replace("#", "")) - 1
+        except ValueError:
+            self._clear_cell_highlight()
+            return
+        cols = self.results_tree["columns"]
+        if not (0 <= col_idx < len(cols)):
+            self._clear_cell_highlight()
+            return
+        col_name = cols[col_idx]
+        header = self.results_tree.heading(col_name, "text") or col_name
+        values = self.results_tree.item(iid, "values")
+        value = values[col_idx] if col_idx < len(values) else ""
+        if value == "":
+            self._clear_cell_highlight()
+            self.main_window.set_status(
+                "Celda vacia — sin valor para copiar"
+            )
+            return
+        self._selected_cell = (iid, col_name, value)
+        self._show_cell_highlight(iid, col_id, value)
+        self.main_window.set_status(
+            f"Celda: {header} = {value}  (Ctrl+C para copiar)"
+        )
+
+    def _show_cell_highlight(self, iid, col_id, value):
+        """Posiciona el Label overlay amarillo encima de la celda.
+
+        Usa `Treeview.bbox(iid, col)` para obtener coords relativas al
+        Treeview y `place()` para posicionar. El text del label espeja el
+        valor de la celda para que el highlight no oculte el dato.
+        """
+        bbox = self.results_tree.bbox(iid, col_id)
+        if not bbox:
+            self._clear_cell_highlight()
+            return
+        x, y, w, h = bbox
+        try:
+            self._cell_highlight.config(text=str(value))
+            self._cell_highlight.place(x=x, y=y, width=w, height=h)
+            self._cell_highlight.lift()
+        except tk.TclError:
+            pass
+
+    def _clear_cell_highlight(self):
+        """Oculta el overlay y limpia _selected_cell."""
+        self._selected_cell = None
+        try:
+            self._cell_highlight.place_forget()
+        except (tk.TclError, AttributeError):
+            pass
+
+    def _on_results_selection_changed(self, _event=None):
+        """Si el usuario cambia la fila seleccionada por teclado o
+        Ctrl+Click, la celda anterior puede ya no ser la activa: limpiamos
+        el highlight para evitar feedback estale."""
+        if self._selected_cell is None:
+            return
+        # Si la fila del highlight sigue seleccionada (caso multi-fila),
+        # mantener; sino limpiar.
+        sel = self.results_tree.selection()
+        iid = self._selected_cell[0]
+        if iid not in sel:
+            self._clear_cell_highlight()
+
     def _copy_results_tsv(self, event=None):
-        """Copia las filas seleccionadas (o todas si no hay selección) al
-        portapapeles en formato TSV. Solo se incluyen columnas con header
-        no vacío para que el pegado en Excel quede limpio según la vista
-        activa (Desplazamientos / Esfuerzos / Reacciones)."""
+        """Ctrl+C en la tabla de resultados.
+
+        Prioridad:
+          1) Si hay una celda seleccionada via click -> copia SOLO ese
+             valor (sin tabuladores ni headers).
+          2) Sino, copia las filas seleccionadas en TSV (o todas si no hay
+             seleccion). Pegable en Excel con headers de la vista activa.
+        """
+        # Caso 1: celda individual seleccionada
+        if self._selected_cell is not None:
+            _, _, value = self._selected_cell
+            self.frame.clipboard_clear()
+            self.frame.clipboard_append(str(value))
+            self.main_window.set_status(
+                f"Copiado al portapapeles: {value}"
+            )
+            return "break"
+
         items = self.results_tree.selection()
         if not items:
             items = self.results_tree.get_children()
@@ -682,7 +1000,21 @@ class PostProcessTab:
         if not self.project.is_solved:
             self.solution = None
             self.nodal_stresses = None
-            if hasattr(self, 'solve_status'):
-                self.solve_status.config(
-                    text="Estado: Sin resolver", foreground="#ffa726"
-                )
+            self.element_stresses = None
+            # Limpieza silenciosa del probe overlay: si la geometria
+            # cambio (lo que invalida is_solved), la probe referenciaria
+            # elem_ids que pueden ya no existir. Decision documentada en
+            # CLAUDE.md. El overlay se reactiva automaticamente cuando
+            # se vuelva a Post-Proceso con un solve exitoso.
+            if (self.probe_overlay is not None
+                    and self.probe_overlay.active):
+                self.probe_overlay.deactivate()
+            # Vista 3D queda ligada a is_solved: si la geometria cambia,
+            # se cierra silenciosamente.
+            if (self.surface_3d_viewer is not None
+                    and self.surface_3d_viewer.winfo_exists()):
+                try:
+                    self.surface_3d_viewer.destroy()
+                except Exception:
+                    pass
+                self.surface_3d_viewer = None

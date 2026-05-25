@@ -36,15 +36,18 @@ class Element:
         """Grados de libertad del elemento (2 por nodo)."""
         return self.num_nodes * 2
 
-    def get_dof_indices(self):
+    def get_dof_indices(self, project):
         """
         Retorna los índices de GDL globales del elemento.
-        Nodo i tiene GDL: [2*i - 2, 2*i - 1] (0-indexed).
+
+        Usa project.node_index_map para soportar IDs no contiguos.
         """
+        idx_map = project.node_index_map
         dof = []
         for nid in self.node_ids:
-            dof.append(2 * (nid - 1))      # ux del nodo
-            dof.append(2 * (nid - 1) + 1)  # uy del nodo
+            base = 2 * idx_map[nid]
+            dof.append(base)      # ux del nodo
+            dof.append(base + 1)  # uy del nodo
         return dof
 
     def to_dict(self):
