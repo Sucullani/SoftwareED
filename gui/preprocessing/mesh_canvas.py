@@ -112,6 +112,12 @@ class MeshCanvas(ttk.Frame):
 
         # Gradiente e isolineas
         self._gradient_photo = None  # referencia PIL para evitar GC
+        # Cache de la imagen rasterizada del contorno. Invalidado cuando
+        # cambia el resultado (nuevo solve), el tipo de campo, el rango de
+        # color o el viewport (escala/offset/tamaño). Durante pan/zoom
+        # reutiliza la imagen cacheada sin rerasterizar (principal causa del
+        # lag en Post-Proceso con mallas grandes).
+        self._gradient_cache_key = None
         self.show_isolines = False
         self.isoline_count = 10
 
@@ -503,6 +509,30 @@ class MeshCanvas(ttk.Frame):
             return grid, True
         return None, False
 
+    def _gradient_cache_valid(self, w, h):
+        """Comprueba si la imagen cacheada sigue siendo valida para el
+        viewport y datos de resultado actuales.
+
+        Clave: (id resultado, vmin, vmax, w, h, scale, offset_x, offset_y,
+                deform_scale, show_deformed). Cualquier cambio en estos
+        parametros invalida la cache y exige rerasterizacion.
+        """
+        rid = (id(self.result_values)
+               if self.result_values is not None
+               else id(self.element_result_grid))
+        key = (
+            rid,
+            round(self.result_vmin, 9) if self.result_vmin is not None else None,
+            round(self.result_vmax, 9) if self.result_vmax is not None else None,
+            w, h,
+            round(self.scale, 9),
+            round(self.offset_x, 3),
+            round(self.offset_y, 3),
+            self.deform_scale,
+            self.show_deformed,
+        )
+        return key == self._gradient_cache_key, key
+
     def _draw_gradient_elements(self):
         """Gradiente Gouraud: subdivision + rasterizacion de triangulos con PIL.
 
@@ -510,6 +540,12 @@ class MeshCanvas(ttk.Frame):
         2 triangulos por celda y los rasteriza con interpolacion baricentrica.
         Los `val` provienen de _get_grid_values (modo crudo: pre-computado
         con compute_raw real; modo suavizado: bilineal de corners nodales).
+
+        Cache: durante pan/zoom los datos de resultado y el tamaño del canvas
+        no cambian, pero si cambian offset_x/offset_y/scale. La cache incluye
+        estos parametros de viewport, por lo que la rerasterizacion solo ocurre
+        cuando el viewport es realmente nuevo. Para mallas de 500+ elementos
+        esto elimina el lag durante la navegacion del Post-Proceso.
         """
         if not HAS_PIL:
             self._draw_gradient_polygons()
@@ -518,6 +554,13 @@ class MeshCanvas(ttk.Frame):
         w = int(self.canvas.winfo_width())
         h = int(self.canvas.winfo_height())
         if w <= 1 or h <= 1:
+            return
+
+        # Reusar imagen cacheada si el viewport y los datos no cambiaron.
+        # Evita rerasterizar O(E * n^2 * pixeles) en cada pan/zoom.
+        cache_valid, new_key = self._gradient_cache_valid(w, h)
+        if cache_valid and self._gradient_photo is not None:
+            self.canvas.create_image(0, 0, anchor=NW, image=self._gradient_photo)
             return
 
         img = np.zeros((h, w, 4), dtype=np.uint8)
@@ -565,10 +608,15 @@ class MeshCanvas(ttk.Frame):
                     self._rasterize_triangle(img, w, h, p00, p10, p11)
                     self._rasterize_triangle(img, w, h, p00, p11, p01)
 
-        # Mostrar imagen en el canvas (1 solo item)
+        # Mostrar imagen en el canvas (1 solo item).
+        # Reemplazar la referencia ANTES de eliminar la anterior para que Tk no
+        # intente renderizar un PhotoImage destruido (race condition en redraw).
         pil_img = Image.fromarray(img, 'RGBA')
+        old_photo = self._gradient_photo
         self._gradient_photo = ImageTk.PhotoImage(pil_img)
         self.canvas.create_image(0, 0, anchor=NW, image=self._gradient_photo)
+        del old_photo  # libera la imagen anterior; evita leak acumulado por zoom/pan
+        self._gradient_cache_key = new_key
 
     def _rasterize_triangle(self, img, w, h, p0, p1, p2):
         """Rasteriza un triangulo con interpolacion baricentrica de color.
@@ -2351,6 +2399,7 @@ class MeshCanvas(ttk.Frame):
         self.displacements = None
         self.deform_scale = 0
         self.show_isolines = False
+        self._gradient_cache_key = None  # invalidar cache al limpiar resultados
         self.redraw()
 
     def fit_view(self):
