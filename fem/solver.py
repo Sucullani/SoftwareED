@@ -11,11 +11,23 @@ Backward-compat: con `body_force_fn=None` y todas las BC en ux_value=uy_value=0,
 el output es bit-a-bit idéntico al solver pre-2026-05.
 """
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Optional
+
 import numpy as np
 from scipy.linalg import solve
 
+if TYPE_CHECKING:
+    from models.project import ProjectModel
 
-def apply_boundary_conditions(K, F, restrained_dofs, u_prescribed=None):
+
+def apply_boundary_conditions(
+    K: np.ndarray,
+    F: np.ndarray,
+    restrained_dofs: "list[int]",
+    u_prescribed: Optional[np.ndarray] = None,
+) -> "tuple[np.ndarray, np.ndarray, list[int]]":
     """
     Aplica condiciones de contorno por eliminación de filas/columnas.
 
@@ -51,7 +63,7 @@ def apply_boundary_conditions(K, F, restrained_dofs, u_prescribed=None):
     return K_red, F_red, free_dofs
 
 
-def solve_system(project, *, body_force_fn=None):
+def solve_system(project: "ProjectModel", *, body_force_fn=None) -> dict:
     """
     Resuelve el sistema completo: ensamblaje + condiciones de borde + solución.
 
@@ -98,12 +110,12 @@ def solve_system(project, *, body_force_fn=None):
 
     # 6. Reconstruir vector completo de desplazamientos.
     #    En DOFs libres: valor calculado. En DOFs restringidos: valor prescrito.
+    #    Fancy-indexing (free_dofs/restrained_dofs son listas de índices sin
+    #    repetidos) -> equivalente bit-a-bit a los bucles previos.
     u = np.zeros(project.total_dof)
-    for i, dof in enumerate(free_dofs):
-        u[dof] = u_free[i]
+    u[free_dofs] = u_free
     if u_prescribed is not None:
-        for dof in restrained_dofs:
-            u[dof] = u_prescribed[dof]
+        u[restrained_dofs] = u_prescribed[restrained_dofs]
 
     # 7. Calcular reacciones: R = K · u - F
     reactions = K @ u - F
