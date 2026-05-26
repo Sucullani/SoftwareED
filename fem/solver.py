@@ -12,7 +12,7 @@ el output es bit-a-bit idéntico al solver pre-2026-05.
 """
 
 import numpy as np
-from scipy.linalg import solve
+from scipy.sparse.linalg import spsolve
 
 
 def apply_boundary_conditions(K, F, restrained_dofs, u_prescribed=None):
@@ -24,14 +24,14 @@ def apply_boundary_conditions(K, F, restrained_dofs, u_prescribed=None):
     (substitucion estatica del bloque de Dirichlet no homogeneo).
 
     Parámetros:
-        K: array (n_dof, n_dof) - Matriz de rigidez global.
+        K: matriz de rigidez global (densa o scipy sparse CSR/CSC).
         F: array (n_dof,) - Vector de fuerzas.
         restrained_dofs: list - Índices de GDL restringidos (0-indexed).
         u_prescribed: array (n_dof,) | None - Vector con valores en los
             DOFs restringidos (0 en el resto). Si None, se asume ceros.
 
     Retorna:
-        K_red: array - Matriz reducida.
+        K_red: submatriz reducida en formato CSR (compatible con spsolve).
         F_red: array - Vector reducido.
         free_dofs: list - Índices de GDL libres.
     """
@@ -39,14 +39,24 @@ def apply_boundary_conditions(K, F, restrained_dofs, u_prescribed=None):
     restrained_set = set(restrained_dofs)
     free_dofs = [i for i in range(n_dof) if i not in restrained_set]
 
-    K_red = K[np.ix_(free_dofs, free_dofs)]
+    free_arr = np.asarray(free_dofs, dtype=np.intp)
+
+    # Indexado por filas luego columnas — eficiente en CSR y correcto en denso.
+    K_red = K[free_arr, :][:, free_arr]
+    # spsolve requiere CSR o CSC; .tocsr() es no-op si ya es CSR.
+    try:
+        K_red = K_red.tocsr()
+    except AttributeError:
+        pass  # K denso (tests de backward-compat): se pasa directo a spsolve
+
     F_red = F[free_dofs].copy()
 
     if u_prescribed is not None and len(restrained_dofs) > 0:
         u_r = u_prescribed[restrained_dofs]
         if np.any(u_r != 0.0):
-            K_fr = K[np.ix_(free_dofs, restrained_dofs)]
-            F_red -= K_fr @ u_r
+            rest_arr = np.asarray(restrained_dofs, dtype=np.intp)
+            K_fr = K[free_arr, :][:, rest_arr]
+            F_red -= np.asarray(K_fr @ u_r).ravel()
 
     return K_red, F_red, free_dofs
 
@@ -93,8 +103,8 @@ def solve_system(project, *, body_force_fn=None):
         K, F, restrained_dofs, u_prescribed
     )
 
-    # 5. Resolver K_red · u_free = F_red
-    u_free = solve(K_red, F_red)
+    # 5. Resolver K_red · u_free = F_red (spsolve acepta CSR/CSC y denso)
+    u_free = spsolve(K_red, F_red)
     if np.any(~np.isfinite(u_free)):
         raise ValueError(
             "El solver produjo valores NaN o Inf. Verifica que K no sea "
