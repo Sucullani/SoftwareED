@@ -1,0 +1,246 @@
+PROFILE REAL — EduFEM iter3
+Fecha: 2026-05-26  |  Branch: claude/perf-iter2-postproc (base)
+============================================================
+
+Modelos:
+  Q4: 4800 elem, 4961 nodos, 9922 GDL
+  Q9: 200 elem, 861 nodos, 1722 GDL
+
+Tiempos medios (5 runs):
+  Q4 solve:   1.3096s
+  Q4 stress:  1.2256s
+  Q4 total:   2.5351s
+  Q9 solve:   0.1623s
+  Q9 stress:  0.1421s
+  Q9 total:   0.3044s
+  validate_project Q4: 10.55ms
+
+DESGLOSE Q4:
+  assemble:  1141.37ms
+  BC reduce: 11.04ms
+  spsolve:   143.16ms
+  reactions: 1.07ms
+DESGLOSE Q9:
+  assemble:  135.67ms
+  BC reduce: 2.50ms
+  spsolve:   8.21ms
+  reactions: 0.25ms
+
+============================================================
+CPROFILE Q4 — cumulative top 50
+============================================================
+         7594906 function calls in 16.306 seconds
+
+   Ordered by: cumulative time
+   List reduced from 185 to 50 due to restriction <50>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        5    0.775    0.155    8.166    1.633 /home/user/SoftwareED/fem/stress.py:143(compute_all_stresses)
+        5    0.080    0.016    8.140    1.628 /home/user/SoftwareED/fem/solver.py:64(solve_system)
+        5    0.345    0.069    7.306    1.461 /home/user/SoftwareED/fem/assembly.py:65(assemble_global_system)
+    24000    1.699    0.000    5.226    0.000 /home/user/SoftwareED/fem/stiffness.py:15(element_stiffness)
+    24000    1.360    0.000    4.595    0.000 /home/user/SoftwareED/fem/stress.py:15(compute_element_stresses)
+   192000    1.499    0.000    1.620    0.000 /home/user/SoftwareED/fem/b_matrix.py:9(compute_b_matrix)
+   192000    1.277    0.000    1.440    0.000 /home/user/SoftwareED/fem/jacobian.py:11(compute_jacobian)
+   148830    0.282    0.000    1.435    0.000 /usr/local/lib/python3.11/dist-packages/numpy/core/fromnumeric.py:3385(mean)
+    24000    0.139    0.000    1.343    0.000 /usr/local/lib/python3.11/dist-packages/numpy/lib/function_base.py:5011(meshgrid)
+    24000    0.944    0.000    1.211    0.000 /home/user/SoftwareED/fem/stress.py:73(extrapolate_to_nodes_q4)
+   192000    0.841    0.000    1.189    0.000 /home/user/SoftwareED/fem/shape_functions.py:60(dshape_functions_q4)
+   148830    0.409    0.000    1.154    0.000 /usr/local/lib/python3.11/dist-packages/numpy/core//_methods.py:101(_mean)
+    24000    0.107    0.000    0.988    0.000 /usr/local/lib/python3.11/dist-packages/numpy/lib/stride_tricks.py:480(broadcast_arrays)
+    48000    0.107    0.000    0.977    0.000 /home/user/SoftwareED/fem/gauss_quadrature.py:67(get_gauss_points_for_element)
+    48000    0.695    0.000    0.870    0.000 /home/user/SoftwareED/fem/gauss_quadrature.py:41(get_gauss_points_2d)
+   624060    0.839    0.000    0.839    0.000 {built-in method numpy.array}
+    24000    0.041    0.000    0.713    0.000 /usr/local/lib/python3.11/dist-packages/numpy/lib/stride_tricks.py:546(<listcomp>)
+        5    0.000    0.000    0.710    0.142 /usr/local/lib/python3.11/dist-packages/scipy/sparse/linalg/_dsolve/linsolve.py:134(spsolve)
+        5    0.709    0.142    0.709    0.142 {built-in method scipy.sparse.linalg._dsolve._superlu.gssv}
+    48000    0.446    0.000    0.672    0.000 /usr/local/lib/python3.11/dist-packages/numpy/lib/stride_tricks.py:340(_broadcast_to)
+   816005    0.650    0.000    0.650    0.000 {method 'copy' of 'numpy.ndarray' objects}
+   192000    0.388    0.000    0.388    0.000 /home/user/SoftwareED/fem/jacobian.py:48(compute_dN_physical)
+    48000    0.235    0.000    0.323    0.000 /home/user/SoftwareED/fem/constitutive.py:11(constitutive_matrix)
+   148830    0.254    0.000    0.280    0.000 /usr/local/lib/python3.11/dist-packages/numpy/core/_methods.py:67(_count_reduce_items)
+   148895    0.259    0.000    0.259    0.000 {method 'reduce' of 'numpy.ufunc' objects}
+   216025    0.161    0.000    0.161    0.000 {built-in method numpy.zeros}
+  1416890    0.159    0.000    0.159    0.000 {method 'append' of 'list' objects}
+    48005    0.145    0.000    0.145    0.000 /home/user/SoftwareED/fem/shape_functions.py:114(get_shape_functions)
+   196830    0.139    0.000    0.139    0.000 {built-in method numpy.asanyarray}
+    24000    0.103    0.000    0.132    0.000 /home/user/SoftwareED/models/element.py:39(get_dof_indices)
+    24000    0.082    0.000    0.131    0.000 /usr/local/lib/python3.11/dist-packages/numpy/lib/function_base.py:5151(<listcomp>)
+   192025    0.125    0.000    0.125    0.000 {built-in method numpy.empty}
+    48000    0.027    0.000    0.107    0.000 /usr/local/lib/python3.11/dist-packages/numpy/lib/function_base.py:348(iterable)
+    24000    0.091    0.000    0.095    0.000 /usr/local/lib/python3.11/dist-packages/numpy/lib/stride_tricks.py:416(_broadcast_shape)
+    48000    0.080    0.000    0.080    0.000 {built-in method builtins.iter}
+   144000    0.078    0.000    0.078    0.000 /home/user/SoftwareED/fem/stress.py:97(<listcomp>)
+    24000    0.023    0.000    0.078    0.000 /usr/local/lib/python3.11/dist-packages/numpy/lib/function_base.py:5164(<listcomp>)
+    48055    0.039    0.000    0.072    0.000 {built-in method builtins.any}
+    24000    0.062    0.000    0.062    0.000 /home/user/SoftwareED/fem/assembly.py:101(<listcomp>)
+   288000    0.058    0.000    0.058    0.000 {built-in method builtins.abs}
+    24130    0.049    0.000    0.049    0.000 {built-in method numpy.asarray}
+    24805    0.043    0.000    0.043    0.000 /home/user/SoftwareED/fem/stress.py:190(<dictcomp>)
+    48000    0.041    0.000    0.041    0.000 {method 'reshape' of 'numpy.ndarray' objects}
+    24000    0.025    0.000    0.040    0.000 /usr/local/lib/python3.11/dist-packages/numpy/lib/stride_tricks.py:538(<listcomp>)
+   297690    0.034    0.000    0.034    0.000 {built-in method builtins.issubclass}
+   144000    0.032    0.000    0.032    0.000 /home/user/SoftwareED/fem/stride_tricks.py:345(<genexpr>)
+   148830    0.026    0.000    0.026    0.000 {built-in method numpy.core._multiarray_umath.normalize_axis_index}
+    24000    0.011    0.000    0.026    0.000 {built-in method builtins.all}
+   148860    0.025    0.000    0.025    0.000 {built-in method builtins.hasattr}
+   120555    0.025    0.000    0.025    0.000 {built-in method builtins.len}
+
+
+
+============================================================
+CPROFILE Q9 — cumulative top 50
+============================================================
+         772806 function calls in 1.842 seconds
+
+   Ordered by: cumulative time
+   List reduced from 186 to 50 due to restriction <50>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        5    0.075    0.015    0.930    0.186 /home/user/SoftwareED/fem/stress.py:143(compute_all_stresses)
+        5    0.005    0.001    0.912    0.182 /home/user/SoftwareED/fem/solver.py:64(solve_system)
+        5    0.020    0.004    0.854    0.171 /home/user/SoftwareED/fem/assembly.py:65(assemble_global_system)
+     1000    0.199    0.000    0.720    0.001 /home/user/SoftwareED/fem/stiffness.py:15(element_stiffness)
+     1000    0.121    0.000    0.523    0.001 /home/user/SoftwareED/fem/stress.py:15(compute_element_stresses)
+    18000    0.293    0.000    0.305    0.000 /home/user/SoftwareED/fem/b_matrix.py:9(compute_b_matrix)
+    18000    0.195    0.000    0.273    0.000 /home/user/SoftwareED/fem/shape_functions.py:75(dshape_functions_q9)
+    25830    0.048    0.000    0.244    0.000 /usr/local/lib/python3.11/dist-packages/numpy/core/fromnumeric.py:3385(mean)
+    25830    0.072    0.000    0.196    0.000 /usr/local/lib/python3.11/dist-packages/numpy/core/_methods.py:101(_mean)
+    18000    0.128    0.000    0.144    0.000 /home/user/SoftwareED/fem/jacobian.py:11(compute_jacobian)
+    71060    0.107    0.000    0.107    0.000 {built-in method numpy.array}
+     1000    0.008    0.000    0.072    0.000 /usr/local/lib/python3.11/dist-packages/numpy/lib/function_base.py:5011(meshgrid)
+    74005    0.069    0.000    0.069    0.000 {method 'copy' of 'numpy.ndarray' objects}
+     2000    0.006    0.000    0.065    0.000 /home/user/SoftwareED/fem/gauss_quadrature.py:67(get_gauss_points_for_element)
+     2000    0.044    0.000    0.059    0.000 /home/user/SoftwareED/fem/gauss_quadrature.py:41(get_gauss_points_2d)
+     1000    0.037    0.000    0.055    0.000 /home/user/SoftwareED/fem/stress.py:126(extrapolate_to_nodes_q9)
+     1000    0.006    0.000    0.050    0.000 /usr/local/lib/python3.11/dist-packages/numpy/lib/stride_tricks.py:480(broadcast_arrays)
+    25830    0.043    0.000    0.048    0.000 /usr/local/lib/python3.11/dist-packages/numpy/core/_methods.py:67(_count_reduce_items)
+    25895    0.044    0.000    0.044    0.000 {method 'reduce' of 'numpy.ufunc' objects}
+        5    0.000    0.000    0.042    0.008 /usr/local/lib/python3.11/dist-packages/scipy/sparse/linalg/_dsolve/linsolve.py:134(spsolve)
+        5    0.041    0.008    0.041    0.008 {built-in method scipy.sparse.linalg._dsolve._superlu.gssv}
+    18000    0.038    0.000    0.038    0.000 /home/user/SoftwareED/fem/jacobian.py:48(compute_dN_physical)
+     1000    0.002    0.000    0.035    0.000 /usr/local/lib/python3.11/dist-packages/numpy/lib/stride_tricks.py:546(<listcomp>)
+     2000    0.025    0.000    0.033    0.000 /usr/local/lib/python3.11/dist-packages/numpy/lib/stride_tricks.py:340(_broadcast_to)
+     4305    0.022    0.000    0.022    0.000 /home/user/SoftwareED/fem/stress.py:190(<dictcomp>)
+    27830    0.020    0.000    0.020    0.000 {built-in method numpy.asanyarray}
+     2000    0.013    0.000    0.017    0.000 /home/user/SoftwareED/fem/constitutive.py:11(constitutive_matrix)
+    19025    0.017    0.000    0.017    0.000 {built-in method numpy.zeros}
+   129490    0.016    0.000    0.016    0.000 {method 'append' of 'list' objects}
+    18025    0.013    0.000    0.013    0.000 {built-in method numpy.empty}
+     1000    0.009    0.000    0.012    0.000 /home/user/SoftwareED/models/element.py:39(get_dof_indices)
+     2005    0.008    0.000    0.008    0.000 /home/user/SoftwareED/fem/shape_functions.py:114(get_shape_functions)
+     1000    0.005    0.000    0.008    0.001 /usr/local/lib/python3.11/dist-packages/scipy/sparse/linalg/_dsolve/linsolve.py:134(spsolve)
+     1000    0.007    0.000    0.007    0.000 /home/user/SoftwareED/fem/assembly.py:101(<listcomp>)
+     6000    0.007    0.000    0.007    0.000 /home/user/SoftwareED/fem/stress.py:136(<listcomp>)
+        5    0.000    0.000    0.006    0.001 /usr/local/lib/python3.11/dist-packages/scipy/sparse/_coo.py:349(tocsr)
+    51690    0.006    0.000    0.006    0.000 {built-in method builtins.issubclass}
+       10    0.000    0.000    0.006    0.001 /usr/local/lib/python3.11/dist-packages/scipy/sparse/_index.py:29(__getitem__)
+    27000    0.006    0.000    0.006    0.000 {built-in method builtins.abs}
+     1000    0.005    0.000    0.005    0.000 /home/user/SoftwareED/fem/stress.py:134(<listcomp>)
+     1000    0.001    0.000    0.005    0.000 /usr/local/lib/python3.11/dist-packages/numpy/lib/function_base.py:5164(<listcomp>)
+     1000    0.005    0.000    0.005    0.000 /usr/local/lib/python3.11/dist-packages/numpy/lib/stride_tricks.py:416(_broadcast_shape)
+    25830    0.005    0.000    0.005    0.000 {built-in method numpy.core._multiarray_umath.normalize_axis_index}
+    25860    0.004    0.000    0.004    0.000 {built-in method builtins.hasattr}
+    25830    0.004    0.000    0.004    0.000 /usr/local/lib/python3.11/dist-packages/numpy/core/fromnumeric.py:3380(_mean_dispatcher)
+    26085    0.004    0.000    0.004    0.000 {built-in method builtins.isinstance}
+     2055    0.002    0.000    0.004    0.000 {built-in method builtins.any}
+     1130    0.004    0.000    0.004    0.000 {built-in method numpy.asarray}
+       10    0.000    0.000    0.003    0.000 /usr/local/lib/python3.11/dist-packages/scipy/sparse/_compressed.py:1063(sum_duplicates)
+
+
+
+============================================================
+CPROFILE validate_project Q4 — tottime top 20
+============================================================
+         385001 function calls in 0.527 seconds
+
+   Ordered by: internal time
+   List reduced from 32 to 20 due to restriction <20>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+       20    0.269    0.013    0.316    0.016 /home/user/SoftwareED/models/model_health.py:326(_check_negative_jacobians)
+       20    0.051    0.003    0.058    0.003 /home/user/SoftwareED/models/model_health.py:211(_check_degenerate_elements)
+    96000    0.047    0.000    0.047    0.000 /home/user/SoftwareED/models/model_health.py:334(<listcomp>)
+       20    0.041    0.002    0.041    0.002 /home/user/SoftwareED/models/model_health.py:182(_check_element_node_refs)
+    96000    0.020    0.000    0.020    0.000 {method 'update' of 'set' objects}
+       20    0.019    0.001    0.527    0.026 /home/user/SoftwareED/models/model_health.py:135(validate_project)
+       20    0.019    0.001    0.026    0.001 /home/user/SoftwareED/models/model_health.py:405(<setcomp>)
+       20    0.012    0.001    0.012    0.001 /home/user/SoftwareED/models/model_health.py:430(<listcomp>)
+       20    0.011    0.001    0.011    0.001 /home/user/SoftwareED/models/model_health.py:197(_check_element_materials)
+       20    0.010    0.000    0.010    0.000 /home/user/SoftwareED/models/model_health.py:431(<listcomp>)
+    96000    0.007    0.000    0.007    0.000 {built-in method builtins.getattr}
+    96040    0.007    0.000    0.007    0.000 {built-in method builtins.len}
+       20    0.006    0.000    0.006    0.000 /home/user/SoftwareED/models/model_health.py:313(<setcomp>)
+       60    0.003    0.000    0.003    0.000 {built-in method builtins.max}
+       40    0.002    0.000    0.002    0.000 {built-in method builtins.min}
+       20    0.001    0.000    0.054    0.003 /home/user/SoftwareED/models/model_health.py:388(_check_unit_consistency)
+       20    0.001    0.000    0.001    0.000 /home/user/SoftwareED/models/model_health.py:475(_add_summary)
+       20    0.000    0.000    0.006    0.000 /home/user/SoftwareED/models/model_health.py:312(_check_unused_materials)
+       20    0.000    0.000    0.000    0.000 /home/user/SoftwareED/models/model_health.py:241(_check_restraints)
+       20    0.000    0.000    0.000    0.000 /home/user/SoftwareED/models/model_health.py:354(_check_zero_loads)
+
+
+============================================================
+============================================================
+AFTER — iter3 (branch: claude/perf-iter3-speed)
+Fecha: 2026-05-26
+============================================================
+
+Modelos (idénticos al baseline):
+  Q4: 4800 elem, 4961 nodos, 9922 GDL
+  Q9: 200 elem, 861 nodos, 1722 GDL
+
+Tiempos medios AFTER (5 runs):
+  Q4 solve:   1038.9ms    (era 1309.6ms → 1.26×)
+  Q4 stress:   374.4ms    (era 1225.6ms → 3.27×)
+  Q4 total:   1413.2ms    (era 2535.1ms → 1.79×)
+  Q9 solve:    155.5ms    (era 162.3ms  → 1.04×)
+  Q9 stress:    46.2ms    (era 142.1ms  → 3.08×)
+  Q9 total:    201.7ms    (era 304.4ms  → 1.51×)
+  validate_project Q4: 6.80ms  (era 10.55ms → 1.55×)
+
+DESGLOSE Q4 AFTER:
+  assemble:  869ms     (era 1141ms  → 1.31×)
+  spsolve:   ~143ms    (sin cambio — UMFPACK límite natural)
+
+RESUMEN DE SPEEDUPS:
+  ┌───────────────────────────────────┬──────────┬──────────┬─────────┐
+  │ Métrica                           │ ANTES    │ DESPUÉS  │ Speedup │
+  ├───────────────────────────────────┼──────────┼──────────┼─────────┤
+  │ Q4 total (solve+stress)           │ 2535ms   │ 1413ms   │  1.79×  │
+  │ Q4 stress                         │ 1226ms   │  374ms   │  3.27×  │
+  │ Q4 assembly                       │ 1141ms   │  869ms   │  1.31×  │
+  │ Q9 total (solve+stress)           │  304ms   │  202ms   │  1.51×  │
+  │ Q9 stress                         │  142ms   │   46ms   │  3.08×  │
+  │ validate_project Q4               │  10.6ms  │   6.8ms  │  1.55×  │
+  └───────────────────────────────────┴──────────┴──────────┴─────────┘
+
+CPROFILE Q4 AFTER — cumulative top 30 (5 runs solve+stress)
+============================================================
+         3831046 function calls in 8.900 seconds
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        5    0.060    0.012    6.628    1.326 fem/solver.py:64(solve_system)
+        5    0.321    0.064    5.881    1.176 fem/assembly.py:65(assemble_global_system)
+    24000    1.695    0.000    4.690    0.000 fem/stiffness.py:15(element_stiffness)
+        5    0.601    0.120    2.341    0.468 fem/stress.py:172(compute_all_stresses)
+    24000    0.920    0.000    0.930    0.000 fem/stress.py:135(_gauss_stresses_from_precomputed)  [NEW — was compute_element_stresses 4.595s]
+    96000    0.749    0.000    0.814    0.000 fem/b_matrix.py:9(compute_b_matrix)
+    96000    0.627    0.000    0.706    0.000 fem/jacobian.py:11(compute_jacobian)
+        5    0.651    0.130    0.651    0.130 {scipy gssv spsolve}
+    96000    0.408    0.000    0.595    0.000 fem/shape_functions.py:60(dshape_functions_q4)
+    24000    0.137    0.000    0.557    0.000 fem/stress.py:109(extrapolate_to_nodes_q4)  [was 1.211s]
+   576005    0.404    0.000    0.404    0.000 {ndarray.copy}
+    24000    0.270    0.000    0.402    0.000 numpy.tile  [was meshgrid 1.343s]
+   192065    0.388    0.000    0.388    0.000 {numpy.array}
+    24000    0.220    0.000    0.220    0.000 fem/stress.py:120(<listcomp>)
+   --- gauss_quadrature: NOT in top 30 anymore ---  [was 48000 calls 0.977s]
+   --- numpy.mean: NOT in top 30 anymore ---         [was 148830 calls 1.435s]
+
+FUNCIONES ELIMINADAS DEL TOP 30 (eran cuellos de botella):
+  compute_element_stresses  4.595s → 0.0s  (reemplazado por _gauss_stresses_from_precomputed)
+  numpy.mean                1.435s → 0.0s  (reemplazado por sum()/len() en listas cortas)
+  meshgrid+broadcast_arrays 1.343s → 0.0s  (reemplazado por repeat/tile)
+  get_gauss_points_*        0.977s → ~0ms  (cache de módulo, llamada única)
+  constitutive_matrix       0.323s → 0.154s (D_cache por (E,nu,type) — llamada única por material)
+  extrapolate_to_nodes_q4   1.211s → 0.557s (vectorizado con matmul único)
