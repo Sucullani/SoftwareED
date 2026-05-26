@@ -98,12 +98,12 @@ def solve_system(project, *, body_force_fn=None):
 
     # 6. Reconstruir vector completo de desplazamientos.
     #    En DOFs libres: valor calculado. En DOFs restringidos: valor prescrito.
+    #    Fancy-indexing (free_dofs/restrained_dofs son listas de índices sin
+    #    repetidos) -> equivalente bit-a-bit a los bucles previos.
     u = np.zeros(project.total_dof)
-    for i, dof in enumerate(free_dofs):
-        u[dof] = u_free[i]
+    u[free_dofs] = u_free
     if u_prescribed is not None:
-        for dof in restrained_dofs:
-            u[dof] = u_prescribed[dof]
+        u[restrained_dofs] = u_prescribed[restrained_dofs]
 
     # 7. Calcular reacciones: R = K · u - F
     reactions = K @ u - F
