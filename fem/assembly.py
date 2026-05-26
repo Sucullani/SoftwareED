@@ -112,10 +112,9 @@ def assemble_global_system(project, *, body_force_fn=None):
         # Índices de GDL del elemento
         dof_indices = elem.get_dof_indices(project)
 
-        # Ensamblar en la matriz global
-        for i_local, i_global in enumerate(dof_indices):
-            for j_local, j_global in enumerate(dof_indices):
-                K[i_global, j_global] += ke[i_local, j_local]
+        # Ensamblar en la matriz global (vectorizado: O(n_e) → op matricial).
+        idx = np.asarray(dof_indices, dtype=np.intp)
+        K[np.ix_(idx, idx)] += ke
 
         # Ensamblar body force del elemento si corresponde.
         # ∫ N_i(ξ,η) · b(x(ξ,η), y(ξ,η)) · |det J| · t dξdη, Gauss 2D.

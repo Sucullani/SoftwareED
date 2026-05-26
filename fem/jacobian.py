@@ -5,6 +5,8 @@ J = ∂(x,y)/∂(ξ,η)
 
 import numpy as np
 
+from config.settings import JACOBIAN_MIN_DETERMINANT
+
 
 def compute_jacobian(dN_nat, node_coords):
     """
@@ -24,15 +26,21 @@ def compute_jacobian(dN_nat, node_coords):
     #      [∂x/∂η, ∂y/∂η]]
     J = dN_nat @ node_coords  # (2, n_nodes) × (n_nodes, 2) = (2, 2)
 
-    det_J = np.linalg.det(J)
+    det_J = J[0, 0] * J[1, 1] - J[0, 1] * J[1, 0]
 
-    if abs(det_J) < 1e-15:
+    if abs(det_J) < JACOBIAN_MIN_DETERMINANT:
         raise ValueError(
             f"Jacobiano singular (det(J) = {det_J:.2e}). "
             "El elemento puede estar distorsionado o tener nodos coincidentes."
         )
 
-    inv_J = np.linalg.inv(J)
+    # Inversa 2×2 exacta por cofactores (evita np.linalg.inv overhead).
+    inv_J = np.empty((2, 2), dtype=float)
+    inv_d = 1.0 / det_J
+    inv_J[0, 0] =  J[1, 1] * inv_d
+    inv_J[0, 1] = -J[0, 1] * inv_d
+    inv_J[1, 0] = -J[1, 0] * inv_d
+    inv_J[1, 1] =  J[0, 0] * inv_d
 
     return J, det_J, inv_J
 

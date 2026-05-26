@@ -243,7 +243,10 @@ def compute_raw(project, solution, elem_id: int, xi: float, eta: float):
     det_J = J[0, 0] * J[1, 1] - J[0, 1] * J[1, 0]
     if abs(det_J) < JACOBIAN_MIN_DETERMINANT:
         return None
-    inv_J = np.linalg.inv(J)
+    # Inversa 2×2 exacta por cofactores (evita np.linalg.inv overhead en probe).
+    inv_d = 1.0 / det_J
+    inv_J = np.array([[ J[1, 1] * inv_d, -J[0, 1] * inv_d],
+                      [-J[1, 0] * inv_d,  J[0, 0] * inv_d]])
     dN_phys = inv_J @ dN_nat
     B = compute_b_matrix(dN_phys)
 
@@ -461,7 +464,10 @@ def compute_raw_grid(project, solution, elem_id: int, n: int = 6):
             det_J = J[0, 0] * J[1, 1] - J[0, 1] * J[1, 0]
             if abs(det_J) < JACOBIAN_MIN_DETERMINANT:
                 continue
-            inv_J = np.linalg.inv(J)
+            # Inversa 2×2 exacta (cofactores); ahorra np.linalg.inv en el loop.
+            inv_d = 1.0 / det_J
+            inv_J = np.array([[ J[1, 1] * inv_d, -J[0, 1] * inv_d],
+                               [-J[1, 0] * inv_d,  J[0, 0] * inv_d]])
             dN_phys = inv_J @ dN_nat            # (2, n_nodes)
 
             # B (3, 2*n_nodes) ensamblada en vectorizado

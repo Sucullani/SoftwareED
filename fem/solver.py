@@ -95,6 +95,12 @@ def solve_system(project, *, body_force_fn=None):
 
     # 5. Resolver K_red · u_free = F_red
     u_free = solve(K_red, F_red)
+    if np.any(~np.isfinite(u_free)):
+        raise ValueError(
+            "El solver produjo valores NaN o Inf. Verifica que K no sea "
+            "singular: modelo mal restringido, elemento degenerado o E/ν fuera "
+            "de rango pueden causar este problema."
+        )
 
     # 6. Reconstruir vector completo de desplazamientos.
     #    En DOFs libres: valor calculado. En DOFs restringidos: valor prescrito.

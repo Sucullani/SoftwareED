@@ -27,7 +27,7 @@ import numpy as np
 from fem.shape_functions import get_shape_functions
 from fem.gauss_quadrature import get_gauss_points_for_element
 from fem.jacobian import compute_jacobian
-from config.settings import ELEMENT_Q4, ELEMENT_Q9
+from config.settings import ELEMENT_Q4, ELEMENT_Q9, JACOBIAN_MIN_DETERMINANT
 
 
 # --------------------------------------------------------------------------- #
@@ -88,7 +88,7 @@ def scaled_jacobian(node_coords, element_type):
     vals = []
     for det_J, (c1, c2) in zip(dets, col_norms):
         denom = c1 * c2
-        if denom <= 1e-15:
+        if denom <= JACOBIAN_MIN_DETERMINANT:
             return 0.0
         vals.append(det_J / denom)
     return min(vals)
@@ -110,7 +110,7 @@ def internal_angles(corner_coords):
         p_next = corner_coords[(i + 1) % 4]
         v1 = p_prev - p_curr
         v2 = p_next - p_curr
-        cos_a = np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2) + 1e-15)
+        cos_a = np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2) + JACOBIAN_MIN_DETERMINANT)
         cos_a = np.clip(cos_a, -1.0, 1.0)
         angles.append(np.degrees(np.arccos(cos_a)))
     return angles
@@ -142,7 +142,7 @@ def robinson_aspect(corner_coords):
     n1 = float(np.linalg.norm(X1))
     n2 = float(np.linalg.norm(X2))
     lo = min(n1, n2)
-    if lo <= 1e-15:
+    if lo <= JACOBIAN_MIN_DETERMINANT:
         return float("inf")
     return max(n1, n2) / lo
 
@@ -157,7 +157,7 @@ def robinson_taper(corner_coords):
     X1, X2, X3 = _robinson_vectors(corner_coords)
     n1_sq = float(np.dot(X1, X1))
     n2_sq = float(np.dot(X2, X2))
-    if n1_sq <= 1e-15 or n2_sq <= 1e-15:
+    if n1_sq <= JACOBIAN_MIN_DETERMINANT or n2_sq <= JACOBIAN_MIN_DETERMINANT:
         return float("inf")
     t1 = abs(float(np.dot(X3, X1))) / n1_sq
     t2 = abs(float(np.dot(X3, X2))) / n2_sq
@@ -177,7 +177,7 @@ def edge_aspect_ratio(corner_coords):
         p1 = corner_coords[i]
         p2 = corner_coords[(i + 1) % n]
         lengths.append(np.linalg.norm(p2 - p1))
-    if min(lengths) < 1e-15:
+    if min(lengths) < JACOBIAN_MIN_DETERMINANT:
         return float("inf")
     return max(lengths) / min(lengths)
 
@@ -209,7 +209,7 @@ def _point_in_convex_hull(p, polygon):
         a = polygon[i]
         b = polygon[(i + 1) % n]
         cross = (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0])
-        if abs(cross) < 1e-15:
+        if abs(cross) < JACOBIAN_MIN_DETERMINANT:
             return False  # sobre la arista: lo tratamos como fuera
         if sign == 0:
             sign = 1 if cross > 0 else -1
@@ -241,7 +241,7 @@ def midside_center_admissibility(coords_q9):
         pm = mids[m_idx - 4]  # m_idx es 4..7 en coords, 0..3 en mids
         edge = pb - pa
         L = float(np.linalg.norm(edge))
-        if L <= 1e-15:
+        if L <= JACOBIAN_MIN_DETERMINANT:
             return {
                 "q_D": float("inf"), "s_min": 0.0, "s_max": 1.0,
                 "gate_tangential": False, "gate_convex": False, "gates_ok": False,
@@ -260,7 +260,7 @@ def midside_center_admissibility(coords_q9):
     avg_edge = 0.25 * sum(
         float(np.linalg.norm(corners[(i + 1) % 4] - corners[i])) for i in range(4)
     )
-    if avg_edge <= 1e-15:
+    if avg_edge <= JACOBIAN_MIN_DETERMINANT:
         d_9 = float("inf")
     else:
         d_9 = float(np.linalg.norm(center - center_ideal)) / avg_edge
