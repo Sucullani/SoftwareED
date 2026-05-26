@@ -70,43 +70,26 @@ def compute_element_stresses(node_coords, u_elem, E, nu, thickness,
     return gauss_stresses
 
 
-def extrapolate_to_nodes_q4(gauss_stresses):
-    """
-    Extrapola esfuerzos de 4 puntos de Gauss (2×2) a 4 nodos del elemento Q4.
-    Usa la matriz de extrapolación basada en los puntos de Gauss.
+# ─── Matrices de extrapolación precalculadas (constantes de módulo) ─────────
+# Evita reconstruirlas en cada llamada (24000 veces por run Q4).
 
-    Las coordenadas naturales de los nodos son (±1, ±1).
-    Los puntos de Gauss están en (±1/√3, ±1/√3).
-    Factor de extrapolación: √3.
-    """
+_STRESS_KEYS = ["sigma_x", "sigma_y", "tau_xy", "sigma_1", "sigma_2", "von_mises"]
+_N_STRESS = len(_STRESS_KEYS)
+
+def _build_q4_extrap():
     s = np.sqrt(3.0)
-
-    # Matriz de extrapolación (4 nodos × 4 puntos de Gauss)
-    extrap = 0.25 * np.array([
+    return 0.25 * np.array([
         [(1 + s) * (1 + s), (1 - s) * (1 + s), (1 - s) * (1 - s), (1 + s) * (1 - s)],
         [(1 + s) * (1 - s), (1 - s) * (1 - s), (1 - s) * (1 + s), (1 + s) * (1 + s)],
         [(1 - s) * (1 - s), (1 + s) * (1 - s), (1 + s) * (1 + s), (1 - s) * (1 + s)],
         [(1 - s) * (1 + s), (1 + s) * (1 + s), (1 + s) * (1 - s), (1 - s) * (1 - s)],
     ])
 
-    # Extraer componentes de esfuerzo de cada punto de Gauss
-    stress_keys = ["sigma_x", "sigma_y", "tau_xy", "sigma_1", "sigma_2", "von_mises"]
-    nodal_stresses = [{} for _ in range(4)]
-
-    for key in stress_keys:
-        gauss_values = np.array([gs[key] for gs in gauss_stresses])
-        nodal_values = extrap @ gauss_values
-        for i in range(4):
-            nodal_stresses[i][key] = nodal_values[i]
-
-    return nodal_stresses
+_Q4_EXTRAP: np.ndarray = _build_q4_extrap()   # (4, 4) — computado una sola vez
+_Q9_EXTRAP_MATRIX: np.ndarray | None = None   # lazy: se construye al primer uso
 
 
-# Cache de la matriz inversa Q9 (se computa una vez).
-_Q9_EXTRAP_MATRIX = None
-
-
-def _q9_extrapolation_matrix():
+def _q9_extrapolation_matrix() -> np.ndarray:
     """
     Matriz 9x9 que proyecta 9 valores en puntos de Gauss 3x3 a 9 valores en
     nodos Q9. Se construye evaluando las 9 funciones de forma bicuadráticas
@@ -123,21 +106,67 @@ def _q9_extrapolation_matrix():
     return _Q9_EXTRAP_MATRIX
 
 
-def extrapolate_to_nodes_q9(gauss_stresses):
+def extrapolate_to_nodes_q4(gauss_stresses: list) -> list:
+    """
+    Extrapola esfuerzos de 4 puntos de Gauss (2×2) a 4 nodos del elemento Q4.
+
+    Vectorizado: construye una matriz (4, 6) con todos los componentes de
+    esfuerzo y hace un único matmul (4,4)@(4,6) en lugar de 6 productos
+    vector separados — ~6× más rápido por llamada.
+    """
+    # (4, 6): fila = Gauss point, columna = componente de esfuerzo
+    gauss_mat = np.array([[gs[k] for k in _STRESS_KEYS] for gs in gauss_stresses])
+    nodal_mat = _Q4_EXTRAP @ gauss_mat  # (4, 6)
+    return [dict(zip(_STRESS_KEYS, nodal_mat[i])) for i in range(4)]
+
+
+def extrapolate_to_nodes_q9(gauss_stresses: list) -> list:
     """
     Extrapola esfuerzos de 9 puntos de Gauss (3×3) a los 9 nodos del Q9.
-    El orden de Gauss sigue get_gauss_points_2d(3); el orden de nodos es el
-    canónico de shape_functions_q9 (4 esquinas, 4 medios, centro).
+
+    Vectorizado con matmul (9,9)@(9,6) en lugar de 6 productos separados.
     """
     M_inv = _q9_extrapolation_matrix()
-    stress_keys = ["sigma_x", "sigma_y", "tau_xy", "sigma_1", "sigma_2", "von_mises"]
-    nodal_stresses = [{} for _ in range(9)]
-    for key in stress_keys:
-        gauss_values = np.array([gs[key] for gs in gauss_stresses])
-        nodal_values = M_inv @ gauss_values
-        for i in range(9):
-            nodal_stresses[i][key] = nodal_values[i]
-    return nodal_stresses
+    gauss_mat = np.array([[gs[k] for k in _STRESS_KEYS] for gs in gauss_stresses])
+    nodal_mat = M_inv @ gauss_mat  # (9, 6)
+    return [dict(zip(_STRESS_KEYS, nodal_mat[i])) for i in range(9)]
+
+
+def _gauss_stresses_from_precomputed(gauss_data_list, u_elem, D):
+    """Calcula esfuerzos en puntos de Gauss reutilizando las matrices B ya
+    almacenadas en gauss_data por element_stiffness.
+
+    Elimina la re-computación de J, dN, B (~96 000 llamadas redundantes en
+    mallas de 4800 elem Q4, equivalentes a ~0.85 s por solve).
+    """
+    gauss_stresses = []
+    for gd in gauss_data_list:
+        B = gd["B"]
+        strain = B @ u_elem
+        stress_vec = D @ strain
+
+        sigma_x, sigma_y, tau_xy = stress_vec[0], stress_vec[1], stress_vec[2]
+        sigma_avg = (sigma_x + sigma_y) * 0.5
+        R = np.sqrt(((sigma_x - sigma_y) * 0.5) ** 2 + tau_xy ** 2)
+        sigma_1 = sigma_avg + R
+        sigma_2 = sigma_avg - R
+        von_mises = np.sqrt(sigma_1 ** 2 - sigma_1 * sigma_2 + sigma_2 ** 2)
+
+        # strain y stress_vec son arrays recién creados (B@u, D@strain) —
+        # no se comparten con nada, no necesitan .copy().
+        gauss_stresses.append({
+            "xi": gd["xi"],
+            "eta": gd["eta"],
+            "sigma_x": sigma_x,
+            "sigma_y": sigma_y,
+            "tau_xy": tau_xy,
+            "sigma_1": sigma_1,
+            "sigma_2": sigma_2,
+            "von_mises": von_mises,
+            "strain": strain,
+            "stress": stress_vec,
+        })
+    return gauss_stresses
 
 
 def compute_all_stresses(project, solution):
@@ -152,24 +181,43 @@ def compute_all_stresses(project, solution):
     element_data = solution["element_data"]
     element_stresses = {}
 
-    # Acumuladores para promedio nodal
+    # Cache D por (E, nu, analysis_type) — evita recomputar constitutive_matrix
+    # por cada elemento cuando el mismo material está asignado a muchos.
+    D_cache: dict = {}
+
+    # Acumuladores para promedio nodal: listas Python puras (más rápido que
+    # np.mean en listas de 1-4 elementos que se dan en nodos compartidos).
     stress_keys = ["sigma_x", "sigma_y", "tau_xy", "sigma_1", "sigma_2", "von_mises"]
-    nodal_accum = {}  # {node_id: {key: [values]}}
+    nodal_accum: dict = {}
 
     for elem_id, elem in project.elements.items():
         material = project.materials.get(elem.material_name)
         if material is None:
-            material = list(project.materials.values())[0]
+            material = next(iter(project.materials.values()))
 
-        node_coords = element_data[elem_id]["node_coords"]
         dof_indices = element_data[elem_id]["dof_indices"]
         u_elem = u[dof_indices]
 
-        # Esfuerzos en puntos de Gauss
-        gauss_stresses = compute_element_stresses(
-            node_coords, u_elem, material.E, material.nu,
-            elem.thickness, project.analysis_type, project.element_type
-        )
+        # Reusar B pre-computado en gauss_data por element_stiffness.
+        # Si por algún motivo gauss_data no tiene 'B' (código legacy o test
+        # con element_data manual), cae al path lento como fallback.
+        gd_list = element_data[elem_id].get("gauss_data")
+        if gd_list and "B" in gd_list[0]:
+            key_D = (material.E, material.nu, project.analysis_type)
+            D = D_cache.get(key_D)
+            if D is None:
+                D = constitutive_matrix(material.E, material.nu,
+                                        project.analysis_type)
+                D_cache[key_D] = D
+            gauss_stresses = _gauss_stresses_from_precomputed(gd_list, u_elem, D)
+        else:
+            # Fallback: calcula B/J desde cero (path lento, solo para casos sin
+            # gauss_data o sin clave 'B' — no ocurre en flujos normales).
+            node_coords = element_data[elem_id]["node_coords"]
+            gauss_stresses = compute_element_stresses(
+                node_coords, u_elem, material.E, material.nu,
+                elem.thickness, project.analysis_type, project.element_type
+            )
 
         # Extrapolar a nodos
         if elem.num_nodes == 4:
@@ -192,15 +240,15 @@ def compute_all_stresses(project, solution):
                 if key in nodal_stresses[i]:
                     nodal_accum[nid][key].append(nodal_stresses[i][key])
 
-    # Promediar esfuerzos en nodos compartidos
+    # Promediar esfuerzos en nodos compartidos.
+    # sum()/len() en listas cortas (1-4 elems) es ~10x más rápido que
+    # np.mean() que paga overhead de dispatch numpy completo cada llamada.
     nodal_avg_stresses = {}
     for nid, accum in nodal_accum.items():
-        nodal_avg_stresses[nid] = {}
+        avg = {}
         for key in stress_keys:
             values = accum[key]
-            if values:
-                nodal_avg_stresses[nid][key] = np.mean(values)
-            else:
-                nodal_avg_stresses[nid][key] = 0.0
+            avg[key] = sum(values) / len(values) if values else 0.0
+        nodal_avg_stresses[nid] = avg
 
     return element_stresses, nodal_avg_stresses
