@@ -37,6 +37,11 @@ GAUSS_POINTS_1D = {
     },
 }
 
+# Cache de producto tensorial 2D: los puntos/pesos solo dependen de n — se
+# computan una sola vez y se reutilizan. Evita 48000+ llamadas redundantes
+# en mallas grandes (una por elemento × 2 fases: ensamblaje + esfuerzos).
+_GAUSS_2D_CACHE: dict = {}
+
 
 def get_gauss_points_2d(n_points):
     """
@@ -46,9 +51,13 @@ def get_gauss_points_2d(n_points):
         n_points: Número de puntos por dirección (2 para Q4, 3 para Q9).
 
     Retorna:
-        points: array (n_total, 2) - coordenadas (ξ, η)
-        weights: array (n_total,) - pesos wᵢ×wⱼ
+        points: array (n_total, 2) - coordenadas (ξ, η)  [solo lectura]
+        weights: array (n_total,) - pesos wᵢ×wⱼ         [solo lectura]
     """
+    cached = _GAUSS_2D_CACHE.get(n_points)
+    if cached is not None:
+        return cached
+
     gp1d = GAUSS_POINTS_1D[n_points]
     pts_1d = gp1d["points"]
     wts_1d = gp1d["weights"]
@@ -56,12 +65,18 @@ def get_gauss_points_2d(n_points):
     points = []
     weights = []
 
-    for i, (xi, wi) in enumerate(zip(pts_1d, wts_1d)):
-        for j, (eta, wj) in enumerate(zip(pts_1d, wts_1d)):
+    for xi, wi in zip(pts_1d, wts_1d):
+        for eta, wj in zip(pts_1d, wts_1d):
             points.append([xi, eta])
             weights.append(wi * wj)
 
-    return np.array(points), np.array(weights)
+    result = (np.array(points), np.array(weights))
+    _GAUSS_2D_CACHE[n_points] = result
+    return result
+
+
+# Cache por tipo de elemento — delegado a get_gauss_points_2d (ya cacheado).
+_GAUSS_FOR_ELEM_CACHE: dict = {}
 
 
 def get_gauss_points_for_element(element_type):
@@ -70,7 +85,11 @@ def get_gauss_points_for_element(element_type):
     Q4 → 2×2 (4 puntos)
     Q9 → 3×3 (9 puntos)
     """
+    cached = _GAUSS_FOR_ELEM_CACHE.get(element_type)
+    if cached is not None:
+        return cached
+
     from config.settings import ELEMENT_Q4
-    if element_type == ELEMENT_Q4:
-        return get_gauss_points_2d(2)
-    return get_gauss_points_2d(3)
+    result = get_gauss_points_2d(2 if element_type == ELEMENT_Q4 else 3)
+    _GAUSS_FOR_ELEM_CACHE[element_type] = result
+    return result
