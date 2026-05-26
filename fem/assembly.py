@@ -112,10 +112,12 @@ def assemble_global_system(project, *, body_force_fn=None):
         # Índices de GDL del elemento
         dof_indices = elem.get_dof_indices(project)
 
-        # Ensamblar en la matriz global
-        for i_local, i_global in enumerate(dof_indices):
-            for j_local, j_global in enumerate(dof_indices):
-                K[i_global, j_global] += ke[i_local, j_local]
+        # Ensamblar en la matriz global. Scatter vectorizado del bloque kₑ:
+        # como dof_indices no tiene repetidos, K[np.ix_(dof,dof)] += ke es
+        # bit-a-bit equivalente al doble bucle Python pero lo ejecuta NumPy
+        # en C (vectorizado: O(d²) Python -> O(d²) en C en el ensamblaje).
+        block = np.ix_(dof_indices, dof_indices)
+        K[block] += ke
 
         # Ensamblar body force del elemento si corresponde.
         # ∫ N_i(ξ,η) · b(x(ξ,η), y(ξ,η)) · |det J| · t dξdη, Gauss 2D.
