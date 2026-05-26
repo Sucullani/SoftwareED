@@ -60,6 +60,12 @@ class ProjectModel:
         self.file_path = None
         self.is_modified = False
 
+        # Cache del node_index_map: invalidado por add_node/remove_node/change_node_id.
+        # None indica "stale": se recomputa en el primer acceso. O(N log N) solo
+        # al invalidar, O(1) en todos los accesos posteriores dentro de la misma
+        # operacion (e.g. ensamblaje que recorre todos los elementos).
+        self._node_index_map_cache = None
+
     # ─── Gestión de nodos ───────────────────────────────────────────────
 
     def add_node(self, x, y, node_id=None):
@@ -68,6 +74,7 @@ class ProjectModel:
             node_id = self._next_node_id()
         node = Node(node_id, x, y)
         self.nodes[node_id] = node
+        self._node_index_map_cache = None
         self.is_modified = True
         self.is_solved = False
         return node
@@ -86,6 +93,7 @@ class ProjectModel:
         if node_id not in self.nodes:
             return
         del self.nodes[node_id]
+        self._node_index_map_cache = None
         # Cargas nodales asociadas
         if node_id in self.nodal_loads:
             del self.nodal_loads[node_id]
@@ -400,6 +408,7 @@ class ProjectModel:
         node = self.nodes.pop(old_id)
         node.id = new_id
         self.nodes[new_id] = node
+        self._node_index_map_cache = None
         if old_id in self.nodal_loads:
             load = self.nodal_loads.pop(old_id)
             load.node_id = new_id
@@ -518,11 +527,16 @@ class ProjectModel:
     def node_index_map(self):
         """Mapping node_id -> indice ordinal (0-indexed) en el sistema lineal.
 
-        Orden estable: sorted(self.nodes.keys()). Se recomputa on-demand;
-        para loops, capturar el dict en variable local. Permite IDs no
-        contiguos (e.g. {1, 5, 50}) tras borrados.
+        Orden estable: sorted(self.nodes.keys()). Cacheado: O(N log N) solo al
+        invalidar (add_node / remove_node / change_node_id / restore_from_dict);
+        O(1) en accesos repetidos dentro de la misma operacion. Soporta IDs
+        no contiguos (e.g. {1, 5, 50}) tras borrados.
         """
-        return {nid: idx for idx, nid in enumerate(sorted(self.nodes.keys()))}
+        if self._node_index_map_cache is None:
+            self._node_index_map_cache = {
+                nid: idx for idx, nid in enumerate(sorted(self.nodes.keys()))
+            }
+        return self._node_index_map_cache
 
     def dof_x(self, node_id):
         """Indice DOF global de Ux para node_id (0-indexed)."""
@@ -666,6 +680,8 @@ class ProjectModel:
         self.global_K = None
         self.global_F = None
         self.stresses = {}
+        # Cache del node_index_map: invalidar ya que los nodes cambiaron.
+        self._node_index_map_cache = None
         # is_modified queda en True: el restore ES una modificacion logica
         # del estado actual (antes y despues son distintos).
         self.is_modified = True
