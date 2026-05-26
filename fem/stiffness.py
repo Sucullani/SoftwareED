@@ -3,6 +3,8 @@ Matriz de rigidez del elemento.
 kₑ = ∫∫ Bᵀ D B |det(J)| t dξ dη
 """
 
+from __future__ import annotations
+
 import numpy as np
 
 from fem.shape_functions import get_shape_functions
@@ -12,7 +14,14 @@ from fem.b_matrix import compute_b_matrix
 from fem.constitutive import constitutive_matrix
 
 
-def element_stiffness(node_coords, E, nu, thickness, analysis_type, element_type):
+def element_stiffness(
+    node_coords: np.ndarray,
+    E: float,
+    nu: float,
+    thickness: float,
+    analysis_type: str,
+    element_type: str,
+) -> "tuple[np.ndarray, list[dict]]":
     """
     Calcula la matriz de rigidez del elemento usando cuadratura de Gauss.
 

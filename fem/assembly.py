@@ -8,7 +8,10 @@ no se ensamblaba). Backward-compat: `body_force_fn=None` y sin gravedad
 activa reproduce el comportamiento previo bit-a-bit.
 """
 
+from __future__ import annotations
+
 import warnings
+from typing import TYPE_CHECKING, Callable, Optional
 
 import numpy as np
 
@@ -21,8 +24,15 @@ from fem.equivalent_forces import (
 )
 from models.mesh_utils import find_edge_midnode
 
+if TYPE_CHECKING:
+    from models.project import ProjectModel
 
-def _resolve_body_force_fn(project, body_force_fn):
+BodyForceFn = Callable[[float, float], "tuple[float, float]"]
+
+
+def _resolve_body_force_fn(
+    project: "ProjectModel", body_force_fn: Optional[BodyForceFn]
+) -> Optional[dict]:
     """Decide la fuente de body force a usar en el ensamblaje.
 
     Prioridad: si el caller pasa `body_force_fn` explicito, gana. Si no, y
@@ -61,7 +71,9 @@ def _resolve_body_force_fn(project, body_force_fn):
     return out if out else None
 
 
-def assemble_global_system(project, *, body_force_fn=None):
+def assemble_global_system(
+    project: "ProjectModel", *, body_force_fn: Optional[BodyForceFn] = None
+) -> "tuple[np.ndarray, np.ndarray, dict]":
     """
     Ensambla la matriz de rigidez global K y el vector de fuerzas F.
 
@@ -97,7 +109,7 @@ def assemble_global_system(project, *, body_force_fn=None):
         # Material del elemento
         material = project.materials.get(elem.material_name)
         if material is None:
-            material = list(project.materials.values())[0]
+            material = next(iter(project.materials.values()))
 
         # Calcular matriz de rigidez del elemento
         ke, gauss_data = element_stiffness(

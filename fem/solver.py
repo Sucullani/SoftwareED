@@ -11,11 +11,23 @@ Backward-compat: con `body_force_fn=None` y todas las BC en ux_value=uy_value=0,
 el output es bit-a-bit idéntico al solver pre-2026-05.
 """
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Optional
+
 import numpy as np
 from scipy.linalg import solve
 
+if TYPE_CHECKING:
+    from models.project import ProjectModel
 
-def apply_boundary_conditions(K, F, restrained_dofs, u_prescribed=None):
+
+def apply_boundary_conditions(
+    K: np.ndarray,
+    F: np.ndarray,
+    restrained_dofs: "list[int]",
+    u_prescribed: Optional[np.ndarray] = None,
+) -> "tuple[np.ndarray, np.ndarray, list[int]]":
     """
     Aplica condiciones de contorno por eliminación de filas/columnas.
 
@@ -51,7 +63,7 @@ def apply_boundary_conditions(K, F, restrained_dofs, u_prescribed=None):
     return K_red, F_red, free_dofs
 
 
-def solve_system(project, *, body_force_fn=None):
+def solve_system(project: "ProjectModel", *, body_force_fn=None) -> dict:
     """
     Resuelve el sistema completo: ensamblaje + condiciones de borde + solución.
 

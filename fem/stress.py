@@ -3,6 +3,8 @@ Cálculo de esfuerzos en puntos de Gauss y extrapolación a nodos.
 σ = D · B · uₑ
 """
 
+from __future__ import annotations
+
 import numpy as np
 
 from fem.shape_functions import get_shape_functions, shape_functions_q9
@@ -12,8 +14,9 @@ from fem.b_matrix import compute_b_matrix
 from fem.constitutive import constitutive_matrix
 
 
-def compute_element_stresses(node_coords, u_elem, E, nu, thickness,
-                              analysis_type, element_type):
+def compute_element_stresses(node_coords: np.ndarray, u_elem: np.ndarray,
+                             E: float, nu: float, thickness: float,
+                             analysis_type: str, element_type: str) -> "list[dict]":
     """
     Calcula esfuerzos en los puntos de Gauss de un elemento.
 
@@ -159,7 +162,7 @@ def compute_all_stresses(project, solution):
     for elem_id, elem in project.elements.items():
         material = project.materials.get(elem.material_name)
         if material is None:
-            material = list(project.materials.values())[0]
+            material = next(iter(project.materials.values()))
 
         node_coords = element_data[elem_id]["node_coords"]
         dof_indices = element_data[elem_id]["dof_indices"]
