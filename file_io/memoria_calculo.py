@@ -255,7 +255,13 @@ class MemoriaCalculo:
             self._tmpdir = None
 
     def _save_figure(self, fig, name: str) -> Optional[str]:
-        """Guarda `fig` en el tmpdir y retorna la ruta absoluta. None si falla."""
+        """Guarda `fig` en el tmpdir y retorna la ruta absoluta. None si falla.
+
+        Cierra la figura con plt.close(fig) en un bloque finally para garantizar
+        que matplotlib libere la memoria independientemente de excepciones. Sin
+        este close, cada figura acumula ~250-500 KB en el registro interno de
+        matplotlib y la exportacion de PDFs largos puede superar 500 MB de RAM.
+        """
         if fig is None:
             return None
         try:
@@ -266,6 +272,12 @@ class MemoriaCalculo:
             return path
         except Exception:
             return None
+        finally:
+            try:
+                import matplotlib.pyplot as _plt
+                _plt.close(fig)
+            except Exception:
+                pass
 
     # ------------------------------------------------------------------
     # Portada y secciones
