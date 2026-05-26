@@ -213,17 +213,18 @@ class ProjectModel:
 
         nodes_to_delete = []
         nodes_to_preserve = []
-        elements_after = {
-            eid: e for eid, e in self.elements.items()
-            if eid not in elements_to_delete
-        }
+        # Set de nodos referenciados por los elementos que SOBREVIVEN al
+        # borrado. Precomputado una vez (con elements_to_delete como set para
+        # el membership O(1)): O(C·E) -> O(E + C). Mismo resultado.
+        elements_to_delete_set = set(elements_to_delete)
+        referenced_after = set()
+        for eid, e in self.elements.items():
+            if eid not in elements_to_delete_set:
+                referenced_after.update(e.node_ids)
         for nid in candidate_nodes:
             if nid not in self.nodes:
                 continue
-            still_in_element = any(
-                nid in e.node_ids for e in elements_after.values()
-            )
-            if still_in_element:
+            if nid in referenced_after:
                 continue
             has_user_data = (
                 nid in self.nodal_loads
@@ -324,13 +325,17 @@ class ProjectModel:
         #   1) si sigue en otro elemento -> no es huerfano, ignorar
         #   2) si tiene cargas/BCs/surface refs -> preservar (huerfano marcado)
         #   3) sin referencias -> eliminar definitivamente
+        # Precomputar UNA vez el set de nodos referenciados por los elementos
+        # restantes (self.elements ya no contiene elem_id). Evita el
+        # `any(... for e in self.elements.values())` por cada nodo:
+        # O(npe·E) -> O(E + npe). Mismo resultado.
+        referenced_after = set()
+        for e in self.elements.values():
+            referenced_after.update(e.node_ids)
         for nid in nodes_in_elem:
             if nid not in self.nodes:
                 continue
-            in_another_element = any(
-                nid in e.node_ids for e in self.elements.values()
-            )
-            if in_another_element:
+            if nid in referenced_after:
                 continue
             has_user_data = (
                 nid in self.nodal_loads
