@@ -11,6 +11,7 @@ activa reproduce el comportamiento previo bit-a-bit.
 import warnings
 
 import numpy as np
+from scipy.sparse import coo_matrix
 
 from config.settings import ELEMENT_Q9
 from fem.stiffness import element_stiffness
@@ -77,11 +78,19 @@ def assemble_global_system(project, *, body_force_fn=None):
         element_data: dict {elem_id: {ke, gauss_data, dof_indices}}
     """
     n_dof = project.total_dof
-    K = np.zeros((n_dof, n_dof))
     F = np.zeros(n_dof)
     idx_map = project.node_index_map
 
     element_data = {}
+
+    # Acumuladores COO para el ensamblaje sparse de K.
+    # Usar listas Python para el loop (cada elemento agrega n_e^2 entradas);
+    # al final se construye la CSR con sum_duplicates automatica de coo_matrix.
+    # Para mallas grandes (500+ nodos) K sparse ahorra 90-99% de memoria vs
+    # la version densa y acelera spsolve 10-100x (vs scipy.linalg.solve denso).
+    coo_rows = []
+    coo_cols = []
+    coo_data = []
 
     # Resolver fuente de body forces UNA VEZ antes del loop.
     bf_by_elem = _resolve_body_force_fn(project, body_force_fn)
@@ -112,9 +121,14 @@ def assemble_global_system(project, *, body_force_fn=None):
         # Índices de GDL del elemento
         dof_indices = elem.get_dof_indices(project)
 
-        # Ensamblar en la matriz global (vectorizado: O(n_e) → op matricial).
+        # Acumular triplete COO: cada entrada ke[i,j] → K[gi, gj].
+        # meshgrid de índices globales — vectorizado, sin loop Python.
         idx = np.asarray(dof_indices, dtype=np.intp)
-        K[np.ix_(idx, idx)] += ke
+        n_e = len(idx)
+        R, C = np.meshgrid(idx, idx, indexing="ij")    # (n_e, n_e)
+        coo_rows.append(R.ravel())
+        coo_cols.append(C.ravel())
+        coo_data.append(ke.ravel())
 
         # Ensamblar body force del elemento si corresponde.
         # ∫ N_i(ξ,η) · b(x(ξ,η), y(ξ,η)) · |det J| · t dξdη, Gauss 2D.
@@ -202,5 +216,22 @@ def assemble_global_system(project, *, body_force_fn=None):
         F[base_a + 1] += fy_a
         F[base_b]     += fx_b
         F[base_b + 1] += fy_b
+
+    # Construir K sparse CSR desde los acumuladores COO.
+    # coo_matrix suma automaticamente entradas duplicadas en el mismo (i,j)
+    # — exactamente el scatter de la suma local→global del MEF.
+    # Mallas de 500 nodos: K es 1000×1000 = 10^6 entradas densas vs ~10^4
+    # no-nulas (99% sparsity para Q4 estructurado). El factor de memoria
+    # y tiempo de factorizacion mejora 10-100× con spsolve vs solve denso.
+    if coo_rows:
+        rows_arr = np.concatenate(coo_rows)
+        cols_arr = np.concatenate(coo_cols)
+        data_arr = np.concatenate(coo_data)
+    else:
+        rows_arr = np.array([], dtype=np.intp)
+        cols_arr = np.array([], dtype=np.intp)
+        data_arr = np.array([], dtype=float)
+    K = coo_matrix((data_arr, (rows_arr, cols_arr)),
+                   shape=(n_dof, n_dof)).tocsr()
 
     return K, F, element_data
