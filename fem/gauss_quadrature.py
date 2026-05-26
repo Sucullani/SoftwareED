@@ -38,6 +38,12 @@ GAUSS_POINTS_1D = {
 }
 
 
+# Cache del producto tensorial 2D por n_points: el resultado es constante y
+# get_gauss_points_2d se llamaba una vez por elemento en cada solve. Los arrays
+# se marcan read-only para que un caller accidental no corrompa la cache.
+_GAUSS_POINTS_2D_CACHE = {}
+
+
 def get_gauss_points_2d(n_points):
     """
     Genera los puntos de Gauss 2D (producto tensorial).
@@ -49,6 +55,10 @@ def get_gauss_points_2d(n_points):
         points: array (n_total, 2) - coordenadas (ξ, η)
         weights: array (n_total,) - pesos wᵢ×wⱼ
     """
+    cached = _GAUSS_POINTS_2D_CACHE.get(n_points)
+    if cached is not None:
+        return cached
+
     gp1d = GAUSS_POINTS_1D[n_points]
     pts_1d = gp1d["points"]
     wts_1d = gp1d["weights"]
@@ -61,7 +71,13 @@ def get_gauss_points_2d(n_points):
             points.append([xi, eta])
             weights.append(wi * wj)
 
-    return np.array(points), np.array(weights)
+    pts_arr = np.array(points)
+    wts_arr = np.array(weights)
+    pts_arr.flags.writeable = False
+    wts_arr.flags.writeable = False
+    result = (pts_arr, wts_arr)
+    _GAUSS_POINTS_2D_CACHE[n_points] = result
+    return result
 
 
 def get_gauss_points_for_element(element_type):

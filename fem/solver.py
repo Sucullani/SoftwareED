@@ -106,7 +106,12 @@ def solve_system(project: "ProjectModel", *, body_force_fn=None) -> dict:
     )
 
     # 5. Resolver K_red · u_free = F_red
-    u_free = solve(K_red, F_red)
+    #    K_red es el bloque libre-libre de una matriz de rigidez simetrica
+    #    definida positiva: `assume_a="pos"` usa la factorizacion de Cholesky
+    #    (mitad del trabajo que LU generico y mas estable). Falla con
+    #    LinAlgError si el sistema fuese singular (restricciones insuficientes),
+    #    caso que el validador de salud ya bloquea antes de llegar aqui.
+    u_free = solve(K_red, F_red, assume_a="pos")
 
     # 6. Reconstruir vector completo de desplazamientos.
     #    En DOFs libres: valor calculado. En DOFs restringidos: valor prescrito.

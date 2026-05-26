@@ -88,17 +88,25 @@ class MainWindow:
         self.set_status("Bienvenido a EduFEM. Cree un nuevo proyecto o cargue el ejemplo.")
 
         # ─── matplotlib mathtext con Computer Modern ────────────────────
-        # Configura rcParams para que mathtext renderice con las fuentes
-        # CM bundleadas en matplotlib. Reemplaza el pipeline pdflatex
-        # (lag 2-3s + dependencia MiKTeX) por render sincrono ~30-100ms
-        # con calidad documento equivalente. Llamar ANTES de cualquier
-        # widget para que el primer render ya use CM.
+        # Diferido con after_idle: importar matplotlib + pyplot cuesta ~0.5-1s
+        # (backend + fontmanager). Hacerlo aqui en el constructor bloqueaba el
+        # primer paint de la ventana. Ningun widget de arranque usa matplotlib
+        # (post_tab y modulos lo importan a nivel de metodo), asi que la
+        # ventana puede mostrarse y este setup corre apenas el loop queda idle,
+        # mucho antes de que el usuario abra un modulo educativo.
+        self.root.after_idle(self._init_matplotlib_style)
+
+    def _init_matplotlib_style(self):
+        """Configura mathtext (CM) y calienta el cache de fuentes.
+
+        Diferido fuera del constructor (via after_idle). `configure_latex_style`
+        importa matplotlib y fija rcParams en el hilo principal (antes de crear
+        cualquier figura). El cold-start del fontmanager/parser (~1s) corre en
+        un thread daemon para que el primer modulo educativo no lo pague.
+        """
         try:
             from config.matplotlib_config import configure_latex_style, warmup_mathtext
             configure_latex_style()
-            # Cold-start de matplotlib mathtext (font cache + parser init)
-            # tarda ~1s la primera vez. Ejecutar en background asi el
-            # primer modulo educativo abierto NO paga ese tiempo.
             import threading
             threading.Thread(
                 target=warmup_mathtext, name="EduFEM-MathtextWarmup",
