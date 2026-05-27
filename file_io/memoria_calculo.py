@@ -61,6 +61,7 @@ def generate_memoria_calculo(
     mesh_diagram=None,
     contour_figures: Optional[dict] = None,
     scope: str = "showcase",
+    style: str = "completo",
     progress_callback: Optional[Callable[[str, float], None]] = None,
     keep_tex: bool = False,
 ) -> str:
@@ -77,6 +78,9 @@ def generate_memoria_calculo(
     mesh_diagram, contour_figures : figuras matplotlib (Paso 3 del roadmap).
     scope : 'showcase' (default) muestra un elemento detallado + resumen
         del resto. Otros valores se reservan para iteraciones futuras.
+    style : 'completo' (default, baseline), 'educativo' (narrativa directa
+        sin referencias cruzadas) o 'directo' (solo tablas, matrices y
+        contornos, sin parrafos narrativos).
     progress_callback : callable(stage_label, pct_0_a_1) opcional.
     keep_tex : si True, conserva el `.tex` intermedio para depuracion.
     """
@@ -96,7 +100,8 @@ def generate_memoria_calculo(
     memoria = MemoriaCalculo(project, solution, element_stresses, nodal_stresses,
                              mesh_diagram=mesh_diagram,
                              contour_figures=contour_figures,
-                             scope=scope)
+                             scope=scope,
+                             style=style)
 
     _progress("Construyendo capitulos", 0.15)
     memoria.build()
@@ -138,8 +143,12 @@ class MemoriaCalculo:
     TITLE = "Memoria de Cálculo"
     SUBTITLE_TEMPLATE = "Análisis MEF 2D — Proyecto: {name}"
 
+    # Estilos validos de generacion del PDF.
+    STYLES = ("completo", "educativo", "directo")
+
     def __init__(self, project, solution, element_stresses, nodal_stresses,
-                 *, mesh_diagram=None, contour_figures=None, scope: str = "showcase"):
+                 *, mesh_diagram=None, contour_figures=None,
+                 scope: str = "showcase", style: str = "completo"):
         self._project = project
         self._solution = solution
         self._element_stresses = element_stresses or {}
@@ -147,6 +156,7 @@ class MemoriaCalculo:
         self._mesh_diagram = mesh_diagram
         self._contour_figures = dict(contour_figures) if contour_figures else {}
         self._scope = scope
+        self._style = style if style in self.STYLES else "completo"
         # Directorio temporal para PNGs (cleanup en compile()).
         # Se crea lazy via _ensure_tmpdir() para que tex_source() no lo necesite.
         self._tmpdir: Optional[tempfile.TemporaryDirectory] = None
