@@ -193,24 +193,26 @@ class MemoriaCalculo:
         # Ya inserta automaticamente float + graphicx cuando se llama figure()
 
     def build(self) -> None:
-        """Llena el documento siguiendo la jerarquia MEF estandar:
+        """Llena el documento segun self._style:
 
-        0. Introduccion conceptual + hoja de ruta del metodo (sin numerar)
-        1. Definicion del problema (hipotesis, tipo de elemento)
-        2. Discretizacion del modelo (geometria, materiales, BCs, cargas)
-        3. Calidad de la malla (verificar antes de pesar el solve)
-        4. Formulacion elemental (showcase: N -> J -> B -> D -> kₑ)
-        5. Ensamblaje del sistema global (K, F)
-        6. Aplicacion de condiciones de contorno (reduccion del sistema)
-        7. Solucion del sistema (factorizacion + back-substitution)
-        8. Post-proceso (Gauss -> nodos -> promediado -> principales -> VM)
-
-        Apendices: A) kₑ de elementos restantes  B) datos completos  C) glosario.
-
-        El orden replica el pipeline natural que sigue un ingeniero al
-        ejecutar un analisis MEF, separando claramente las fases
-        pre-proceso (Caps 1-3), proceso (Caps 4-7) y post-proceso (Cap 8).
+        'completo': pipeline MEF completo con narrativa, referencias cruzadas
+            y glosario. Baseline sin modificacion.
+        'educativo': mismo pipeline pero sin referencias cruzadas
+            (cada seccion se sostiene sola) y narrativa condensada.
+        'directo': solo portada, tablas de datos, matrices kₑ/K/F, vector u,
+            reacciones y contornos. Sin parrafos narrativos.
         """
+        if self._style == "directo":
+            self._build_directo()
+        elif self._style == "educativo":
+            self._build_educativo()
+        else:
+            self._build_completo()
+
+    def _build_completo(self) -> None:
+        """Pipeline MEF completo (baseline, sin cambios respecto a la version
+        anterior al parametro style)."""
+        self._cross_refs_enabled = True
         self._build_cover()
         self._td.toc()
         # Cap 0: introduccion (no numerada, aparece como `Resumen' en TOC)
@@ -232,6 +234,227 @@ class MemoriaCalculo:
         # Cap 8: post-proceso
         self._build_chapter8_postproceso(showcase_id)
         # Apendices
+        self._td.raw(r"\appendix")
+        self._build_appendix_a_kes(showcase_id)
+        self._build_appendix_b_datos()
+        self._build_appendix_c_glosario()
+        self._build_pie()
+
+    def _build_directo(self) -> None:
+        """Pipeline MEF directo: portada, datos del modelo (tablas),
+        matriz D (si unico material), showcase de kₑ, K global, F global,
+        desplazamientos, reacciones, equilibrio y contornos.
+        Sin parrafos narrativos ni apendices educativos."""
+        td = self._td
+        self._cross_refs_enabled = False
+        self._build_cover()
+        td.toc()
+
+        # 1. Datos del modelo
+        td.section_numbered("Datos del modelo")
+        td.subsection_numbered("Materiales")
+        self._tabla_materiales()
+        td.subsection_numbered("Nodos")
+        self._tabla_nodos()
+        td.subsection_numbered("Conectividad de elementos")
+        self._tabla_elementos()
+        td.subsection_numbered("Cargas nodales")
+        self._tabla_cargas_nodales()
+        td.subsection_numbered("Cargas superficiales")
+        self._tabla_cargas_superficiales()
+        td.subsection_numbered("Restricciones")
+        self._tabla_restricciones()
+
+        # 2. Matriz constitutiva D
+        td.section_numbered("Matriz constitutiva $\\mathbf{D}$")
+        self._matriz_D_teorica()
+        self._matriz_D_numerica_si_unico_material()
+
+        # 3. Formulacion elemental (showcase, sin narrativa)
+        showcase_id = self._select_showcase_element()
+        if showcase_id is not None:
+            self._build_showcase_directo(showcase_id)
+
+        # 4. Sistema global K y F
+        self._build_sistema_global_directo()
+
+        # 5. Condiciones de contorno
+        td.section_numbered("Condiciones de contorno")
+        sol = self._solution
+        n_total = len(sol["u"])
+        n_libres = len(sol["free_dofs"])
+        n_restr = len(sol["restrained_dofs"])
+        td.values([
+            ("Grados de libertad totales", str(n_total)),
+            ("Grados de libertad restringidos", str(n_restr)),
+            ("Grados de libertad libres (resueltos)", str(n_libres)),
+            (r"Tamaño de $\mathbf{K}_{red}$", f"{n_libres} × {n_libres}"),
+        ])
+
+        # 6. Solucion
+        td.section_numbered("Solución")
+        u = sol["u"]
+        R = sol["reactions"]
+        u_arr = np.asarray(u)
+        td.raw(r"{\scriptsize")
+        td.vector_factored(u_arr, name=r"\mathbf{u}", sig_digits=3,
+                           transpose=True)
+        td.raw(r"}")
+        self._tabla_desplazamientos(u)
+        td.subsection_numbered("Reacciones")
+        R_arr = np.asarray(R)
+        td.raw(r"{\scriptsize")
+        td.vector_factored(R_arr, name=r"\mathbf{R}", sig_digits=3,
+                           transpose=True)
+        td.raw(r"}")
+        self._tabla_reacciones(R)
+        td.subsection_numbered("Equilibrio global")
+        self._tabla_verificacion_equilibrio(R)
+
+        # 7. Tensiones y contornos
+        td.section_numbered("Post-proceso")
+        td.subsection_numbered("Tensiones nodales (promediadas)")
+        if self._nodal_stresses:
+            self._tabla_nodal_stresses()
+        else:
+            td.para(r"\emph{Tensiones nodales no disponibles.}")
+        td.subsection_numbered("Contornos de tensiones")
+        for component in ("sigma_x", "sigma_y", "tau_xy", "von_mises"):
+            self._insertar_contorno(component)
+
+        # Apendice: kₑ del resto de elementos
+        td.raw(r"\appendix")
+        self._build_appendix_a_kes(showcase_id)
+        self._build_pie()
+
+    def _build_showcase_directo(self, elem_id: int) -> None:
+        """Sección compacta del showcase elemental para el estilo directo.
+        Solo tablas de geometría + D + fórmula kₑ + matriz kₑ; sin narrativa."""
+        td = self._td
+        proj = self._project
+        elem = proj.elements.get(elem_id)
+        if elem is None:
+            return
+        sol = self._solution
+        elem_data = sol.get("element_data", {}).get(elem_id)
+        if elem_data is None:
+            return
+
+        td.section_numbered(rf"Formulación elemental — Elemento {elem_id}")
+
+        # Geometría
+        node_coords = np.asarray(elem_data["node_coords"])
+        n_nodes = node_coords.shape[0]
+        rows = []
+        for i, nid in enumerate(elem.node_ids[:n_nodes]):
+            x, y = node_coords[i]
+            rows.append([f"$N_{{{i+1}}}$", str(nid),
+                         fmt(x, "length"), fmt(y, "length")])
+        self._longtable(
+            headers=["Nodo local", "Nodo global", r"$X$", r"$Y$"],
+            rows=rows,
+            col_align="ccrr",
+        )
+        td.values([
+            ("Tipo", TheoryDoc.escape(proj.element_type)),
+            ("Espesor $t$", fmt(elem.thickness, "length")),
+            ("Material", TheoryDoc.escape(elem.material_name)),
+        ])
+
+        # Fórmula compacta kₑ (sin expansión simbólica)
+        td.equation(
+            r"\mathbf{k}_e = \int_{-1}^{1}\!\int_{-1}^{1} "
+            r"\mathbf{B}^T\mathbf{D}\,\mathbf{B}\, |\det \mathbf{J}|\, t\, "
+            r"d\xi\, d\eta \approx \sum_p w_p\, \mathbf{B}_p^T\mathbf{D}\,"
+            r"\mathbf{B}_p\,|\det\mathbf{J}_p|\,t"
+        )
+
+        # Matriz kₑ resultante
+        ke = np.asarray(elem_data["ke"])
+        if ke.shape[0] <= 8:
+            td.raw(r"{\scriptsize")
+            td.matrix_factored(ke, name=r"\mathbf{k}_e", sig_digits=3)
+            td.raw(r"}")
+        else:
+            td.package("pdflscape")
+            td.raw(r"\begin{landscape}")
+            td.raw(r"{\tiny")
+            td.matrix_factored(ke, name=r"\mathbf{k}_e", sig_digits=2)
+            td.raw(r"}")
+            td.raw(r"\end{landscape}")
+        td.values([
+            (r"$\|\mathbf{k}_e\|_F$",
+             f"{float(np.linalg.norm(ke, 'fro')):.4g}"),
+        ])
+
+    def _build_sistema_global_directo(self) -> None:
+        """Sección K y F globales para el estilo directo (sin narrativa)."""
+        td = self._td
+        sol = self._solution
+        K = np.asarray(sol["K"])
+        F = np.asarray(sol["F"])
+        n_dof = K.shape[0]
+
+        td.section_numbered("Sistema global $\\mathbf{K}\\,\\mathbf{u} = \\mathbf{F}$")
+        td.values([
+            (r"Tamaño de $\mathbf{K}$", f"{n_dof} × {n_dof}"),
+            (r"Tamaño de $\mathbf{F}$", f"{n_dof} × 1"),
+        ])
+
+        td.subsection_numbered(r"Matriz de rigidez global $\mathbf{K}$")
+        if n_dof <= 8:
+            td.raw(r"{\scriptsize")
+            td.matrix_factored(K, name=r"\mathbf{K}", sig_digits=3)
+            td.raw(r"}")
+        else:
+            nnz = int(np.sum(np.abs(K) > NUMERICAL_TOLERANCE_K))
+            density = nnz / (n_dof * n_dof) if n_dof > 0 else 0.0
+            try:
+                bandwidth = self._matrix_bandwidth(K)
+            except Exception:
+                bandwidth = "—"
+            td.values([
+                (r"Entradas no nulas", str(nnz)),
+                ("Densidad", f"{density * 100:.3f}\\%"),
+                (r"Ancho de banda", str(bandwidth)),
+            ])
+            try:
+                from file_io.figure_export import render_K_heatmap
+                fig = render_K_heatmap(K, log_scale=True)
+                path = self._save_figure(fig, "K_heatmap")
+                if path is not None:
+                    td.figure(path,
+                              caption=(r"Patrón de $\mathbf{K}$ "
+                                       r"en escala logarítmica."),
+                              label="fig:K_heatmap",
+                              width=r"0.75\textwidth")
+            except Exception:
+                pass
+
+        td.subsection_numbered(r"Vector de fuerzas globales $\mathbf{F}$")
+        td.raw(r"{\scriptsize")
+        td.vector_factored(F, name=r"\mathbf{F}", sig_digits=3, transpose=True)
+        td.raw(r"}")
+        self._desglose_F(F)
+
+    def _build_educativo(self) -> None:
+        """Pipeline MEF completo con narrativa directa y sin referencias
+        cruzadas. Cada seccion se sostiene sola."""
+        self._cross_refs_enabled = False
+        self._build_cover()
+        self._td.toc()
+        self._build_chapter0_pipeline()
+        self._build_resumen_visual()
+        self._build_chapter1_problema()
+        self._build_chapter2_discretizacion()
+        self._build_chapter3_calidad()
+        showcase_id = self._select_showcase_element()
+        if showcase_id is not None:
+            self._build_chapter4_showcase(showcase_id)
+        self._build_chapter5_ensamblaje()
+        self._build_chapter6_bcs()
+        self._build_chapter7_solucion()
+        self._build_chapter8_postproceso(showcase_id)
         self._td.raw(r"\appendix")
         self._build_appendix_a_kes(showcase_id)
         self._build_appendix_b_datos()
