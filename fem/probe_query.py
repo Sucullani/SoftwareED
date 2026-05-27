@@ -48,6 +48,121 @@ from config.settings import NUMERICAL_TOLERANCE, JACOBIAN_MIN_DETERMINANT
 from fem.shape_functions import get_shape_functions
 from fem.b_matrix import compute_b_matrix
 from fem.constitutive import constitutive_matrix
+from fem._numba_compat import njit
+
+
+@njit(cache=True)
+def _compute_raw_grid_njit(dN_at_grid, coords_used, D, u_e):
+    """Kernel JIT de `compute_raw_grid`: evalua sigma en cada (xi, eta)
+    de la grilla (side x side) sin allocations intermedias.
+
+    Parametros:
+        dN_at_grid: (side, side, 2, n_nodes) — derivadas naturales en cada
+            punto de la grilla (precomputadas).
+        coords_used: (n_nodes, 2) — coords (x, y) de los nodos.
+        D: (3, 3) — matriz constitutiva.
+        u_e: (2 * n_nodes,) — desplazamientos del elemento.
+
+    Retorna (sx_g, sy_g, txy_g, s1_g, s2_g, vm_g), cada uno (side, side).
+
+    Optimizacion: en vez de armar B (3 x 2*n_nodes) y hacer B @ u, calcula
+    strain directamente desde dN_phys y u (B es solo un reorden, no aporta
+    aritmetica). Ahorra ~6*n_nodes alloca/iter y elimina el `B[:] = 0.0`.
+    """
+    side = dN_at_grid.shape[0]
+    n_nodes = coords_used.shape[0]
+
+    sx_g = np.zeros((side, side))
+    sy_g = np.zeros((side, side))
+    txy_g = np.zeros((side, side))
+    s1_g = np.zeros((side, side))
+    s2_g = np.zeros((side, side))
+    vm_g = np.zeros((side, side))
+
+    for i in range(side):
+        for j in range(side):
+            dN_nat = dN_at_grid[i, j]
+
+            # J = dN_nat @ coords_used (2x2)
+            J00 = 0.0; J01 = 0.0; J10 = 0.0; J11 = 0.0
+            for k in range(n_nodes):
+                J00 += dN_nat[0, k] * coords_used[k, 0]
+                J01 += dN_nat[0, k] * coords_used[k, 1]
+                J10 += dN_nat[1, k] * coords_used[k, 0]
+                J11 += dN_nat[1, k] * coords_used[k, 1]
+            det_J = J00 * J11 - J01 * J10
+            if abs(det_J) < JACOBIAN_MIN_DETERMINANT:
+                continue
+
+            inv_d = 1.0 / det_J
+            invJ00 =  J11 * inv_d
+            invJ01 = -J01 * inv_d
+            invJ10 = -J10 * inv_d
+            invJ11 =  J00 * inv_d
+
+            # Strain = B @ u_e desplegado: B[0,:]=[dphx_k, 0, ...],
+            # B[1,:]=[0, dphy_k, ...], B[2,:]=[dphy_k, dphx_k, ...].
+            ex = 0.0; ey = 0.0; gxy = 0.0
+            for k in range(n_nodes):
+                dphx = invJ00 * dN_nat[0, k] + invJ01 * dN_nat[1, k]
+                dphy = invJ10 * dN_nat[0, k] + invJ11 * dN_nat[1, k]
+                u_x = u_e[2 * k]
+                u_y = u_e[2 * k + 1]
+                ex  += dphx * u_x
+                ey  += dphy * u_y
+                gxy += dphy * u_x + dphx * u_y
+
+            # sigma = D @ strain
+            sx = D[0, 0] * ex + D[0, 1] * ey + D[0, 2] * gxy
+            sy = D[1, 0] * ex + D[1, 1] * ey + D[1, 2] * gxy
+            txy = D[2, 0] * ex + D[2, 1] * ey + D[2, 2] * gxy
+
+            sigma_avg = 0.5 * (sx + sy)
+            R = math.sqrt(0.25 * (sx - sy) * (sx - sy) + txy * txy)
+            s1 = sigma_avg + R
+            s2 = sigma_avg - R
+            vm = math.sqrt(s1 * s1 - s1 * s2 + s2 * s2)
+
+            sx_g[i, j] = sx
+            sy_g[i, j] = sy
+            txy_g[i, j] = txy
+            s1_g[i, j] = s1
+            s2_g[i, j] = s2
+            vm_g[i, j] = vm
+
+    return sx_g, sy_g, txy_g, s1_g, s2_g, vm_g
+
+
+# Cache de dN evaluado en la grilla (n+1, n+1) por (element_type, n).
+# La grilla es fija — para n=6 cada elemento la consume identica.
+_DN_AT_GRID_CACHE: dict = {}
+
+
+def _get_dN_at_grid(element_type, n):
+    """Retorna dN_at_grid shape (side, side, 2, n_nodes) — derivadas
+    naturales evaluadas en cada punto de la grilla (n+1) x (n+1).
+    Cacheado por (element_type, n).
+    """
+    key = (element_type, n)
+    cached = _DN_AT_GRID_CACHE.get(key)
+    if cached is not None:
+        return cached
+
+    _, dN_func = get_shape_functions(element_type)
+    side = n + 1
+    xis = np.linspace(-1.0, 1.0, side)
+    etas = np.linspace(-1.0, 1.0, side)
+    # Evaluar una vez para obtener n_nodes.
+    dN_first = dN_func(0.0, 0.0)
+    n_nodes_full = dN_first.shape[1]
+
+    dN_at_grid = np.empty((side, side, 2, n_nodes_full))
+    for i, xi in enumerate(xis):
+        for j, eta in enumerate(etas):
+            dN_at_grid[i, j] = dN_func(xi, eta)
+
+    _DN_AT_GRID_CACHE[key] = dN_at_grid
+    return dN_at_grid
 
 
 __all__ = [
@@ -90,6 +205,71 @@ def locate_point(project, x: float, y: float, tol: float = 1e-6):
 
 # ─── Inversion isoparametrica (Newton-Raphson clasico) ─────────────────────
 
+# Flags internos para el kernel JIT (Numba no maneja strings bien).
+_FLAG_Q4 = 0
+_FLAG_Q9 = 1
+
+
+@njit(cache=True)
+def _inverse_iso_map_q4_njit(x_p, y_p, coords, tol, max_iter):
+    """Newton-Raphson para Q4. Returns (success, xi, eta).
+
+    success=False indica no-convergencia / singular / fuera del maestro.
+    """
+    xi = 0.0
+    eta = 0.0
+    for _ in range(max_iter):
+        # N(xi, eta) y Fx, Fy
+        N0 = 0.25 * (1.0 - xi) * (1.0 - eta)
+        N1 = 0.25 * (1.0 + xi) * (1.0 - eta)
+        N2 = 0.25 * (1.0 + xi) * (1.0 + eta)
+        N3 = 0.25 * (1.0 - xi) * (1.0 + eta)
+        Fx = (N0 * coords[0, 0] + N1 * coords[1, 0]
+              + N2 * coords[2, 0] + N3 * coords[3, 0]) - x_p
+        Fy = (N0 * coords[0, 1] + N1 * coords[1, 1]
+              + N2 * coords[2, 1] + N3 * coords[3, 1]) - y_p
+
+        if math.sqrt(Fx * Fx + Fy * Fy) < tol:
+            if abs(xi) > 1.05 or abs(eta) > 1.05:
+                return False, 0.0, 0.0
+            return True, xi, eta
+
+        # dN/dxi, dN/deta (4 entries cada uno)
+        dNx0 = -0.25 * (1.0 - eta)
+        dNx1 =  0.25 * (1.0 - eta)
+        dNx2 =  0.25 * (1.0 + eta)
+        dNx3 = -0.25 * (1.0 + eta)
+        dNe0 = -0.25 * (1.0 - xi)
+        dNe1 = -0.25 * (1.0 + xi)
+        dNe2 =  0.25 * (1.0 + xi)
+        dNe3 =  0.25 * (1.0 - xi)
+
+        # J = dN @ coords. Fila 0: dx/dxi, dy/dxi. Fila 1: dx/deta, dy/deta.
+        J00 = (dNx0 * coords[0, 0] + dNx1 * coords[1, 0]
+               + dNx2 * coords[2, 0] + dNx3 * coords[3, 0])
+        J01 = (dNx0 * coords[0, 1] + dNx1 * coords[1, 1]
+               + dNx2 * coords[2, 1] + dNx3 * coords[3, 1])
+        J10 = (dNe0 * coords[0, 0] + dNe1 * coords[1, 0]
+               + dNe2 * coords[2, 0] + dNe3 * coords[3, 0])
+        J11 = (dNe0 * coords[0, 1] + dNe1 * coords[1, 1]
+               + dNe2 * coords[2, 1] + dNe3 * coords[3, 1])
+
+        det_J = J00 * J11 - J01 * J10
+        if abs(det_J) < JACOBIAN_MIN_DETERMINANT:
+            return False, 0.0, 0.0
+
+        inv_det = 1.0 / det_J
+        d_xi  = -inv_det * ( J11 * Fx - J10 * Fy)
+        d_eta = -inv_det * (-J01 * Fx + J00 * Fy)
+        xi += d_xi
+        eta += d_eta
+
+        if abs(xi) > 5.0 or abs(eta) > 5.0:
+            return False, 0.0, 0.0
+
+    return False, 0.0, 0.0
+
+
 def inverse_iso_map_NR(
     x_p: float,
     y_p: float,
@@ -104,6 +284,10 @@ def inverse_iso_map_NR(
     distinguir esta version robusta de la legacy en
     `education/components/iso_inverse.py` (que se mantiene para fines
     didacticos en M0..M9, ver convencion del CLAUDE.md).
+
+    Para Q4 usa el kernel JIT `_inverse_iso_map_q4_njit` (sin allocations).
+    Para Q9 cae al path NumPy con `get_shape_functions` (uso poco frecuente,
+    no justifica un kernel separado).
 
     Parametros:
         x_p, y_p: punto fisico consultado.
@@ -129,8 +313,18 @@ def inverse_iso_map_NR(
     # node_coords incluye mas filas (caller paso un slice mas largo),
     # nos quedamos con las primeras n.
     n_test = len(N_func(0.0, 0.0))
-    coords = coords[:n_test]
+    coords = np.ascontiguousarray(coords[:n_test])
 
+    # Fast path Q4: kernel JIT sin allocations.
+    if n_test == 4:
+        ok, xi, eta = _inverse_iso_map_q4_njit(
+            float(x_p), float(y_p), coords, float(tol), int(max_iter)
+        )
+        if ok:
+            return (xi, eta)
+        return None
+
+    # Slow path Q9: NumPy puro (uso poco frecuente vs Q4).
     xi, eta = 0.0, 0.0
     for _ in range(max_iter):
         N = N_func(xi, eta)
@@ -138,34 +332,22 @@ def inverse_iso_map_NR(
         Fy = float(N @ coords[:, 1]) - y_p
 
         if math.hypot(Fx, Fy) < tol:
-            # Convergio: validar que esta dentro del maestro (con margen)
             if abs(xi) > 1.05 or abs(eta) > 1.05:
                 return None
             return (xi, eta)
 
-        dN = dN_func(xi, eta)             # (2, n_nodes)
-        J = dN @ coords                    # (2, 2)
+        dN = dN_func(xi, eta)
+        J = dN @ coords
         det_J = J[0, 0] * J[1, 1] - J[0, 1] * J[1, 0]
         if abs(det_J) < JACOBIAN_MIN_DETERMINANT:
             return None
 
-        # Resolucion 2x2 a mano (mas rapido que np.linalg.solve).
-        # El Jacobiano de F = (x-x_p, y-y_p) respecto a (xi, eta) es:
-        #     J_F = [[dx/dxi,  dx/deta],
-        #            [dy/dxi,  dy/deta]]
-        #         = J^T  (porque compute_jacobian arma J = dN @ coords con
-        #                 dN apilado [dN/dxi; dN/deta], dando filas
-        #                 [dx/dxi dy/dxi; dx/deta dy/deta]).
-        # Para 2x2: J_F^-1 = (1/det_J) * [[J[1,1], -J[1,0]],
-        #                                  [-J[0,1],  J[0,0]]]
-        # Delta = -J_F^-1 @ F
         inv_det = 1.0 / det_J
         d_xi  = -inv_det * ( J[1, 1] * Fx - J[1, 0] * Fy)
         d_eta = -inv_det * (-J[0, 1] * Fx + J[0, 0] * Fy)
         xi += d_xi
         eta += d_eta
 
-        # Bail-out: divergio
         if abs(xi) > 5.0 or abs(eta) > 5.0:
             return None
 
@@ -221,6 +403,50 @@ def displacement_at(project, solution, elem_id: int, xi: float, eta: float):
     return ux, uy
 
 
+@njit(cache=True)
+def _compute_raw_at_point_njit(dN_nat, node_coords, D, u_e):
+    """Kernel JIT: calcula (sx, sy, txy) en un punto (xi, eta) dado dN.
+
+    Replica el computo de `compute_raw` sin allocations de B / inv_J.
+    Retorna (sx, sy, txy, ok). `ok=False` si el Jacobiano es singular.
+    """
+    n_nodes = node_coords.shape[0]
+
+    # J = dN_nat @ node_coords
+    J00 = 0.0; J01 = 0.0; J10 = 0.0; J11 = 0.0
+    for k in range(n_nodes):
+        J00 += dN_nat[0, k] * node_coords[k, 0]
+        J01 += dN_nat[0, k] * node_coords[k, 1]
+        J10 += dN_nat[1, k] * node_coords[k, 0]
+        J11 += dN_nat[1, k] * node_coords[k, 1]
+    det_J = J00 * J11 - J01 * J10
+    if abs(det_J) < JACOBIAN_MIN_DETERMINANT:
+        return 0.0, 0.0, 0.0, False
+
+    inv_d = 1.0 / det_J
+    invJ00 =  J11 * inv_d
+    invJ01 = -J01 * inv_d
+    invJ10 = -J10 * inv_d
+    invJ11 =  J00 * inv_d
+
+    # strain = B @ u_e (sin armar B explicito — solo dot products)
+    ex = 0.0; ey = 0.0; gxy = 0.0
+    for k in range(n_nodes):
+        dphx = invJ00 * dN_nat[0, k] + invJ01 * dN_nat[1, k]
+        dphy = invJ10 * dN_nat[0, k] + invJ11 * dN_nat[1, k]
+        ux_k = u_e[2 * k]
+        uy_k = u_e[2 * k + 1]
+        ex  += dphx * ux_k
+        ey  += dphy * uy_k
+        gxy += dphy * ux_k + dphx * uy_k
+
+    # stress = D @ strain
+    sx = D[0, 0] * ex + D[0, 1] * ey + D[0, 2] * gxy
+    sy = D[1, 0] * ex + D[1, 1] * ey + D[1, 2] * gxy
+    txy = D[2, 0] * ex + D[2, 1] * ey + D[2, 2] * gxy
+    return sx, sy, txy, True
+
+
 def compute_raw(project, solution, elem_id: int, xi: float, eta: float):
     """Esfuerzo CRUDO en (xi, eta): sigma = D * B(xi, eta) * u_e.
 
@@ -238,15 +464,6 @@ def compute_raw(project, solution, elem_id: int, xi: float, eta: float):
     node_coords = _get_node_coords(project, elem)
     _, dN_func = get_shape_functions(project.element_type)
 
-    dN_nat = dN_func(xi, eta)
-    J = dN_nat @ node_coords
-    det_J = J[0, 0] * J[1, 1] - J[0, 1] * J[1, 0]
-    if abs(det_J) < JACOBIAN_MIN_DETERMINANT:
-        return None
-    inv_J = np.linalg.inv(J)
-    dN_phys = inv_J @ dN_nat
-    B = compute_b_matrix(dN_phys)
-
     material = project.materials.get(elem.material_name)
     if material is None:
         material = next(iter(project.materials.values()), None)
@@ -256,17 +473,18 @@ def compute_raw(project, solution, elem_id: int, xi: float, eta: float):
 
     # DOFs ordinales (NO 2*(nid-1)). Soporta IDs no contiguos.
     dof_idx = elem.get_dof_indices(project)
-    u_e = solution["u"][dof_idx]
+    u_e = np.ascontiguousarray(solution["u"][dof_idx])
 
-    strain = B @ u_e
-    stress = D @ strain
-    sx, sy, txy = float(stress[0]), float(stress[1]), float(stress[2])
+    dN_nat = np.ascontiguousarray(dN_func(xi, eta))
+    coords_arr = np.ascontiguousarray(node_coords[:dN_nat.shape[1]])
+    sx, sy, txy, ok = _compute_raw_at_point_njit(dN_nat, coords_arr, D, u_e)
+    if not ok:
+        return None
     s1, s2, vm = principal_and_vm(sx, sy, txy)
-
     ux, uy = displacement_at(project, solution, elem_id, xi, eta)
 
     return {
-        "sigma_x": sx, "sigma_y": sy, "tau_xy": txy,
+        "sigma_x": float(sx), "sigma_y": float(sy), "tau_xy": float(txy),
         "sigma_1": s1, "sigma_2": s2, "von_mises": vm,
         "ux": ux, "uy": uy,
         "mode": "raw",
@@ -436,53 +654,19 @@ def compute_raw_grid(project, solution, elem_id: int, n: int = 6):
     D = constitutive_matrix(material.E, material.nu, project.analysis_type)
 
     dof_idx = elem.get_dof_indices(project)
-    u_e = solution["u"][dof_idx]   # (2 * n_nodes,)
+    u_e = np.ascontiguousarray(solution["u"][dof_idx])   # (2 * n_nodes,)
 
-    from fem.shape_functions import get_shape_functions
-    _, dN_func = get_shape_functions(project.element_type)
+    # dN evaluado en la grilla (cacheado por element_type + n) — evita
+    # `dshape_functions_q*` por punto en cada llamada.
+    dN_at_grid = _get_dN_at_grid(project.element_type, n)
+    # Truncar a las primeras n_nodes derivadas si el caller pidio Q4 sobre
+    # un proyecto Q9 (no deberia pasar, defensivo).
+    if dN_at_grid.shape[3] > n_nodes:
+        dN_at_grid = np.ascontiguousarray(dN_at_grid[:, :, :, :n_nodes])
 
-    side = n + 1
-    xis = np.linspace(-1.0, 1.0, side)
-    etas = np.linspace(-1.0, 1.0, side)
-
-    sx_g = np.zeros((side, side), dtype=float)
-    sy_g = np.zeros((side, side), dtype=float)
-    txy_g = np.zeros((side, side), dtype=float)
-    s1_g = np.zeros((side, side), dtype=float)
-    s2_g = np.zeros((side, side), dtype=float)
-    vm_g = np.zeros((side, side), dtype=float)
-
-    # Loop sobre grilla (side^2 ≈ 49 iters). Loop puro Python pero el
-    # trabajo interno es NumPy -- suficientemente rapido para n=6.
-    for i, xi in enumerate(xis):
-        for j, eta in enumerate(etas):
-            dN_nat = dN_func(xi, eta)          # (2, n_nodes)
-            J = dN_nat @ coords_used            # (2, 2)
-            det_J = J[0, 0] * J[1, 1] - J[0, 1] * J[1, 0]
-            if abs(det_J) < JACOBIAN_MIN_DETERMINANT:
-                continue
-            inv_J = np.linalg.inv(J)
-            dN_phys = inv_J @ dN_nat            # (2, n_nodes)
-
-            # B (3, 2*n_nodes) ensamblada en vectorizado
-            B = np.zeros((3, 2 * n_nodes))
-            B[0, 0::2] = dN_phys[0, :]
-            B[1, 1::2] = dN_phys[1, :]
-            B[2, 0::2] = dN_phys[1, :]
-            B[2, 1::2] = dN_phys[0, :]
-
-            sigma = D @ (B @ u_e)
-            sx = float(sigma[0])
-            sy = float(sigma[1])
-            txy = float(sigma[2])
-            s1, s2, vm = principal_and_vm(sx, sy, txy)
-
-            sx_g[i, j] = sx
-            sy_g[i, j] = sy
-            txy_g[i, j] = txy
-            s1_g[i, j] = s1
-            s2_g[i, j] = s2
-            vm_g[i, j] = vm
+    sx_g, sy_g, txy_g, s1_g, s2_g, vm_g = _compute_raw_grid_njit(
+        dN_at_grid, np.ascontiguousarray(coords_used), D, u_e
+    )
 
     return {
         "sigma_x": sx_g, "sigma_y": sy_g, "tau_xy": txy_g,

@@ -60,6 +60,18 @@ class ProjectModel:
         self.file_path = None
         self.is_modified = False
 
+        # Cache del node_index_map: invalidado por add_node/remove_node/change_node_id.
+        # None indica "stale": se recomputa en el primer acceso. O(N log N) solo
+        # al invalidar, O(1) en todos los accesos posteriores dentro de la misma
+        # operacion (e.g. ensamblaje que recorre todos los elementos).
+        self._node_index_map_cache = None
+
+        # Índice inverso nodo → conjunto de elementos que lo contienen.
+        # Mantenido por add_element/remove_element. Permite is_node_referenced y
+        # cascadas en O(1) en vez de O(E) por nodo.
+        # NO se serializa en to_dict; se reconstruye en restore_from_dict/from_dict.
+        self._node_to_elements: dict = {}
+
     # ─── Gestión de nodos ───────────────────────────────────────────────
 
     def add_node(self, x, y, node_id=None):
@@ -68,6 +80,7 @@ class ProjectModel:
             node_id = self._next_node_id()
         node = Node(node_id, x, y)
         self.nodes[node_id] = node
+        self._node_index_map_cache = None
         self.is_modified = True
         self.is_solved = False
         return node
@@ -86,6 +99,7 @@ class ProjectModel:
         if node_id not in self.nodes:
             return
         del self.nodes[node_id]
+        self._node_index_map_cache = None
         # Cargas nodales asociadas
         if node_id in self.nodal_loads:
             del self.nodal_loads[node_id]
@@ -137,12 +151,9 @@ class ProjectModel:
             return result
 
         if cleanup_orphans:
-            # Snapshot de elementos que usan el nodo (lista, no generador,
-            # porque vamos a mutar self.elements).
-            elem_ids = [
-                eid for eid, e in self.elements.items()
-                if node_id in e.node_ids
-            ]
+            # O(1) con el índice inverso en lugar de O(E) scan.
+            # Snapshot (copia del set) porque vamos a mutar self.elements.
+            elem_ids = list(self._node_to_elements.get(node_id, set()))
             for eid in elem_ids:
                 sub = self.remove_element(eid, cleanup_orphans=True)
                 if sub["deleted"]:
@@ -213,18 +224,17 @@ class ProjectModel:
 
         nodes_to_delete = []
         nodes_to_preserve = []
-        # Set de nodos referenciados por los elementos que SOBREVIVEN al
-        # borrado. Precomputado una vez (con elements_to_delete como set para
-        # el membership O(1)): O(C·E) -> O(E + C). Mismo resultado.
-        elements_to_delete_set = set(elements_to_delete)
-        referenced_after = set()
-        for eid, e in self.elements.items():
-            if eid not in elements_to_delete_set:
-                referenced_after.update(e.node_ids)
+        elements_after = {
+            eid: e for eid, e in self.elements.items()
+            if eid not in elements_to_delete
+        }
         for nid in candidate_nodes:
             if nid not in self.nodes:
                 continue
-            if nid in referenced_after:
+            still_in_element = any(
+                nid in e.node_ids for e in elements_after.values()
+            )
+            if still_in_element:
                 continue
             has_user_data = (
                 nid in self.nodal_loads
@@ -249,7 +259,7 @@ class ProjectModel:
         nodos verdaderamente sin uso vs nodos con datos del usuario.
 
         No verifica `self.nodes` -- solo dependencias externas al propio
-        registro de nodos.
+        registro de nodos. O(1) gracias al índice inverso _node_to_elements.
         """
         if node_id in self.nodal_loads:
             return True
@@ -258,10 +268,8 @@ class ProjectModel:
         for sl in self.surface_loads:
             if sl.node_start == node_id or sl.node_end == node_id:
                 return True
-        for elem in self.elements.values():
-            if node_id in elem.node_ids:
-                return True
-        return False
+        # O(1): índice inverso en lugar de O(E) scan de elementos.
+        return bool(self._node_to_elements.get(node_id))
 
     def _next_node_id(self):
         """Retorna el siguiente ID de nodo disponible."""
@@ -281,6 +289,11 @@ class ProjectModel:
             material_name = list(self.materials.keys())[0]
         elem = Element(elem_id, node_ids, thickness, material_name)
         self.elements[elem_id] = elem
+        # Mantener índice inverso nodo→elementos.
+        for nid in node_ids:
+            if nid not in self._node_to_elements:
+                self._node_to_elements[nid] = set()
+            self._node_to_elements[nid].add(elem_id)
         self.is_modified = True
         self.is_solved = False
         return elem
@@ -318,24 +331,25 @@ class ProjectModel:
         self.is_modified = True
         self.is_solved = False
 
+        # Actualizar índice inverso: quitar elem_id de cada nodo que usaba.
+        for nid in nodes_in_elem:
+            s = self._node_to_elements.get(nid)
+            if s is not None:
+                s.discard(elem_id)
+
         if not cleanup_orphans:
             return result
 
         # Auto-cleanup: para cada nodo que estaba en el elemento eliminado:
-        #   1) si sigue en otro elemento -> no es huerfano, ignorar
+        #   1) si sigue en otro elemento (índice inverso O(1)) -> no es huerfano
         #   2) si tiene cargas/BCs/surface refs -> preservar (huerfano marcado)
         #   3) sin referencias -> eliminar definitivamente
-        # Precomputar UNA vez el set de nodos referenciados por los elementos
-        # restantes (self.elements ya no contiene elem_id). Evita el
-        # `any(... for e in self.elements.values())` por cada nodo:
-        # O(npe·E) -> O(E + npe). Mismo resultado.
-        referenced_after = set()
-        for e in self.elements.values():
-            referenced_after.update(e.node_ids)
         for nid in nodes_in_elem:
             if nid not in self.nodes:
                 continue
-            if nid in referenced_after:
+            # O(1) con el índice inverso en lugar de O(E) con any(...)
+            in_another_element = bool(self._node_to_elements.get(nid))
+            if in_another_element:
                 continue
             has_user_data = (
                 nid in self.nodal_loads
@@ -347,6 +361,7 @@ class ProjectModel:
                 result["nodes_preserved"].append(nid)
                 continue
             del self.nodes[nid]
+            self._node_to_elements.pop(nid, None)
             result["nodes_deleted"].append(nid)
 
         result["nodes_deleted"].sort()
@@ -405,6 +420,7 @@ class ProjectModel:
         node = self.nodes.pop(old_id)
         node.id = new_id
         self.nodes[new_id] = node
+        self._node_index_map_cache = None
         if old_id in self.nodal_loads:
             load = self.nodal_loads.pop(old_id)
             load.node_id = new_id
@@ -416,14 +432,15 @@ class ProjectModel:
         for elem in self.elements.values():
             elem.node_ids = [new_id if n == old_id else n
                              for n in elem.node_ids]
+        # Actualizar índice inverso: mover old_id → new_id en el mapa.
+        s = self._node_to_elements.pop(old_id, None)
+        if s is not None:
+            self._node_to_elements[new_id] = s
         for sl in self.surface_loads:
             if sl.node_start == old_id:
                 sl.node_start = new_id
             if sl.node_end == old_id:
                 sl.node_end = new_id
-        # Renombrado in-place: el dict de nodos conserva identidad y tamano,
-        # asi que la validacion O(1) de la cache no lo detecta -> invalidar.
-        self._nim_cache = None
         self.is_modified = True
         self.is_solved = False
 
@@ -526,26 +543,31 @@ class ProjectModel:
     def node_index_map(self):
         """Mapping node_id -> indice ordinal (0-indexed) en el sistema lineal.
 
-        Orden estable: sorted(self.nodes.keys()). Permite IDs no contiguos
-        (e.g. {1, 5, 50}) tras borrados.
-
-        Cacheado: la reconstruccion O(n log n) solo ocurre cuando cambia el
-        conjunto de nodos. La cache se valida en O(1) por (identidad del dict,
-        tamano), lo que cubre altas, bajas (cambian el tamano) y reasignaciones
-        como `self.nodes = ...` (cambian la identidad). El UNICO renombrado
-        in-place con mismo tamano y misma identidad es `change_node_id`, que
-        invalida la cache explicitamente. Cualquier flujo nuevo que renombre
-        IDs in-place sin pasar por `change_node_id` debe setear
-        `self._nim_cache = None`. El dict retornado se comparte con la cache:
-        los callers lo tratan como solo-lectura.
+        Orden estable: sorted(self.nodes.keys()). Cacheado: O(N log N) solo al
+        invalidar (add_node / remove_node / change_node_id / restore_from_dict);
+        O(1) en accesos repetidos dentro de la misma operacion. Soporta IDs
+        no contiguos (e.g. {1, 5, 50}) tras borrados.
         """
-        nodes = self.nodes
-        cache = getattr(self, "_nim_cache", None)
-        if cache is not None and cache[0] is nodes and cache[1] == len(nodes):
-            return cache[2]
-        m = {nid: idx for idx, nid in enumerate(sorted(nodes.keys()))}
-        self._nim_cache = (nodes, len(nodes), m)
-        return m
+        if self._node_index_map_cache is None:
+            self._node_index_map_cache = {
+                nid: idx for idx, nid in enumerate(sorted(self.nodes.keys()))
+            }
+        return self._node_index_map_cache
+
+    def rebuild_node_to_elements(self):
+        """Reconstruye el índice inverso nodo→elementos desde cero.
+
+        Llamar después de mutaciones masivas de `elem.node_ids` que no pasan
+        por `add_element` / `remove_element` (e.g. expand_q4_to_q9,
+        shrink_q9_to_q4, recompute_q9_midnodes en mesh_utils).
+        """
+        idx: dict = {}
+        for eid, elem in self.elements.items():
+            for nid in elem.node_ids:
+                if nid not in idx:
+                    idx[nid] = set()
+                idx[nid].add(eid)
+        self._node_to_elements = idx
 
     def dof_x(self, node_id):
         """Indice DOF global de Ux para node_id (0-indexed)."""
@@ -689,6 +711,10 @@ class ProjectModel:
         self.global_K = None
         self.global_F = None
         self.stresses = {}
+        # Cache del node_index_map: invalidar ya que los nodes cambiaron.
+        self._node_index_map_cache = None
+        # Índice inverso: copiar del proyecto reconstruido.
+        self._node_to_elements = rebuilt._node_to_elements
         # is_modified queda en True: el restore ES una modificacion logica
         # del estado actual (antes y despues son distintos).
         self.is_modified = True
@@ -744,6 +770,13 @@ class ProjectModel:
             int(k): BoundaryCondition.from_dict(v)
             for k, v in data.get("boundary_conditions", {}).items()
         }
+        # Reconstruir índice inverso nodo→elementos (no se serializa).
+        project._node_to_elements = {}
+        for eid, elem in project.elements.items():
+            for nid in elem.node_ids:
+                if nid not in project._node_to_elements:
+                    project._node_to_elements[nid] = set()
+                project._node_to_elements[nid].add(eid)
         return project
 
     def __repr__(self):

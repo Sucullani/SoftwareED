@@ -5,7 +5,10 @@ Relaciona desplazamientos nodales con deformaciones: ε = B · u
 
 import numpy as np
 
+from fem._numba_compat import njit
 
+
+@njit(cache=True)
 def compute_b_matrix(dN_phys):
     """
     Construye la matriz B a partir de las derivadas físicas de N.

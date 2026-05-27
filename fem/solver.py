@@ -11,23 +11,11 @@ Backward-compat: con `body_force_fn=None` y todas las BC en ux_value=uy_value=0,
 el output es bit-a-bit idéntico al solver pre-2026-05.
 """
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING, Optional
-
 import numpy as np
-from scipy.linalg import solve
-
-if TYPE_CHECKING:
-    from models.project import ProjectModel
+from scipy.sparse.linalg import spsolve
 
 
-def apply_boundary_conditions(
-    K: np.ndarray,
-    F: np.ndarray,
-    restrained_dofs: "list[int]",
-    u_prescribed: Optional[np.ndarray] = None,
-) -> "tuple[np.ndarray, np.ndarray, list[int]]":
+def apply_boundary_conditions(K, F, restrained_dofs, u_prescribed=None):
     """
     Aplica condiciones de contorno por eliminación de filas/columnas.
 
@@ -36,34 +24,50 @@ def apply_boundary_conditions(
     (substitucion estatica del bloque de Dirichlet no homogeneo).
 
     Parámetros:
-        K: array (n_dof, n_dof) - Matriz de rigidez global.
+        K: matriz de rigidez global (densa o scipy sparse CSR/CSC).
         F: array (n_dof,) - Vector de fuerzas.
         restrained_dofs: list - Índices de GDL restringidos (0-indexed).
         u_prescribed: array (n_dof,) | None - Vector con valores en los
             DOFs restringidos (0 en el resto). Si None, se asume ceros.
 
     Retorna:
-        K_red: array - Matriz reducida.
+        K_red: submatriz reducida en formato CSR (compatible con spsolve).
         F_red: array - Vector reducido.
         free_dofs: list - Índices de GDL libres.
     """
     n_dof = len(F)
-    restrained_set = set(restrained_dofs)
-    free_dofs = [i for i in range(n_dof) if i not in restrained_set]
 
-    K_red = K[np.ix_(free_dofs, free_dofs)]
-    F_red = F[free_dofs].copy()
+    # Construir free_dofs via mascara booleana vectorizada (10-100x mas
+    # rapido que la list comprehension Python para mallas con miles de
+    # DOFs). Eliminamos el set() + list comprehension O(n) en favor de
+    # un mask + np.where (loop C interno de NumPy).
+    rest_arr = np.asarray(restrained_dofs, dtype=np.intp)
+    mask = np.ones(n_dof, dtype=bool)
+    if rest_arr.size > 0:
+        mask[rest_arr] = False
+    free_arr = np.where(mask)[0]
+    free_dofs = free_arr.tolist()  # API legacy retorna list
 
-    if u_prescribed is not None and len(restrained_dofs) > 0:
-        u_r = u_prescribed[restrained_dofs]
+    # Indexado por filas luego columnas — eficiente en CSR y correcto en denso.
+    K_red = K[free_arr, :][:, free_arr]
+    # spsolve requiere CSR o CSC; .tocsr() es no-op si ya es CSR.
+    try:
+        K_red = K_red.tocsr()
+    except AttributeError:
+        pass  # K denso (tests de backward-compat): se pasa directo a spsolve
+
+    F_red = F[free_arr].copy()
+
+    if u_prescribed is not None and rest_arr.size > 0:
+        u_r = u_prescribed[rest_arr]
         if np.any(u_r != 0.0):
-            K_fr = K[np.ix_(free_dofs, restrained_dofs)]
-            F_red -= K_fr @ u_r
+            K_fr = K[free_arr, :][:, rest_arr]
+            F_red -= np.asarray(K_fr @ u_r).ravel()
 
     return K_red, F_red, free_dofs
 
 
-def solve_system(project: "ProjectModel", *, body_force_fn=None) -> dict:
+def solve_system(project, *, body_force_fn=None):
     """
     Resuelve el sistema completo: ensamblaje + condiciones de borde + solución.
 
@@ -105,22 +109,24 @@ def solve_system(project: "ProjectModel", *, body_force_fn=None) -> dict:
         K, F, restrained_dofs, u_prescribed
     )
 
-    # 5. Resolver K_red · u_free = F_red
-    #    K_red es el bloque libre-libre de una matriz de rigidez simetrica
-    #    definida positiva: `assume_a="pos"` usa la factorizacion de Cholesky
-    #    (mitad del trabajo que LU generico y mas estable). Falla con
-    #    LinAlgError si el sistema fuese singular (restricciones insuficientes),
-    #    caso que el validador de salud ya bloquea antes de llegar aqui.
-    u_free = solve(K_red, F_red, assume_a="pos")
+    # 5. Resolver K_red · u_free = F_red (spsolve acepta CSR/CSC y denso)
+    u_free = spsolve(K_red, F_red)
+    if np.any(~np.isfinite(u_free)):
+        raise ValueError(
+            "El solver produjo valores NaN o Inf. Verifica que K no sea "
+            "singular: modelo mal restringido, elemento degenerado o E/ν fuera "
+            "de rango pueden causar este problema."
+        )
 
     # 6. Reconstruir vector completo de desplazamientos.
     #    En DOFs libres: valor calculado. En DOFs restringidos: valor prescrito.
-    #    Fancy-indexing (free_dofs/restrained_dofs son listas de índices sin
-    #    repetidos) -> equivalente bit-a-bit a los bucles previos.
+    # Fancy indexing vectorizado (no loop Python).
     u = np.zeros(project.total_dof)
-    u[free_dofs] = u_free
-    if u_prescribed is not None:
-        u[restrained_dofs] = u_prescribed[restrained_dofs]
+    free_arr = np.asarray(free_dofs, dtype=np.intp)
+    u[free_arr] = u_free
+    if u_prescribed is not None and len(restrained_dofs) > 0:
+        rest_arr = np.asarray(restrained_dofs, dtype=np.intp)
+        u[rest_arr] = u_prescribed[rest_arr]
 
     # 7. Calcular reacciones: R = K · u - F
     reactions = K @ u - F
