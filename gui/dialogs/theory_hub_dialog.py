@@ -81,41 +81,18 @@ def _intro(doc: TheoryDoc) -> None:
         r"ensamblados, conforman el sistema algebraico global "
         r"$\mathbf{K}\,\mathbf{u}=\mathbf{F}$."
     )
-    # Embeber pipeline figure reusando file_io.figure_export.render_fem_pipeline
-    _embed_fem_pipeline(doc)
-    doc.para(
-        r"Este documento sigue el orden canónico del cálculo en EduFEM y "
-        r"alinea cada módulo con el código que lo implementa. Cada módulo "
-        r"siguiente desarrolla un eslabón del pipeline."
+    doc.para(r"El cálculo de EduFEM sigue el pipeline:")
+    doc.equation(
+        r"\text{modelo} \to \mathbf{N} \to \mathbf{J} \to \mathbf{B} \to "
+        r"\mathbf{D} \to \mathbf{k}_e \to \mathbf{K},\mathbf{F} \to "
+        r"\text{BCs} \to \mathbf{K}\mathbf{u}=\mathbf{F} \to "
+        r"\boldsymbol{\sigma}"
     )
-
-
-def _embed_fem_pipeline(doc: TheoryDoc) -> None:
-    """Renderiza render_fem_pipeline() a un PNG temporal y lo embebe.
-
-    El PNG queda en un directorio temporal que se preserva hasta que se
-    compile el PDF; cleanup posterior queda a cargo del OS (los archivos
-    en %TEMP%/edufem_hub_* se borran al cerrar la sesion).
-    """
-    try:
-        import os
-        import tempfile
-        from file_io.figure_export import render_fem_pipeline
-        fig = render_fem_pipeline()
-        tmpdir = tempfile.mkdtemp(prefix="edufem_hub_")
-        path = os.path.join(tmpdir, "fem_pipeline.png")
-        fig.savefig(path, dpi=150, bbox_inches="tight", facecolor="white")
-        doc.figure(
-            path,
-            caption=("Hoja de ruta del MEF: cada nodo del pipeline está "
-                     "coloreado por la fase del proyecto donde se ejecuta."),
-            label="fig:hub_fem_pipeline",
-            width=r"0.95\textwidth",
-        )
-    except Exception:
-        # Degradacion silenciosa: si matplotlib falla, el hub sigue
-        # compilando sin la figura.
-        pass
+    doc.para(
+        r"Este documento sigue ese orden canónico y alinea cada módulo con el "
+        r"código que lo implementa. Cada módulo siguiente desarrolla un "
+        r"eslabón del pipeline."
+    )
 
 
 def _m0_mesh_quality(doc: TheoryDoc) -> None:
@@ -376,10 +353,14 @@ def _m7_assembly(doc: TheoryDoc) -> None:
     doc.para(
         r"Cada elemento $e$ tiene asociada una \textbf{location matrix} "
         r"$\mathbf{LM}_e$ que enumera los GDLs globales de sus "
-        r"$2\cdot n_{nodos}$ entradas locales. Para un nodo $i$ del "
-        r"modelo, los dos GDLs globales son $\mathrm{GDL}_x = 2(i-1)$ y "
-        r"$\mathrm{GDL}_y = 2(i-1)+1$. La $\mathbf{LM}_e$ se construye "
-        r"recorriendo los nodos del elemento y concatenando estos índices."
+        r"$2\cdot n_{nodos}$ entradas locales. EduFEM indexa los GDLs por la "
+        r"\textbf{posición ordinal} del nodo dentro del orden creciente de "
+        r"IDs —no por el ID en sí—, de modo que el sistema soporta IDs no "
+        r"contiguos tras borrados. Si $p(n)$ es esa posición $0$-based, el "
+        r"nodo $n$ aporta los GDLs globales $2\,p(n)$ ($u_x$) y $2\,p(n)+1$ "
+        r"($u_y$). La $\mathbf{LM}_e$ se construye recorriendo los nodos del "
+        r"elemento y concatenando estos índices (ver "
+        r"\texttt{Element.get\_dof\_indices} y \texttt{Project.node\_index\_map})."
     )
     doc.para(
         r"El ensamblaje recorre los elementos y suma:"
@@ -411,48 +392,49 @@ def _m7_assembly(doc: TheoryDoc) -> None:
         r"(típicamente $0$ para apoyos perfectos) se reinsertan en el "
         r"vector global $\mathbf{u}$; las reacciones en los apoyos se "
         r"calculan como $\mathbf{R} = \mathbf{K}\,\mathbf{u} - \mathbf{F}$ "
-        r"(no nulas solo en los GDLs restringidos)."
+        r"(no nulas solo en los GDLs restringidos). Si algún apoyo prescribe "
+        r"un desplazamiento no nulo, EduFEM aplica la condensación estática "
+        r"$\mathbf{F}_{red}\mathrel{-}=\mathbf{K}_{fr}\,\mathbf{u}_r$ antes de "
+        r"resolver, preservando la simetría de $\mathbf{K}_{red}$."
     )
     doc.para(
         r"\emph{Es el único método de aplicación de BCs implementado en "
         r"EduFEM} — la eliminación directa es suficiente para la familia "
-        r"de problemas que aborda el software y preserva exactamente la "
-        r"simetría definida positiva de $\mathbf{K}_{red}$, condición "
-        r"necesaria para Cholesky."
+        r"de problemas que aborda el software."
     )
 
-    doc.subsection("Solver Cholesky")
+    doc.subsection("Solver: factorización LU dispersa")
     doc.para(
-        r"$\mathbf{K}_{red}$ es \textbf{simétrica definida positiva} (SPD): "
-        r"admite factorización de Cholesky $\mathbf{K}_{red}=\mathbf{L}\,\mathbf{L}^T$, "
-        r"donde $\mathbf{L}$ es triangular inferior. La solución se "
-        r"obtiene en dos sustituciones triangulares:"
+        r"$\mathbf{K}$ se ensambla como matriz \textbf{dispersa} (CSR vía "
+        r"acumulador COO) y el sistema reducido se resuelve con "
+        r"\texttt{scipy.sparse.linalg.spsolve}, que realiza una "
+        r"\textbf{factorización LU dispersa} (SuperLU; UMFPACK si está "
+        r"disponible) seguida de dos sustituciones triangulares:"
     )
     doc.equation(
-        r"\mathbf{L}\,\mathbf{y}=\mathbf{F}_{red}\quad\text{(forward)}, "
-        r"\qquad \mathbf{L}^T\,\mathbf{u}_{red}=\mathbf{y}\quad\text{(backward)}"
+        r"\mathbf{K}_{red}=\mathbf{L}\,\mathbf{U}, \quad "
+        r"\mathbf{L}\,\mathbf{y}=\mathbf{F}_{red}, \quad "
+        r"\mathbf{U}\,\mathbf{u}_{red}=\mathbf{y}"
     )
     doc.para(
-        r"Cholesky es preferible a LU general por dos motivos: "
-        r"(i) explota la simetría y consume la mitad de memoria y "
-        r"operaciones ($\sim \tfrac{1}{6}n^3$ flops vs $\tfrac{1}{3}n^3$ "
-        r"de LU); (ii) \emph{no requiere pivoteo}: para una matriz SPD "
-        r"siempre existe la factorización, lo que preserva la dispersión "
-        r"original. Si por algún motivo $\mathbf{K}_{red}$ no fuera SPD "
-        r"(geometría degenerada, BCs insuficientes, elementos invertidos), "
-        r"Cholesky \emph{falla limpiamente} indicando el problema, en vez "
-        r"de devolver una solución espuria."
+        r"Aunque $\mathbf{K}_{red}$ es simétrica definida positiva (y por "
+        r"tanto admitiría Cholesky), EduFEM usa el solver disperso de "
+        r"propósito general porque escala bien con el tamaño del modelo y "
+        r"explota la dispersión de $\mathbf{K}$ (memoria $O(\text{nnz})$, no "
+        r"$O(n^2)$). Si $\mathbf{K}_{red}$ resultara singular o mal "
+        r"condicionada (BCs insuficientes, elementos invertidos, $E/\nu$ "
+        r"fuera de rango), la solución contendría NaN/Inf y el solver lo "
+        r"detecta y aborta — no devuelve un resultado espurio."
     )
 
     doc.subsection("Sparsity y re-numeración")
     doc.para(
-        r"$\mathbf{K}$ tiene estructura de banda: el ancho de banda "
-        r"depende del orden de numeración nodal. Algoritmos de "
-        r"re-numeración (Reverse Cuthill-McKee) minimizan el ancho y "
-        r"aceleran la factorización en problemas grandes. EduFEM no los "
-        r"aplica todavía — para los tamaños didácticos típicos el costo "
-        r"de la factorización densa es menor que el costo de la "
-        r"re-numeración."
+        r"$\mathbf{K}$ tiene estructura de banda: $K_{IJ}\neq 0$ solo si los "
+        r"GDLs $I$ y $J$ comparten algún elemento. El ancho de banda depende "
+        r"del orden de numeración nodal; algoritmos de re-numeración (Reverse "
+        r"Cuthill-McKee) lo minimizan y aceleran la factorización en "
+        r"problemas grandes. EduFEM no los aplica todavía — para los tamaños "
+        r"didácticos típicos el costo de \texttt{spsolve} ya es bajo."
     )
 
 

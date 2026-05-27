@@ -82,8 +82,12 @@ class TheoryDoc:
         self.doc.append(NoEscape(r"\end{align*}"))
 
     # ---------- matrices ----------
+    # Convencion de formato: los positivos NO llevan prefijo '+' (solo el '-'
+    # de los negativos). La alineacion de columnas la garantiza el entorno
+    # bmatrix (cada celda separada por '&' es una columna centrada), no el
+    # signo. Ver CLAUDE.md §Memoria de Calculo (formateo numerico).
     @staticmethod
-    def matrix_tex(M: np.ndarray, fmt: str = "{:+.4g}", name: Optional[str] = None) -> str:
+    def matrix_tex(M: np.ndarray, fmt: str = "{:.4g}", name: Optional[str] = None) -> str:
         rows = [" & ".join(fmt.format(x) for x in row) for row in np.asarray(M)]
         body = r" \\ ".join(rows)
         m = rf"\begin{{bmatrix}} {body} \end{{bmatrix}}"
@@ -91,7 +95,7 @@ class TheoryDoc:
             return rf"{name} = {m}"
         return m
 
-    def matrix(self, M: np.ndarray, name: Optional[str] = None, fmt: str = "{:+.4g}") -> None:
+    def matrix(self, M: np.ndarray, name: Optional[str] = None, fmt: str = "{:.4g}") -> None:
         self.equation(self.matrix_tex(M, fmt=fmt, name=name))
 
     # ---------- matrices y vectores con exponente factorizado ----------
@@ -132,9 +136,10 @@ class TheoryDoc:
         min_val = float(abs_A[mask].min())
         dyn_range = max_val / min_val if min_val > 0 else float("inf")
 
-        # Fallback: rango dinamico alto -> notacion cientifica por entrada
+        # Fallback: rango dinamico alto -> notacion cientifica por entrada.
+        # Sin prefijo '+' en positivos (solo '-' en negativos).
         if dyn_range > dynamic_range_threshold:
-            fmt_sci = f"{{:+.{sig_digits}e}}"
+            fmt_sci = f"{{:.{sig_digits}e}}"
             rows = [
                 " & ".join(fmt_sci.format(float(x)) for x in row)
                 for row in A
@@ -148,9 +153,9 @@ class TheoryDoc:
         scale = 10.0 ** p
         norm = A / scale
         # Formato con sig_digits decimales (no notacion cientifica - todos
-        # los valores normalizados estan en (-10, 10) aprox).
+        # los valores normalizados estan en (-10, 10) aprox). Sin '+'.
         decimals = max(0, sig_digits - 1)
-        fmt_fixed = f"{{:+.{decimals}f}}"
+        fmt_fixed = f"{{:.{decimals}f}}"
         rows = [
             " & ".join(fmt_fixed.format(float(x)) for x in row)
             for row in norm
@@ -246,18 +251,19 @@ class TheoryDoc:
         dyn_range = max_val / min_val if min_val > 0 else float("inf")
 
         # Caso 2: rango dinamico alto -> notacion cientifica por entrada.
+        # Sin prefijo '+' en positivos (solo '-' en negativos).
         if dyn_range > dynamic_range_threshold:
-            fmt_sci = f"{{:+.{sig_digits}e}}"
+            fmt_sci = f"{{:.{sig_digits}e}}"
             entries = [fmt_sci.format(float(x)) for x in a]
             m = _wrap(_build_body(entries))
             return rf"{name} = {m}" if name else m
 
-        # Caso 3: factorizacion comun de 10^p.
+        # Caso 3: factorizacion comun de 10^p. Sin '+'.
         p = int(np.floor(np.log10(max_val)))
         scale = 10.0 ** p
         norm = a / scale
         decimals = max(0, sig_digits - 1)
-        fmt_fixed = f"{{:+.{decimals}f}}"
+        fmt_fixed = f"{{:.{decimals}f}}"
         entries = [fmt_fixed.format(float(x)) for x in norm]
         bm = _wrap(_build_body(entries))
         if p == 0:
@@ -286,19 +292,21 @@ class TheoryDoc:
         self,
         body: str,
         *,
-        cross_ref: str,
+        cross_ref: Optional[str] = None,
         phase: str = "proc",
     ) -> None:
-        """Mini-banner pedagogico (1-2 lineas) + cross-ref al Hub de Teoria.
+        """Mini-banner pedagogico (1-2 lineas) con una idea clave.
 
-        Diseñado para situaciones donde la teoria completa vive en el Hub
-        (Ayuda > Teoria MEF) y solo necesitamos plantar un puntero rapido
-        en la Memoria: "el `por que' detallado esta alla".
+        Caja chica con barra de color de fase a la izquierda. El cuerpo es
+        autocontenido: explica el `por que' directamente, sin remitir a otro
+        documento. `cross_ref` quedo como parametro opcional por
+        compatibilidad — si se pasa, agrega un puntero en italic, pero el
+        diseño reformulado (2026-05) NO usa referencias cruzadas circulares.
 
         Args:
             body: contenido LaTeX de 1-2 lineas. Puede incluir formulas inline.
-            cross_ref: destino dentro del Hub, p.ej. "M3 §Matriz constitutiva".
-                       Se renderiza al final del teaser en italic.
+            cross_ref: opcional. Puntero textual (p.ej. otra seccion). Si es
+                       None (recomendado), el teaser se cierra en si mismo.
             phase: "pre" | "proc" | "post" | "info". Controla el color.
         """
         self.package("tcolorbox", options="most")
@@ -326,12 +334,15 @@ class TheoryDoc:
             rf"left=8pt, right=6pt, top=3pt, bottom=3pt, "
             rf"borderline west={{2.5pt}}{{0pt}}{{{col}}}]"
         ))
-        # Cuerpo + cross-ref en italic con flecha
+        # Cuerpo autocontenido. Si se pasa cross_ref (legacy), se agrega un
+        # puntero textual en italic; el diseño reformulado lo omite.
+        tail = ""
+        if cross_ref:
+            tail = (rf" \, \emph{{\textcolor{{{col}!70!black}}{{$\rightarrow$ "
+                    rf"{cross_ref}}}}}")
         self.doc.append(NoEscape(
             rf"\small \textbf{{\textcolor{{{col}}}{{\textsf{{i}}}}}}\,\, "
-            rf"{body} \, "
-            rf"\emph{{\textcolor{{{col}!70!black}}{{$\rightarrow$ Ver "
-            rf"\textbf{{Teoría MEF}}: {cross_ref}}}}}"
+            rf"{body}{tail}"
         ))
         self.doc.append(NoEscape(r"\end{tcolorbox}"))
 

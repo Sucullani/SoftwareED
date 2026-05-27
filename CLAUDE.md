@@ -491,23 +491,51 @@ Componentes en [education/components/](education/components/): `PlotPanel`, `Fou
 - [file_io/](file_io/): CSV ([csv_io.py](file_io/csv_io.py) con columnas dinámicas Q4/Q9), PDF (reportlab/PyMuPDF/pylatex), JSON proyecto, ZIP modelo, DXF (ver sección dedicada).
 - [tests/example_data.py](tests/example_data.py): canónico (E=225000, ν=0.2, t=0.8, P=1000). `load_example_project(P)` Q4 9-nodos, `load_example_project_q9(P)` 25-nodos.
 
-### Memoria de Cálculo — tres estilos seleccionables
+### Memoria de Cálculo — tres estilos seleccionables (reformulada 2026-05)
 
-`generate_memoria_calculo(..., style='completo')` acepta tres valores para `style`:
+`generate_memoria_calculo(..., style='educativo')` acepta tres valores. El default es `'educativo'`. Ver [file_io/memoria_calculo.py](file_io/memoria_calculo.py) (`MemoriaCalculo.STYLES = ("educativo", "completo", "directo")`).
 
 | Estilo | Descripción | Cuándo usarlo |
 |---|---|---|
-| `'completo'` | Baseline — pipeline MEF completo con narrativa extensa, referencias cruzadas entre capítulos (Cap. 4, Cap. 6, etc.) y glosario en Apéndice C. Sin cambios respecto a la versión previa al parámetro. | Consulta extendida, revisión docente, documentación de archivo. |
-| `'educativo'` | Mismo pipeline completo pero con **narrativa directa y autocontenida**: cada sección se sostiene sola sin remitir a otra. Las referencias cruzadas (Cap. X, Apéndice A, "ver M7") se reescriben con descripción funcional. Glosario se mantiene pero los capítulos no lo referencian. **Default recomendado para alumnos.** | Alumno que estudia el procedimiento; imprime el PDF para repasar. |
-| `'directo'` | Solo tablas de datos, matrices (D, kₑ, K, F, u, R) y contornos de tensiones. Sin párrafos narrativos, sin Cap. 0 introductorio, sin `educational_teaser`/`educational_box`, sin integrando simbólico expandido. Más corto y denso. | Usuario que ya conoce MEF y solo necesita verificar los valores numéricos. |
+| `'educativo'` | **Default.** Pipeline MEF completo, narrativa **autocontenida** (sin referencias cruzadas a otros capítulos ni al Hub), figuras de campo y cajas "¿por qué?". El showcase desarrolla UN elemento paso a paso. **Sin apéndices de volcado.** | Alumno que estudia el procedimiento; imprime el PDF para repasar. |
+| `'completo'` | El documento `educativo` **+ apéndices**: A) las kₑ de todos los elementos, B) tensiones por punto de Gauss + vector u completo, C) glosario. | Documentación de archivo, revisión docente. |
+| `'directo'` | Solo tablas de datos, matrices (D, kₑ, K, F, u, R) y contornos. Sin párrafos narrativos, sin intro, sin cajas `tcolorbox`. | Usuario que ya conoce MEF y solo necesita verificar valores. |
 
-**Flujo UX**: antes del `filedialog.asksaveasfilename`, se abre `MemoriaStyleDialog` (3 radios + footer). Cancelar o cerrar con X aborta sin abrir el selector de archivo. El estilo elegido se pasa a `generate_memoria_calculo()` como `style=style`.
+**Capítulos (educativo/completo)**: ① Planteo (hipótesis TP/DP + D, una sola vez) → ② Discretización → ③ Calidad de malla → ④ Formulación elemental (showcase: N → J → B → D → integrando simbólico → kₑ por Gauss) → ⑤ Ensamblaje → ⑥ Condiciones de contorno y solución (fusionados) → ⑦ Post-proceso. BCs y solución están **fusionados** en un capítulo para no repetir la explicación de eliminación.
 
-**Invariante de retrocompatibilidad**: `style='completo'` produce **exactamente el mismo PDF** que la versión anterior al parámetro — bit-a-bit equivalente porque `_build_completo()` no toca ningún método existente y `_cross_refs_enabled` default es `True`.
+**La memoria describe EXACTAMENTE el código de `fem/`, no un método de libro** (verificar cada afirmación contra el fuente):
+- **Solver**: `scipy.sparse.linalg.spsolve` → **factorización LU dispersa** (SuperLU/UMFPACK). **NO es Cholesky.** No reintroducir la narrativa de Cholesky/`LLᵀ` ni en la memoria ni en el Hub (M7) — fue un error histórico corregido.
+- **K es dispersa** (CSR vía COO). La memoria la materializa con `_K_to_dense` solo si es chica; para K grande usa `figure_export.render_K_sparsity` (patrón de no-nulos en Pillow) + stats sparse-friendly (`_K_nnz`, `_K_bandwidth`). **Nunca** `np.asarray(K).shape[0]` directo sobre un CSR (da array 0-d → IndexError; bug histórico que rompía la memoria tras hacer K dispersa).
+- **Indexado de GDL**: ordinal vía `node_index_map` (posición en `sorted(ids)`), `2·p(n)` / `2·p(n)+1`. **NO** `2·(id−1)`. Soporta IDs no contiguos.
+- **Showcase**: los intermedios completos (J, inv_J, dN, B por PG) se **recalculan** con `fem.stiffness.element_stiffness` (versión no-JIT) para ese único elemento — el `element_data` del solve productivo trae un `gauss_data` mínimo (xi, eta, weight, det_J, B) sin `index` ni `J`. No leer `gp["index"]`/`gp["J"]` del `element_data` del solver.
+- **Extrapolación de tensiones**: Q4 matriz cerrada √3; Q9 `M⁻¹` numérica cacheada. Promediado nodal aritmético; principales recomputadas desde componentes promediadas.
 
-**Flag interno**: `self._cross_refs_enabled` (bool). Los métodos que contienen referencias cruzadas lo leen vía `getattr(self, '_cross_refs_enabled', True)` — si no está seteado (p. ej. en tests que crean `MemoriaCalculo` directamente), cae al comportamiento del estilo 'completo'.
+**Figuras de campo = Pillow estilo canvas, NO matplotlib** ([file_io/figure_export.py](file_io/figure_export.py)). Ver sección dedicada abajo.
+
+**Formateo numérico**: los positivos en celdas de matrices/vectores **NO** llevan prefijo `+` (solo el `-` de negativos). La alineación la da el entorno `bmatrix`. El helper es [education/components/theory_builder.py](education/components/theory_builder.py) (`matrix_tex`, `matrix_factored_tex`, `vector_factored_tex` usan `{:.Ng}`/`{:.Nf}`/`{:.Ne}`, sin `+`). **No reintroducir** `{:+...}` en celdas de matrices/vectores.
+
+**Recomendación de cantidad de elementos para un paso-a-paso legible** (task del usuario): el showcase desarrolla SIEMPRE un solo elemento (sus matrices kₑ, B, J caben), pero el ensamblaje muestra K global. Para que TODO sea legible a mano sin matrices gigantes:
+- **Q4: 2 elementos** (6 nodos, **12 GDL**) — mínimo para mostrar la SUMA del ensamblaje; kₑ es 8×8 y K 12×12 caben literal (con exponente factorizado).
+- **Q9: 1 elemento** (**18 GDL**) — kₑ ya es 18×18 (apaisado); un segundo elemento (15 nodos, 30 GDL) satura. El ensamblaje se narra pero no hay suma que mostrar.
+- Umbrales de render de K en la memoria: literal hasta 12 GDL (portrait), apaisado 13–24, patrón de dispersión (Pillow) por encima. El ejemplo canónico (4 Q4 / 9 nodos / 18 GDL) cae en "apaisado".
+
+**Flujo UX**: antes del `filedialog.asksaveasfilename`, se abre `MemoriaStyleDialog` (3 radios, default `educativo`). Cancelar aborta sin abrir el selector. El estilo se pasa como `style=style`.
+
+**Ya NO aplica** el invariante histórico "`style=completo` produce un PDF bit-a-bit idéntico" — el documento fue reformulado por completo (corrección de tecnología real + Pillow + sin redundancia). El flag `_cross_refs_enabled` fue eliminado (no hay referencias cruzadas circulares).
+
+**`SymbolicIntegrandQ4`** sigue importándose desde [education/mod05_stiffness.py](education/mod05_stiffness.py) en el showcase Q4 (motivación "por qué Gauss"). No mover sin actualizar ese import.
 
 **No añadir** un cuarto estilo sin documentarlo aquí y en `MemoriaCalculo.STYLES`.
+
+### Render de figuras de la Memoria — Pillow estilo canvas ([file_io/figure_export.py](file_io/figure_export.py))
+
+Reformulado 2026-05: **figure_export NO importa matplotlib**. Las figuras de campo se dibujan con **Pillow**, replicando la técnica del MeshCanvas del Post-Proceso (gradiente bilineal Gouraud por elemento vía rasterizado baricéntrico de triángulos + wireframe), pero con **FONDO BLANCO** (el PDF se imprime). Razón: las gráficas matplotlib se veían pobres frente al canvas tkinter+Pillow.
+
+Funciones (todas devuelven `PIL.Image` o `None`): `render_mesh_diagram` (geometría + nodos por rol Q9 + símbolos de restricción + flechas de carga), `render_contour` (Gouraud + wireframe + colorbar), `render_deformed` (malla gris + deformada verde), `render_principal_crosses` (cruces σ₁/σ₂ azul/rojo), `render_K_sparsity` (patrón de no-nulos, reemplaza al ex-heatmap matplotlib).
+
+**Colormaps**: LUTs internas de `viridis` (secuencial → σVM, no negativo) y `coolwarm` (divergente → σx/σy/τxy, cero físico). **No `jet`** (a diferencia del canvas interactivo, que usa jet; en la memoria mantenemos los científicos perceptualmente uniformes por coherencia con CLAUDE.md y con el resto de los plots educativos). Acentos (nodos, restricciones, cargas, principales) desde la paleta semántica de `config/settings.py` (mismos códigos visuales que el canvas).
+
+**matplotlib sigue siendo dependencia del proyecto** (lo usan los módulos educativos en `education/` y las vistas avanzadas del Post) — pero `file_io/figure_export.py` ya no lo importa. Las funciones de diagrama esquemático matplotlib (ex `render_fem_pipeline`, `render_lm_mapping`, `render_extrapolation_diagram`, `render_averaging_diagram`, `render_mohr_circle`, `render_K_heatmap`) fueron **eliminadas** — eran ilustraciones genéricas de libro o redundantes con el Hub/los módulos interactivos; el contenido se conserva en fórmulas y tablas. **No reintroducir** figuras matplotlib en `figure_export.py`.
 
 ## Importación DXF
 
