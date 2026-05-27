@@ -491,6 +491,24 @@ Componentes en [education/components/](education/components/): `PlotPanel`, `Fou
 - [file_io/](file_io/): CSV ([csv_io.py](file_io/csv_io.py) con columnas dinámicas Q4/Q9), PDF (reportlab/PyMuPDF/pylatex), JSON proyecto, ZIP modelo, DXF (ver sección dedicada).
 - [tests/example_data.py](tests/example_data.py): canónico (E=225000, ν=0.2, t=0.8, P=1000). `load_example_project(P)` Q4 9-nodos, `load_example_project_q9(P)` 25-nodos.
 
+### Memoria de Cálculo — tres estilos seleccionables
+
+`generate_memoria_calculo(..., style='completo')` acepta tres valores para `style`:
+
+| Estilo | Descripción | Cuándo usarlo |
+|---|---|---|
+| `'completo'` | Baseline — pipeline MEF completo con narrativa extensa, referencias cruzadas entre capítulos (Cap. 4, Cap. 6, etc.) y glosario en Apéndice C. Sin cambios respecto a la versión previa al parámetro. | Consulta extendida, revisión docente, documentación de archivo. |
+| `'educativo'` | Mismo pipeline completo pero con **narrativa directa y autocontenida**: cada sección se sostiene sola sin remitir a otra. Las referencias cruzadas (Cap. X, Apéndice A, "ver M7") se reescriben con descripción funcional. Glosario se mantiene pero los capítulos no lo referencian. **Default recomendado para alumnos.** | Alumno que estudia el procedimiento; imprime el PDF para repasar. |
+| `'directo'` | Solo tablas de datos, matrices (D, kₑ, K, F, u, R) y contornos de tensiones. Sin párrafos narrativos, sin Cap. 0 introductorio, sin `educational_teaser`/`educational_box`, sin integrando simbólico expandido. Más corto y denso. | Usuario que ya conoce MEF y solo necesita verificar los valores numéricos. |
+
+**Flujo UX**: antes del `filedialog.asksaveasfilename`, se abre `MemoriaStyleDialog` (3 radios + footer). Cancelar o cerrar con X aborta sin abrir el selector de archivo. El estilo elegido se pasa a `generate_memoria_calculo()` como `style=style`.
+
+**Invariante de retrocompatibilidad**: `style='completo'` produce **exactamente el mismo PDF** que la versión anterior al parámetro — bit-a-bit equivalente porque `_build_completo()` no toca ningún método existente y `_cross_refs_enabled` default es `True`.
+
+**Flag interno**: `self._cross_refs_enabled` (bool). Los métodos que contienen referencias cruzadas lo leen vía `getattr(self, '_cross_refs_enabled', True)` — si no está seteado (p. ej. en tests que crean `MemoriaCalculo` directamente), cae al comportamiento del estilo 'completo'.
+
+**No añadir** un cuarto estilo sin documentarlo aquí y en `MemoriaCalculo.STYLES`.
+
 ## Importación DXF
 
 Módulo [file_io/dxf_io.py](file_io/dxf_io.py) + diálogo [gui/dialogs/dxf_import_dialog.py](gui/dialogs/dxf_import_dialog.py).

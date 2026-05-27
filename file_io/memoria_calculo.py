@@ -61,6 +61,7 @@ def generate_memoria_calculo(
     mesh_diagram=None,
     contour_figures: Optional[dict] = None,
     scope: str = "showcase",
+    style: str = "completo",
     progress_callback: Optional[Callable[[str, float], None]] = None,
     keep_tex: bool = False,
 ) -> str:
@@ -77,6 +78,9 @@ def generate_memoria_calculo(
     mesh_diagram, contour_figures : figuras matplotlib (Paso 3 del roadmap).
     scope : 'showcase' (default) muestra un elemento detallado + resumen
         del resto. Otros valores se reservan para iteraciones futuras.
+    style : 'completo' (default, baseline), 'educativo' (narrativa directa
+        sin referencias cruzadas) o 'directo' (solo tablas, matrices y
+        contornos, sin parrafos narrativos).
     progress_callback : callable(stage_label, pct_0_a_1) opcional.
     keep_tex : si True, conserva el `.tex` intermedio para depuracion.
     """
@@ -96,7 +100,8 @@ def generate_memoria_calculo(
     memoria = MemoriaCalculo(project, solution, element_stresses, nodal_stresses,
                              mesh_diagram=mesh_diagram,
                              contour_figures=contour_figures,
-                             scope=scope)
+                             scope=scope,
+                             style=style)
 
     _progress("Construyendo capitulos", 0.15)
     memoria.build()
@@ -138,8 +143,12 @@ class MemoriaCalculo:
     TITLE = "Memoria de Cálculo"
     SUBTITLE_TEMPLATE = "Análisis MEF 2D — Proyecto: {name}"
 
+    # Estilos validos de generacion del PDF.
+    STYLES = ("completo", "educativo", "directo")
+
     def __init__(self, project, solution, element_stresses, nodal_stresses,
-                 *, mesh_diagram=None, contour_figures=None, scope: str = "showcase"):
+                 *, mesh_diagram=None, contour_figures=None,
+                 scope: str = "showcase", style: str = "completo"):
         self._project = project
         self._solution = solution
         self._element_stresses = element_stresses or {}
@@ -147,6 +156,7 @@ class MemoriaCalculo:
         self._mesh_diagram = mesh_diagram
         self._contour_figures = dict(contour_figures) if contour_figures else {}
         self._scope = scope
+        self._style = style if style in self.STYLES else "completo"
         # Directorio temporal para PNGs (cleanup en compile()).
         # Se crea lazy via _ensure_tmpdir() para que tex_source() no lo necesite.
         self._tmpdir: Optional[tempfile.TemporaryDirectory] = None
@@ -183,24 +193,26 @@ class MemoriaCalculo:
         # Ya inserta automaticamente float + graphicx cuando se llama figure()
 
     def build(self) -> None:
-        """Llena el documento siguiendo la jerarquia MEF estandar:
+        """Llena el documento segun self._style:
 
-        0. Introduccion conceptual + hoja de ruta del metodo (sin numerar)
-        1. Definicion del problema (hipotesis, tipo de elemento)
-        2. Discretizacion del modelo (geometria, materiales, BCs, cargas)
-        3. Calidad de la malla (verificar antes de pesar el solve)
-        4. Formulacion elemental (showcase: N -> J -> B -> D -> kₑ)
-        5. Ensamblaje del sistema global (K, F)
-        6. Aplicacion de condiciones de contorno (reduccion del sistema)
-        7. Solucion del sistema (factorizacion + back-substitution)
-        8. Post-proceso (Gauss -> nodos -> promediado -> principales -> VM)
-
-        Apendices: A) kₑ de elementos restantes  B) datos completos  C) glosario.
-
-        El orden replica el pipeline natural que sigue un ingeniero al
-        ejecutar un analisis MEF, separando claramente las fases
-        pre-proceso (Caps 1-3), proceso (Caps 4-7) y post-proceso (Cap 8).
+        'completo': pipeline MEF completo con narrativa, referencias cruzadas
+            y glosario. Baseline sin modificacion.
+        'educativo': mismo pipeline pero sin referencias cruzadas
+            (cada seccion se sostiene sola) y narrativa condensada.
+        'directo': solo portada, tablas de datos, matrices kₑ/K/F, vector u,
+            reacciones y contornos. Sin parrafos narrativos.
         """
+        if self._style == "directo":
+            self._build_directo()
+        elif self._style == "educativo":
+            self._build_educativo()
+        else:
+            self._build_completo()
+
+    def _build_completo(self) -> None:
+        """Pipeline MEF completo (baseline, sin cambios respecto a la version
+        anterior al parametro style)."""
+        self._cross_refs_enabled = True
         self._build_cover()
         self._td.toc()
         # Cap 0: introduccion (no numerada, aparece como `Resumen' en TOC)
@@ -222,6 +234,227 @@ class MemoriaCalculo:
         # Cap 8: post-proceso
         self._build_chapter8_postproceso(showcase_id)
         # Apendices
+        self._td.raw(r"\appendix")
+        self._build_appendix_a_kes(showcase_id)
+        self._build_appendix_b_datos()
+        self._build_appendix_c_glosario()
+        self._build_pie()
+
+    def _build_directo(self) -> None:
+        """Pipeline MEF directo: portada, datos del modelo (tablas),
+        matriz D (si unico material), showcase de kₑ, K global, F global,
+        desplazamientos, reacciones, equilibrio y contornos.
+        Sin parrafos narrativos ni apendices educativos."""
+        td = self._td
+        self._cross_refs_enabled = False
+        self._build_cover()
+        td.toc()
+
+        # 1. Datos del modelo
+        td.section_numbered("Datos del modelo")
+        td.subsection_numbered("Materiales")
+        self._tabla_materiales()
+        td.subsection_numbered("Nodos")
+        self._tabla_nodos()
+        td.subsection_numbered("Conectividad de elementos")
+        self._tabla_elementos()
+        td.subsection_numbered("Cargas nodales")
+        self._tabla_cargas_nodales()
+        td.subsection_numbered("Cargas superficiales")
+        self._tabla_cargas_superficiales()
+        td.subsection_numbered("Restricciones")
+        self._tabla_restricciones()
+
+        # 2. Matriz constitutiva D
+        td.section_numbered("Matriz constitutiva $\\mathbf{D}$")
+        self._matriz_D_teorica()
+        self._matriz_D_numerica_si_unico_material()
+
+        # 3. Formulacion elemental (showcase, sin narrativa)
+        showcase_id = self._select_showcase_element()
+        if showcase_id is not None:
+            self._build_showcase_directo(showcase_id)
+
+        # 4. Sistema global K y F
+        self._build_sistema_global_directo()
+
+        # 5. Condiciones de contorno
+        td.section_numbered("Condiciones de contorno")
+        sol = self._solution
+        n_total = len(sol["u"])
+        n_libres = len(sol["free_dofs"])
+        n_restr = len(sol["restrained_dofs"])
+        td.values([
+            ("Grados de libertad totales", str(n_total)),
+            ("Grados de libertad restringidos", str(n_restr)),
+            ("Grados de libertad libres (resueltos)", str(n_libres)),
+            (r"Tamaño de $\mathbf{K}_{red}$", f"{n_libres} × {n_libres}"),
+        ])
+
+        # 6. Solucion
+        td.section_numbered("Solución")
+        u = sol["u"]
+        R = sol["reactions"]
+        u_arr = np.asarray(u)
+        td.raw(r"{\scriptsize")
+        td.vector_factored(u_arr, name=r"\mathbf{u}", sig_digits=3,
+                           transpose=True)
+        td.raw(r"}")
+        self._tabla_desplazamientos(u)
+        td.subsection_numbered("Reacciones")
+        R_arr = np.asarray(R)
+        td.raw(r"{\scriptsize")
+        td.vector_factored(R_arr, name=r"\mathbf{R}", sig_digits=3,
+                           transpose=True)
+        td.raw(r"}")
+        self._tabla_reacciones(R)
+        td.subsection_numbered("Equilibrio global")
+        self._tabla_verificacion_equilibrio(R)
+
+        # 7. Tensiones y contornos
+        td.section_numbered("Post-proceso")
+        td.subsection_numbered("Tensiones nodales (promediadas)")
+        if self._nodal_stresses:
+            self._tabla_nodal_stresses()
+        else:
+            td.para(r"\emph{Tensiones nodales no disponibles.}")
+        td.subsection_numbered("Contornos de tensiones")
+        for component in ("sigma_x", "sigma_y", "tau_xy", "von_mises"):
+            self._insertar_contorno(component)
+
+        # Apendice: kₑ del resto de elementos
+        td.raw(r"\appendix")
+        self._build_appendix_a_kes(showcase_id)
+        self._build_pie()
+
+    def _build_showcase_directo(self, elem_id: int) -> None:
+        """Sección compacta del showcase elemental para el estilo directo.
+        Solo tablas de geometría + D + fórmula kₑ + matriz kₑ; sin narrativa."""
+        td = self._td
+        proj = self._project
+        elem = proj.elements.get(elem_id)
+        if elem is None:
+            return
+        sol = self._solution
+        elem_data = sol.get("element_data", {}).get(elem_id)
+        if elem_data is None:
+            return
+
+        td.section_numbered(rf"Formulación elemental — Elemento {elem_id}")
+
+        # Geometría
+        node_coords = np.asarray(elem_data["node_coords"])
+        n_nodes = node_coords.shape[0]
+        rows = []
+        for i, nid in enumerate(elem.node_ids[:n_nodes]):
+            x, y = node_coords[i]
+            rows.append([f"$N_{{{i+1}}}$", str(nid),
+                         fmt(x, "length"), fmt(y, "length")])
+        self._longtable(
+            headers=["Nodo local", "Nodo global", r"$X$", r"$Y$"],
+            rows=rows,
+            col_align="ccrr",
+        )
+        td.values([
+            ("Tipo", TheoryDoc.escape(proj.element_type)),
+            ("Espesor $t$", fmt(elem.thickness, "length")),
+            ("Material", TheoryDoc.escape(elem.material_name)),
+        ])
+
+        # Fórmula compacta kₑ (sin expansión simbólica)
+        td.equation(
+            r"\mathbf{k}_e = \int_{-1}^{1}\!\int_{-1}^{1} "
+            r"\mathbf{B}^T\mathbf{D}\,\mathbf{B}\, |\det \mathbf{J}|\, t\, "
+            r"d\xi\, d\eta \approx \sum_p w_p\, \mathbf{B}_p^T\mathbf{D}\,"
+            r"\mathbf{B}_p\,|\det\mathbf{J}_p|\,t"
+        )
+
+        # Matriz kₑ resultante
+        ke = np.asarray(elem_data["ke"])
+        if ke.shape[0] <= 8:
+            td.raw(r"{\scriptsize")
+            td.matrix_factored(ke, name=r"\mathbf{k}_e", sig_digits=3)
+            td.raw(r"}")
+        else:
+            td.package("pdflscape")
+            td.raw(r"\begin{landscape}")
+            td.raw(r"{\tiny")
+            td.matrix_factored(ke, name=r"\mathbf{k}_e", sig_digits=2)
+            td.raw(r"}")
+            td.raw(r"\end{landscape}")
+        td.values([
+            (r"$\|\mathbf{k}_e\|_F$",
+             f"{float(np.linalg.norm(ke, 'fro')):.4g}"),
+        ])
+
+    def _build_sistema_global_directo(self) -> None:
+        """Sección K y F globales para el estilo directo (sin narrativa)."""
+        td = self._td
+        sol = self._solution
+        K = np.asarray(sol["K"])
+        F = np.asarray(sol["F"])
+        n_dof = K.shape[0]
+
+        td.section_numbered("Sistema global $\\mathbf{K}\\,\\mathbf{u} = \\mathbf{F}$")
+        td.values([
+            (r"Tamaño de $\mathbf{K}$", f"{n_dof} × {n_dof}"),
+            (r"Tamaño de $\mathbf{F}$", f"{n_dof} × 1"),
+        ])
+
+        td.subsection_numbered(r"Matriz de rigidez global $\mathbf{K}$")
+        if n_dof <= 8:
+            td.raw(r"{\scriptsize")
+            td.matrix_factored(K, name=r"\mathbf{K}", sig_digits=3)
+            td.raw(r"}")
+        else:
+            nnz = int(np.sum(np.abs(K) > NUMERICAL_TOLERANCE_K))
+            density = nnz / (n_dof * n_dof) if n_dof > 0 else 0.0
+            try:
+                bandwidth = self._matrix_bandwidth(K)
+            except Exception:
+                bandwidth = "—"
+            td.values([
+                (r"Entradas no nulas", str(nnz)),
+                ("Densidad", f"{density * 100:.3f}\\%"),
+                (r"Ancho de banda", str(bandwidth)),
+            ])
+            try:
+                from file_io.figure_export import render_K_heatmap
+                fig = render_K_heatmap(K, log_scale=True)
+                path = self._save_figure(fig, "K_heatmap")
+                if path is not None:
+                    td.figure(path,
+                              caption=(r"Patrón de $\mathbf{K}$ "
+                                       r"en escala logarítmica."),
+                              label="fig:K_heatmap",
+                              width=r"0.75\textwidth")
+            except Exception:
+                pass
+
+        td.subsection_numbered(r"Vector de fuerzas globales $\mathbf{F}$")
+        td.raw(r"{\scriptsize")
+        td.vector_factored(F, name=r"\mathbf{F}", sig_digits=3, transpose=True)
+        td.raw(r"}")
+        self._desglose_F(F)
+
+    def _build_educativo(self) -> None:
+        """Pipeline MEF completo con narrativa directa y sin referencias
+        cruzadas. Cada seccion se sostiene sola."""
+        self._cross_refs_enabled = False
+        self._build_cover()
+        self._td.toc()
+        self._build_chapter0_pipeline()
+        self._build_resumen_visual()
+        self._build_chapter1_problema()
+        self._build_chapter2_discretizacion()
+        self._build_chapter3_calidad()
+        showcase_id = self._select_showcase_element()
+        if showcase_id is not None:
+            self._build_chapter4_showcase(showcase_id)
+        self._build_chapter5_ensamblaje()
+        self._build_chapter6_bcs()
+        self._build_chapter7_solucion()
+        self._build_chapter8_postproceso(showcase_id)
         self._td.raw(r"\appendix")
         self._build_appendix_a_kes(showcase_id)
         self._build_appendix_b_datos()
@@ -321,6 +554,19 @@ class MemoriaCalculo:
         td.raw(
             r"\addcontentsline{toc}{section}{¿Qué resuelve el MEF y cómo?}"
         )
+        if getattr(self, "_cross_refs_enabled", True):
+            intro_tail = (
+                r"\textbf{pre-proceso} (Caps.\ 1--3), \textbf{proceso} "
+                r"(Caps.\ 4--7) y \textbf{post-proceso} (Cap.\ 8). El diagrama "
+                r"siguiente resume el pipeline:"
+            )
+        else:
+            intro_tail = (
+                r"\textbf{pre-proceso} (datos del modelo, calidad de malla), "
+                r"\textbf{proceso} (formulación elemental, ensamblaje, BCs) y "
+                r"\textbf{post-proceso} (desplazamientos, tensiones, contornos). "
+                r"El diagrama siguiente resume el pipeline:"
+            )
         td.para(
             r"El \textbf{MEF} discretiza un problema elástico continuo en "
             r"$N$ elementos finitos: las incógnitas pasan de un campo "
@@ -329,9 +575,7 @@ class MemoriaCalculo:
             r"se reduce al sistema algebraico $\mathbf{K}\,\mathbf{u} = "
             r"\mathbf{F}$. Esta memoria documenta el análisis específico "
             r"de este proyecto siguiendo la jerarquía estándar del método: "
-            r"\textbf{pre-proceso} (Caps.\ 1--3), \textbf{proceso} "
-            r"(Caps.\ 4--7) y \textbf{post-proceso} (Cap.\ 8). El diagrama "
-            r"siguiente resume el pipeline:"
+            + intro_tail
         )
         try:
             from file_io.figure_export import render_fem_pipeline
@@ -500,12 +744,22 @@ class MemoriaCalculo:
             )
             td.matrix(D, name=r"\mathbf{D}", fmt="{:+.4g}")
         else:
-            td.para(
-                r"\emph{El modelo utiliza más de un material; cada elemento "
-                r"emplea su propia matriz $\mathbf{D}$. El Capítulo 3 "
-                r"(showcase elemental) desarrollará la matriz del material "
-                r"asignado al elemento estrella.}"
-            )
+            if getattr(self, "_cross_refs_enabled", True):
+                multi_mat_note = (
+                    r"\emph{El modelo utiliza más de un material; cada elemento "
+                    r"emplea su propia matriz $\mathbf{D}$. El Capítulo 3 "
+                    r"(showcase elemental) desarrollará la matriz del material "
+                    r"asignado al elemento estrella.}"
+                )
+            else:
+                multi_mat_note = (
+                    r"\emph{El modelo utiliza más de un material; cada elemento "
+                    r"emplea su propia matriz $\mathbf{D}$, calculada a partir "
+                    r"de sus parámetros $E$ y $\nu$ bajo la hipótesis "
+                    r"de caso plano activa. La sección de formulación elemental "
+                    r"muestra la matriz del elemento estrella.}"
+                )
+            td.para(multi_mat_note)
 
     # ----- Capitulo 2: Discretizacion -----
 
@@ -726,20 +980,31 @@ class MemoriaCalculo:
             return
 
         td.section_numbered(rf"Formulación elemental — Elemento {elem_id}")
-        td.para(
-            rf"Este capítulo desarrolla \emph{{paso a paso}} el cálculo "
-            rf"de la matriz de rigidez del elemento $E_{{{elem_id}}}$, "
-            rf"seleccionado como `elemento estrella' por ser el de mayor "
-            rf"energía de deformación. El procedimiento aplica idénticamente "
-            rf"al resto de los elementos (sus matrices están en el Apéndice "
-            rf"A). El orden sigue la jerarquía estándar de la formulación "
-            rf"isoparamétrica: geometría $\to$ $\mathbf{{N}}$ $\to$ "
-            rf"$\mathbf{{J}}$ $\to$ $\mathbf{{B}}$ $\to$ $\mathbf{{D}}$ "
-            rf"$\to$ integración. Las derivaciones generales viven en "
-            rf"\emph{{Teoría MEF: M1 Mapeo, M2 Jacobiano, M3 D, M4 B, M5 "
-            rf"Rigidez+Gauss}}; este capítulo aplica esa cadena a los "
-            rf"valores del proyecto."
-        )
+        if getattr(self, "_cross_refs_enabled", True):
+            td.para(
+                rf"Este capítulo desarrolla \emph{{paso a paso}} el cálculo "
+                rf"de la matriz de rigidez del elemento $E_{{{elem_id}}}$, "
+                rf"seleccionado como `elemento estrella' por ser el de mayor "
+                rf"energía de deformación. El procedimiento aplica idénticamente "
+                rf"al resto de los elementos (sus matrices están en el Apéndice "
+                rf"A). El orden sigue la jerarquía estándar de la formulación "
+                rf"isoparamétrica: geometría $\to$ $\mathbf{{N}}$ $\to$ "
+                rf"$\mathbf{{J}}$ $\to$ $\mathbf{{B}}$ $\to$ $\mathbf{{D}}$ "
+                rf"$\to$ integración. Las derivaciones generales viven en "
+                rf"\emph{{Teoría MEF: M1 Mapeo, M2 Jacobiano, M3 D, M4 B, M5 "
+                rf"Rigidez+Gauss}}; este capítulo aplica esa cadena a los "
+                rf"valores del proyecto."
+            )
+        else:
+            td.para(
+                rf"Este capítulo desarrolla paso a paso la matriz de rigidez "
+                rf"del elemento $E_{{{elem_id}}}$, seleccionado por tener la "
+                rf"mayor energía de deformación del modelo. La formulación "
+                rf"isoparamétrica sigue la cadena: geometría $\to$ "
+                rf"$\mathbf{{N}}$ $\to$ $\mathbf{{J}}$ $\to$ $\mathbf{{B}}$ "
+                rf"$\to$ $\mathbf{{D}}$ $\to$ integración numérica de Gauss. "
+                rf"Las matrices del resto de elementos figuran en el Apéndice."
+            )
 
         # 4.1 Geometria
         td.subsection_numbered("Geometría y conectividad del elemento")
@@ -1043,15 +1308,25 @@ class MemoriaCalculo:
         proj = self._project
         sol = self._solution
         td.section_numbered("Ensamblaje del sistema global")
-        td.para(
-            r"Una vez calculada $\mathbf{k}_e$ para cada elemento (Cap.\ 4), "
-            r"el ensamblaje suma sus contribuciones en $\mathbf{K}$ y "
-            r"construye $\mathbf{F}$ a partir de las cargas externas. El "
-            r"resultado es el sistema lineal $\mathbf{K}\,\mathbf{u} = "
-            r"\mathbf{F}$ — aún sin BCs (Cap.\ 6). El procedimiento general "
-            r"y la definición formal del operador LM se desarrollan en "
-            r"\emph{Teoría MEF: M7 Ensamblaje}."
-        )
+        if getattr(self, "_cross_refs_enabled", True):
+            td.para(
+                r"Una vez calculada $\mathbf{k}_e$ para cada elemento (Cap.\ 4), "
+                r"el ensamblaje suma sus contribuciones en $\mathbf{K}$ y "
+                r"construye $\mathbf{F}$ a partir de las cargas externas. El "
+                r"resultado es el sistema lineal $\mathbf{K}\,\mathbf{u} = "
+                r"\mathbf{F}$ — aún sin BCs (Cap.\ 6). El procedimiento general "
+                r"y la definición formal del operador LM se desarrollan en "
+                r"\emph{Teoría MEF: M7 Ensamblaje}."
+            )
+        else:
+            td.para(
+                r"El ensamblaje suma las contribuciones de $\mathbf{k}_e$ de "
+                r"cada elemento en la matriz global $\mathbf{K}$ y agrega las "
+                r"cargas externas al vector $\mathbf{F}$, formando el sistema "
+                r"$\mathbf{K}\,\mathbf{u} = \mathbf{F}$. Las condiciones de "
+                r"contorno se aplican a continuación reduciendo el sistema "
+                r"a los GDLs libres."
+            )
 
         K = np.asarray(sol["K"])
         F = np.asarray(sol["F"])
@@ -1240,13 +1515,23 @@ class MemoriaCalculo:
         proj = self._project
         sol = self._solution
         td.section_numbered("Solución del sistema y verificación")
-        td.para(
-            r"Con el sistema reducido $\mathbf{K}_{red}\,\mathbf{u}_{red} = "
-            r"\mathbf{F}_{red}$ del Cap.\ 6, este capítulo resuelve $\mathbf{u}$, "
-            r"reinserta los desplazamientos prescritos, calcula las reacciones "
-            r"en los apoyos y verifica el equilibrio global como control "
-            r"de calidad de la solución numérica."
-        )
+        if getattr(self, "_cross_refs_enabled", True):
+            td.para(
+                r"Con el sistema reducido $\mathbf{K}_{red}\,\mathbf{u}_{red} = "
+                r"\mathbf{F}_{red}$ del Cap.\ 6, este capítulo resuelve $\mathbf{u}$, "
+                r"reinserta los desplazamientos prescritos, calcula las reacciones "
+                r"en los apoyos y verifica el equilibrio global como control "
+                r"de calidad de la solución numérica."
+            )
+        else:
+            td.para(
+                r"Se resuelve el sistema reducido $\mathbf{K}_{red}\,\mathbf{u}_{red} = "
+                r"\mathbf{F}_{red}$ (que elimina las filas/columnas de los GDLs "
+                r"restringidos). Los desplazamientos prescritos se reinsertan en "
+                r"$\mathbf{u}$ global, y las reacciones se calculan como "
+                r"$\mathbf{R} = \mathbf{K}\,\mathbf{u} - \mathbf{F}$. "
+                r"El equilibrio global verifica la calidad numérica de la solución."
+            )
 
         u = sol["u"]
         R = sol["reactions"]
@@ -1610,12 +1895,20 @@ class MemoriaCalculo:
 
         # Tabla de tensiones nodales promediadas
         td.subsection_numbered("Tensiones nodales (promediadas)")
-        td.para(
-            r"Aplicando la cadena $\sigma_{Gauss} \to \sigma_{nodo} \to "
-            r"\sigma_{promediado} \to (\sigma_1, \sigma_2, \sigma_{VM})$ a cada "
-            r"elemento del modelo se obtiene la tabla siguiente. Es el insumo "
-            r"de los contornos de la subsección \ref{sec:contornos}."
-        )
+        if getattr(self, "_cross_refs_enabled", True):
+            td.para(
+                r"Aplicando la cadena $\sigma_{Gauss} \to \sigma_{nodo} \to "
+                r"\sigma_{promediado} \to (\sigma_1, \sigma_2, \sigma_{VM})$ a cada "
+                r"elemento del modelo se obtiene la tabla siguiente. Es el insumo "
+                r"de los contornos de la subsección \ref{sec:contornos}."
+            )
+        else:
+            td.para(
+                r"Las tensiones en puntos de Gauss se extrapolan a los nodos "
+                r"y se promedian entre elementos adyacentes. La tabla muestra "
+                r"$(\sigma_x, \sigma_y, \tau_{xy}, \sigma_1, \sigma_2, \sigma_{VM})$ "
+                r"por nodo, insumo de los mapas de contornos que siguen."
+            )
         if self._nodal_stresses:
             self._tabla_nodal_stresses()
         else:
@@ -1811,11 +2104,20 @@ class MemoriaCalculo:
         sol = self._solution
         elem_data = sol.get("element_data", {})
         td.section_numbered("Matrices de rigidez elementales")
-        td.para(
-            r"Esta sección agrupa las matrices $\mathbf{k}_e$ del resto de "
-            r"los elementos del modelo. La matriz del elemento estrella ya "
-            r"fue desarrollada en el Capítulo 3."
-        )
+        if getattr(self, "_cross_refs_enabled", True):
+            td.para(
+                r"Esta sección agrupa las matrices $\mathbf{k}_e$ del resto de "
+                r"los elementos del modelo. La matriz del elemento estrella ya "
+                r"fue desarrollada en el Capítulo 3."
+            )
+        else:
+            td.para(
+                r"Matrices de rigidez elementales $\mathbf{k}_e$ de los elementos "
+                r"no incluidos en la sección de formulación elemental. "
+                r"Calculadas por cuadratura de Gauss con la fórmula "
+                r"$\mathbf{k}_e = \sum_p w_p\,\mathbf{B}_p^T\mathbf{D}\,"
+                r"\mathbf{B}_p\,|\det\mathbf{J}_p|\,t$."
+            )
         # Para Q9 (k_e 18x18) usamos pdflscape para apaisado
         is_q9 = proj.element_type == ELEMENT_Q9
         if is_q9:
