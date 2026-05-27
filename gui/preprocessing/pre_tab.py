@@ -89,6 +89,9 @@ class PreProcessTab:
         # infinito de eventos <<TreeviewSelect>> y on_selection_changed).
         self._syncing_from_canvas = False
         self._syncing_to_canvas = False
+        # Snapshot de la seleccion anterior del canvas (camino canvas→spreadsheet).
+        # Si la nueva seleccion es identica, saltamos el rebuild de los 5 trees.
+        self._last_canvas_sel = None
 
         # Registro pendiente de completar (ver _set_pending).
         self._pending_new = None
@@ -2654,6 +2657,20 @@ class PreProcessTab:
                 except Exception:
                     pass
             return
+
+        # Guard: si la seleccion no cambio (mismo conjunto de ids en todos los
+        # tipos), no reconstruir los 5 trees. El rebuild es O(N) en filas y
+        # domina el tiempo percibido en mallas grandes con seleccion repetida.
+        sel_key = (
+            frozenset(canvas.selected_nodes),
+            frozenset(canvas.selected_elements),
+            frozenset(canvas.selected_loads),
+            frozenset(canvas.selected_constraints),
+            frozenset(canvas.selected_surfaces),
+        )
+        if sel_key == self._last_canvas_sel:
+            return
+        self._last_canvas_sel = sel_key
 
         self._syncing_from_canvas = True
         try:

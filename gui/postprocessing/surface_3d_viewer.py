@@ -42,9 +42,8 @@ import numpy as np
 import tkinter as tk
 import ttkbootstrap as ttk
 
-from matplotlib.figure import Figure
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from matplotlib.colors import ListedColormap
+# matplotlib se importa en _build_jet_cmap() y __init__() para diferir el
+# costo de arranque. El visor 3D se abre solo cuando el usuario lo solicita.
 
 from config.settings import (
     SURFACE_3D_DEFAULT_GRID, SURFACE_3D_DISC_THRESHOLD,
@@ -77,7 +76,8 @@ _DISPLACEMENT_LABEL = {
 # Construimos un ListedColormap de 256 colores muestreando la misma JET
 # que usa el canvas del Post (_jet_rgb_vectorized). Esto unifica la
 # paleta cromatica entre vista 2D (contorno) y vista 3D (superficie).
-def _build_jet_cmap() -> ListedColormap:
+def _build_jet_cmap():
+    from matplotlib.colors import ListedColormap
     t = np.linspace(0.0, 1.0, 256)
     r = np.zeros_like(t)
     g = np.zeros_like(t)
@@ -93,7 +93,7 @@ def _build_jet_cmap() -> ListedColormap:
     return ListedColormap(np.column_stack([r, g, b, np.ones_like(t)]))
 
 
-_JET_CMAP = _build_jet_cmap()
+_JET_CMAP = None  # inicializado en primera apertura del visor
 
 
 class Surface3DViewer(tk.Toplevel):
@@ -157,7 +157,13 @@ class Surface3DViewer(tk.Toplevel):
         )
         self._info_label.pack(side=tk.RIGHT)
 
-        # Body: matplotlib Figure 3D
+        # Body: matplotlib Figure 3D (import diferido: solo al abrir el visor)
+        global _JET_CMAP
+        from matplotlib.figure import Figure
+        from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+        if _JET_CMAP is None:
+            _JET_CMAP = _build_jet_cmap()
+
         body = ttk.Frame(self, padding=(8, 4))
         body.pack(fill=tk.BOTH, expand=True)
 

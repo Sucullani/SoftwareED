@@ -1,11 +1,22 @@
 """
 Funciones de forma para elementos isoparamétricos Q4 y Q9.
 En coordenadas naturales (ξ, η) ∈ [-1, 1] × [-1, 1].
+
+Implementacion JIT (Numba): cada funcion esta decorada con @njit(cache=True)
+para compilar a maquina via LLVM. Speedup tipico: 5-10x vs NumPy puro,
+porque los arrays son chicos (4 o 9 elementos) — el overhead de allocation
+y dispatch de NumPy domina sobre la aritmetica.
+
+Cuando Numba NO esta instalado, `fem._numba_compat.njit` se convierte en
+no-op y las funciones corren en Python puro sin perdida de funcionalidad.
 """
 
 import numpy as np
 
+from fem._numba_compat import njit
 
+
+@njit(cache=True)
 def shape_functions_q4(xi, eta):
     """
     Funciones de forma para elemento Q4 (4 nodos).
@@ -16,15 +27,15 @@ def shape_functions_q4(xi, eta):
 
     Retorna: N = [N1, N2, N3, N4] array (4,)
     """
-    N = 0.25 * np.array([
-        (1 - xi) * (1 - eta),  # N1
-        (1 + xi) * (1 - eta),  # N2
-        (1 + xi) * (1 + eta),  # N3
-        (1 - xi) * (1 + eta),  # N4
-    ])
+    N = np.empty(4)
+    N[0] = 0.25 * (1.0 - xi) * (1.0 - eta)
+    N[1] = 0.25 * (1.0 + xi) * (1.0 - eta)
+    N[2] = 0.25 * (1.0 + xi) * (1.0 + eta)
+    N[3] = 0.25 * (1.0 - xi) * (1.0 + eta)
     return N
 
 
+@njit(cache=True)
 def shape_functions_q9(xi, eta):
     """
     Funciones de forma para elemento Q9 (9 nodos).
@@ -39,24 +50,23 @@ def shape_functions_q9(xi, eta):
     """
     xi2 = xi * xi
     eta2 = eta * eta
-
-    N = np.array([
-        # Nodos esquina
-        0.25 * xi * (xi - 1) * eta * (eta - 1),   # N1
-        0.25 * xi * (xi + 1) * eta * (eta - 1),   # N2
-        0.25 * xi * (xi + 1) * eta * (eta + 1),   # N3
-        0.25 * xi * (xi - 1) * eta * (eta + 1),   # N4
-        # Nodos de lado
-        0.5 * (1 - xi2) * eta * (eta - 1),         # N5
-        0.5 * xi * (xi + 1) * (1 - eta2),          # N6
-        0.5 * (1 - xi2) * eta * (eta + 1),         # N7
-        0.5 * xi * (xi - 1) * (1 - eta2),          # N8
-        # Nodo central
-        (1 - xi2) * (1 - eta2),                     # N9
-    ])
+    N = np.empty(9)
+    # Nodos esquina
+    N[0] = 0.25 * xi * (xi - 1.0) * eta * (eta - 1.0)
+    N[1] = 0.25 * xi * (xi + 1.0) * eta * (eta - 1.0)
+    N[2] = 0.25 * xi * (xi + 1.0) * eta * (eta + 1.0)
+    N[3] = 0.25 * xi * (xi - 1.0) * eta * (eta + 1.0)
+    # Nodos de lado
+    N[4] = 0.5 * (1.0 - xi2) * eta * (eta - 1.0)
+    N[5] = 0.5 * xi * (xi + 1.0) * (1.0 - eta2)
+    N[6] = 0.5 * (1.0 - xi2) * eta * (eta + 1.0)
+    N[7] = 0.5 * xi * (xi - 1.0) * (1.0 - eta2)
+    # Nodo central
+    N[8] = (1.0 - xi2) * (1.0 - eta2)
     return N
 
 
+@njit(cache=True)
 def dshape_functions_q4(xi, eta):
     """
     Derivadas de funciones de forma Q4 respecto a coordenadas naturales.
@@ -65,49 +75,53 @@ def dshape_functions_q4(xi, eta):
                    [∂N1/∂η, ∂N2/∂η, ∂N3/∂η, ∂N4/∂η]]
              array (2, 4)
     """
-    dN = 0.25 * np.array([
-        [-(1 - eta), (1 - eta), (1 + eta), -(1 + eta)],   # ∂N/∂ξ
-        [-(1 - xi), -(1 + xi), (1 + xi),  (1 - xi)],      # ∂N/∂η
-    ])
+    dN = np.empty((2, 4))
+    # ∂N/∂ξ
+    dN[0, 0] = -0.25 * (1.0 - eta)
+    dN[0, 1] =  0.25 * (1.0 - eta)
+    dN[0, 2] =  0.25 * (1.0 + eta)
+    dN[0, 3] = -0.25 * (1.0 + eta)
+    # ∂N/∂η
+    dN[1, 0] = -0.25 * (1.0 - xi)
+    dN[1, 1] = -0.25 * (1.0 + xi)
+    dN[1, 2] =  0.25 * (1.0 + xi)
+    dN[1, 3] =  0.25 * (1.0 - xi)
     return dN
 
 
+@njit(cache=True)
 def dshape_functions_q9(xi, eta):
     """
     Derivadas de funciones de forma Q9 respecto a coordenadas naturales.
 
-    Retorna: dN array (2, 9
+    Retorna: dN array (2, 9)
     """
     xi2 = xi * xi
     eta2 = eta * eta
+    dN = np.empty((2, 9))
 
     # ∂N/∂ξ
-    dN_dxi = np.array([
-        0.25 * (2 * xi - 1) * eta * (eta - 1),     # ∂N1/∂ξ
-        0.25 * (2 * xi + 1) * eta * (eta - 1),     # ∂N2/∂ξ
-        0.25 * (2 * xi + 1) * eta * (eta + 1),     # ∂N3/∂ξ
-        0.25 * (2 * xi - 1) * eta * (eta + 1),     # ∂N4/∂ξ
-        -xi * eta * (eta - 1),                       # ∂N5/∂ξ
-        0.5 * (2 * xi + 1) * (1 - eta2),            # ∂N6/∂ξ
-        -xi * eta * (eta + 1),                       # ∂N7/∂ξ
-        0.5 * (2 * xi - 1) * (1 - eta2),            # ∂N8/∂ξ
-        -2 * xi * (1 - eta2),                        # ∂N9/∂ξ
-    ])
+    dN[0, 0] = 0.25 * (2.0 * xi - 1.0) * eta * (eta - 1.0)
+    dN[0, 1] = 0.25 * (2.0 * xi + 1.0) * eta * (eta - 1.0)
+    dN[0, 2] = 0.25 * (2.0 * xi + 1.0) * eta * (eta + 1.0)
+    dN[0, 3] = 0.25 * (2.0 * xi - 1.0) * eta * (eta + 1.0)
+    dN[0, 4] = -xi * eta * (eta - 1.0)
+    dN[0, 5] = 0.5 * (2.0 * xi + 1.0) * (1.0 - eta2)
+    dN[0, 6] = -xi * eta * (eta + 1.0)
+    dN[0, 7] = 0.5 * (2.0 * xi - 1.0) * (1.0 - eta2)
+    dN[0, 8] = -2.0 * xi * (1.0 - eta2)
 
     # ∂N/∂η
-    dN_deta = np.array([
-        0.25 * xi * (xi - 1) * (2 * eta - 1),      # ∂N1/∂η
-        0.25 * xi * (xi + 1) * (2 * eta - 1),      # ∂N2/∂η
-        0.25 * xi * (xi + 1) * (2 * eta + 1),      # ∂N3/∂η
-        0.25 * xi * (xi - 1) * (2 * eta + 1),      # ∂N4/∂η
-        0.5 * (1 - xi2) * (2 * eta - 1),            # ∂N5/∂η
-        -xi * (xi + 1) * eta,                        # ∂N6/∂η
-        0.5 * (1 - xi2) * (2 * eta + 1),            # ∂N7/∂η
-        -xi * (xi - 1) * eta,                        # ∂N8/∂η
-        -2 * eta * (1 - xi2),                        # ∂N9/∂η
-    ])
+    dN[1, 0] = 0.25 * xi * (xi - 1.0) * (2.0 * eta - 1.0)
+    dN[1, 1] = 0.25 * xi * (xi + 1.0) * (2.0 * eta - 1.0)
+    dN[1, 2] = 0.25 * xi * (xi + 1.0) * (2.0 * eta + 1.0)
+    dN[1, 3] = 0.25 * xi * (xi - 1.0) * (2.0 * eta + 1.0)
+    dN[1, 4] = 0.5 * (1.0 - xi2) * (2.0 * eta - 1.0)
+    dN[1, 5] = -xi * (xi + 1.0) * eta
+    dN[1, 6] = 0.5 * (1.0 - xi2) * (2.0 * eta + 1.0)
+    dN[1, 7] = -xi * (xi - 1.0) * eta
+    dN[1, 8] = -2.0 * eta * (1.0 - xi2)
 
-    dN = np.array([dN_dxi, dN_deta])
     return dN
 
 

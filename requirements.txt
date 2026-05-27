@@ -1,10 +1,16 @@
-numpy>=1.24.0
-scipy>=1.10.0
+numpy>=1.24.0,<2.0
+scipy>=1.10.0,<2.0
 sympy>=1.12
-matplotlib>=3.7.0
+matplotlib>=3.7.0,<4.0
 ttkbootstrap>=1.10.0
 reportlab>=4.0.0
 pylatex>=1.4.2
 PyMuPDF>=1.24.0
 Pillow>=10.0.0
 ezdxf>=1.0
+# Optimizacion: @njit en hot paths (FEM core + rasterizado del campo).
+# Opcional — fem/_numba_compat.py provee un fallback que convierte @njit
+# en no-op si numba no esta instalado. El codigo sigue funcionando, solo
+# mas lento. Pesa ~30 MB (incluye LLVM); para bundles PyInstaller mas
+# livianos se puede excluir y aceptar el camino Python puro.
+numba>=0.58

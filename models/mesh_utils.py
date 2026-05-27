@@ -74,6 +74,8 @@ def expand_q4_to_q9(project):
     project.element_type = ELEMENT_Q9
     project.is_modified = True
     project.is_solved = False
+    # Reconstruir índice inverso: expand_q4_to_q9 muta node_ids directamente.
+    project.rebuild_node_to_elements()
 
     return num_mid, num_center
 
@@ -276,6 +278,8 @@ def shrink_q9_to_q4(project):
     project.element_type = ELEMENT_Q4
     project.is_modified = True
     project.is_solved = False
+    # Reconstruir índice inverso: shrink_q9_to_q4 muta node_ids directamente.
+    project.rebuild_node_to_elements()
 
     return num_trunc, len(orphans)
 

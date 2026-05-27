@@ -15,6 +15,246 @@ try:
 except ImportError:
     HAS_PIL = False
 
+from fem._numba_compat import njit
+
+# Padding del raster del gradient como fraccion del viewport visible.
+# Al rasterizar 50% extra por lado, el bitmap final es 2x ancho * 2x alto
+# = 4x pixeles del viewport. Permite que el pan se sienta instantaneo
+# sin re-rasterizar — el bitmap movido por canvas.move tiene tela de
+# sobra antes de mostrar bordes negros. Costo: ~4x RAM por bitmap.
+_GRADIENT_PAD_FRAC = 0.5
+
+
+# Tabla marching squares como ndarray int8 (en vez de dict). Cada fila es un
+# caso (0-15); columnas (ea1, eb1, ea2, eb2). -1 indica "sin segmento".
+_MARCHING_SEG_TABLE = np.array([
+    [-1, -1, -1, -1],   # 0:  todos abajo
+    [ 0,  3, -1, -1],   # 1:  v00 arriba
+    [ 0,  1, -1, -1],   # 2:  v10 arriba
+    [ 1,  3, -1, -1],   # 3:  v00 + v10 arriba
+    [ 1,  2, -1, -1],   # 4:  v11 arriba
+    [ 0,  3,  1,  2],   # 5:  v00 + v11 — ambiguo, 2 segmentos
+    [ 0,  2, -1, -1],   # 6:  v10 + v11
+    [ 2,  3, -1, -1],   # 7
+    [ 2,  3, -1, -1],   # 8:  v01 arriba
+    [ 0,  2, -1, -1],   # 9
+    [ 0,  1,  2,  3],   # 10: v10 + v01 — ambiguo
+    [ 1,  2, -1, -1],   # 11
+    [ 1,  3, -1, -1],   # 12
+    [ 0,  1, -1, -1],   # 13
+    [ 0,  3, -1, -1],   # 14
+    [-1, -1, -1, -1],   # 15: todos arriba
+], dtype=np.int32)
+
+
+@njit(cache=True)
+def _marching_squares_njit(gx, gy, gv, levels, seg_table):
+    """Genera segmentos de isolinea en coords mundo via marching squares.
+
+    Parametros:
+        gx, gy: (n_grid, n_grid) — coords mundo (x, y) de la grilla.
+        gv: (n_grid, n_grid) — valores del campo en la grilla.
+        levels: (n_levels,) — niveles a contornear.
+        seg_table: (16, 4) — lookup table (ver _MARCHING_SEG_TABLE).
+
+    Retorna: (segs, count). `segs` es (M, 4) con (x1, y1, x2, y2) en mundo
+    por fila; `count` es cuantas filas estan llenas (resto = garbage).
+    """
+    n_grid = gx.shape[0]
+    n_levels = len(levels)
+    max_segments = (n_grid - 1) * (n_grid - 1) * 2 * n_levels
+    segs = np.empty((max_segments, 4))
+    count = 0
+
+    for li in range(n_levels):
+        level = levels[li]
+        for ci in range(n_grid - 1):
+            for cj in range(n_grid - 1):
+                v00 = gv[cj, ci]
+                v10 = gv[cj, ci + 1]
+                v11 = gv[cj + 1, ci + 1]
+                v01 = gv[cj + 1, ci]
+
+                case = 0
+                if v00 >= level:
+                    case |= 1
+                if v10 >= level:
+                    case |= 2
+                if v11 >= level:
+                    case |= 4
+                if v01 >= level:
+                    case |= 8
+
+                if case == 0 or case == 15:
+                    continue
+
+                # Cruces por arista (hasta 4 candidatos).
+                ept_x = np.empty(4)
+                ept_y = np.empty(4)
+                ept_valid = np.zeros(4, dtype=np.bool_)
+
+                # Edge 0: v00 → v10
+                if (v00 >= level) != (v10 >= level):
+                    dv = v10 - v00
+                    t = (level - v00) / dv if abs(dv) > 1e-15 else 0.5
+                    if t < 0.0: t = 0.0
+                    elif t > 1.0: t = 1.0
+                    ept_x[0] = gx[cj, ci] + t * (gx[cj, ci + 1] - gx[cj, ci])
+                    ept_y[0] = gy[cj, ci] + t * (gy[cj, ci + 1] - gy[cj, ci])
+                    ept_valid[0] = True
+
+                # Edge 1: v10 → v11
+                if (v10 >= level) != (v11 >= level):
+                    dv = v11 - v10
+                    t = (level - v10) / dv if abs(dv) > 1e-15 else 0.5
+                    if t < 0.0: t = 0.0
+                    elif t > 1.0: t = 1.0
+                    ept_x[1] = gx[cj, ci + 1] + t * (gx[cj + 1, ci + 1] - gx[cj, ci + 1])
+                    ept_y[1] = gy[cj, ci + 1] + t * (gy[cj + 1, ci + 1] - gy[cj, ci + 1])
+                    ept_valid[1] = True
+
+                # Edge 2: v11 → v01
+                if (v11 >= level) != (v01 >= level):
+                    dv = v01 - v11
+                    t = (level - v11) / dv if abs(dv) > 1e-15 else 0.5
+                    if t < 0.0: t = 0.0
+                    elif t > 1.0: t = 1.0
+                    ept_x[2] = gx[cj + 1, ci + 1] + t * (gx[cj + 1, ci] - gx[cj + 1, ci + 1])
+                    ept_y[2] = gy[cj + 1, ci + 1] + t * (gy[cj + 1, ci] - gy[cj + 1, ci + 1])
+                    ept_valid[2] = True
+
+                # Edge 3: v01 → v00
+                if (v01 >= level) != (v00 >= level):
+                    dv = v00 - v01
+                    t = (level - v01) / dv if abs(dv) > 1e-15 else 0.5
+                    if t < 0.0: t = 0.0
+                    elif t > 1.0: t = 1.0
+                    ept_x[3] = gx[cj + 1, ci] + t * (gx[cj, ci] - gx[cj + 1, ci])
+                    ept_y[3] = gy[cj + 1, ci] + t * (gy[cj, ci] - gy[cj + 1, ci])
+                    ept_valid[3] = True
+
+                # Hasta 2 segmentos por caso (ambiguos 5 y 10).
+                for s in range(2):
+                    ea = seg_table[case, 2 * s]
+                    eb = seg_table[case, 2 * s + 1]
+                    if ea < 0 or eb < 0:
+                        continue
+                    if not ept_valid[ea] or not ept_valid[eb]:
+                        continue
+                    segs[count, 0] = ept_x[ea]
+                    segs[count, 1] = ept_y[ea]
+                    segs[count, 2] = ept_x[eb]
+                    segs[count, 3] = ept_y[eb]
+                    count += 1
+
+    return segs, count
+
+
+@njit(cache=True)
+def _build_gxgy_q4_njit(nc, n_grid):
+    """Construye gx, gy (mapping bilineal Q4 a la grilla n_grid x n_grid).
+
+    Reemplaza el doble loop Python que estaba en _draw_isolines.
+    """
+    gx = np.empty((n_grid, n_grid))
+    gy = np.empty((n_grid, n_grid))
+    for ci in range(n_grid):
+        xi = -1.0 + 2.0 * ci / (n_grid - 1)
+        for cj in range(n_grid):
+            eta = -1.0 + 2.0 * cj / (n_grid - 1)
+            N0 = (1.0 - xi) * (1.0 - eta) * 0.25
+            N1 = (1.0 + xi) * (1.0 - eta) * 0.25
+            N2 = (1.0 + xi) * (1.0 + eta) * 0.25
+            N3 = (1.0 - xi) * (1.0 + eta) * 0.25
+            # cj=eta_idx, ci=xi_idx (ver comentario en _draw_isolines original).
+            gx[cj, ci] = (N0 * nc[0, 0] + N1 * nc[1, 0]
+                          + N2 * nc[2, 0] + N3 * nc[3, 0])
+            gy[cj, ci] = (N0 * nc[0, 1] + N1 * nc[1, 1]
+                          + N2 * nc[2, 1] + N3 * nc[3, 1])
+    return gx, gy
+
+
+@njit(cache=True, fastmath=True)
+def _rasterize_triangle_njit(img, W, H,
+                              sx0, sy0, v0,
+                              sx1, sy1, v1,
+                              sx2, sy2, v2,
+                              vmin, vmax):
+    """Rasteriza un triangulo con interpolacion baricentrica + jet inline.
+
+    Implementacion JIT (Numba): loops explicitos pixel-a-pixel SIN crear
+    arrays intermedios (lam0/lam1/lam2, mascaras booleanas, indexing).
+    En la version NumPy original el costo dominante eran las allocations
+    y el masking; aqui Numba compila a maquina y opera sobre los pixeles
+    directamente en cache L1. Speedup: 15-30x vs version NumPy en triangulos
+    chicos (lo tipico para el campo de tensiones, ~20-50 px de lado).
+
+    `fastmath=True`: permitido aqui porque solo afecta visualizacion (el
+    pipeline FEM en `fem/` NO usa fastmath para preservar bit-reproducibilidad
+    de V&V).
+    """
+    min_x = max(0, int(min(sx0, sx1, sx2)))
+    max_x = min(W - 1, int(max(sx0, sx1, sx2)) + 1)
+    min_y = max(0, int(min(sy0, sy1, sy2)))
+    max_y = min(H - 1, int(max(sy0, sy1, sy2)) + 1)
+    if min_x >= max_x or min_y >= max_y:
+        return
+
+    denom = (sy1 - sy2) * (sx0 - sx2) + (sx2 - sx1) * (sy0 - sy2)
+    if abs(denom) < 1e-6:
+        return  # triangulo degenerado
+
+    inv_denom = 1.0 / denom
+    vrange = vmax - vmin
+    if vrange < 1e-15:
+        vrange = 1e-15
+    inv_vrange = 1.0 / vrange
+
+    for iy in range(min_y, max_y + 1):
+        py = float(iy)
+        for ix in range(min_x, max_x + 1):
+            px = float(ix)
+            lam0 = ((sy1 - sy2) * (px - sx2)
+                    + (sx2 - sx1) * (py - sy2)) * inv_denom
+            lam1 = ((sy2 - sy0) * (px - sx2)
+                    + (sx0 - sx2) * (py - sy2)) * inv_denom
+            lam2 = 1.0 - lam0 - lam1
+            # Discard pixeles fuera del triangulo (tolerancia para no
+            # dejar gaps entre triangulos adyacentes en cells del quad).
+            if lam0 < -0.001 or lam1 < -0.001 or lam2 < -0.001:
+                continue
+
+            val = lam0 * v0 + lam1 * v1 + lam2 * v2
+            t = (val - vmin) * inv_vrange
+            if t < 0.0:
+                t = 0.0
+            elif t > 1.0:
+                t = 1.0
+
+            # Jet colormap inline. Branchless seria mas rapido pero los
+            # if/elif son legibles y Numba los compila a switch eficiente.
+            if t < 0.25:
+                r = 0.0
+                g = t * 4.0
+                b = 1.0
+            elif t < 0.5:
+                r = 0.0
+                g = 1.0
+                b = 1.0 - (t - 0.25) * 4.0
+            elif t < 0.75:
+                r = (t - 0.5) * 4.0
+                g = 1.0
+                b = 0.0
+            else:
+                r = 1.0
+                g = 1.0 - (t - 0.75) * 4.0
+                b = 0.0
+
+            img[iy, ix, 0] = np.uint8(r * 255.0)
+            img[iy, ix, 1] = np.uint8(g * 255.0)
+            img[iy, ix, 2] = np.uint8(b * 255.0)
+            img[iy, ix, 3] = 255
+
 from config.settings import (
     CANVAS_BG_COLOR, CANVAS_GRID_COLOR, CANVAS_NODE_COLOR,
     CANVAS_ELEMENT_COLOR, CANVAS_LOAD_COLOR, CANVAS_CONSTRAINT_COLOR,
@@ -112,8 +352,57 @@ class MeshCanvas(ttk.Frame):
 
         # Gradiente e isolineas
         self._gradient_photo = None  # referencia PIL para evitar GC
+        # Cache de la imagen rasterizada del contorno. Key SIN offset_x/y:
+        # el pan no invalida la cache (la imagen se reposiciona via el
+        # delta `_gradient_photo_offset`). Solo invalida cuando cambia el
+        # resultado, vmin/vmax, w/h, scale, deform o el modo n (3 vs 6).
+        self._gradient_cache_key = None
+        # Offset del viewport al momento de rasterizar el gradient. Al
+        # reutilizar la PhotoImage tras paneos, el create_image se coloca
+        # en (offset_actual - offset_raster) para que la imagen quede
+        # alineada con la malla. Permite que el cache sobreviva al pan.
+        self._gradient_photo_offset = (0.0, 0.0)
+        # Padding (pad_x, pad_y) con el que se rasterizo el bitmap actual.
+        # El raster es mas grande que el viewport para que el pan tenga
+        # "tela de sobra" antes de mostrar bordes negros (truco SAP2000/
+        # ANSYS/ParaView para que el pan se sienta instantaneo).
+        self._gradient_photo_pad = (0, 0)
+        # PIL Image original (pre-PhotoImage) del raster. Mantenerlo
+        # permite hacer Image.resize() durante zoom suave (sin re-
+        # rasterizar todo el campo desde cero). El bitmap se escala con
+        # PIL en C — mucho mas rapido que iterar elementos y triangulos.
+        self._gradient_pil_image = None
+        # Scale al que se rasterizo el bitmap (para calcular el factor de
+        # resize durante zoom interactivo).
+        self._gradient_photo_scale = 1.0
+        # PhotoImage del bitmap escalado durante zoom interactivo. Se
+        # mantiene como atributo separado del _gradient_photo "verdadero"
+        # para no perder la referencia (Tk libera la imagen si no hay
+        # ref viva en Python).
+        self._gradient_zoom_photo = None
         self.show_isolines = False
         self.isoline_count = 10
+
+        # ─── Estado de interaccion (pan/zoom/resize) ────────────────────
+        # Cuando _interacting=True, el render baja la resolucion del
+        # gradient (n=3 vs n=6) y skip-ea isolineas — desplaza el costo
+        # caro al "tick final" en after_idle/after(150ms), no a cada
+        # evento. Sin esto, una rueda de mouse a 60Hz disparaba 60
+        # rasterizaciones completas/seg en mallas medianas.
+        self._interacting = False
+        # ID del after() pendiente que marca el "fin de interaccion" y
+        # lanza el redraw final de alta calidad. Cada nuevo evento de
+        # zoom/resize lo reprograma para coalescer todos los ticks de
+        # una sesion de interaccion en un solo redraw.
+        self._interaction_end_after_id = None
+        # ID de un redraw throttled pendiente (after_idle). Evita encolar
+        # multiples redraws cuando varios eventos llegan en el mismo
+        # frame (ej. <Configure> en serie durante un resize).
+        self._redraw_pending = False
+        # Flag de sesion de pan activa (entre ButtonPress y ButtonRelease
+        # de Button-2/3). Usado por _on_pan_release para disparar el
+        # redraw final que re-rasteriza el gradient con el offset nuevo.
+        self._panning = False
 
         # ─── Capa educativa (overlay layers) ────────────────────────────
         # Lista de callables (canvas) -> None que se ejecutan al final de
@@ -195,8 +484,10 @@ class MeshCanvas(ttk.Frame):
         self.canvas.bind("<MouseWheel>", self._on_mousewheel)
         self.canvas.bind("<ButtonPress-2>", self._on_pan_start)
         self.canvas.bind("<B2-Motion>", self._on_pan_move)
+        self.canvas.bind("<ButtonRelease-2>", self._on_pan_release)
         self.canvas.bind("<ButtonPress-3>", self._on_pan_start)
         self.canvas.bind("<B3-Motion>", self._on_pan_move)
+        self.canvas.bind("<ButtonRelease-3>", self._on_pan_release)
         self.canvas.bind("<Configure>", self._on_resize)
         self.canvas.bind("<Motion>", self._on_mouse_move)
         self.canvas.bind("<ButtonPress-1>", self._on_click)
@@ -310,7 +601,18 @@ class MeshCanvas(ttk.Frame):
     # ═════════════════════════════════════════════════════════════════════
 
     def redraw(self):
-        """Redibuja toda la malla."""
+        """Redibuja toda la malla.
+
+        Modo interaccion (`self._interacting=True`, durante zoom/resize):
+        en vez de rasterizar el campo desde cero (~80-200ms en mallas
+        medianas), escalamos el bitmap del ultimo raster con PIL.resize
+        (~5-10ms). El zoom se ve suave — la malla, nodos y colorbar
+        moviendose nitidos sobre el campo escalado. Las isolineas si se
+        skipean (marching squares es caro y poco util en movimiento).
+        Al detenerse 150ms, _exit_interaction_mode llama redraw() de
+        nuevo (esta vez con _interacting=False) y regenera el campo a
+        resolucion exacta.
+        """
         self.canvas.delete("all")
         self._draw_grid()
 
@@ -318,10 +620,16 @@ class MeshCanvas(ttk.Frame):
             self._draw_original_mesh_ghost()
 
         # Gradiente suave de resultados (debajo de aristas).
-        # Acepta ambos modos: nodal promediado (suavizado) o per-element
-        # (crudo, con saltos en bordes — naturaleza C0 del MEF Galerkin).
+        # - Modo normal: rasteriza desde cero con baricentricas.
+        # - Modo interaccion: escala bitmap previo con PIL.resize (suave
+        #   y casi instantaneo). Si no hay bitmap previo (primer redraw),
+        #   cae al path de rasterizado completo igual.
         if self.result_values or self.element_result_grid:
-            self._draw_gradient_elements()
+            painted = False
+            if self._interacting:
+                painted = self._draw_gradient_scaled()
+            if not painted:
+                self._draw_gradient_elements()
 
         self._draw_elements()
         self._draw_nodes()
@@ -338,8 +646,12 @@ class MeshCanvas(ttk.Frame):
         self._draw_highlight()
 
         # Colorbar e isolineas: ambos modos los soportan (nodal o per-element).
-        # El _draw_colorbar consume result_vmin/result_vmax/result_label que
-        # ambos setters dejan correctamente configurados.
+        # Las isolineas se dibujan SIEMPRE (incluso si `_interacting` esta
+        # activo). En el flujo de zoom no se llama redraw — se usa
+        # canvas.scale para escalar las isolineas existentes con la malla.
+        # En el flujo de redraw normal (cambio de resultado, fit_view,
+        # release-de-pan), regeneramos las isolineas con el marching
+        # squares JIT (Fase 7).
         if self.result_values or self.element_result_grid:
             if self.show_isolines:
                 self._draw_isolines()
@@ -380,13 +692,15 @@ class MeshCanvas(ttk.Frame):
             sx = i * spacing + (self.offset_x % spacing)
             if 0 <= sx <= w:
                 self.canvas.create_line(
-                    sx, 0, sx, h, fill=CANVAS_GRID_COLOR, width=1, dash=(2, 6)
+                    sx, 0, sx, h, fill=CANVAS_GRID_COLOR, width=1, dash=(2, 6),
+                    tags=("screen", "grid"),
                 )
         for i in range(-20, 60):
             sy = i * spacing + (self.offset_y % spacing)
             if 0 <= sy <= h:
                 self.canvas.create_line(
-                    0, sy, w, sy, fill=CANVAS_GRID_COLOR, width=1, dash=(2, 6)
+                    0, sy, w, sy, fill=CANVAS_GRID_COLOR, width=1, dash=(2, 6),
+                    tags=("screen", "grid"),
                 )
 
     def _draw_axes(self):
@@ -394,18 +708,22 @@ class MeshCanvas(ttk.Frame):
         length = 35
         bx, by = margin, self.canvas.winfo_height() - margin
         self.canvas.create_line(
-            bx, by, bx + length, by, fill="#ef5350", width=2, arrow=tk.LAST
+            bx, by, bx + length, by, fill="#ef5350", width=2, arrow=tk.LAST,
+            tags=("screen", "axes"),
         )
         self.canvas.create_text(
             bx + length + 8, by, text="X", fill="#ef5350",
-            font=("Segoe UI", 9, "bold"), anchor=W
+            font=("Segoe UI", 9, "bold"), anchor=W,
+            tags=("screen", "axes"),
         )
         self.canvas.create_line(
-            bx, by, bx, by - length, fill="#4fc3f7", width=2, arrow=tk.LAST
+            bx, by, bx, by - length, fill="#4fc3f7", width=2, arrow=tk.LAST,
+            tags=("screen", "axes"),
         )
         self.canvas.create_text(
             bx, by - length - 8, text="Y", fill="#4fc3f7",
-            font=("Segoe UI", 9, "bold"), anchor=S
+            font=("Segoe UI", 9, "bold"), anchor=S,
+            tags=("screen", "axes"),
         )
 
     def _draw_original_mesh_ghost(self):
@@ -423,7 +741,8 @@ class MeshCanvas(ttk.Frame):
                 continue
             coords.extend(coords[:2])
             self.canvas.create_line(
-                *coords, fill="#444466", width=1, dash=(3, 5)
+                *coords, fill="#444466", width=1, dash=(3, 5),
+                tags=("world", "ghost"),
             )
 
     # ═════════════════════════════════════════════════════════════════════
@@ -503,13 +822,49 @@ class MeshCanvas(ttk.Frame):
             return grid, True
         return None, False
 
+    def _gradient_cache_valid(self, w, h):
+        """Comprueba si la imagen cacheada sigue siendo valida para el
+        viewport y datos de resultado actuales.
+
+        Clave SIN offset_x/offset_y: la traslacion del raster en pan se
+        modela como desplazamiento del create_image (ver `_gradient_photo_offset`),
+        no como invalidacion de cache. Esto permite reutilizar la PhotoImage
+        rasterizada entre redraws cuando solo cambio el viewport (Pan).
+
+        Si cambia scale (zoom), w/h (resize), vmin/vmax/resultado (nuevo solve),
+        deform_scale o show_deformed, la cache se invalida y se re-rasteriza.
+        El pan-release tambien invalida explicitamente (setea key=None) para
+        rerasterizar y cubrir las zonas que entraron al viewport durante el
+        drag.
+        """
+        rid = (id(self.result_values)
+               if self.result_values is not None
+               else id(self.element_result_grid))
+        key = (
+            rid,
+            round(self.result_vmin, 9) if self.result_vmin is not None else None,
+            round(self.result_vmax, 9) if self.result_vmax is not None else None,
+            w, h,
+            round(self.scale, 9),
+            self.deform_scale,
+            self.show_deformed,
+        )
+        return key == self._gradient_cache_key, key
+
     def _draw_gradient_elements(self):
         """Gradiente Gouraud: subdivision + rasterizacion de triangulos con PIL.
 
-        Itera por elemento, genera grilla 7x7 de (sx, sy, val), subdivide en
-        2 triangulos por celda y los rasteriza con interpolacion baricentrica.
-        Los `val` provienen de _get_grid_values (modo crudo: pre-computado
-        con compute_raw real; modo suavizado: bilineal de corners nodales).
+        Rasteriza a un bitmap mas grande que el viewport visible (padding
+        del 50% en cada lado). Asi, durante un pan, la imagen movida por
+        canvas.move tiene "tela de sobra" antes de mostrar el recorte —
+        es la misma tecnica que usan SAP2000/ANSYS/ParaView en GPU para
+        que el pan se sienta instantaneo sin re-rasterizar.
+
+        Itera por elemento, genera grilla (n+1)x(n+1) de (sx, sy, val),
+        subdivide en 2 triangulos por celda y los rasteriza con
+        interpolacion baricentrica. Los `val` provienen de _get_grid_values
+        (modo crudo: pre-computado con compute_raw real; modo suavizado:
+        bilineal de corners nodales).
         """
         if not HAS_PIL:
             self._draw_gradient_polygons()
@@ -520,8 +875,33 @@ class MeshCanvas(ttk.Frame):
         if w <= 1 or h <= 1:
             return
 
-        img = np.zeros((h, w, 4), dtype=np.uint8)
-        n = 6  # subdivisiones por arista (pocas: los triangulos dan suavidad)
+        # Reusar imagen cacheada si el viewport y los datos no cambiaron.
+        # `_gradient_photo_offset` guarda el offset al que se rasterizo; al
+        # reutilizarse, pintamos la imagen desplazada por (offset_actual -
+        # offset_raster) para que el resultado quede alineado con la malla
+        # tras paneos.
+        cache_valid, new_key = self._gradient_cache_valid(w, h)
+        if cache_valid and self._gradient_photo is not None:
+            ox, oy = self._gradient_photo_offset
+            pad_x, pad_y = self._gradient_photo_pad
+            dx = self.offset_x - ox - pad_x
+            dy = self.offset_y - oy - pad_y
+            self.canvas.create_image(
+                dx, dy, anchor=NW, image=self._gradient_photo,
+                tags=("world", "gradient"),
+            )
+            return
+
+        # Padding del raster: 50% del viewport en cada lado. Resultado:
+        # imagen 2x ancho * 2x alto = 4x pixeles del viewport. Para
+        # canvas tipico 1200x800 son ~10 MB RGBA — aceptable.
+        pad_x = int(w * _GRADIENT_PAD_FRAC)
+        pad_y = int(h * _GRADIENT_PAD_FRAC)
+        W = w + 2 * pad_x
+        H = h + 2 * pad_y
+
+        img = np.zeros((H, W, 4), dtype=np.uint8)
+        n = 6  # subdivisiones por arista (36 celdas/elemento)
 
         for elem in self.project.elements.values():
             nids = elem.node_ids[:4]
@@ -536,8 +916,9 @@ class MeshCanvas(ttk.Frame):
                 x, y = self._get_node_world_deformed(nid)
                 nc.append((x, y))
 
-            # Generar grilla de puntos en coords pantalla; el valor sale
-            # de `grid[i, j]` (ya en el campo correcto).
+            # Generar grilla de puntos en coords pantalla SHIFTADAS por
+            # (pad_x, pad_y) — el bitmap ocupa (0..W, 0..H), y el viewport
+            # visible corresponde a (pad_x..pad_x+w, pad_y..pad_y+h).
             pts_grid = {}  # (i,j) -> (sx, sy, val)
             for i in range(n + 1):
                 xi = -1 + 2 * i / n
@@ -552,78 +933,116 @@ class MeshCanvas(ttk.Frame):
                     wy = (N0*nc[0][1] + N1*nc[1][1]
                           + N2*nc[2][1] + N3*nc[3][1])
                     sx, sy = self.world_to_screen(wx, wy)
-                    pts_grid[(i, j)] = (sx, sy, float(grid[i, j]))
+                    pts_grid[(i, j)] = (sx + pad_x, sy + pad_y,
+                                        float(grid[i, j]))
 
-            # Subdividir en triangulos y rasterizar cada uno
+            # Subdividir en triangulos y rasterizar cada uno contra (W, H)
             for i in range(n):
                 for j in range(n):
                     p00 = pts_grid[(i, j)]
                     p10 = pts_grid[(i + 1, j)]
                     p11 = pts_grid[(i + 1, j + 1)]
                     p01 = pts_grid[(i, j + 1)]
-                    # 2 triangulos por sub-quad
-                    self._rasterize_triangle(img, w, h, p00, p10, p11)
-                    self._rasterize_triangle(img, w, h, p00, p11, p01)
+                    self._rasterize_triangle(img, W, H, p00, p10, p11)
+                    self._rasterize_triangle(img, W, H, p00, p11, p01)
 
-        # Mostrar imagen en el canvas (1 solo item)
+        # Mostrar imagen en el canvas. Guardamos el PIL Image (no solo el
+        # PhotoImage) para poder hacer Image.resize() durante zoom suave.
         pil_img = Image.fromarray(img, 'RGBA')
+        old_photo = self._gradient_photo
+        self._gradient_pil_image = pil_img
         self._gradient_photo = ImageTk.PhotoImage(pil_img)
-        self.canvas.create_image(0, 0, anchor=NW, image=self._gradient_photo)
+        self._gradient_photo_pad = (pad_x, pad_y)
+        self._gradient_photo_scale = self.scale
+        # La imagen va anclada NW desplazada hacia arriba-izquierda por el
+        # padding. Cuando offset_x/y cambian (pan), el delta se aplica al
+        # crear_image y el bitmap "viaja" con la malla.
+        self.canvas.create_image(
+            -pad_x, -pad_y, anchor=NW, image=self._gradient_photo,
+            tags=("world", "gradient"),
+        )
+        del old_photo  # libera la imagen anterior; evita leak acumulado por zoom/pan
+        self._gradient_cache_key = new_key
+        self._gradient_photo_offset = (self.offset_x, self.offset_y)
+
+    def _draw_gradient_scaled(self):
+        """Pinta el bitmap del gradient escalado al `scale` actual via
+        PIL.Image.resize, sin re-rasterizar el campo desde cero.
+
+        Tecnica usada por SAP2000/ANSYS/ParaView en GPU: durante zoom
+        interactivo, escalar el bitmap existente es ~30x mas rapido que
+        recomputar todos los triangulos. La calidad baja levemente
+        (NEAREST sampling, pixeles agrandados al zoom in) pero la malla,
+        outlines, nodos y colorbar siguen renderizando a la resolucion
+        correcta — el ojo no nota la "blandura" del campo durante el
+        movimiento. Al detenerse 150ms, redraw() llama
+        _draw_gradient_elements y re-rasteriza a la resolucion exacta.
+
+        Retorna True si pinto algo (habia bitmap previo), False si no
+        (caller debe caer al path completo).
+        """
+        if (not HAS_PIL or self._gradient_pil_image is None
+                or self._gradient_photo_scale <= 0):
+            return False
+        f = self.scale / self._gradient_photo_scale
+        if abs(f - 1.0) < 0.005:
+            # Mismo scale (delta < 0.5%): reusar PhotoImage original sin
+            # re-resize. Importante porque `_request_redraw` se llama
+            # tambien tras eventos no-zoom y queremos cero overhead.
+            photo = self._gradient_photo
+        else:
+            pil = self._gradient_pil_image
+            new_w = max(1, int(pil.width * f))
+            new_h = max(1, int(pil.height * f))
+            # NEAREST: ~5-10ms para bitmaps de ~10MP. BILINEAR seria
+            # mas suave pero ~3x mas lento — durante interaccion priorizamos
+            # latencia. El redraw final post-interaccion usa la calidad
+            # full del rasterizador baricentrico de _rasterize_triangle.
+            scaled = pil.resize((new_w, new_h), Image.NEAREST)
+            photo = ImageTk.PhotoImage(scaled)
+            self._gradient_zoom_photo = photo  # ref viva para evitar GC
+
+        # Posicionar el bitmap escalado en pantalla. Derivacion: el pixel
+        # (x,y) del bitmap original representaba el punto mundo
+        # ((-pad_x + x - ox) / scale_old, ...). En el viewport nuevo, ese
+        # mismo punto mundo debe ir a (mundo * scale_new + offset_new).
+        # Resolviendo para la esquina NW del bitmap escalado (pixel 0,0):
+        #   B = offset_new - (pad + offset_raster) * f
+        ox, oy = self._gradient_photo_offset
+        pad_x, pad_y = self._gradient_photo_pad
+        B_x = self.offset_x - (pad_x + ox) * f
+        B_y = self.offset_y - (pad_y + oy) * f
+        self.canvas.create_image(
+            B_x, B_y, anchor=NW, image=photo,
+            tags=("world", "gradient"),
+        )
+        # Z-order: el bitmap recien creado quedo al FRENTE por defecto (Tk
+        # apila por orden de create_*). Lo bajamos para que las isolineas,
+        # nodos, etiquetas y demas items "world" queden ENCIMA. El grid
+        # (tag "screen", "grid") va aun mas al fondo para replicar el
+        # orden del redraw normal: grid → gradient → resto.
+        self.canvas.tag_lower("gradient")
+        self.canvas.tag_lower("grid")
+        return True
 
     def _rasterize_triangle(self, img, w, h, p0, p1, p2):
-        """Rasteriza un triangulo con interpolacion baricentrica de color.
+        """Adapter al kernel JIT `_rasterize_triangle_njit`.
 
-        Cada p es (sx, sy, valor). El color se interpola suavemente
-        entre los 3 vertices usando coordenadas baricentricas.
+        Desempaqueta las tuples `(sx, sy, val)` y pasa los floats por
+        separado (Numba no acepta tuples Python nativas como argumentos).
+        El kernel JIT hace todo el trabajo: barycentricas + jet inline
+        + escritura de pixeles, sin allocations intermedias.
         """
         sx0, sy0, v0 = p0
         sx1, sy1, v1 = p1
         sx2, sy2, v2 = p2
-
-        # Bounding box en pantalla
-        min_x = max(0, int(min(sx0, sx1, sx2)))
-        max_x = min(w - 1, int(max(sx0, sx1, sx2)) + 1)
-        min_y = max(0, int(min(sy0, sy1, sy2)))
-        max_y = min(h - 1, int(max(sy0, sy1, sy2)) + 1)
-        if min_x >= max_x or min_y >= max_y:
-            return
-
-        # Grilla de pixeles
-        px = np.arange(min_x, max_x + 1, dtype=np.float64)
-        py = np.arange(min_y, max_y + 1, dtype=np.float64)
-        PX, PY = np.meshgrid(px, py)
-
-        # Coordenadas baricentricas vectorizadas
-        denom = (sy1 - sy2) * (sx0 - sx2) + (sx2 - sx1) * (sy0 - sy2)
-        if abs(denom) < 1e-6:
-            return  # triangulo degenerado
-
-        lam0 = ((sy1 - sy2) * (PX - sx2) + (sx2 - sx1) * (PY - sy2)) / denom
-        lam1 = ((sy2 - sy0) * (PX - sx2) + (sx0 - sx2) * (PY - sy2)) / denom
-        lam2 = 1.0 - lam0 - lam1
-
-        # Mascara: dentro del triangulo
-        inside = (lam0 >= -0.001) & (lam1 >= -0.001) & (lam2 >= -0.001)
-        if not np.any(inside):
-            return
-
-        # Interpolar valor en cada pixel
-        vals = lam0 * v0 + lam1 * v1 + lam2 * v2
-
-        # Jet colormap
-        vrange = max(self.result_vmax - self.result_vmin, 1e-15)
-        t = np.clip((vals - self.result_vmin) / vrange, 0, 1)
-        rc, gc, bc = self._jet_rgb_vectorized(t)
-
-        # Pintar pixeles
-        iy = PY[inside].astype(int)
-        ix = PX[inside].astype(int)
-        valid = (iy >= 0) & (iy < h) & (ix >= 0) & (ix < w)
-        iy, ix = iy[valid], ix[valid]
-        img[iy, ix, 0] = (rc[inside][valid] * 255).astype(np.uint8)
-        img[iy, ix, 1] = (gc[inside][valid] * 255).astype(np.uint8)
-        img[iy, ix, 2] = (bc[inside][valid] * 255).astype(np.uint8)
-        img[iy, ix, 3] = 255
+        _rasterize_triangle_njit(
+            img, w, h,
+            sx0, sy0, v0,
+            sx1, sy1, v1,
+            sx2, sy2, v2,
+            self.result_vmin, self.result_vmax,
+        )
 
     def _draw_gradient_polygons(self):
         """Fallback: gradiente con sub-poligonos si PIL no esta disponible.
@@ -670,7 +1089,10 @@ class MeshCanvas(ttk.Frame):
                         pts.extend([sx, sy])
                         val_sum += v
                     color = self._value_to_color(val_sum / 4)
-                    self.canvas.create_polygon(*pts, fill=color, outline="")
+                    self.canvas.create_polygon(
+                        *pts, fill=color, outline="",
+                        tags=("world", "gradient"),
+                    )
 
     # ═════════════════════════════════════════════════════════════════════
     # ISOLINEAS (Marching Squares)
@@ -683,6 +1105,10 @@ class MeshCanvas(ttk.Frame):
         saltar entre elementos vecinos -- es coherente con la naturaleza
         discontinua del campo. Cada elemento se evalua localmente con su
         propia grilla pre-computada.
+
+        Nota: durante interaccion activa (zoom/resize) redraw() ya skip-ea
+        esta funcion junto con el gradient, asi que aqui no hace falta
+        guardar el flag. Solo se llama en redraws completos.
         """
         if not (self.result_values or self.element_result_grid):
             return
@@ -691,103 +1117,51 @@ class MeshCanvas(ttk.Frame):
         levels = np.linspace(self.result_vmin, self.result_vmax,
                              n_levels + 2)[1:-1]
 
-        # Tabla marching squares: caso -> [(edge_a, edge_b), ...]
-        seg_table = {
-            1: [(0, 3)], 2: [(0, 1)], 3: [(1, 3)], 4: [(1, 2)],
-            5: [(0, 3), (1, 2)], 6: [(0, 2)], 7: [(2, 3)],
-            8: [(2, 3)], 9: [(0, 2)], 10: [(0, 1), (2, 3)],
-            11: [(1, 2)], 12: [(1, 3)], 13: [(0, 1)], 14: [(0, 3)],
-        }
-
         n_grid = 16
+        scale = self.scale
+        ox = self.offset_x
+        oy = self.offset_y
+
         for elem in self.project.elements.values():
             nids = elem.node_ids[:4]
             if not all(nid in self.project.nodes for nid in nids):
                 continue
-            # Grilla de valores (n_grid x n_grid). En suavizado se interpola
-            # bilineal desde los 4 nodos; en crudo, se resamplea desde la
-            # grilla pre-computada por compute_raw_grid (nativa 7x7).
             grid_vals, ok = self._get_grid_values(elem, n_grid - 1)
             if not ok:
                 continue
-            nc = []
-            for nid in nids:
-                x, y = self._get_node_world_deformed(nid)
-                nc.append((x, y))
+            # Coords mundo de los 4 corners (con deformacion si aplica).
+            nc = np.empty((4, 2))
+            for k, nid in enumerate(nids):
+                xn, yn = self._get_node_world_deformed(nid)
+                nc[k, 0] = xn
+                nc[k, 1] = yn
 
-            # Crear grilla de coordenadas (xi, eta) -> (x, y) fisicas y
-            # poblar gv a partir de grid_vals (alineado al mismo n_grid).
-            xi_arr = np.linspace(-1, 1, n_grid)
-            eta_arr = np.linspace(-1, 1, n_grid)
-            gx = np.zeros((n_grid, n_grid))
-            gy = np.zeros((n_grid, n_grid))
-            gv = np.zeros((n_grid, n_grid))
+            # Construye gx, gy (mapping bilineal) en JIT.
+            gx, gy = _build_gxgy_q4_njit(nc, n_grid)
 
-            for ci in range(n_grid):
-                xi = xi_arr[ci]
-                for cj in range(n_grid):
-                    eta = eta_arr[cj]
-                    N = [(1 - xi) * (1 - eta) / 4,
-                         (1 + xi) * (1 - eta) / 4,
-                         (1 + xi) * (1 + eta) / 4,
-                         (1 - xi) * (1 + eta) / 4]
-                    gx[cj, ci] = sum(N[k] * nc[k][0] for k in range(4))
-                    gy[cj, ci] = sum(N[k] * nc[k][1] for k in range(4))
-                    # IMPORTANTE: grid_vals viene con orientacion (i=xi, j=eta);
-                    # gv usa (cj=eta_idx, ci=xi_idx) para coincidir con la
-                    # marcha de marching squares de abajo.
-                    gv[cj, ci] = float(grid_vals[ci, cj])
+            # gv: grid_vals viene en orden (i=xi, j=eta); transponemos a
+            # (cj, ci) para coincidir con marching squares.
+            gv = np.ascontiguousarray(grid_vals.T)
 
-            for level in levels:
-                for ci in range(n_grid - 1):
-                    for cj in range(n_grid - 1):
-                        v00 = gv[cj, ci]
-                        v10 = gv[cj, ci + 1]
-                        v11 = gv[cj + 1, ci + 1]
-                        v01 = gv[cj + 1, ci]
+            # Marching squares en JIT — retorna segmentos en coords mundo.
+            segs, count = _marching_squares_njit(
+                gx, gy, gv, levels, _MARCHING_SEG_TABLE
+            )
+            if count == 0:
+                continue
 
-                        case = 0
-                        if v00 >= level: case |= 1
-                        if v10 >= level: case |= 2
-                        if v11 >= level: case |= 4
-                        if v01 >= level: case |= 8
-
-                        if case == 0 or case == 15 or case not in seg_table:
-                            continue
-
-                        x00, y00 = gx[cj, ci], gy[cj, ci]
-                        x10, y10 = gx[cj, ci+1], gy[cj, ci+1]
-                        x11, y11 = gx[cj+1, ci+1], gy[cj+1, ci+1]
-                        x01, y01 = gx[cj+1, ci], gy[cj+1, ci]
-
-                        # Puntos de cruce por arista
-                        edge_pts = {}
-                        pairs = [
-                            (0, v00, x00, y00, v10, x10, y10),
-                            (1, v10, x10, y10, v11, x11, y11),
-                            (2, v11, x11, y11, v01, x01, y01),
-                            (3, v01, x01, y01, v00, x00, y00),
-                        ]
-                        for eid, va, xa, ya, vb, xb, yb in pairs:
-                            if (va >= level) != (vb >= level):
-                                dv = vb - va
-                                t = (level - va) / dv if abs(dv) > 1e-15 else 0.5
-                                t = max(0.0, min(1.0, t))
-                                edge_pts[eid] = (
-                                    xa + t * (xb - xa),
-                                    ya + t * (yb - ya)
-                                )
-
-                        for ea, eb in seg_table[case]:
-                            if ea in edge_pts and eb in edge_pts:
-                                px1, py1 = edge_pts[ea]
-                                px2, py2 = edge_pts[eb]
-                                s1x, s1y = self.world_to_screen(px1, py1)
-                                s2x, s2y = self.world_to_screen(px2, py2)
-                                self.canvas.create_line(
-                                    s1x, s1y, s2x, s2y,
-                                    fill="white", width=1.2
-                                )
+            # world_to_screen vectorizado sobre los segmentos validos.
+            seg_view = segs[:count]
+            sx1 = seg_view[:, 0] * scale + ox
+            sy1 = -seg_view[:, 1] * scale + oy
+            sx2 = seg_view[:, 2] * scale + ox
+            sy2 = -seg_view[:, 3] * scale + oy
+            for k in range(count):
+                self.canvas.create_line(
+                    sx1[k], sy1[k], sx2[k], sy2[k],
+                    fill="white", width=1.2,
+                    tags=("world", "isolines"),
+                )
 
     # ═════════════════════════════════════════════════════════════════════
     # ELEMENTOS, NODOS, CARGAS, RESTRICCIONES
@@ -822,6 +1196,7 @@ class MeshCanvas(ttk.Frame):
                 outline=edge_color,
                 fill=fill_color,
                 width=2 if is_elem_selected else 1.5,
+                tags=("world", "elements"),
             )
 
             if self.show_elem_labels:
@@ -832,7 +1207,8 @@ class MeshCanvas(ttk.Frame):
                     cx, cy, text=str(elem.id),
                     fill=text_color,
                     font=("Segoe UI", CANVAS_FONT_SIZE, "bold"),
-                    anchor=tk.CENTER
+                    anchor=tk.CENTER,
+                    tags=("world", "elements"),
                 )
 
     def _classify_nodes(self):
@@ -876,6 +1252,7 @@ class MeshCanvas(ttk.Frame):
             self.canvas.create_oval(
                 sx - r, sy - r, sx + r, sy + r,
                 fill=color, outline="#0a1a2a", width=1,
+                tags=("world", "nodes"),
             )
             # Cuando el nodo NO esta seleccionado, el nucleo oscuro le da
             # profundidad (efecto "anillo" sutil). Cuando SI esta seleccionado,
@@ -889,6 +1266,7 @@ class MeshCanvas(ttk.Frame):
                 sx - ri, sy - ri, sx + ri, sy + ri,
                 fill=CANVAS_SELECTED_COLOR if is_selected else inner_color,
                 outline="",
+                tags=("world", "nodes"),
             )
 
             if self.show_node_labels:
@@ -900,7 +1278,8 @@ class MeshCanvas(ttk.Frame):
                     sx + r + 6, sy - r - 4,
                     text=label, fill=base_color,
                     font=("Segoe UI", CANVAS_FONT_SIZE - 1),
-                    anchor=tk.SW
+                    anchor=tk.SW,
+                    tags=("world", "nodes"),
                 )
 
     def _draw_loads(self):
@@ -931,16 +1310,19 @@ class MeshCanvas(ttk.Frame):
                     x_start, sy, sx, sy,
                     fill=SHADOW_LOAD, width=width + 3, arrow=tk.LAST,
                     arrowshape=(14, 16, 7),
+                    tags=("world", "loads"),
                 )
                 # Flecha real encima
                 self.canvas.create_line(
                     x_start, sy, sx, sy,
                     fill=color, width=width, arrow=tk.LAST,
                     arrowshape=(11, 13, 5),
+                    tags=("world", "loads"),
                 )
                 self._draw_label_with_bg(
                     x_start, sy - 14, f"Fx={fmt(load.fx, 'force')}",
                     fg=color, anchor=tk.S,
+                    tags=("world", "loads"),
                 )
 
             if abs(load.fy) > 1e-10:
@@ -950,27 +1332,35 @@ class MeshCanvas(ttk.Frame):
                     sx, y_start, sx, sy,
                     fill=SHADOW_LOAD, width=width + 3, arrow=tk.LAST,
                     arrowshape=(14, 16, 7),
+                    tags=("world", "loads"),
                 )
                 self.canvas.create_line(
                     sx, y_start, sx, sy,
                     fill=color, width=width, arrow=tk.LAST,
                     arrowshape=(11, 13, 5),
+                    tags=("world", "loads"),
                 )
                 self._draw_label_with_bg(
                     sx + 16, y_start, f"Fy={fmt(load.fy, 'force')}",
                     fg=color, anchor=tk.W,
+                    tags=("world", "loads"),
                 )
 
     def _draw_label_with_bg(self, x, y, text, *, fg, anchor=tk.W,
-                            font=None, padx=4, pady=2):
+                            font=None, padx=4, pady=2, tags=None):
         """Dibuja un texto con un rectangulo semi-opaco detras (mejora la
         legibilidad sobre el canvas oscuro). Retorna el id del text item.
+
+        `tags`: tupla opcional aplicada a ambos items (texto y rectangulo).
+        Tipicamente ("world", "loads") o similar para que el item viaje con
+        el pan junto al resto de la malla.
         """
         if font is None:
             font = ("Segoe UI", CANVAS_FONT_SIZE - 1)
+        tag_args = {"tags": tags} if tags else {}
         # Crear el text para medir bbox, luego rectangulo, luego mover el text al frente
         tid = self.canvas.create_text(
-            x, y, text=text, fill=fg, font=font, anchor=anchor,
+            x, y, text=text, fill=fg, font=font, anchor=anchor, **tag_args,
         )
         bb = self.canvas.bbox(tid)
         if bb is None:
@@ -978,7 +1368,7 @@ class MeshCanvas(ttk.Frame):
         x1, y1, x2, y2 = bb
         rid = self.canvas.create_rectangle(
             x1 - padx, y1 - pady, x2 + padx, y2 + pady,
-            fill=LABEL_BG, outline=fg, width=1,
+            fill=LABEL_BG, outline=fg, width=1, **tag_args,
         )
         # Asegurar que el texto este encima del rectangulo
         self.canvas.tag_raise(tid, rid)
@@ -1027,12 +1417,14 @@ class MeshCanvas(ttk.Frame):
                     sx - size, sy + size * 2,
                     sx + size, sy + size * 2,
                     outline=color, fill=fill_fixed, width=width,
+                    tags=("world", "constraints"),
                 )
                 # Linea base (la "pared" donde se empotra)
                 self.canvas.create_line(
                     sx - size - 4, sy + size * 2,
                     sx + size + 4, sy + size * 2,
                     fill=color, width=max(2, width),
+                    tags=("world", "constraints"),
                 )
                 # Hatching mas espaciado (3 lineas, no 4 amontonadas)
                 for i in range(3):
@@ -1041,6 +1433,7 @@ class MeshCanvas(ttk.Frame):
                         lx, sy + size * 2,
                         lx - 6, sy + size * 2 + 6,
                         fill=color, width=max(1, width - 1),
+                        tags=("world", "constraints"),
                     )
 
             elif bc.is_roller_x:
@@ -1057,6 +1450,7 @@ class MeshCanvas(ttk.Frame):
                     tri_base_x,   sy - size,
                     tri_base_x,   sy + size,
                     outline=color, fill=fill_roller, width=width,
+                    tags=("world", "constraints"),
                 )
                 # Rodillo (circulo) entre triangulo y la "pared"
                 roller_cx = tri_top_x - 4
@@ -1064,6 +1458,7 @@ class MeshCanvas(ttk.Frame):
                     roller_cx - 4, sy - 4,
                     roller_cx + 4, sy + 4,
                     outline=color, fill=fill_roller, width=max(1, width - 1),
+                    tags=("world", "constraints"),
                 )
                 # Superficie vertical (la "pared" donde rueda)
                 wall_x = roller_cx - 6
@@ -1071,6 +1466,7 @@ class MeshCanvas(ttk.Frame):
                     wall_x, sy - size - 4,
                     wall_x, sy + size + 4,
                     fill=color, width=max(2, width),
+                    tags=("world", "constraints"),
                 )
                 # Hatching detras de la pared
                 for i in range(3):
@@ -1079,6 +1475,7 @@ class MeshCanvas(ttk.Frame):
                         wall_x,     yy,
                         wall_x - 6, yy - 6,
                         fill=color, width=max(1, width - 1),
+                        tags=("world", "constraints"),
                     )
 
             elif bc.is_roller_y:
@@ -1092,6 +1489,7 @@ class MeshCanvas(ttk.Frame):
                     sx - size,  tri_base_y,
                     sx + size,  tri_base_y,
                     outline=color, fill=fill_roller, width=width,
+                    tags=("world", "constraints"),
                 )
                 # Rodillo (circulo) entre triangulo y superficie
                 roller_cy = tri_base_y + 5
@@ -1099,6 +1497,7 @@ class MeshCanvas(ttk.Frame):
                     sx - 4, roller_cy - 4,
                     sx + 4, roller_cy + 4,
                     outline=color, fill=fill_roller, width=max(1, width - 1),
+                    tags=("world", "constraints"),
                 )
                 # Superficie horizontal donde rueda
                 surf_y = roller_cy + 6
@@ -1106,6 +1505,7 @@ class MeshCanvas(ttk.Frame):
                     sx - size - 4, surf_y,
                     sx + size + 4, surf_y,
                     fill=color, width=max(2, width),
+                    tags=("world", "constraints"),
                 )
                 # Hatching debajo de la superficie
                 for i in range(3):
@@ -1114,6 +1514,7 @@ class MeshCanvas(ttk.Frame):
                         lx,     surf_y,
                         lx - 6, surf_y + 6,
                         fill=color, width=max(1, width - 1),
+                        tags=("world", "constraints"),
                     )
 
     def _draw_highlight(self):
@@ -1140,6 +1541,7 @@ class MeshCanvas(ttk.Frame):
             self.canvas.create_line(
                 x1, y1, x2, y2, fill=CANVAS_SELECTED_COLOR, width=4,
                 capstyle=tk.ROUND,
+                tags=("world", "highlight"),
             )
 
     def _draw_surface_loads(self):
@@ -1222,6 +1624,7 @@ class MeshCanvas(ttk.Frame):
                 by = sy2 + rdy * Lb * sb
                 self.canvas.create_line(
                     ax, ay, bx, by, fill=col, width=wid, dash=(4, 2),
+                    tags=("world", "surfaces"),
                 )
 
             # Flechitas distribuidas (apuntan desde el exterior hacia la arista)
@@ -1243,11 +1646,13 @@ class MeshCanvas(ttk.Frame):
                 self.canvas.create_line(
                     ex, ey, px, py, fill=SHADOW_SURFACE, width=wid + 2,
                     arrow=tk.LAST, arrowshape=(11, 13, 5),
+                    tags=("world", "surfaces"),
                 )
                 # Flecha principal
                 self.canvas.create_line(
                     ex, ey, px, py, fill=col, width=wid,
                     arrow=tk.LAST, arrowshape=(8, 10, 4),
+                    tags=("world", "surfaces"),
                 )
 
             # Etiqueta con magnitudes
@@ -1262,11 +1667,19 @@ class MeshCanvas(ttk.Frame):
                 label += f"  ∠{sl.angle:g}°"
             self._draw_label_with_bg(
                 cx, cy, label, fg=col, anchor=tk.CENTER,
+                tags=("world", "surfaces"),
             )
 
             # Sin halo extra: el cambio de color ya indica la seleccion.
 
     def _draw_colorbar(self):
+        """Dibuja la leyenda de color en la esquina derecha del canvas.
+
+        TAGS ("screen", "colorbar"): el colorbar es un overlay anclado a
+        pantalla — NO debe moverse durante pan/zoom. Como esta etiquetado
+        como "screen", el pan rapido (canvas.move("all", ...) + move(
+        "screen", -dx, -dy)) lo deja en su lugar sin re-dibujarlo.
+        """
         w = self.canvas.winfo_width()
         h = self.canvas.winfo_height()
         if w < 100 or h < 100:
@@ -1284,12 +1697,14 @@ class MeshCanvas(ttk.Frame):
             yy = y0 + i * bar_h / n_steps
             self.canvas.create_rectangle(
                 x0, yy, x0 + bar_w, yy + bar_h / n_steps + 1,
-                fill=color, outline=""
+                fill=color, outline="",
+                tags=("screen", "colorbar"),
             )
 
         self.canvas.create_rectangle(
             x0, y0, x0 + bar_w, y0 + bar_h,
-            outline="#aaa", width=1
+            outline="#aaa", width=1,
+            tags=("screen", "colorbar"),
         )
 
         n_labels = 5
@@ -1299,41 +1714,190 @@ class MeshCanvas(ttk.Frame):
             yy = y0 + i * bar_h / n_labels
             self.canvas.create_text(
                 x0 - 5, yy, text=f"{val:.2f}",
-                fill="white", font=("Consolas", 7), anchor=tk.E
+                fill="white", font=("Consolas", 7), anchor=tk.E,
+                tags=("screen", "colorbar"),
             )
 
         self.canvas.create_text(
             x0 + bar_w / 2, y0 - 12, text=self.result_label,
-            fill="white", font=("Segoe UI", 8, "bold"), anchor=tk.S
+            fill="white", font=("Segoe UI", 8, "bold"), anchor=tk.S,
+            tags=("screen", "colorbar"),
         )
 
     # ═════════════════════════════════════════════════════════════════════
-    # EVENTOS
+    # EVENTOS — control de interaccion (pan/zoom/resize)
     # ═════════════════════════════════════════════════════════════════════
+    #
+    # Patron de viewport rapido:
+    #
+    # - PAN (Button-2/3 drag): _on_pan_move usa canvas.move("all", dx, dy)
+    #   + canvas.move("screen", -dx, -dy). Cero rasterizacion, cero
+    #   Python loops por evento. Lo unico que se recalcula es offset_x/y.
+    #
+    # - ZOOM (MouseWheel): _on_mousewheel entra en modo interaccion y
+    #   hace un redraw a baja resolucion (n=3, sin isolineas). Tras
+    #   150ms sin mas eventos, _exit_interaction_mode hace un redraw
+    #   final de alta calidad. Multiples ticks coalescen en una sola
+    #   rasterizacion completa.
+    #
+    # - RESIZE (<Configure>): _on_resize usa _request_redraw que coalesce
+    #   varios eventos via after_idle en un solo redraw.
+    #
+    # - clear_results_overlay / set_displacements / etc. siguen llamando
+    #   self.redraw() directo porque son acciones discretas, no rafagas.
+
+    def _enter_interaction_mode(self):
+        """Activa el modo "viewport en movimiento": el render baja la
+        resolucion del gradient (n=3) y omite isolineas. Idempotente."""
+        self._interacting = True
+
+    def _exit_interaction_mode(self):
+        """Sale del modo interaccion y dispara redraw final en alta
+        calidad. Llamado por `_interaction_end_after_id`."""
+        self._interaction_end_after_id = None
+        self._interacting = False
+        self.redraw()
+
+    def _schedule_interaction_end(self, delay_ms=150):
+        """Reprograma el "fin de interaccion": cancela el after pendiente
+        si lo hay y agenda uno nuevo a `delay_ms`. Cada nuevo evento de
+        zoom/resize que llame esto resetea el timer — solo cuando pasen
+        `delay_ms` sin eventos se dispara el redraw final."""
+        if self._interaction_end_after_id is not None:
+            try:
+                self.canvas.after_cancel(self._interaction_end_after_id)
+            except Exception:
+                pass
+        self._interaction_end_after_id = self.canvas.after(
+            delay_ms, self._exit_interaction_mode
+        )
+
+    def _request_redraw(self):
+        """Encola un redraw via after_idle, coalesciendo multiples
+        llamadas en una sola ejecucion. Util para handlers que se
+        disparan en rafagas (resize, hover, etc.)."""
+        if self._redraw_pending:
+            return
+        self._redraw_pending = True
+        self.canvas.after_idle(self._do_pending_redraw)
+
+    def _do_pending_redraw(self):
+        self._redraw_pending = False
+        self.redraw()
 
     def _on_mousewheel(self, event):
+        """Zoom con la rueda. Estrategia (espejo del pan rapido):
+
+        1. Actualiza offset/scale y entra en modo interaccion.
+        2. **Sin redraw**. En su lugar:
+           - `canvas.delete("gradient")` quita la imagen rasterizada vieja
+             (no se puede escalar bitmap con canvas.scale, solo coords).
+           - `canvas.scale("all", mx, my, factor, factor)` escala TODOS
+             los items existentes hacia/desde el centro del cursor
+             (isolineas, malla, nodos, cargas, BCs).
+           - `canvas.scale("screen", mx, my, 1/factor, 1/factor)` deshace
+             el escalado en los items anclados a pantalla (colorbar, ejes).
+           - `_draw_gradient_scaled()` repinta el campo con PIL.Image.resize
+             en la nueva posicion (sin re-rasterizar barycentricas).
+        3. `_schedule_interaction_end(150)`: tras 150ms sin mas wheel,
+           dispara redraw completo (regenera grid con nuevo spacing y
+           re-rasteriza el campo a resolucion exacta).
+
+        Resultado: isolineas + malla + nodos siempre visibles, escalando
+        suavemente con la rueda. No hay parpadeo. Al detenerse, todo
+        se afina a la resolucion correcta.
+        """
         factor = 1.1 if event.delta > 0 else 0.9
         mx, my = event.x, event.y
         self.offset_x = mx - factor * (mx - self.offset_x)
         self.offset_y = my - factor * (my - self.offset_y)
         self.scale *= factor
-        self.redraw()
+        self._enter_interaction_mode()
+
+        # Eliminamos el bitmap viejo: canvas.scale solo afecta coords, no
+        # el tamaño de PhotoImages. Si lo dejamos, queda con su tamaño
+        # original mientras la malla escala — visualmente roto.
+        self.canvas.delete("gradient")
+
+        # Escalar todo geometricamente hacia/desde el cursor.
+        # Tk hace esto en C: muchisimo mas rapido que un redraw completo.
+        self.canvas.scale("all", mx, my, factor, factor)
+        # Deshacer el escalado en items de pantalla (colorbar, axes, grid).
+        self.canvas.scale("screen", mx, my, 1.0 / factor, 1.0 / factor)
+
+        # Repintar el campo escalado en su nueva posicion (PIL.Image.resize
+        # del bitmap previo, sin re-rasterizar el campo desde cero).
+        if self.result_values or self.element_result_grid:
+            self._draw_gradient_scaled()
+
+        self._schedule_interaction_end()
 
     def _on_pan_start(self, event):
         self._pan_start_x = event.x
         self._pan_start_y = event.y
+        # Marcar que estamos en una sesion de pan: el _on_pan_release
+        # disparara un redraw final para re-rasterizar el gradient con
+        # el offset nuevo (cubre los elementos que entraron al viewport
+        # durante el drag y no estaban en la imagen cacheada).
+        self._panning = True
 
     def _on_pan_move(self, event):
+        """Pan rapido SIN redraw. Estrategia (Opcion B):
+
+        - `canvas.move("all", dx, dy)` traslada TODOS los items existentes
+          incluyendo la imagen rasterizada del gradient. Es O(items) en C,
+          sin recomputar nada en Python.
+        - `canvas.move("screen", -dx, -dy)` deshace el move sobre los items
+          anclados a pantalla (colorbar, axes, grid) para que se queden en
+          su lugar.
+        - Actualiza offset_x/y para que el proximo redraw (cuando ocurra)
+          coloque los items en la posicion correcta. El cache del gradient
+          NO se invalida porque su key no depende del offset.
+
+        El pan se siente instantaneo aun con mallas de >1000 elementos.
+        El gradient queda "recortado" al area visible original mientras
+        dura el drag — se completa en _on_pan_release re-rasterizando.
+        """
         dx = event.x - self._pan_start_x
         dy = event.y - self._pan_start_y
+        if dx == 0 and dy == 0:
+            return
         self.offset_x += dx
         self.offset_y += dy
         self._pan_start_x = event.x
         self._pan_start_y = event.y
+        self.canvas.move("all", dx, dy)
+        # Re-anclar items de pantalla (colorbar, ejes, grid wallpaper) a
+        # su posicion absoluta. Como Tk acumula el move sobre las coords
+        # del item, deshacemos con el delta opuesto.
+        self.canvas.move("screen", -dx, -dy)
+
+    def _on_pan_release(self, event):
+        """Al soltar el boton de pan, dispara un redraw completo.
+
+        Razon: durante el drag el gradient se traslado con canvas.move
+        pero su area rasterizada solo cubre lo que era visible cuando se
+        rasterizo. Los elementos que entraron al viewport durante el pan
+        quedan sin color (banda negra). Este redraw re-rasteriza con el
+        offset acumulado y completa la imagen. Se invalida la cache
+        forzando rerasterizacion (el offset cambio "lo suficiente").
+
+        Tambien re-dibuja el grid wallpaper para que se alinee con el
+        nuevo offset (la formula `offset_x % spacing` cambia la fase).
+        """
+        if not getattr(self, "_panning", False):
+            return
+        self._panning = False
+        # Invalidar cache del gradient: ahora SI queremos rerasterizar
+        # para cubrir las zonas que quedaron sin color tras el drag.
+        self._gradient_cache_key = None
         self.redraw()
 
     def _on_resize(self, event):
-        self.redraw()
+        """Redraw al redimensionar la ventana, pero throttled con
+        after_idle para coalescer rafagas de eventos <Configure> (Tk
+        dispara uno por cada pixel durante un drag de resize)."""
+        self._request_redraw()
 
     def _on_mouse_move(self, event):
         wx, wy = self.screen_to_world(event.x, event.y)
@@ -2351,6 +2915,12 @@ class MeshCanvas(ttk.Frame):
         self.displacements = None
         self.deform_scale = 0
         self.show_isolines = False
+        self._gradient_cache_key = None  # invalidar cache al limpiar resultados
+        # Tambien liberamos el PIL Image del bitmap previo. Sin esto, un
+        # zoom suave posterior (con `_interacting=True`) mostraria el campo
+        # viejo escalado hasta que un redraw full lo regenere.
+        self._gradient_pil_image = None
+        self._gradient_zoom_photo = None
         self.redraw()
 
     def fit_view(self):

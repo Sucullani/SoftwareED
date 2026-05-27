@@ -138,6 +138,17 @@ def validate_project(project) -> HealthReport:
     """
     report = HealthReport()
 
+    # Set de nodos en elementos — reutilizado por _check_bc/load_orphan_nodes.
+    # Si el proyecto tiene el índice inverso (post iter3) usarlo directamente;
+    # sino construirlo (proyectos cargados antes del índice, o tests unitarios).
+    n2e = getattr(project, "_node_to_elements", None)
+    if n2e is not None:
+        nodes_in_elements: set = set(n2e.keys())
+    else:
+        nodes_in_elements = set()
+        for elem in project.elements.values():
+            nodes_in_elements.update(elem.node_ids)
+
     # ─── Errores criticos ────────────────────────────────────────────
     _check_no_elements(project, report)
     _check_element_node_refs(project, report)
@@ -145,10 +156,10 @@ def validate_project(project) -> HealthReport:
     _check_degenerate_elements(project, report)
     _check_surface_load_refs(project, report)
     _check_restraints(project, report)
-    _check_bc_orphan_nodes(project, report)
+    _check_bc_orphan_nodes(project, report, nodes_in_elements)
 
     # ─── Warnings ────────────────────────────────────────────────────
-    _check_load_orphan_nodes(project, report)
+    _check_load_orphan_nodes(project, report, nodes_in_elements)
     _check_unused_materials(project, report)
     _check_negative_jacobians(project, report)
     _check_zero_loads(project, report)
@@ -265,13 +276,13 @@ def _check_restraints(project, report):
         ))
 
 
-def _check_bc_orphan_nodes(project, report):
+def _check_bc_orphan_nodes(project, report, nodes_in_elements=None):
     """Nodo con BC pero sin elemento que lo referencie -> DOF colgante
     restringido. K_red queda mal condicionada (filas/columnas con cero
     fuera de la diagonal)."""
-    nodes_in_elements = set()
-    for elem in project.elements.values():
-        nodes_in_elements.update(elem.node_ids)
+    if nodes_in_elements is None:
+        nodes_in_elements = {nid for elem in project.elements.values()
+                             for nid in elem.node_ids}
     for nid in project.boundary_conditions:
         if nid not in nodes_in_elements:
             report.errors.append(HealthIssue(
@@ -284,12 +295,12 @@ def _check_bc_orphan_nodes(project, report):
             ))
 
 
-def _check_load_orphan_nodes(project, report):
+def _check_load_orphan_nodes(project, report, nodes_in_elements=None):
     """Nodo con carga pero sin elemento -> la carga no entra a F (no hay
     DOFs ensamblados)."""
-    nodes_in_elements = set()
-    for elem in project.elements.values():
-        nodes_in_elements.update(elem.node_ids)
+    if nodes_in_elements is None:
+        nodes_in_elements = {nid for elem in project.elements.values()
+                             for nid in elem.node_ids}
     for nid in project.nodal_loads:
         if nid not in nodes_in_elements:
             report.warnings.append(HealthIssue(
@@ -322,18 +333,19 @@ def _check_negative_jacobians(project, report):
     Si el area es negativa, los nodos estan en orden CW -> el Jacobiano
     sera negativo en todos los Gauss points (invertir el orden corrige).
     """
+    nodes = project.nodes
     for elem in project.elements.values():
         verts = elem.node_ids[:4]
         try:
-            pts = [project.nodes[nid] for nid in verts]
+            pts = [nodes[nid] for nid in verts]
         except KeyError:
             continue  # ya capturado por _check_element_node_refs
-        # Shoelace
-        area2 = 0.0
-        for i in range(4):
-            x1, y1 = pts[i].x, pts[i].y
-            x2, y2 = pts[(i + 1) % 4].x, pts[(i + 1) % 4].y
-            area2 += x1 * y2 - x2 * y1
+        # Shoelace inline — evita overhead de llamada a funcion auxiliar.
+        p0, p1, p2, p3 = pts
+        area2 = (p0.x * p1.y - p1.x * p0.y
+               + p1.x * p2.y - p2.x * p1.y
+               + p2.x * p3.y - p3.x * p2.y
+               + p3.x * p0.y - p0.x * p3.y)
         if area2 <= 0:
             report.warnings.append(HealthIssue(
                 severity=Severity.WARNING,

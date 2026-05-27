@@ -20,6 +20,7 @@ from config.settings import ELEMENT_Q4, ELEMENT_Q9
 from fem.shape_functions import get_shape_functions
 from fem.gauss_quadrature import get_gauss_points_2d
 from fem.jacobian import compute_jacobian, compute_dN_physical
+from fem._numba_compat import njit
 
 
 __all__ = ["compute_error_norms"]
@@ -32,6 +33,111 @@ def _default_n_gauss(element_type):
     # Q9: usamos 4 puntos por direccion (16 totales) para integrar errores
     # cuadraticos de un campo cuadratico (p=2 -> 2p=4 grado del error^2).
     return 4
+
+
+@njit(cache=True)
+def _accumulate_error_norms_njit(
+    node_coords_all,      # (n_elem, n_nodes, 2)
+    u_elem_all,           # (n_elem, 2 * n_nodes)
+    u_exact_all,          # (n_elem, n_gp, 2)
+    grad_u_exact_all,     # (n_elem, n_gp, 2, 2) o array vacio (0,0,0,0) si no
+    N_at_gps,             # (n_gp, n_nodes)
+    dN_at_gps,            # (n_gp, 2, n_nodes)
+    gauss_wts,            # (n_gp,)
+    use_grad,             # bool
+):
+    """Kernel JIT: acumula los integrales cuadraticos de L2 + H1 sobre
+    todos los elementos. Retorna (sq_err_u, sq_err_v, sq_norm_u_exact,
+    sq_norm_v_exact, sq_err_grad, sq_norm_grad_exact, area_total).
+
+    Sin allocations de B/inv_J por iteracion: el strain se computa
+    directamente desde dN_nat + inv_J. La solucion exacta y su gradiente
+    vienen pre-evaluados en `u_exact_all` y `grad_u_exact_all` porque las
+    funciones de usuario son callables Python que Numba no puede inlinear.
+    """
+    n_elem = node_coords_all.shape[0]
+    n_gp = gauss_wts.shape[0]
+    n_nodes = node_coords_all.shape[1]
+
+    sq_err_u = 0.0
+    sq_err_v = 0.0
+    sq_norm_u_exact = 0.0
+    sq_norm_v_exact = 0.0
+    sq_err_grad = 0.0
+    sq_norm_grad_exact = 0.0
+    area_total = 0.0
+
+    for e in range(n_elem):
+        for g in range(n_gp):
+            N_vals = N_at_gps[g]
+            dN_nat = dN_at_gps[g]
+            w = gauss_wts[g]
+
+            # J = dN_nat @ node_coords_all[e]
+            J00 = 0.0; J01 = 0.0; J10 = 0.0; J11 = 0.0
+            for k in range(n_nodes):
+                J00 += dN_nat[0, k] * node_coords_all[e, k, 0]
+                J01 += dN_nat[0, k] * node_coords_all[e, k, 1]
+                J10 += dN_nat[1, k] * node_coords_all[e, k, 0]
+                J11 += dN_nat[1, k] * node_coords_all[e, k, 1]
+            det_J = J00 * J11 - J01 * J10
+            absdJ = abs(det_J)
+            area_total += absdJ * w
+
+            # Interpolacion de la solucion FEM en el GP.
+            ux_h = 0.0
+            uy_h = 0.0
+            for k in range(n_nodes):
+                ux_h += N_vals[k] * u_elem_all[e, 2 * k]
+                uy_h += N_vals[k] * u_elem_all[e, 2 * k + 1]
+
+            ux_e = u_exact_all[e, g, 0]
+            uy_e = u_exact_all[e, g, 1]
+
+            sq_err_u += (ux_h - ux_e) * (ux_h - ux_e) * absdJ * w
+            sq_err_v += (uy_h - uy_e) * (uy_h - uy_e) * absdJ * w
+            sq_norm_u_exact += ux_e * ux_e * absdJ * w
+            sq_norm_v_exact += uy_e * uy_e * absdJ * w
+
+            if use_grad:
+                # inv_J
+                inv_d = 1.0 / det_J
+                invJ00 =  J11 * inv_d
+                invJ01 = -J01 * inv_d
+                invJ10 = -J10 * inv_d
+                invJ11 =  J00 * inv_d
+
+                # grad u_h = [[du/dx, du/dy], [dv/dx, dv/dy]]
+                dux_dx = 0.0; dux_dy = 0.0
+                duy_dx = 0.0; duy_dy = 0.0
+                for k in range(n_nodes):
+                    dphx = invJ00 * dN_nat[0, k] + invJ01 * dN_nat[1, k]
+                    dphy = invJ10 * dN_nat[0, k] + invJ11 * dN_nat[1, k]
+                    u_x = u_elem_all[e, 2 * k]
+                    u_y = u_elem_all[e, 2 * k + 1]
+                    dux_dx += dphx * u_x
+                    dux_dy += dphy * u_x
+                    duy_dx += dphx * u_y
+                    duy_dy += dphy * u_y
+
+                # Error en gradiente: ||grad_h - grad_e||^2
+                for r in range(2):
+                    for c in range(2):
+                        ge = grad_u_exact_all[e, g, r, c]
+                        if r == 0 and c == 0:
+                            gh = dux_dx
+                        elif r == 0 and c == 1:
+                            gh = dux_dy
+                        elif r == 1 and c == 0:
+                            gh = duy_dx
+                        else:
+                            gh = duy_dy
+                        diff = gh - ge
+                        sq_err_grad += diff * diff * absdJ * w
+                        sq_norm_grad_exact += ge * ge * absdJ * w
+
+    return (sq_err_u, sq_err_v, sq_norm_u_exact, sq_norm_v_exact,
+            sq_err_grad, sq_norm_grad_exact, area_total)
 
 
 def compute_error_norms(project, solution, u_exact_fn,
@@ -70,72 +176,87 @@ def compute_error_norms(project, solution, u_exact_fn,
     if n_gauss is None:
         n_gauss = _default_n_gauss(element_type)
     gauss_pts, gauss_wts = get_gauss_points_2d(n_gauss)
+    n_gp = len(gauss_pts)
 
-    # Acumuladores cuadraticos
-    sq_err_u = 0.0
-    sq_err_v = 0.0
-    sq_norm_u_exact = 0.0
-    sq_norm_v_exact = 0.0
-    sq_err_grad = 0.0
-    sq_norm_grad_exact = 0.0
-    area_total = 0.0
+    # Precomputar N y dN en cada GP (independientes del elemento).
+    N_at_gps = np.empty((n_gp, 0))
+    dN_at_gps = np.empty((n_gp, 2, 0))
+    if project.elements:
+        any_elem = next(iter(project.elements.values()))
+        n_nodes_default = any_elem.num_nodes
+        N_at_gps = np.empty((n_gp, n_nodes_default))
+        dN_at_gps = np.empty((n_gp, 2, n_nodes_default))
+        for g in range(n_gp):
+            xi, eta = float(gauss_pts[g, 0]), float(gauss_pts[g, 1])
+            N_at_gps[g] = N_func(xi, eta)
+            dN_at_gps[g] = dN_func(xi, eta)
 
-    for elem in project.elements.values():
-        node_ids = elem.node_ids
-        n_nodes = elem.num_nodes
-        node_coords = np.array(
-            [[project.nodes[nid].x, project.nodes[nid].y] for nid in node_ids],
-            dtype=float,
-        )
-        # Vector de desplazamientos del elemento (2*n_nodes,)
-        u_elem = np.zeros(2 * n_nodes)
-        for i, nid in enumerate(node_ids):
+    # Construir arrays "flat" de todos los elementos para el kernel JIT.
+    elems = list(project.elements.values())
+    n_elem = len(elems)
+    if n_elem == 0:
+        # Sin elementos: devolver dict con ceros (caso edge en tests).
+        return {
+            "L2_u": 0.0, "L2_v": 0.0, "L2_disp": 0.0,
+            "L2_disp_rel": None,
+            "H1_semi": None, "L2_grad": None, "H1_semi_rel": None,
+            "h": 0.0, "area_total": 0.0,
+            "ndof": project.total_dof, "n_gauss": int(n_gauss),
+        }
+    n_nodes = elems[0].num_nodes
+
+    node_coords_all = np.empty((n_elem, n_nodes, 2))
+    u_elem_all = np.empty((n_elem, 2 * n_nodes))
+
+    for e, elem in enumerate(elems):
+        for k, nid in enumerate(elem.node_ids):
+            node = project.nodes[nid]
+            node_coords_all[e, k, 0] = node.x
+            node_coords_all[e, k, 1] = node.y
             base = 2 * idx_map[nid]
-            u_elem[2 * i]     = u_global[base]
-            u_elem[2 * i + 1] = u_global[base + 1]
+            u_elem_all[e, 2 * k]     = u_global[base]
+            u_elem_all[e, 2 * k + 1] = u_global[base + 1]
 
-        for gp, w in zip(gauss_pts, gauss_wts):
-            xi, eta = float(gp[0]), float(gp[1])
-            N_vals = N_func(xi, eta)
-            dN_nat = dN_func(xi, eta)
-            J, det_J, inv_J = compute_jacobian(dN_nat, node_coords)
-            absdJ = abs(det_J)
-            area_total += absdJ * w
+    # Pre-evaluar la solucion exacta y opcionalmente su gradiente en
+    # CADA (elem, GP). Es una sola pasada Python sobre n_elem * n_gp
+    # GPs — para mallas tipicas (<5000 elem * 9 GP = 45k evals) es
+    # mucho mas rapido que llamar al callable dentro del kernel.
+    u_exact_all = np.empty((n_elem, n_gp, 2))
+    use_grad = grad_u_exact_fn is not None
+    grad_u_exact_all = np.zeros((n_elem if use_grad else 0,
+                                  n_gp if use_grad else 0, 2, 2))
 
-            # Coords fisicas del Gauss point
-            x_gp = float(N_vals @ node_coords[:, 0])
-            y_gp = float(N_vals @ node_coords[:, 1])
-
-            # Solucion FEM interpolada
-            ux_h = float(N_vals @ u_elem[0::2])
-            uy_h = float(N_vals @ u_elem[1::2])
-
-            # Solucion exacta
+    for e in range(n_elem):
+        for g in range(n_gp):
+            N_vals = N_at_gps[g]
+            x_gp = 0.0
+            y_gp = 0.0
+            for k in range(n_nodes):
+                x_gp += float(N_vals[k]) * node_coords_all[e, k, 0]
+                y_gp += float(N_vals[k]) * node_coords_all[e, k, 1]
             ux_e, uy_e = u_exact_fn(x_gp, y_gp)
-            ux_e = float(ux_e)
-            uy_e = float(uy_e)
-
-            # Errores cuadraticos en desplazamientos
-            sq_err_u += (ux_h - ux_e) ** 2 * absdJ * w
-            sq_err_v += (uy_h - uy_e) ** 2 * absdJ * w
-            sq_norm_u_exact += ux_e ** 2 * absdJ * w
-            sq_norm_v_exact += uy_e ** 2 * absdJ * w
-
-            # Gradiente (opcional)
-            if grad_u_exact_fn is not None:
-                dN_phys = compute_dN_physical(dN_nat, inv_J)  # (2, n_nodes)
-                # grad u_h = [[du/dx, du/dy], [dv/dx, dv/dy]]
-                u_x = u_elem[0::2]   # (n_nodes,)
-                u_y = u_elem[1::2]
-                dux_dx = float(dN_phys[0] @ u_x)
-                dux_dy = float(dN_phys[1] @ u_x)
-                duy_dx = float(dN_phys[0] @ u_y)
-                duy_dy = float(dN_phys[1] @ u_y)
-                grad_h = np.array([[dux_dx, dux_dy], [duy_dx, duy_dy]])
+            u_exact_all[e, g, 0] = float(ux_e)
+            u_exact_all[e, g, 1] = float(uy_e)
+            if use_grad:
                 grad_e = np.asarray(grad_u_exact_fn(x_gp, y_gp), dtype=float)
-                diff = grad_h - grad_e
-                sq_err_grad += float(np.sum(diff * diff)) * absdJ * w
-                sq_norm_grad_exact += float(np.sum(grad_e * grad_e)) * absdJ * w
+                grad_u_exact_all[e, g] = grad_e
+
+    # Asegurar contiguous para el kernel JIT.
+    node_coords_all = np.ascontiguousarray(node_coords_all)
+    u_elem_all = np.ascontiguousarray(u_elem_all)
+    u_exact_all = np.ascontiguousarray(u_exact_all)
+    # Numba exige consistencia de shapes; pasamos un array de ceros con
+    # las shapes correctas (sin uso) si no se requiere gradiente.
+    if not use_grad:
+        grad_u_exact_all = np.zeros((n_elem, n_gp, 2, 2))
+
+    (sq_err_u, sq_err_v, sq_norm_u_exact, sq_norm_v_exact,
+     sq_err_grad, sq_norm_grad_exact, area_total) = (
+        _accumulate_error_norms_njit(
+            node_coords_all, u_elem_all, u_exact_all, grad_u_exact_all,
+            N_at_gps, dN_at_gps, gauss_wts, use_grad,
+        )
+    )
 
     L2_u = float(np.sqrt(sq_err_u))
     L2_v = float(np.sqrt(sq_err_v))

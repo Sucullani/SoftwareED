@@ -29,8 +29,9 @@ from typing import Optional
 import numpy as np
 import ttkbootstrap as ttk
 
-from matplotlib.figure import Figure
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+# matplotlib se importa dentro de __init__ / _draw_mohr para diferir el costo
+# de arranque (~200-300 ms). El modulo se carga solo cuando el usuario abre un
+# DetailsPanel por primera vez (clic derecho sobre el canvas del Post-Proceso).
 
 from config.settings import (
     LABEL_BG, LABEL_FG, FONT_UI_BOLD, FONT_MONO_SMALL,
@@ -182,6 +183,8 @@ class DetailsPanel(tk.Toplevel):
         right = tk.Frame(body, bg=LABEL_BG)
         right.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
+        from matplotlib.figure import Figure
+        from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
         self._fig = Figure(figsize=(2.6, 2.6), dpi=100, facecolor=MOHR_BG)
         self._ax = self._fig.add_subplot(111)
         self._mpl_canvas = FigureCanvasTkAgg(self._fig, master=right)

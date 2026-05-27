@@ -22,40 +22,69 @@ envolvente convexa de los 4 nodos medios).
 Ver docs/mesh_quality_theory.pdf para el desarrollo teorico completo.
 """
 
+import math
+
 import numpy as np
 
 from fem.shape_functions import get_shape_functions
-from fem.gauss_quadrature import get_gauss_points_for_element
-from fem.jacobian import compute_jacobian
-from config.settings import ELEMENT_Q4, ELEMENT_Q9
+from fem.gauss_quadrature import (
+    get_gauss_points_for_element,
+    get_dN_at_gauss_points,
+)
+from fem.jacobian import compute_jacobian, _JAC_MIN_DET
+from config.settings import ELEMENT_Q4, ELEMENT_Q9, JACOBIAN_MIN_DETERMINANT
+from fem._numba_compat import njit
 
 
 # --------------------------------------------------------------------------- #
 # METRICAS BASADAS EN EL JACOBIANO                                             #
 # --------------------------------------------------------------------------- #
 
-def _jacobian_samples(node_coords, element_type):
-    """Evalua det(J) y las columnas de J en todos los puntos de Gauss del
-    elemento. Retorna (dets, col_norms) donde:
-        dets[g]      = det(J) en el punto g
-        col_norms[g] = (||J[:,0]||, ||J[:,1]||) en el punto g
-    Si algun Jacobiano es no definido, retorna (None, None).
+@njit(cache=True)
+def _jacobian_samples_njit(dN_at_gps, node_coords):
+    """Kernel JIT: evalua det(J) y normas de columnas de J en cada GP.
+
+    Retorna (dets, col_norms, ok). `ok=False` indica que algun Jacobiano
+    fue singular (caller debe descartar el elemento).
+
+    Sin allocations de J/inv_J por GP — calcula los 4 escalares (J00..J11)
+    inline. Aplica al mismo array de dN precomputado que usa el assembly,
+    no hay re-evaluacion de shape functions.
     """
-    _, dN_func = get_shape_functions(element_type)
-    gauss_pts, _ = get_gauss_points_for_element(element_type)
-    dets = []
-    col_norms = []
-    for xi, eta in gauss_pts:
-        dN = dN_func(xi, eta)
-        try:
-            J, det_J, _ = compute_jacobian(dN, node_coords)
-        except ValueError:
-            return None, None
-        dets.append(det_J)
-        c1 = float(np.linalg.norm(J[:, 0]))
-        c2 = float(np.linalg.norm(J[:, 1]))
-        col_norms.append((c1, c2))
-    return dets, col_norms
+    n_gp = dN_at_gps.shape[0]
+    n_nodes = node_coords.shape[0]
+    dets = np.empty(n_gp)
+    col_norms = np.empty((n_gp, 2))
+
+    for g in range(n_gp):
+        dN_nat = dN_at_gps[g]
+        J00 = 0.0; J01 = 0.0; J10 = 0.0; J11 = 0.0
+        for k in range(n_nodes):
+            J00 += dN_nat[0, k] * node_coords[k, 0]
+            J01 += dN_nat[0, k] * node_coords[k, 1]
+            J10 += dN_nat[1, k] * node_coords[k, 0]
+            J11 += dN_nat[1, k] * node_coords[k, 1]
+        det_J = J00 * J11 - J01 * J10
+        if abs(det_J) < _JAC_MIN_DET:
+            return dets, col_norms, False
+        dets[g] = det_J
+        # ||J[:, 0]|| = sqrt(J00^2 + J10^2); ||J[:, 1]|| = sqrt(J01^2 + J11^2)
+        col_norms[g, 0] = math.sqrt(J00 * J00 + J10 * J10)
+        col_norms[g, 1] = math.sqrt(J01 * J01 + J11 * J11)
+    return dets, col_norms, True
+
+
+def _jacobian_samples(node_coords, element_type):
+    """Wrapper Python sobre `_jacobian_samples_njit`. Mantiene la API
+    existente (retorna listas o `(None, None)` en caso singular).
+    """
+    dN_at_gps, _, _, _ = get_dN_at_gauss_points(element_type)
+    node_coords = np.ascontiguousarray(np.asarray(node_coords, dtype=float))
+    dets, col_norms, ok = _jacobian_samples_njit(dN_at_gps, node_coords)
+    if not ok:
+        return None, None
+    return dets.tolist(), [(float(col_norms[g, 0]), float(col_norms[g, 1]))
+                            for g in range(col_norms.shape[0])]
 
 
 def jacobian_ratio(node_coords, element_type):
@@ -88,7 +117,7 @@ def scaled_jacobian(node_coords, element_type):
     vals = []
     for det_J, (c1, c2) in zip(dets, col_norms):
         denom = c1 * c2
-        if denom <= 1e-15:
+        if denom <= JACOBIAN_MIN_DETERMINANT:
             return 0.0
         vals.append(det_J / denom)
     return min(vals)
@@ -110,7 +139,7 @@ def internal_angles(corner_coords):
         p_next = corner_coords[(i + 1) % 4]
         v1 = p_prev - p_curr
         v2 = p_next - p_curr
-        cos_a = np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2) + 1e-15)
+        cos_a = np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2) + JACOBIAN_MIN_DETERMINANT)
         cos_a = np.clip(cos_a, -1.0, 1.0)
         angles.append(np.degrees(np.arccos(cos_a)))
     return angles
@@ -142,7 +171,7 @@ def robinson_aspect(corner_coords):
     n1 = float(np.linalg.norm(X1))
     n2 = float(np.linalg.norm(X2))
     lo = min(n1, n2)
-    if lo <= 1e-15:
+    if lo <= JACOBIAN_MIN_DETERMINANT:
         return float("inf")
     return max(n1, n2) / lo
 
@@ -157,7 +186,7 @@ def robinson_taper(corner_coords):
     X1, X2, X3 = _robinson_vectors(corner_coords)
     n1_sq = float(np.dot(X1, X1))
     n2_sq = float(np.dot(X2, X2))
-    if n1_sq <= 1e-15 or n2_sq <= 1e-15:
+    if n1_sq <= JACOBIAN_MIN_DETERMINANT or n2_sq <= JACOBIAN_MIN_DETERMINANT:
         return float("inf")
     t1 = abs(float(np.dot(X3, X1))) / n1_sq
     t2 = abs(float(np.dot(X3, X2))) / n2_sq
@@ -177,7 +206,7 @@ def edge_aspect_ratio(corner_coords):
         p1 = corner_coords[i]
         p2 = corner_coords[(i + 1) % n]
         lengths.append(np.linalg.norm(p2 - p1))
-    if min(lengths) < 1e-15:
+    if min(lengths) < JACOBIAN_MIN_DETERMINANT:
         return float("inf")
     return max(lengths) / min(lengths)
 
@@ -209,7 +238,7 @@ def _point_in_convex_hull(p, polygon):
         a = polygon[i]
         b = polygon[(i + 1) % n]
         cross = (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0])
-        if abs(cross) < 1e-15:
+        if abs(cross) < JACOBIAN_MIN_DETERMINANT:
             return False  # sobre la arista: lo tratamos como fuera
         if sign == 0:
             sign = 1 if cross > 0 else -1
@@ -241,7 +270,7 @@ def midside_center_admissibility(coords_q9):
         pm = mids[m_idx - 4]  # m_idx es 4..7 en coords, 0..3 en mids
         edge = pb - pa
         L = float(np.linalg.norm(edge))
-        if L <= 1e-15:
+        if L <= JACOBIAN_MIN_DETERMINANT:
             return {
                 "q_D": float("inf"), "s_min": 0.0, "s_max": 1.0,
                 "gate_tangential": False, "gate_convex": False, "gates_ok": False,
@@ -260,7 +289,7 @@ def midside_center_admissibility(coords_q9):
     avg_edge = 0.25 * sum(
         float(np.linalg.norm(corners[(i + 1) % 4] - corners[i])) for i in range(4)
     )
-    if avg_edge <= 1e-15:
+    if avg_edge <= JACOBIAN_MIN_DETERMINANT:
         d_9 = float("inf")
     else:
         d_9 = float(np.linalg.norm(center - center_ideal)) / avg_edge
