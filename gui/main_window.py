@@ -930,6 +930,13 @@ class MainWindow:
             )
             return
 
+        # Selección de estilo antes del filedialog — Cancelar aborta limpiamente.
+        from gui.dialogs.memoria_style_dialog import MemoriaStyleDialog
+        style_dlg = MemoriaStyleDialog(self.root)
+        style = style_dlg.result
+        if style is None:
+            return
+
         filepath = filedialog.asksaveasfilename(
             title="Exportar Memoria de Cálculo (PDF)",
             defaultextension=".pdf",
@@ -967,7 +974,7 @@ class MainWindow:
             try:
                 path = generate_memoria_calculo(
                     self.project, solution, element_stresses, nodal_stresses,
-                    filepath, progress_callback=_on_progress,
+                    filepath, style=style, progress_callback=_on_progress,
                 )
                 result_state["path"] = path
             except Exception as e:
