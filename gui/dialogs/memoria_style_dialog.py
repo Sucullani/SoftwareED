@@ -6,8 +6,9 @@ seleccionar el archivo de destino.
 
 Estilos disponibles:
   'directo'   — Tablas, matrices y contornos. Sin explicaciones.
-  'educativo' — Procedimiento con explicaciones directas y autocontenidas.
-  'completo'  — Versión extendida con narrativa, referencias cruzadas y glosario.
+  'educativo' — Procedimiento completo y autocontenido, con figuras y notas.
+  'completo'  — El documento educativo + apéndices (todas las kₑ, datos
+                completos por punto de Gauss, glosario).
 
 Filosofía minimalista (ver CLAUDE.md): sin Labelframes, sin subtítulo
 descriptivo, sin banner explicativo. Solo los 3 radios + descripción muted
@@ -33,12 +34,12 @@ _ESTILOS = [
     (
         "educativo",
         "🎓  Educativo",
-        "Procedimiento con explicaciones directas y autocontenidas.",
+        "Procedimiento completo y autocontenido, con figuras y notas.",
     ),
     (
         "completo",
         "📖  Completo",
-        "Versión extendida con narrativa, referencias cruzadas y glosario.",
+        "Educativo + apéndices: todas las kₑ, datos completos y glosario.",
     ),
 ]
 
