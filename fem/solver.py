@@ -93,8 +93,13 @@ def solve_system(project, *, body_force_fn=None):
         K, F, restrained_dofs, u_prescribed
     )
 
-    # 5. Resolver K_red · u_free = F_red
-    u_free = solve(K_red, F_red)
+    # 5. Resolver K_red · u_free = F_red.
+    # `assume_a="pos"` ⇒ LAPACK POSV (Cholesky LLᵀ) en lugar del LU general.
+    # K_red es simetrica definida positiva tras eliminar BCs: aprovechamos
+    # esa estructura para factorizar al ~50% del costo de LU y validamos
+    # la SPD en el call (falla limpio si la malla esta plegada o las BCs
+    # son insuficientes).
+    u_free = solve(K_red, F_red, assume_a="pos")
 
     # 6. Reconstruir vector completo de desplazamientos.
     #    En DOFs libres: valor calculado. En DOFs restringidos: valor prescrito.

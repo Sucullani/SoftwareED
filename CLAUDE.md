@@ -191,7 +191,7 @@ Switching a Post-Proceso auto-resuelve (`post_tab.auto_solve()` en `_on_tab_chan
 - *Cargar Ejemplo* vive en **Ayuda** — los ejemplos son material didáctico, no archivos del usuario. Mantener el atajo `Ctrl+E` (compat histórica; carga el caso canónico Q4).
 - El submenú *Cargar Ejemplo* tiene **tres cascadas de segundo nivel** ([tests/example_data.py](tests/example_data.py)), cada una con variantes Q4 y Q9: (1) **Cuadrado de validación** — `load_example_project[_q9]`, 9 nodos / 4 elementos macro, el caso histórico del proyecto; (2) **Viga de Timoshenko** — `load_example_timoshenko_q4/q9`, simple apoyada L=14m / H=1,20m / E=217370 kgf/cm² en sistema técnico kgf/cm, validada contra solución analítica de Timoshenko-Goodier y modelo Shell de SAP2000 en [docs/vyv/](docs/vyv/) (error < 0,3% para Q9 14×4); (3) **Membrana de Cook** — `load_example_cook_q4/q9`, benchmark trapezoidal adimensional de Cook (1974), N=8×8, ilustra empíricamente shear-locking en Q4 (u_y → 22 en lugar de 23,95) vs convergencia rápida en Q9. **Todos los loaders usan `generate_structured_quad_mesh` + `set_boundary_condition` + `add_surface_load` con la API canónica** — sirven como ejemplos de referencia para scripts headless que construyen modelos sin pasar por la GUI.
 - *Importar/Exportar Modelo* lleva el sufijo `(Excel/CSV)` para distinguirlo de *Abrir/Guardar Proyecto* (`.edufem` JSON nativo, no editable a mano). El ZIP de CSVs es la vía editable en Excel para edición masiva.
-- *Memoria de Cálculo (PDF)* — no "Reporte". Anticipa la expansión hacia un documento didáctico paso a paso (fórmulas, K, B, D, vectores, diagramas) alineado al espíritu de los módulos M1..M9. Hoy el output sigue siendo tabular (reportlab); el rename es deliberado para fijar la dirección.
+- *Memoria de Cálculo (PDF)* — generador completo en [file_io/memoria_calculo.py](file_io/memoria_calculo.py) (pylatex + pdflatex), con 3 estilos seleccionables (directo / educativo / completo). Documento paso a paso con fórmulas, matrices D/B/k_e/K, vectores u/F/R, contornos Pillow estilo canvas. Ver sección dedicada *Memoria de Cálculo — generador del PDF educativo* más abajo.
 - *Exportar Resultados CSV* fue **eliminado del menú** — los resultados se copian directamente desde la tabla del Post-Proceso con `Ctrl+C` (TSV al portapapeles, pegable en Excel). `selectmode="extended"` + `Ctrl+A` permiten seleccionar todo o subconjuntos. **No reintroducir** la entrada de menú.
 
 **Orden FEM del menú Modelo**: Elemento → Unidades → Material → **Gravedad** → Análisis. Sigue el flujo lógico de definición de un problema FEM: primero la geometría discreta (Q4/Q9), después cómo se mide (sistema de unidades), después de qué está hecho (E, ν, ρ por material), después qué cargas volumétricas actúan (gravedad, depende de ρ para `F = ρ·g·V`), y al final el tipo de problema (TP / DP), donde la matriz constitutiva D = D(E, ν, caso) combina material y análisis. **La gravedad va después de Materiales** porque conceptualmente es una CARGA (no una unidad) y depende de la densidad — moverla antes rompe la jerarquía pedagógica. **No reordenar** salvo que se replantee el flujo.
@@ -490,6 +490,72 @@ Componentes en [education/components/](education/components/): `PlotPanel`, `Fou
 - [gui/widgets/](gui/widgets/): `ToolTip`, `phase_banner.build_phase_banner`, `module_launcher_panel.render_module_buttons`.
 - [file_io/](file_io/): CSV ([csv_io.py](file_io/csv_io.py) con columnas dinámicas Q4/Q9), PDF (reportlab/PyMuPDF/pylatex), JSON proyecto, ZIP modelo, DXF (ver sección dedicada).
 - [tests/example_data.py](tests/example_data.py): canónico (E=225000, ν=0.2, t=0.8, P=1000). `load_example_project(P)` Q4 9-nodos, `load_example_project_q9(P)` 25-nodos.
+
+## Memoria de Cálculo — generador del PDF educativo
+
+Reformulada desde cero en 2026-05. Generador en [file_io/memoria_calculo.py](file_io/memoria_calculo.py); render de figuras en [file_io/figure_export.py](file_io/figure_export.py).
+
+**Filosofía**: el documento describe EXACTAMENTE el pipeline implementado en `fem/` — no teoría de libro genérica. Cada afirmación tiene contraparte verificable en el código (`fem/solver.py` para Cholesky LLᵀ vía LAPACK POSV, `fem/assembly.py` para indexación ordinal, `fem/stress.py` para extrapolación con `M⁻¹`, etc.). Si el código cambia, esta memoria se actualiza.
+
+### Tres estilos seleccionables
+
+`MemoriaCalculo.STYLES = ("directo", "educativo", "completo")`. El parámetro `style` (default `"educativo"`) controla la profundidad del PDF:
+
+| Estilo | Contenido | Cuándo |
+|---|---|---|
+| `'directo'` | Portada + datos del modelo + solución (u, R, equilibrio) + tensiones nodales + visualización. SIN narrativa intermedia, SIN calidad de malla, SIN showcase elemental, SIN narrativa pedagógica en cada subsección. ~10 páginas en proyectos chicos. | Usuario que ya conoce MEF y solo quiere los números. |
+| `'educativo'` (default) | Directo + capítulo de calidad + procedimiento elemental detallado (D, N, J, B, kₑ en los PG del elemento estrella) + ensamblaje narrado + restricciones + post-proceso narrado + visualización. ~25 páginas en proyectos con ≤ 4 elementos Q4 o 1 elemento Q9. | Alumno que estudia el procedimiento. |
+| `'completo'` | Educativo + apéndices: A) `kₑ` de TODOS los elementos no-estrella; B) tensiones por punto de Gauss para TODOS los elementos; C) vectores `u`, `R` desagregados por GDL completo. ~50–70 páginas en proyectos medianos. | Registro de archivo / validación detallada. |
+
+**El invariante histórico "completo = PDF bit-a-bit idéntico" YA NO APLICA**. Toda la memoria fue reescrita en 2026-05; los PDFs generados por versiones previas no se pueden comparar byte-a-byte con los actuales. Si en el futuro se rediseña otra vez, documentar el quiebre aquí.
+
+### Recomendación de tamaño de modelo para legibilidad
+
+El procedimiento elemental del capítulo `Procedimiento elemental` muestra `D`, `N`, `J`, `B` en los puntos de Gauss y `kₑ` literal con exponente factorizado. Para que sea legible **sin matrices que rompan el ancho de página**:
+
+| Tipo | Recomendación pedagógica | Por qué |
+|---|---|---|
+| **Q4** | **1–4 elementos** (≤ 9 nodos, ≤ 18 GDL) | `kₑ` es 8×8: cabe en portrait con `\scriptsize`. La matriz global `K` (≤ 16×16) cae bajo `_K_LITERAL_MAX_DIM` y se muestra literal con factor común; los vectores `u`, `F`, `R` (≤ 18 entradas) entran en una fila chunkeada. Ensamblar 2–4 elementos hace visible la superposición de `kₑ` en `K` (objetivo pedagógico). |
+| **Q9** | **1 elemento** (9 nodos, 18 GDL) | `kₑ` es 18×18: requiere `\begin{landscape}` con `\tiny` para entrar. Con 2 elementos Q9 (≥ 15 nodos, ≥ 30 GDL) la `K` global pasa a heatmap y los vectores se chunk-ean en múltiples filas — el alumno deja de ver la estructura. |
+
+`_K_LITERAL_MAX_DIM = 16` y `_KE_LITERAL_PORTRAIT_MAX = 8` son las constantes que decide el ramo de fallback (heatmap / landscape). El umbral coincide con la recomendación pedagógica: si lo cumplís, ves todas las matrices; si lo excedés, ves resúmenes. **No bajarlos** sin justificar — los valores actuales están calibrados al ancho A4 portrait con tipografía `\scriptsize`.
+
+Para proyectos grandes (Cook 8×8 = 64 elementos, Timoshenko 14×4 = 56) el estilo `educativo` sigue siendo útil: el showcase desarrolla 1 elemento al detalle y el resto se resume en `K` (heatmap) + tablas. El estilo `completo` agrega el apéndice A con todos los `kₑ`.
+
+### Renderizado de figuras — Pillow para campos, matplotlib para esquemas
+
+`figure_export.py` usa una estrategia híbrida desde 2026-05:
+
+| Función | Tecnología | Retorna | Razón |
+|---|---|---|---|
+| `render_mesh_diagram(project)` | Pillow | `PIL.Image` | Replica el lenguaje visual del `MeshCanvas` (símbolos BC empotramiento / rodillo X / rodillo Y, nodos por rol Q9, flechas de carga) sobre fondo blanco. |
+| `render_contour(project, sol, ns, comp, *, deformed=False)` | Pillow | `PIL.Image` | Rasterización Gouraud por triángulos con colormap **JET** + wireframe negro. Réplica directa del `_draw_gradient_elements` del MeshCanvas, pero con fondo blanco. |
+| `render_deformed(project, sol, *, scale=None)` | Pillow | `PIL.Image` | Original gris discontinuo + deformada verde (`PHASE_POST_COLOR`) + nodos azules. |
+| `render_principal_crosses(project, ns)` | Pillow | `PIL.Image` | Cruz σ₁/σ₂ en el centroide de cada elemento; azul tracción, rojo compresión. Misma identidad cromática que `principal_cross_layer.py` del Post. |
+| `render_mohr_circle(sx, sy, txy, label)` | matplotlib | `Figure` | Esquema abstracto (σ vs τ): matplotlib mantiene calidad tipográfica de mathtext. |
+| `render_K_heatmap(K, log_scale=True)` | matplotlib | `Figure` | `log₁₀|K_ij|` con colorbar — matriz no tiene coordenadas físicas. |
+| `render_fem_pipeline()` | matplotlib | `Figure` | Boxes + flechas, coloreado por fase. Esquema decorativo. |
+
+`MemoriaCalculo._save_figure(fig, name)` acepta ambos tipos via duck-typing (`hasattr(savefig)` matplotlib, `hasattr(save)` PIL) y produce un PNG en `~/.tmp/edufem_memoria_*/` durante la compilación.
+
+**Razón del split**: las figuras de campo (sobre coordenadas reales del modelo) se ven mucho mejor con la rasterización canvas-style (Gouraud + wireframe) que con `tricontourf` de matplotlib — el alumno ve los mismos colores e identidad visual que en la GUI interactiva. Las figuras esquemáticas (Mohr, heatmap, pipeline) son abstractas y matplotlib les conviene por la tipografía y colorbars integradas.
+
+**Convenciones del renderizado Pillow**:
+- Fondo blanco (PDF impreso, no GUI oscura).
+- Wireframe en `_PAPER_DARK = (40, 40, 40)` — gris oscuro casi negro: legible sobre blanco sin saturar.
+- Colormap **JET** por default (replica `MeshCanvas._jet_rgb_vectorized`).
+- Paleta semántica importada de `config.settings` (cero hex literales). Adaptación al fondo blanco vía rellenos `_FILL_BC_FIXED = (252, 233, 212)` / `_FILL_BC_ROLLER = (220, 234, 242)` declarados localmente con tintes suaves.
+- Tipografía: `_load_font(size)` busca DejaVu/Arial TTF y cae a `ImageFont.load_default()` si no hay fuentes TTF disponibles. **Importante**: el `default` de PIL es bitmap fixed-size — feo pero portable.
+
+**Matplotlib NO se elimina** de la dependencia (figure_export sigue importando matplotlib para los renders esquemáticos + `Surface3DViewer` del Post lo usa para la vista 3D). El paso a Pillow es para los renders ESPACIALES únicamente.
+
+### Formato numérico de matrices y vectores
+
+`TheoryDoc._strip_plus(s)` quita el prefijo `'+'` de números formateados y lo reemplaza por `\phantom{-}` (espacio invisible del ancho de un `'-'`). Esto preserva el alineamiento de columnas en `bmatrix` sin mostrar el signo redundante. Aplicado en `matrix_tex`, `matrix_factored_tex`, `vector_factored_tex`. **No reintroducir** literales `{:+.4g}` que terminen en celdas de matrices/vectores visibles al usuario — usar `_strip_plus` o los helpers existentes. Los negativos siguen llevando `'-'` para distinguirse claramente.
+
+### Solver
+
+`fem/solver.py::solve_system` factoriza con **Cholesky LLᵀ vía LAPACK POSV** (`scipy.linalg.solve(..., assume_a="pos")`). Esta corrección de 2026-05 alinea código con la documentación: antes el código llamaba `solve` sin `assume_a`, lo que invocaba LU general (LAPACK GESV) aunque la documentación afirmaba Cholesky. La performance mejora ~2× para problemas SPD y la SPD se valida en el call (falla limpio si la malla está plegada o las BCs son insuficientes).
 
 ## Importación DXF
 

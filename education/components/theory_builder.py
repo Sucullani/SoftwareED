@@ -83,8 +83,21 @@ class TheoryDoc:
 
     # ---------- matrices ----------
     @staticmethod
+    def _strip_plus(s: str) -> str:
+        """Quita el prefijo '+' de un numero formateado.
+
+        Convencion: los valores positivos en matrices/vectores NO llevan
+        signo explicito; el alineamiento entre positivo y negativo se
+        preserva con \\phantom{-} (espaciado invisible del ancho de '-').
+        """
+        if s.startswith("+"):
+            return r"\phantom{-}" + s[1:]
+        return s
+
+    @staticmethod
     def matrix_tex(M: np.ndarray, fmt: str = "{:+.4g}", name: Optional[str] = None) -> str:
-        rows = [" & ".join(fmt.format(x) for x in row) for row in np.asarray(M)]
+        strip = TheoryDoc._strip_plus
+        rows = [" & ".join(strip(fmt.format(x)) for x in row) for row in np.asarray(M)]
         body = r" \\ ".join(rows)
         m = rf"\begin{{bmatrix}} {body} \end{{bmatrix}}"
         if name:
@@ -132,11 +145,13 @@ class TheoryDoc:
         min_val = float(abs_A[mask].min())
         dyn_range = max_val / min_val if min_val > 0 else float("inf")
 
+        strip = TheoryDoc._strip_plus
+
         # Fallback: rango dinamico alto -> notacion cientifica por entrada
         if dyn_range > dynamic_range_threshold:
             fmt_sci = f"{{:+.{sig_digits}e}}"
             rows = [
-                " & ".join(fmt_sci.format(float(x)) for x in row)
+                " & ".join(strip(fmt_sci.format(float(x))) for x in row)
                 for row in A
             ]
             body = r" \\ ".join(rows)
@@ -152,7 +167,7 @@ class TheoryDoc:
         decimals = max(0, sig_digits - 1)
         fmt_fixed = f"{{:+.{decimals}f}}"
         rows = [
-            " & ".join(fmt_fixed.format(float(x)) for x in row)
+            " & ".join(strip(fmt_fixed.format(float(x))) for x in row)
             for row in norm
         ]
         body = r" \\ ".join(rows)
@@ -245,10 +260,12 @@ class TheoryDoc:
         min_val = float(abs_a[mask].min())
         dyn_range = max_val / min_val if min_val > 0 else float("inf")
 
+        strip = TheoryDoc._strip_plus
+
         # Caso 2: rango dinamico alto -> notacion cientifica por entrada.
         if dyn_range > dynamic_range_threshold:
             fmt_sci = f"{{:+.{sig_digits}e}}"
-            entries = [fmt_sci.format(float(x)) for x in a]
+            entries = [strip(fmt_sci.format(float(x))) for x in a]
             m = _wrap(_build_body(entries))
             return rf"{name} = {m}" if name else m
 
@@ -258,7 +275,7 @@ class TheoryDoc:
         norm = a / scale
         decimals = max(0, sig_digits - 1)
         fmt_fixed = f"{{:+.{decimals}f}}"
-        entries = [fmt_fixed.format(float(x)) for x in norm]
+        entries = [strip(fmt_fixed.format(float(x))) for x in norm]
         bm = _wrap(_build_body(entries))
         if p == 0:
             inner = bm

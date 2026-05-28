@@ -21,11 +21,17 @@ API:
 
 from __future__ import annotations
 
-from education.components import TheoryViewer, TheoryDoc
+from education.components.theory_builder import TheoryDoc
 
 
-def open_theory_hub(parent) -> TheoryViewer:
-    """Abre el hub de teoría MEF. Llamado desde el menú Ayuda."""
+def open_theory_hub(parent):
+    """Abre el hub de teoría MEF. Llamado desde el menú Ayuda.
+
+    Import diferido de `TheoryViewer` para que el módulo siga importable
+    en flujos headless (tests de memoria, generación batch del PDF) donde
+    tkinter no está disponible.
+    """
+    from education.components import TheoryViewer  # noqa: WPS433 (lazy)
     return TheoryViewer.open(
         parent,
         title="Teoría MEF — EduFEM",
@@ -372,14 +378,28 @@ def _m6_equivalent_forces(doc: TheoryDoc) -> None:
 def _m7_assembly(doc: TheoryDoc) -> None:
     doc.section_numbered("M7 · Ensamblaje global, BCs y solver")
 
-    doc.subsection("Mapeo LM (location matrix)")
+    doc.subsection("Mapeo LM (location matrix) e indexación ordinal de GDL")
     doc.para(
         r"Cada elemento $e$ tiene asociada una \textbf{location matrix} "
         r"$\mathbf{LM}_e$ que enumera los GDLs globales de sus "
-        r"$2\cdot n_{nodos}$ entradas locales. Para un nodo $i$ del "
-        r"modelo, los dos GDLs globales son $\mathrm{GDL}_x = 2(i-1)$ y "
-        r"$\mathrm{GDL}_y = 2(i-1)+1$. La $\mathbf{LM}_e$ se construye "
-        r"recorriendo los nodos del elemento y concatenando estos índices."
+        r"$2\cdot n_{nodos}$ entradas locales. EduFEM usa "
+        r"\emph{indexación ordinal}: el índice del nodo en el sistema "
+        r"lineal es su posición en \texttt{sorted(nodes.keys())}, "
+        r"no su \texttt{node\_id}. Esto permite que el usuario borre "
+        r"nodos y deje IDs no contiguos (p.ej.\ $\{1, 5, 50\}$) sin "
+        r"romper la indexación. Los dos GDLs globales del nodo cuyo "
+        r"índice ordinal es $\mathrm{idx}$ son:"
+    )
+    doc.equation(
+        r"\mathrm{GDL}_x = 2 \cdot \mathrm{idx}, \qquad "
+        r"\mathrm{GDL}_y = 2 \cdot \mathrm{idx} + 1"
+    )
+    doc.para(
+        r"La $\mathbf{LM}_e$ se construye recorriendo los nodos del "
+        r"elemento y concatenando estos índices "
+        r"(\texttt{Element.get\_dof\_indices(project)}). $\mathbf{K}$ "
+        r"se dimensiona como $2 \cdot N_{\text{nodos}}$, \textbf{no} "
+        r"como $2 \cdot \max(\text{node\_id})$."
     )
     doc.para(
         r"El ensamblaje recorre los elementos y suma:"
@@ -398,50 +418,55 @@ def _m7_assembly(doc: TheoryDoc) -> None:
 
     doc.subsection("Condiciones de contorno (método de eliminación)")
     doc.para(
-        r"EduFEM implementa el \textbf{método de eliminación} (también "
-        r"llamado de partición): las filas y columnas de los GDLs "
-        r"prescritos se quitan de $\mathbf{K}$ y de $\mathbf{F}$, "
-        r"formando el sistema reducido:"
+        r"EduFEM implementa el \textbf{método de eliminación} "
+        r"(\texttt{fem/solver.py::apply\_boundary\_conditions}): las "
+        r"filas y columnas de los GDLs restringidos se quitan de "
+        r"$\mathbf{K}$ y de $\mathbf{F}$, formando el sistema reducido"
     )
     doc.equation(
         r"\mathbf{K}_{red}\,\mathbf{u}_{red} = \mathbf{F}_{red}"
     )
     doc.para(
-        r"Tras resolver $\mathbf{u}_{red}$, los desplazamientos prescritos "
-        r"(típicamente $0$ para apoyos perfectos) se reinsertan en el "
-        r"vector global $\mathbf{u}$; las reacciones en los apoyos se "
-        r"calculan como $\mathbf{R} = \mathbf{K}\,\mathbf{u} - \mathbf{F}$ "
-        r"(no nulas solo en los GDLs restringidos)."
+        r"Si una BC tiene desplazamiento prescrito no nulo ($u_x$ o "
+        r"$u_y$ distintos de $0$), su contribución se transfiere al "
+        r"lado derecho mediante sustitución estática:"
+    )
+    doc.equation(
+        r"\mathbf{F}_{red} \mathrel{-}= \mathbf{K}[\text{free}, "
+        r"\text{restr}]\,\mathbf{u}_{pre}[\text{restr}]"
     )
     doc.para(
-        r"\emph{Es el único método de aplicación de BCs implementado en "
-        r"EduFEM} — la eliminación directa es suficiente para la familia "
-        r"de problemas que aborda el software y preserva exactamente la "
-        r"simetría definida positiva de $\mathbf{K}_{red}$, condición "
-        r"necesaria para Cholesky."
+        r"Tras resolver $\mathbf{u}_{red}$, los valores prescritos se "
+        r"reinsertan en el vector global $\mathbf{u}$ y las reacciones "
+        r"se obtienen de $\mathbf{R} = \mathbf{K}\,\mathbf{u} - "
+        r"\mathbf{F}$ (no nulas únicamente en GDLs restringidos). El "
+        r"método de eliminación es el único implementado en EduFEM "
+        r"—suficiente para los problemas que aborda y compatible con "
+        r"factorización Cholesky de $\mathbf{K}_{red}$."
     )
 
     doc.subsection("Solver Cholesky")
     doc.para(
-        r"$\mathbf{K}_{red}$ es \textbf{simétrica definida positiva} (SPD): "
-        r"admite factorización de Cholesky $\mathbf{K}_{red}=\mathbf{L}\,\mathbf{L}^T$, "
-        r"donde $\mathbf{L}$ es triangular inferior. La solución se "
-        r"obtiene en dos sustituciones triangulares:"
+        r"$\mathbf{K}_{red}$ es \textbf{simétrica definida positiva} "
+        r"(SPD) tras eliminar las restricciones. EduFEM factoriza por "
+        r"\textbf{Cholesky} $\mathbf{K}_{red}=\mathbf{L}\,\mathbf{L}^T$ "
+        r"vía LAPACK POSV (\texttt{scipy.linalg.solve} con "
+        r"\texttt{assume\_a='pos'}); $\mathbf{L}$ es triangular "
+        r"inferior y la solución se obtiene con dos sustituciones "
+        r"triangulares:"
     )
     doc.equation(
         r"\mathbf{L}\,\mathbf{y}=\mathbf{F}_{red}\quad\text{(forward)}, "
-        r"\qquad \mathbf{L}^T\,\mathbf{u}_{red}=\mathbf{y}\quad\text{(backward)}"
+        r"\qquad \mathbf{L}^T\,\mathbf{u}_{red}=\mathbf{y}\quad"
+        r"\text{(backward)}"
     )
     doc.para(
-        r"Cholesky es preferible a LU general por dos motivos: "
-        r"(i) explota la simetría y consume la mitad de memoria y "
-        r"operaciones ($\sim \tfrac{1}{6}n^3$ flops vs $\tfrac{1}{3}n^3$ "
-        r"de LU); (ii) \emph{no requiere pivoteo}: para una matriz SPD "
-        r"siempre existe la factorización, lo que preserva la dispersión "
-        r"original. Si por algún motivo $\mathbf{K}_{red}$ no fuera SPD "
-        r"(geometría degenerada, BCs insuficientes, elementos invertidos), "
-        r"Cholesky \emph{falla limpiamente} indicando el problema, en vez "
-        r"de devolver una solución espuria."
+        r"Frente a LU general, Cholesky aprovecha la simetría: cuesta "
+        r"$\sim\!\tfrac{1}{6}n^3$ flops (la mitad de LU) y no requiere "
+        r"pivoteo. Si $\mathbf{K}_{red}$ no fuera SPD —elementos "
+        r"plegados, restricciones insuficientes, $\det\mathbf{J}\le0$— "
+        r"la factorización falla limpiamente y EduFEM propaga el error "
+        r"en vez de devolver una solución espuria."
     )
 
     doc.subsection("Sparsity y re-numeración")
