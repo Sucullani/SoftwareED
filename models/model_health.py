@@ -159,12 +159,15 @@ def validate_project(project) -> HealthReport:
     _check_bc_orphan_nodes(project, report, nodes_in_elements)
 
     # ─── Warnings ────────────────────────────────────────────────────
+    # Nombres de material en uso: computado una vez y compartido por los
+    # tres checks que lo necesitan (antes cada uno reconstruia el set).
+    used_mat_names = {e.material_name for e in project.elements.values()}
     _check_load_orphan_nodes(project, report, nodes_in_elements)
-    _check_unused_materials(project, report)
+    _check_unused_materials(project, report, used_mat_names)
     _check_negative_jacobians(project, report)
     _check_zero_loads(project, report)
-    _check_unit_consistency(project, report)
-    _check_gravity_density(project, report)
+    _check_unit_consistency(project, report, used_mat_names)
+    _check_gravity_density(project, report, used_mat_names)
 
     # ─── Info ────────────────────────────────────────────────────────
     _add_summary(project, report)
@@ -314,8 +317,9 @@ def _check_load_orphan_nodes(project, report, nodes_in_elements=None):
             ))
 
 
-def _check_unused_materials(project, report):
-    used = {e.material_name for e in project.elements.values()}
+def _check_unused_materials(project, report, used_mat_names=None):
+    used = (used_mat_names if used_mat_names is not None
+            else {e.material_name for e in project.elements.values()})
     for mat_name in project.materials:
         if mat_name not in used:
             report.warnings.append(HealthIssue(
@@ -391,7 +395,7 @@ _MODEL_SCALE_MIN_M = 1.0e-4  # 0.1 mm
 _MODEL_SCALE_MAX_M = 1.0e4   # 10 km
 
 
-def _check_unit_consistency(project, report):
+def _check_unit_consistency(project, report, used_mat_names=None):
     """Heuristicas de orden de magnitud para detectar mismatch entre los
     numeros del modelo y el sistema de unidades activo. Skip si el sistema
     no se encuentra en UNIT_SYSTEMS (caso extremo: archivo corrupto).
@@ -408,8 +412,9 @@ def _check_unit_consistency(project, report):
 
     # ─── E de materiales en uso ─────────────────────────────────────
     if stress_factor is not None and project.materials:
-        used_mat_names = {e.material_name for e in project.elements.values()
-                          if getattr(e, "material_name", None)}
+        names = (used_mat_names if used_mat_names is not None
+                 else {e.material_name for e in project.elements.values()})
+        used_mat_names = {n for n in names if n}
         for name, mat in project.materials.items():
             if used_mat_names and name not in used_mat_names:
                 continue  # solo evaluar materiales asignados
@@ -454,15 +459,15 @@ def _check_unit_consistency(project, report):
                 ))
 
 
-def _check_gravity_density(project, report):
+def _check_gravity_density(project, report, used_mat_names=None):
     """Si gravedad esta activa, verificar que los materiales tengan
     densidad > 0 (sino F = rho * g * V = 0).
     """
     if not project.include_gravity:
         return
-    used_mat_names = {e.material_name for e in project.elements.values()
-                      if getattr(e, "material_name", None)}
-    for name in used_mat_names:
+    names = (used_mat_names if used_mat_names is not None
+             else {e.material_name for e in project.elements.values()})
+    for name in (n for n in names if n):
         mat = project.materials.get(name)
         if mat is None:
             continue
