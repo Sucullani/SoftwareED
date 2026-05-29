@@ -12,12 +12,63 @@ import numpy as np
 from config.settings import ELEMENT_Q4, ELEMENT_Q9, NUMERICAL_TOLERANCE
 
 
-def _find_or_create_node(project, x, y, tol=NUMERICAL_TOLERANCE * 1e6):
+def _model_tol(project):
+    """Tolerancia geometrica de dedupe escalada al tamano del modelo.
+
+    El antiguo 1e-4 absoluto fallaba en ambos extremos: demasiado grueso
+    para mallas en metros sub-milimetricas, demasiado fino para mallas en
+    mm de varios metros. Se escala al extent (max(extent*1e-7,
+    NUMERICAL_TOLERANCE)) — los mid-nodes compartidos entre vecinos son
+    bit-identicos (misma aritmetica), asi que la tolerancia solo cubre el
+    ruido de redondeo, no diferencias geometricas reales.
+    """
+    if not project.nodes:
+        return NUMERICAL_TOLERANCE
+    xs = [n.x for n in project.nodes.values()]
+    ys = [n.y for n in project.nodes.values()]
+    extent = max(max(xs) - min(xs), max(ys) - min(ys), 1.0)
+    return max(extent * 1e-7, NUMERICAL_TOLERANCE)
+
+
+def _build_node_index(project, tol):
+    """Construye un indice de hashing espacial {(qx, qy): node_id} sobre los
+    nodos actuales, cuantizando coords por `tol`. Permite dedupe O(1) en vez
+    del scan lineal O(N) por consulta (O(N^2) por operacion de malla).
+
+    Los mid-nodes/centroides compartidos entre elementos vecinos se computan
+    con la MISMA aritmetica (conmutativa en IEEE-754), por lo que producen
+    floats bit-identicos y cuantizan a la misma celda — el dedupe es exacto.
+    """
+    index = {}
+    for nid, node in project.nodes.items():
+        index[(round(node.x / tol), round(node.y / tol))] = nid
+    return index
+
+
+def _find_or_create_node_indexed(project, x, y, index, tol):
+    """Variante O(1) de `_find_or_create_node` apoyada en un indice espacial.
+    Inserta el nodo nuevo en el indice para que consultas posteriores de la
+    misma operacion lo reutilicen."""
+    key = (round(x / tol), round(y / tol))
+    nid = index.get(key)
+    if nid is not None:
+        return nid
+    new_node = project.add_node(x, y)
+    index[key] = new_node.id
+    return new_node.id
+
+
+def _find_or_create_node(project, x, y, tol=None):
     """
     Busca un nodo existente con coordenadas cercanas a (x, y).
     Si existe, retorna su ID; si no, crea uno nuevo y retorna su ID.
-    Tolerancia: 1e-4 (típicamente suficiente para malla en m/mm).
+
+    Variante O(N) sin indice — conservada para llamadas sueltas. Los flujos
+    masivos (expand/subdivide) usan `_find_or_create_node_indexed` con un
+    indice construido una vez. `tol` default escalado al extent del modelo.
     """
+    if tol is None:
+        tol = _model_tol(project)
     for nid, node in project.nodes.items():
         if abs(node.x - x) <= tol and abs(node.y - y) <= tol:
             return nid
@@ -41,6 +92,11 @@ def expand_q4_to_q9(project):
     num_mid = 0
     num_center = 0
 
+    # Indice espacial construido UNA vez para dedupe O(1) (en vez de O(N) por
+    # consulta -> O(N^2) por toda la expansion).
+    tol = _model_tol(project)
+    index = _build_node_index(project, tol)
+
     for elem in list(project.elements.values()):
         if elem.num_nodes != 4:
             continue
@@ -54,10 +110,10 @@ def expand_q4_to_q9(project):
         before = len(project.nodes)
 
         # Puntos medios de aristas (se reutilizan entre elementos vecinos)
-        n5 = _find_or_create_node(project, (p1.x + p2.x) / 2, (p1.y + p2.y) / 2)
-        n6 = _find_or_create_node(project, (p2.x + p3.x) / 2, (p2.y + p3.y) / 2)
-        n7 = _find_or_create_node(project, (p3.x + p4.x) / 2, (p3.y + p4.y) / 2)
-        n8 = _find_or_create_node(project, (p4.x + p1.x) / 2, (p4.y + p1.y) / 2)
+        n5 = _find_or_create_node_indexed(project, (p1.x + p2.x) / 2, (p1.y + p2.y) / 2, index, tol)
+        n6 = _find_or_create_node_indexed(project, (p2.x + p3.x) / 2, (p2.y + p3.y) / 2, index, tol)
+        n7 = _find_or_create_node_indexed(project, (p3.x + p4.x) / 2, (p3.y + p4.y) / 2, index, tol)
+        n8 = _find_or_create_node_indexed(project, (p4.x + p1.x) / 2, (p4.y + p1.y) / 2, index, tol)
 
         mid_after = len(project.nodes)
         num_mid += mid_after - before
@@ -65,7 +121,7 @@ def expand_q4_to_q9(project):
         # Centro: siempre es único al elemento (no dedupe)
         cx = (p1.x + p2.x + p3.x + p4.x) / 4
         cy = (p1.y + p2.y + p3.y + p4.y) / 4
-        n9 = _find_or_create_node(project, cx, cy)
+        n9 = _find_or_create_node_indexed(project, cx, cy, index, tol)
 
         num_center += len(project.nodes) - mid_after
 
@@ -151,6 +207,10 @@ def subdivide_q4_mesh(project, levels=1):
     project.element_type = ELEMENT_Q4
     project.is_modified = True
     project.is_solved = False
+    # Reconstruir el indice inverso: _subdivide_q4_once limpia y recrea los
+    # elementos, dejando _node_to_elements stale (mismo patron que
+    # expand_q4_to_q9 / shrink_q9_to_q4).
+    project.rebuild_node_to_elements()
     return project
 
 
@@ -165,6 +225,10 @@ def _subdivide_q4_once(project):
     project.elements.clear()
     project.surface_loads.clear()
 
+    # Indice espacial construido UNA vez para dedupe O(1) de mid/centroides.
+    tol = _model_tol(project)
+    index = _build_node_index(project, tol)
+
     edge_to_mid = {}
 
     for _old_id, node_ids, thickness, mat_name in original_elements:
@@ -174,10 +238,10 @@ def _subdivide_q4_once(project):
         p3 = project.nodes[n3]
         p4 = project.nodes[n4]
 
-        m12 = _find_or_create_node(project, (p1.x + p2.x) / 2, (p1.y + p2.y) / 2)
-        m23 = _find_or_create_node(project, (p2.x + p3.x) / 2, (p2.y + p3.y) / 2)
-        m34 = _find_or_create_node(project, (p3.x + p4.x) / 2, (p3.y + p4.y) / 2)
-        m41 = _find_or_create_node(project, (p4.x + p1.x) / 2, (p4.y + p1.y) / 2)
+        m12 = _find_or_create_node_indexed(project, (p1.x + p2.x) / 2, (p1.y + p2.y) / 2, index, tol)
+        m23 = _find_or_create_node_indexed(project, (p2.x + p3.x) / 2, (p2.y + p3.y) / 2, index, tol)
+        m34 = _find_or_create_node_indexed(project, (p3.x + p4.x) / 2, (p3.y + p4.y) / 2, index, tol)
+        m41 = _find_or_create_node_indexed(project, (p4.x + p1.x) / 2, (p4.y + p1.y) / 2, index, tol)
 
         edge_to_mid[frozenset((n1, n2))] = m12
         edge_to_mid[frozenset((n2, n3))] = m23
@@ -186,7 +250,7 @@ def _subdivide_q4_once(project):
 
         cx = (p1.x + p2.x + p3.x + p4.x) / 4
         cy = (p1.y + p2.y + p3.y + p4.y) / 4
-        cc = _find_or_create_node(project, cx, cy)
+        cc = _find_or_create_node_indexed(project, cx, cy, index, tol)
 
         for sub_ids in (
             [n1, m12, cc, m41],
