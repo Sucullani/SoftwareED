@@ -63,6 +63,11 @@ class PrincipalCrossLayer:
         # Cache de magnitud maxima del modelo (se invalida al re-activate).
         self._max_sigma: Optional[float] = None
         self._model_span: Optional[float] = None
+        # Cache por elemento: (cx_world, cy_world, s1, s2, theta_p). Los
+        # esfuerzos y el angulo principal no cambian entre redraws (dependen
+        # solo de nodal_stresses, fijo tras el solve), asi que se computan
+        # UNA vez en _compute_cache. draw() solo proyecta a coords screen.
+        self._cross_cache: list = []
 
     # ── Ciclo de vida ────────────────────────────────────────────────
     def activate(self):
@@ -99,22 +104,16 @@ class PrincipalCrossLayer:
     def draw(self, _mesh):
         """Callback registrado en add_overlay_layer. Dibuja todas las
         cruces como create_line con el tag _TAG (se limpia en cada redraw
-        global)."""
+        global). Consume el cache per-elemento; solo proyecta a screen."""
         canvas = self.mesh.canvas
-        if not self.nodal_stresses or not self.project.elements:
+        if not self._cross_cache:
             return
         max_sigma = self._max_sigma or 1.0
         L_world = (self._model_span or 1.0) * PRINCIPAL_CROSS_SIZE_FRAC
         L_px = L_world * self.mesh.scale
 
-        for elem in self.project.elements.values():
-            sx, sy, txy = self._avg_stress(elem)
-            s1, s2, _vm = principal_and_vm(sx, sy, txy)
-            theta_p = self._theta_p(sx, sy, txy)
-
-            cx, cy = self._element_centroid_screen(elem)
-            if cx is None:
-                continue
+        for cx_world, cy_world, s1, s2, theta_p in self._cross_cache:
+            cx, cy = self.mesh.world_to_screen(cx_world, cy_world)
 
             cos_t = math.cos(theta_p)
             sin_t = math.sin(theta_p)
@@ -170,10 +169,9 @@ class PrincipalCrossLayer:
             return 0.0
         return 0.5 * math.atan2(2.0 * txy, sx - sy)
 
-    def _element_centroid_screen(self, elem):
-        """Coords screen del centroide geometrico del elemento (promedio
-        de las 4 esquinas macro). Devuelve (None, None) si falta algun nodo.
-        """
+    def _element_centroid_world(self, elem):
+        """Coords mundo del centroide geometrico del elemento (promedio de
+        las 4 esquinas macro). Devuelve (None, None) si falta algun nodo."""
         nids = elem.node_ids[:4]  # solo corners (Q4 o Q9 macro)
         xs = []
         ys = []
@@ -183,13 +181,13 @@ class PrincipalCrossLayer:
                 return None, None
             xs.append(node.x)
             ys.append(node.y)
-        cx_world = sum(xs) / len(xs)
-        cy_world = sum(ys) / len(ys)
-        return self.mesh.world_to_screen(cx_world, cy_world)
+        return sum(xs) / len(xs), sum(ys) / len(ys)
 
     def _compute_cache(self):
-        """Pre-computa max|σ_i| del modelo y span geometrico para escalar
-        los brazos de las cruces de forma consistente."""
+        """Pre-computa span geometrico, max|σ_i| y la geometria + esfuerzos
+        por elemento (centroide mundo + σ1/σ2 + θp). Estos no varian entre
+        redraws (dependen solo de nodal_stresses, fijo tras el solve), asi
+        que draw() se reduce a la proyeccion a screen."""
         xs = [n.x for n in self.project.nodes.values()]
         ys = [n.y for n in self.project.nodes.values()]
         if xs and ys:
@@ -207,3 +205,16 @@ class PrincipalCrossLayer:
                 if m > max_sig:
                     max_sig = m
         self._max_sigma = max_sig if max_sig > 1e-12 else 1.0
+
+        # Cache per-elemento: centroide mundo + esfuerzos principales.
+        self._cross_cache = []
+        if not self.nodal_stresses:
+            return
+        for elem in self.project.elements.values():
+            cx_world, cy_world = self._element_centroid_world(elem)
+            if cx_world is None:
+                continue
+            sx, sy, txy = self._avg_stress(elem)
+            s1, s2, _vm = principal_and_vm(sx, sy, txy)
+            theta_p = self._theta_p(sx, sy, txy)
+            self._cross_cache.append((cx_world, cy_world, s1, s2, theta_p))

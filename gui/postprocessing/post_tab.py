@@ -37,6 +37,7 @@ class PostProcessTab:
 
         # Vistas avanzadas (lazy, dependen de is_solved)
         self.surface_3d_viewer = None      # Toplevel 3D del campo
+        self.principal_cross_layer = None  # capa de cruces σ1/σ2 (toggle)
 
         self._build_panel()
 
@@ -282,6 +283,16 @@ class PostProcessTab:
             probe_frame, text="Mostrar puntos Gauss",
             variable=self.probe_show_gauss_var, bootstyle="info-round-toggle",
             command=self._on_probe_gauss_toggled,
+        ).pack(anchor=W, padx=15, pady=(0, 8))
+
+        # Toggle Cruces principales σ1/σ2 (capa overlay sobre el canvas).
+        # Una cruz por elemento en su centroide: σ1 azul (tracción) / σ2 rojo
+        # (compresión). Consolida la funcionalidad del ex-módulo M8.
+        self.principal_crosses_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(
+            probe_frame, text="Cruces principales σ₁/σ₂",
+            variable=self.principal_crosses_var, bootstyle="info-round-toggle",
+            command=self._on_toggle_principal_crosses,
         ).pack(anchor=W, padx=15, pady=(0, 8))
 
     # ═════════════════════════════════════════════════════════════════════
@@ -568,6 +579,15 @@ class PostProcessTab:
                 )
             except Exception:
                 pass
+        # Refrescar la capa de cruces principales si esta activa (re-solve).
+        if (self.principal_cross_layer is not None
+                and self.principal_cross_layer.is_active()):
+            try:
+                self.principal_cross_layer.update_data(
+                    self.project, self.nodal_stresses,
+                )
+            except Exception:
+                pass
 
     # ═════════════════════════════════════════════════════════════════════
     # VISUALIZACION AVANZADA (Vista 3D)
@@ -602,11 +622,41 @@ class PostProcessTab:
             self, self.main_window,
         )
 
+    def _on_toggle_principal_crosses(self):
+        """Activa/desactiva la capa de cruces principales σ1/σ2 sobre el
+        canvas. La capa solo dibuja (no intercepta eventos), asi que coexiste
+        con el probe overlay sin conflicto."""
+        want = self.principal_crosses_var.get()
+        if want:
+            if not self.solution or not self.nodal_stresses:
+                # Sin solucion: revertir el toggle y avisar.
+                self.principal_crosses_var.set(False)
+                self.main_window.set_status(
+                    "Resolvé el modelo (F5) antes de mostrar las cruces principales"
+                )
+                return
+            if self.principal_cross_layer is None:
+                from gui.postprocessing.principal_cross_layer import (
+                    PrincipalCrossLayer,
+                )
+                self.principal_cross_layer = PrincipalCrossLayer(
+                    self.main_window.mesh_canvas, self.project,
+                    self.nodal_stresses,
+                )
+            else:
+                self.principal_cross_layer.update_data(
+                    self.project, self.nodal_stresses,
+                )
+            self.principal_cross_layer.activate()
+        else:
+            if self.principal_cross_layer is not None:
+                self.principal_cross_layer.deactivate()
+
     def deactivate_advanced_views(self):
         """Llamado desde MainWindow._on_tab_changed al salir de Post.
 
-        Cierra el Toplevel 3D. La consulta del probe se gestiona aparte
-        via `deactivate_probe_overlay`.
+        Cierra el Toplevel 3D y desactiva la capa de cruces principales. La
+        consulta del probe se gestiona aparte via `deactivate_probe_overlay`.
         """
         if (self.surface_3d_viewer is not None
                 and self.surface_3d_viewer.winfo_exists()):
@@ -615,6 +665,17 @@ class PostProcessTab:
             except Exception:
                 pass
             self.surface_3d_viewer = None
+
+        # Capa de cruces principales: desactivar y resetear el toggle.
+        if self.principal_cross_layer is not None:
+            try:
+                self.principal_cross_layer.deactivate()
+            except Exception:
+                pass
+        try:
+            self.principal_crosses_var.set(False)
+        except Exception:
+            pass
 
     # ═════════════════════════════════════════════════════════════════════
     # VISUALIZACION REACTIVA (auto-update al cambiar radio buttons)
@@ -1018,3 +1079,14 @@ class PostProcessTab:
                 except Exception:
                     pass
                 self.surface_3d_viewer = None
+            # Cruces principales: misma logica -- la geometria cambio, los
+            # esfuerzos ya no son validos. Desactivar capa + resetear toggle.
+            if self.principal_cross_layer is not None:
+                try:
+                    self.principal_cross_layer.deactivate()
+                except Exception:
+                    pass
+            try:
+                self.principal_crosses_var.set(False)
+            except Exception:
+                pass
