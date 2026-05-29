@@ -4,6 +4,7 @@ Soporta zoom, pan, nodos, elementos, cargas, restricciones,
 visualizacion de resultados con gradiente suave (jet) e isolineas.
 """
 
+import math
 import tkinter as tk
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
@@ -716,15 +717,21 @@ class MeshCanvas(ttk.Frame):
         spacing = max(30, int(50 * self.scale))
         if spacing > 200:
             spacing = 200
-        for i in range(-20, 60):
-            sx = i * spacing + (self.offset_x % spacing)
+        # Iterar SOLO el rango visible (antes range(-20, 60) fijo: desperdicia
+        # iteraciones fuera de pantalla y, peor, omite lineas en viewports
+        # anchos cuando spacing es chico). Las lineas estan en
+        # sx = i*spacing + (offset_x % spacing), fase en [0, spacing).
+        phase_x = self.offset_x % spacing
+        for i in range(0, math.ceil((w - phase_x) / spacing) + 1):
+            sx = i * spacing + phase_x
             if 0 <= sx <= w:
                 self.canvas.create_line(
                     sx, 0, sx, h, fill=CANVAS_GRID_COLOR, width=1, dash=(2, 6),
                     tags=("screen", "grid"),
                 )
-        for i in range(-20, 60):
-            sy = i * spacing + (self.offset_y % spacing)
+        phase_y = self.offset_y % spacing
+        for i in range(0, math.ceil((h - phase_y) / spacing) + 1):
+            sy = i * spacing + phase_y
             if 0 <= sy <= h:
                 self.canvas.create_line(
                     0, sy, w, sy, fill=CANVAS_GRID_COLOR, width=1, dash=(2, 6),
@@ -1626,7 +1633,6 @@ class MeshCanvas(ttk.Frame):
         - Si la carga esta highlighted, usa color SELECTED y dibuja halos
           en los nodos extremos.
         """
-        import math
         if not self.project.surface_loads:
             return
         ghost = self.ghost_geometry          # malla base atenuada (M0)
