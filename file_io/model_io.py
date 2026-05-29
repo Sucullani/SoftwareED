@@ -17,6 +17,7 @@ tabla del Post-Proceso con Ctrl+C (TSV al portapapeles).
 import csv
 import io
 import os
+import tempfile
 import zipfile
 
 from config.units import get_unit_labels
@@ -104,75 +105,90 @@ def export_model_csv(project, filepath):
     }
     units_comment = _units_header(project)
 
-    with zipfile.ZipFile(filepath, "w", zipfile.ZIP_DEFLATED) as zf:
-        # ── nodes.csv ──────────────────────────────────────────────────────
-        rows = []
-        for node in sorted(project.nodes.values(), key=lambda n: n.id):
-            rows.append([node.id, node.x, node.y])
-        _write_csv_to_zip(zf, "nodes.csv", units_comment,
-                          ["ID", "X", "Y"], rows)
-        counts["nodes"] = len(rows)
+    # Escritura atómica: el ZIP se construye en un temporal del mismo
+    # directorio y se promueve con os.replace (rename atómico). Un fallo a
+    # mitad de escritura no corrompe un export previo del mismo nombre.
+    directory = os.path.dirname(os.path.abspath(filepath)) or "."
+    fd, tmp = tempfile.mkstemp(suffix=".tmp", dir=directory)
+    os.close(fd)  # zipfile abre el path por su cuenta
+    try:
+        with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as zf:
+            # ── nodes.csv ──────────────────────────────────────────────────
+            rows = []
+            for node in sorted(project.nodes.values(), key=lambda n: n.id):
+                rows.append([node.id, node.x, node.y])
+            _write_csv_to_zip(zf, "nodes.csv", units_comment,
+                              ["ID", "X", "Y"], rows)
+            counts["nodes"] = len(rows)
 
-        # ── elements.csv ───────────────────────────────────────────────────
-        rows = []
-        for elem in sorted(project.elements.values(), key=lambda e: e.id):
-            nids = list(elem.node_ids) + [""] * max(0, 4 - len(elem.node_ids))
-            rows.append([
-                elem.id, nids[0], nids[1], nids[2], nids[3],
-                elem.thickness, elem.material_name,
-            ])
-        _write_csv_to_zip(
-            zf, "elements.csv", units_comment,
-            ["ID", "N1", "N2", "N3", "N4", "Espesor", "Material"], rows,
-        )
-        counts["elements"] = len(rows)
+            # ── elements.csv ───────────────────────────────────────────────
+            rows = []
+            for elem in sorted(project.elements.values(), key=lambda e: e.id):
+                nids = list(elem.node_ids) + [""] * max(0, 4 - len(elem.node_ids))
+                rows.append([
+                    elem.id, nids[0], nids[1], nids[2], nids[3],
+                    elem.thickness, elem.material_name,
+                ])
+            _write_csv_to_zip(
+                zf, "elements.csv", units_comment,
+                ["ID", "N1", "N2", "N3", "N4", "Espesor", "Material"], rows,
+            )
+            counts["elements"] = len(rows)
 
-        # ── materials.csv ──────────────────────────────────────────────────
-        rows = []
-        for mat in project.materials.values():
-            rows.append([mat.name, mat.E, mat.nu, mat.density])
-        _write_csv_to_zip(
-            zf, "materials.csv", units_comment,
-            ["Nombre", "E", "nu", "densidad"], rows,
-        )
-        counts["materials"] = len(rows)
+            # ── materials.csv ──────────────────────────────────────────────
+            rows = []
+            for mat in project.materials.values():
+                rows.append([mat.name, mat.E, mat.nu, mat.density])
+            _write_csv_to_zip(
+                zf, "materials.csv", units_comment,
+                ["Nombre", "E", "nu", "densidad"], rows,
+            )
+            counts["materials"] = len(rows)
 
-        # ── nodal_loads.csv ────────────────────────────────────────────────
-        rows = []
-        for ld in project.nodal_loads.values():
-            rows.append([ld.node_id, ld.fx, ld.fy])
-        _write_csv_to_zip(
-            zf, "nodal_loads.csv", units_comment,
-            ["Nodo", "Fx", "Fy"], rows,
-        )
-        counts["nodal_loads"] = len(rows)
+            # ── nodal_loads.csv ────────────────────────────────────────────
+            rows = []
+            for ld in project.nodal_loads.values():
+                rows.append([ld.node_id, ld.fx, ld.fy])
+            _write_csv_to_zip(
+                zf, "nodal_loads.csv", units_comment,
+                ["Nodo", "Fx", "Fy"], rows,
+            )
+            counts["nodal_loads"] = len(rows)
 
-        # ── boundary_conditions.csv ────────────────────────────────────────
-        rows = []
-        for bc in project.boundary_conditions.values():
-            rows.append([
-                bc.node_id,
-                "1" if bc.restrain_x else "0",
-                "1" if bc.restrain_y else "0",
-            ])
-        _write_csv_to_zip(
-            zf, "boundary_conditions.csv", units_comment,
-            ["Nodo", "Restringe_X", "Restringe_Y"], rows,
-        )
-        counts["boundary_conditions"] = len(rows)
+            # ── boundary_conditions.csv ────────────────────────────────────
+            rows = []
+            for bc in project.boundary_conditions.values():
+                rows.append([
+                    bc.node_id,
+                    "1" if bc.restrain_x else "0",
+                    "1" if bc.restrain_y else "0",
+                ])
+            _write_csv_to_zip(
+                zf, "boundary_conditions.csv", units_comment,
+                ["Nodo", "Restringe_X", "Restringe_Y"], rows,
+            )
+            counts["boundary_conditions"] = len(rows)
 
-        # ── surface_loads.csv ──────────────────────────────────────────────
-        rows = []
-        for sl in project.surface_loads:
-            rows.append([
-                sl.node_start, sl.node_end,
-                sl.q_start, sl.q_end, sl.angle,
-            ])
-        _write_csv_to_zip(
-            zf, "surface_loads.csv", units_comment,
-            ["Nodo_Inicio", "Nodo_Final", "q_inicio", "q_final", "Angulo"], rows,
-        )
-        counts["surface_loads"] = len(rows)
+            # ── surface_loads.csv ──────────────────────────────────────────
+            rows = []
+            for sl in project.surface_loads:
+                rows.append([
+                    sl.node_start, sl.node_end,
+                    sl.q_start, sl.q_end, sl.angle,
+                ])
+            _write_csv_to_zip(
+                zf, "surface_loads.csv", units_comment,
+                ["Nodo_Inicio", "Nodo_Final", "q_inicio", "q_final", "Angulo"], rows,
+            )
+            counts["surface_loads"] = len(rows)
+
+        os.replace(tmp, filepath)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
 
     return counts
 

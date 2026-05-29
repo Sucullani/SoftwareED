@@ -944,11 +944,9 @@ class MainWindow:
 
     def _save_to_file(self, filepath):
         try:
-            data = self.project.to_dict()
-            with open(filepath, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=2, ensure_ascii=False)
-            self.project.file_path = filepath
-            self.project.is_modified = False
+            # Delega en save_project (escritura atómica: tmp + fsync + replace).
+            from file_io.project_io import save_project
+            save_project(self.project, filepath)
             self.set_status(f"Proyecto guardado: {os.path.basename(filepath)}")
 
             recent_files.add(filepath)
