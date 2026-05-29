@@ -1,0 +1,10 @@
+# Dependencias de desarrollo / empaquetado (no requeridas para correr EduFEM).
+# Instalar con: pip install -r requirements-dev.txt
+#
+# Incluye el runtime completo + las herramientas de build del instalador.
+-r requirements.txt
+
+# Empaquetado del instalador (build.spec). Pinneado por major para que un
+# salto de major de PyInstaller (que suele cambiar el formato del .spec y
+# los hooks) no rompa el build de forma silenciosa.
+PyInstaller>=6.0,<7
