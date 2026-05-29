@@ -96,6 +96,35 @@ class MainWindow:
         # mucho antes de que el usuario abra un modulo educativo.
         self.root.after_idle(self._init_matplotlib_style)
 
+        # ─── Cold-start de Numba (JIT) ──────────────────────────────────
+        # El primer `solve_system` paga la compilacion JIT de los kernels
+        # @njit del motor FEM (~2-6s), congelando el loop de Tk justo cuando
+        # el alumno cambia a Post-Proceso. Disparamos un solve dummy en un
+        # thread daemon al boot (no toca Tk: solo NumPy/Numba puro) para que
+        # la compilacion ocurra en background y el primer solve real sea
+        # cache-hit. Mismo patron que el warmup de mathtext.
+        self.root.after_idle(self._warmup_numba)
+
+    def _warmup_numba(self):
+        """Fuerza la compilacion JIT de Numba en un thread daemon resolviendo
+        un modelo de ejemplo. No toca Tk (solo el motor FEM puro), por eso es
+        seguro fuera del hilo principal."""
+        def _worker():
+            try:
+                from tests.example_data import load_example_project
+                from fem.solver import solve_system
+                from fem.stress import compute_all_stresses
+                proj = load_example_project()
+                sol = solve_system(proj)
+                compute_all_stresses(proj, sol)
+            except Exception:
+                pass
+
+        import threading
+        threading.Thread(
+            target=_worker, name="EduFEM-NumbaWarmup", daemon=True
+        ).start()
+
     def _init_matplotlib_style(self):
         """Configura mathtext (CM) y calienta el cache de fuentes.
 
