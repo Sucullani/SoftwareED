@@ -426,9 +426,11 @@ class BMatrixModule(CanvasOverlayModule):
         if self._mesh is None:
             return
         try:
-            # Avanza la fase y redibuja la capa. ~30 fps suaves.
+            # Avanza la fase y redibuja SOLO las capas overlay. ~30 fps
+            # suaves: un redraw() completo rasterizaria toda la malla por
+            # frame. La base ya esta dibujada (redraw completo previo).
             self._pulse_phase = (self._pulse_phase + 0.18) % (2 * math.pi)
-            self._mesh.redraw()
+            self._mesh.redraw_overlays_only()
         except Exception:
             pass
         try:

@@ -466,8 +466,11 @@ class AssemblyModule(CanvasOverlayModule):
             self._redraw_panel()
             return
         self._pulse_frame_idx += 1
-        # Redibuja canvas (parpadeo binario) y matplotlib (flash de cells).
-        self._mesh.redraw()
+        # Redibuja SOLO las capas overlay (parpadeo binario del pulso, en el
+        # tag edu_m7) + matplotlib (flash de cells). La base ya esta dibujada
+        # (redraw completo en _do_assemble antes de iniciar el pulso); evitar
+        # el redraw() completo por frame mantiene el pulso fluido a ~30 fps.
+        self._mesh.redraw_overlays_only()
         self._redraw_panel()
         try:
             self._pulse_after_id = self._mesh.canvas.after(

@@ -680,6 +680,24 @@ class MeshCanvas(ttk.Frame):
                 # Una capa defectuosa NO debe romper el redraw global.
                 pass
 
+    def redraw_overlays_only(self):
+        """Re-ejecuta SOLO las capas educativas registradas, sin tocar la
+        base (no hace `canvas.delete("all")` ni redibuja grilla/malla/campo).
+
+        Cada capa borra su propio tag `edu_*` al inicio de su callable, asi
+        que re-ejecutarlas las refresca sin acumular dibujos. Pensado para
+        los loops de animacion (~30 fps) de los modulos overlay (glow de M4,
+        pulso de M7, hover de snap del probe): un `redraw()` completo por
+        frame rasteriza toda la malla y el campo (~80-200ms), inutilizable a
+        30 fps. PRECONDICION: un `redraw()` completo debe haber corrido antes
+        (la base ya esta dibujada en el canvas)."""
+        for layer in list(self._overlay_layers):
+            try:
+                layer(self)
+            except Exception:
+                # Una capa defectuosa NO debe romper la animacion.
+                pass
+
     # ═════════════════════════════════════════════════════════════════════
     # GRILLA, EJES, GHOST
     # ═════════════════════════════════════════════════════════════════════

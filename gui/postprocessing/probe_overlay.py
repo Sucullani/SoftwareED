@@ -379,25 +379,28 @@ class ProbeOverlay:
             else:
                 self._snapped_node_id = nid
                 self._show_node_tooltip(nid, event.x, event.y)
-                self.mesh_canvas.redraw()
+                # Solo la capa overlay (anillo de snap, tag _TAG): el campo,
+                # isolineas y malla no cambian en el hover. redraw() completo
+                # rasterizaria todo por movimiento del mouse.
+                self.mesh_canvas.redraw_overlays_only()
             return
         if gp is not None:
             if self._snapped_node_id is not None:
                 self._snapped_node_id = None
-                self.mesh_canvas.redraw()
+                self.mesh_canvas.redraw_overlays_only()
             self._show_gauss_tooltip(gp, event.x, event.y)
             return
         if nid is not None:
             if self._snapped_node_id != nid:
                 self._snapped_node_id = nid
-                self.mesh_canvas.redraw()
+                self.mesh_canvas.redraw_overlays_only()
             self._show_node_tooltip(nid, event.x, event.y)
             return
 
         # Si veniamos snappeados a un nodo, redibujar para quitar el anillo
         if self._snapped_node_id is not None:
             self._snapped_node_id = None
-            self.mesh_canvas.redraw()
+            self.mesh_canvas.redraw_overlays_only()
 
         # Punto libre: con throttle.
         self._last_motion_xy = (event.x, event.y)
