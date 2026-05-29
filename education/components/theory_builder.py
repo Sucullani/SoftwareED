@@ -5,6 +5,7 @@ utilidades para secciones, ecuaciones, matrices y tablas de valores.
 
 from __future__ import annotations
 
+import os
 from typing import Iterable, Optional
 
 import numpy as np
@@ -446,19 +447,57 @@ class TheoryDoc:
         self.doc.append(NoEscape(r"\end{figure}"))
 
     def compile_to(self, filepath_no_ext: str, *, keep_tex: bool = False) -> None:
-        """Compila el documento a PDF usando pdflatex.
+        """Compila el documento a PDF.
 
         `filepath_no_ext` no debe llevar la extension `.pdf` (pylatex la
         agrega). Si la compilacion falla, propaga la excepcion (el caller
         debe atrapar `pylatex.errors.CompilerError` o `FileNotFoundError`
-        si pdflatex no esta en el PATH).
+        si el compilador no esta en el PATH).
+
+        El documento usa `\\tableofcontents`, que requiere DOS pasadas de
+        pdflatex (la primera escribe el .toc, la segunda lo inserta) — una
+        sola pasada deja el indice vacio. Por eso se prefiere `latexmk`, que
+        gestiona las pasadas automaticamente. Si latexmk no esta disponible,
+        se cae a una doble pasada manual de pdflatex.
         """
+        import shutil
+
+        if shutil.which("latexmk") is not None:
+            self.doc.generate_pdf(
+                filepath_no_ext,
+                clean_tex=not keep_tex,
+                compiler="latexmk",
+                compiler_args=["-pdf", "-interaction=nonstopmode",
+                               "-halt-on-error"],
+            )
+            return
+
+        # Fallback sin latexmk: doble pasada de pdflatex sobre el .tex
+        # generado. La primera pasada (clean_tex=False) deja el .tex y el
+        # .toc; la segunda lo recompila para poblar el indice.
+        pdflatex_args = ["-interaction=nonstopmode", "-halt-on-error"]
         self.doc.generate_pdf(
             filepath_no_ext,
-            clean_tex=not keep_tex,
+            clean_tex=False,
             compiler="pdflatex",
-            compiler_args=["-interaction=nonstopmode", "-halt-on-error"],
+            compiler_args=pdflatex_args,
         )
+        try:
+            self.doc.generate_pdf(
+                filepath_no_ext,
+                clean_tex=not keep_tex,
+                compiler="pdflatex",
+                compiler_args=pdflatex_args,
+            )
+        finally:
+            # Si keep_tex es False, limpiar los auxiliares que pylatex no
+            # borra cuando clean_tex no aplica a esta segunda pasada.
+            if not keep_tex:
+                for ext in (".tex", ".toc", ".aux", ".log", ".out"):
+                    try:
+                        os.remove(filepath_no_ext + ext)
+                    except OSError:
+                        pass
 
     @staticmethod
     def escape(s) -> str:
