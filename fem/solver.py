@@ -67,6 +67,32 @@ def apply_boundary_conditions(K, F, restrained_dofs, u_prescribed=None):
     return K_red, F_red, free_dofs
 
 
+def _solve_reduced(K_red, F_red):
+    """Resuelve K_red · u = F_red.
+
+    Si `SOLVER_USE_RCM` esta activo y K_red es sparse, aplica el
+    reordenamiento Reverse Cuthill-McKee antes de factorizar (reduce el
+    fill-in en mallas estructuradas) y despermuta la solucion. Con el flag
+    en False resuelve directo — output bit-a-bit identico al solver clasico.
+    """
+    from config.settings import SOLVER_USE_RCM
+
+    if SOLVER_USE_RCM and hasattr(K_red, "tocsr"):
+        from scipy.sparse.csgraph import reverse_cuthill_mckee
+        K_csr = K_red.tocsr()
+        perm = reverse_cuthill_mckee(K_csr, symmetric_mode=True)
+        # Permutar filas y columnas: K_p = K[perm][:, perm], F_p = F[perm].
+        K_perm = K_csr[perm, :][:, perm]
+        F_perm = F_red[perm]
+        u_perm = spsolve(K_perm, F_perm)
+        # Despermutar: u[perm[i]] = u_perm[i].
+        u_free = np.empty_like(u_perm)
+        u_free[perm] = u_perm
+        return u_free
+
+    return spsolve(K_red, F_red)
+
+
 def solve_system(project, *, body_force_fn=None):
     """
     Resuelve el sistema completo: ensamblaje + condiciones de borde + solución.
@@ -110,7 +136,7 @@ def solve_system(project, *, body_force_fn=None):
     )
 
     # 5. Resolver K_red · u_free = F_red (spsolve acepta CSR/CSC y denso)
-    u_free = spsolve(K_red, F_red)
+    u_free = _solve_reduced(K_red, F_red)
     if np.any(~np.isfinite(u_free)):
         raise ValueError(
             "El solver produjo valores NaN o Inf. Verifica que K no sea "
