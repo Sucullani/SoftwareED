@@ -123,6 +123,33 @@ def scaled_jacobian(node_coords, element_type):
     return min(vals)
 
 
+def _sj_and_rj_from_samples(node_coords, element_type):
+    """Calcula scaled_jacobian Y jacobian_ratio con UNA sola evaluacion de
+    `_jacobian_samples` (las funciones publicas la corren por separado, lo
+    que duplica el muestreo de Gauss). Usado por evaluate_mesh_quality.
+    Retorna (q_sj, r_j) con la misma semantica que las funciones publicas."""
+    dets, col_norms = _jacobian_samples(node_coords, element_type)
+    if dets is None:
+        return 0.0, 0.0
+
+    # scaled_jacobian
+    sj_vals = []
+    q_sj = 0.0
+    invalid = False
+    for det_J, (c1, c2) in zip(dets, col_norms):
+        denom = c1 * c2
+        if denom <= JACOBIAN_MIN_DETERMINANT:
+            invalid = True
+            break
+        sj_vals.append(det_J / denom)
+    q_sj = 0.0 if invalid else min(sj_vals)
+
+    # jacobian_ratio
+    max_d = max(dets)
+    r_j = 0.0 if max_d <= 0 else min(dets) / max_d
+    return q_sj, r_j
+
+
 # --------------------------------------------------------------------------- #
 # METRICAS GEOMETRICAS DE LA CARA MACRO                                        #
 # --------------------------------------------------------------------------- #
@@ -431,9 +458,8 @@ def evaluate_mesh_quality(project):
             continue
         corner_coords = node_coords[:4]
 
-        # Metricas universales
-        q_sj = scaled_jacobian(node_coords, element_type)
-        r_j = jacobian_ratio(node_coords, element_type)
+        # Metricas universales (una sola evaluacion de _jacobian_samples).
+        q_sj, r_j = _sj_and_rj_from_samples(node_coords, element_type)
         ar = robinson_aspect(corner_coords)
         ea = edge_aspect_ratio(corner_coords)
         angles = internal_angles(corner_coords)
