@@ -116,9 +116,11 @@ def solve_system(project, *, body_force_fn=None):
 
     # 2. Obtener GDL restringidos
     restrained_dofs = project.get_restrained_dofs()
-    free_dofs_list = project.get_free_dofs()
 
-    if len(free_dofs_list) == 0:
+    # Chequeo "todos restringidos" sin construir get_free_dofs() (O(n) lista):
+    # basta el conteo total - restringidos.
+    n_free = project.total_dof - len(restrained_dofs)
+    if n_free == 0:
         raise ValueError("Todos los GDL están restringidos. No hay nada que resolver.")
 
     if len(restrained_dofs) == 0:
@@ -154,8 +156,14 @@ def solve_system(project, *, body_force_fn=None):
         rest_arr = np.asarray(restrained_dofs, dtype=np.intp)
         u[rest_arr] = u_prescribed[rest_arr]
 
-    # 7. Calcular reacciones: R = K · u - F
-    reactions = K @ u - F
+    # 7. Calcular reacciones: R = K · u - F, SOLO en los GDL restringidos.
+    #    En los GDL libres R es ~0 (residuo numerico ~1e-12); ponerlo en 0
+    #    exacto evita la multiplicacion densa K @ u completa (solo se evaluan
+    #    las filas restringidas) y deja R limpio para lectura/reporte.
+    reactions = np.zeros(project.total_dof)
+    if len(restrained_dofs) > 0:
+        rest = np.asarray(restrained_dofs, dtype=np.intp)
+        reactions[rest] = np.asarray(K[rest, :] @ u).ravel() - F[rest]
 
     return {
         "u": u,
