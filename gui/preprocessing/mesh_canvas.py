@@ -635,17 +635,23 @@ class MeshCanvas(ttk.Frame):
             if not painted:
                 self._draw_gradient_elements()
 
+        # Clasificaciones puras computadas UNA vez por redraw y compartidas
+        # entre las capas de dibujo (antes cada _draw_* las recomputaba:
+        # classify_orphan_status corria 4x, classify_nodes 2x por frame).
+        roles = classify_nodes(self.project)
+        orphan_status = classify_orphan_status(self.project)
+
         self._draw_elements()
-        self._draw_nodes()
+        self._draw_nodes(roles=roles, orphan_status=orphan_status)
 
         if self.show_loads:
-            self._draw_loads()
+            self._draw_loads(orphan_status=orphan_status)
             # Cargas superficiales (trapezoide + flechitas distribuidas).
             # Visibles siempre que show_loads este activo, no solo al
             # seleccionar. El metodo dibuja su propio halo si highlighted.
-            self._draw_surface_loads()
+            self._draw_surface_loads(orphan_status=orphan_status)
         if self.show_constraints:
-            self._draw_constraints()
+            self._draw_constraints(orphan_status=orphan_status)
 
         self._draw_highlight()
 
@@ -1246,9 +1252,13 @@ class MeshCanvas(ttk.Frame):
         """
         return classify_nodes(self.project)
 
-    def _draw_nodes(self):
-        roles = self._classify_nodes()
-        orphan_status = classify_orphan_status(self.project)
+    def _draw_nodes(self, roles=None, orphan_status=None):
+        # roles / orphan_status: clasificaciones puras opcionalmente
+        # precomputadas por redraw() (evita recomputarlas 4-5x por frame).
+        if roles is None:
+            roles = self._classify_nodes()
+        if orphan_status is None:
+            orphan_status = classify_orphan_status(self.project)
         for nid, node in self.project.nodes.items():
             sx, sy = self._get_node_screen_pos(nid)
             role = roles.get(nid, "corner")
@@ -1317,11 +1327,12 @@ class MeshCanvas(ttk.Frame):
                     tags=("world", "nodes"),
                 )
 
-    def _draw_loads(self):
+    def _draw_loads(self, orphan_status=None):
         arrow_len = 44
         ghost = self.ghost_geometry          # malla base atenuada (M0)
         shadow_col = "" if ghost else SHADOW_LOAD
-        orphan_status = classify_orphan_status(self.project)
+        if orphan_status is None:
+            orphan_status = classify_orphan_status(self.project)
         for load in self.project.nodal_loads.values():
             node = self.project.nodes.get(load.node_id)
             if node is None:
@@ -1415,7 +1426,7 @@ class MeshCanvas(ttk.Frame):
         self.canvas.tag_raise(tid, rid)
         return tid
 
-    def _draw_constraints(self):
+    def _draw_constraints(self, orphan_status=None):
         """Dibuja simbolos de restriccion con notacion estandar:
         - is_fixed     : triangulo + hatching (empotramiento)
         - is_roller_y  : restringe Δy => triangulo apoyado en una superficie
@@ -1428,7 +1439,8 @@ class MeshCanvas(ttk.Frame):
         del fondo oscuro; outline en color de fase; hatching mas espaciado.
         """
         size = 12
-        orphan_status = classify_orphan_status(self.project)
+        if orphan_status is None:
+            orphan_status = classify_orphan_status(self.project)
         for bc in self.project.boundary_conditions.values():
             node = self.project.nodes.get(bc.node_id)
             if node is None:
@@ -1588,7 +1600,7 @@ class MeshCanvas(ttk.Frame):
                 tags=("world", "highlight"),
             )
 
-    def _draw_surface_loads(self):
+    def _draw_surface_loads(self, orphan_status=None):
         """Dibuja todas las cargas superficiales como trapezoide + flechitas.
 
         Para cada SurfaceLoad:
@@ -1614,7 +1626,8 @@ class MeshCanvas(ttk.Frame):
             qmax = 1.0
         arrow_max = 60   # px maximo de flecha
         n_arrows = 8     # cantidad de flechitas distribuidas
-        orphan_status = classify_orphan_status(self.project)
+        if orphan_status is None:
+            orphan_status = classify_orphan_status(self.project)
 
         for idx, sl in enumerate(self.project.surface_loads):
             if (sl.node_start not in self.project.nodes

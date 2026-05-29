@@ -327,11 +327,7 @@ class PreProcessTab:
             refresca todas las tablas afectadas y ejecuta el safety net Q9
             si aplica. Item-agnostico: por simplicidad refresca todo, el
             costo es bajo y evita acoplar `kind` a tablas especificas."""
-            self._refresh_nodes_tree()
-            self._refresh_elements_tree()
-            self._refresh_loads_tree()
-            self._refresh_constraints_tree()
-            self._refresh_surface_tree()
+            self._refresh_all_trees()
             self._update_status_info()
             # En proyecto Q9, eliminar elementos puede dejar mid/center
             # huerfanos -- los marcamos en gris pero el safety net no los
@@ -857,11 +853,7 @@ class PreProcessTab:
                     messagebox.showerror("ID en uso", str(e))
                     return
                 # Refrescar todas las tablas que pueden contener referencias
-                self._refresh_nodes_tree()
-                self._refresh_elements_tree()
-                self._refresh_loads_tree()
-                self._refresh_constraints_tree()
-                self._refresh_surface_tree()
+                self._refresh_all_trees()
                 self._safe_redraw()
             start_cell_editor(self.nodes_tree, item, col, current, _commit_id)
             return
@@ -1049,12 +1041,8 @@ class PreProcessTab:
                 self.project.remove_node_with_cascade(nid)
             except (ValueError, KeyError):
                 pass
-        self._refresh_nodes_tree()
         # Borrar nodos puede invalidar elementos / cargas / BCs / surface refs
-        self._refresh_elements_tree()
-        self._refresh_loads_tree()
-        self._refresh_constraints_tree()
-        self._refresh_surface_tree()
+        self._refresh_all_trees()
         self._safe_redraw()
         self._update_status_info()
         self.main_window.set_status("Nodo(s) eliminado(s).")
@@ -1383,11 +1371,7 @@ class PreProcessTab:
         # justamente preserva los nodos con datos, asi que cargas/BCs
         # nunca se pierden por este flujo. Igual refresh todo por
         # consistencia (espacio en blanco de la fila, etc.).
-        self._refresh_elements_tree()
-        self._refresh_nodes_tree()
-        self._refresh_loads_tree()
-        self._refresh_constraints_tree()
-        self._refresh_surface_tree()
+        self._refresh_all_trees()
         self._safe_redraw()
         self._update_status_info()
         # Resumen contextual en status bar
@@ -2240,14 +2224,29 @@ class PreProcessTab:
     # REFRESH DE TABLAS
     # ═════════════════════════════════════════════════════════════════════
 
-    def _refresh_nodes_tree(self):
+    def _refresh_all_trees(self):
+        """Refresca las 5 tablas computando las clasificaciones puras
+        (classify_nodes / classify_orphan_status) UNA sola vez y
+        compartiendolas. Antes cada _refresh_*_tree las recomputaba ->
+        classify_orphan_status corria 4x por refresh batch."""
+        roles = classify_nodes(self.project)
+        orphan_status = classify_orphan_status(self.project)
+        self._refresh_nodes_tree(roles=roles, orphan_status=orphan_status)
+        self._refresh_elements_tree()
+        self._refresh_loads_tree(orphan_status=orphan_status)
+        self._refresh_constraints_tree(orphan_status=orphan_status)
+        self._refresh_surface_tree(orphan_status=orphan_status)
+
+    def _refresh_nodes_tree(self, roles=None, orphan_status=None):
         self._suppress_pending_check = True
         try:
             self.nodes_tree.delete(*self.nodes_tree.get_children())
             canvas = getattr(self.main_window, "mesh_canvas", None)
             sel = getattr(canvas, "selected_nodes", set()) if canvas else set()
-            roles = classify_nodes(self.project)
-            orphan_status = classify_orphan_status(self.project)
+            if roles is None:
+                roles = classify_nodes(self.project)
+            if orphan_status is None:
+                orphan_status = classify_orphan_status(self.project)
             for node in sorted(self.project.nodes.values(),
                                key=lambda n: n.id):
                 tags = []
@@ -2305,13 +2304,14 @@ class PreProcessTab:
         finally:
             self._suppress_pending_check = False
 
-    def _refresh_loads_tree(self):
+    def _refresh_loads_tree(self, orphan_status=None):
         self._suppress_pending_check = True
         try:
             self.loads_tree.delete(*self.loads_tree.get_children())
             canvas = getattr(self.main_window, "mesh_canvas", None)
             sel_loads = getattr(canvas, "selected_loads", set()) if canvas else set()
-            orphan_status = classify_orphan_status(self.project)
+            if orphan_status is None:
+                orphan_status = classify_orphan_status(self.project)
             # Render via orden visual unificado (reales + ghosts mezclados
             # segun la posicion previa). Asi un ghost commit muta la entry
             # in-place y la nueva fila real aparece en el mismo slot — sin
@@ -2347,13 +2347,14 @@ class PreProcessTab:
         finally:
             self._suppress_pending_check = False
 
-    def _refresh_constraints_tree(self):
+    def _refresh_constraints_tree(self, orphan_status=None):
         self._suppress_pending_check = True
         try:
             self.constraints_tree.delete(*self.constraints_tree.get_children())
             canvas = getattr(self.main_window, "mesh_canvas", None)
             sel_bcs = getattr(canvas, "selected_constraints", set()) if canvas else set()
-            orphan_status = classify_orphan_status(self.project)
+            if orphan_status is None:
+                orphan_status = classify_orphan_status(self.project)
             # Orden visual unificado (reales + ghosts mezclados): mismo
             # patron que loads — preserva slot del ghost al commitear.
             for kind, nid in self._build_constraints_visual_list():
@@ -2388,13 +2389,14 @@ class PreProcessTab:
         finally:
             self._suppress_pending_check = False
 
-    def _refresh_surface_tree(self):
+    def _refresh_surface_tree(self, orphan_status=None):
         self._suppress_pending_check = True
         try:
             self.surface_tree.delete(*self.surface_tree.get_children())
             canvas = getattr(self.main_window, "mesh_canvas", None)
             sel_surf = getattr(canvas, "selected_surfaces", set()) if canvas else set()
-            orphan_status = classify_orphan_status(self.project)
+            if orphan_status is None:
+                orphan_status = classify_orphan_status(self.project)
             # Mapa obj_id -> idx actual para resolver la posicion del
             # SurfaceLoad en project.surface_loads (idx puede haber
             # cambiado tras inserciones/borrados).
@@ -2441,11 +2443,7 @@ class PreProcessTab:
     def refresh(self):
         """Refresca toda la pestana de pre-proceso (incluye headers)."""
         self.update_unit_headers()
-        self._refresh_nodes_tree()
-        self._refresh_elements_tree()
-        self._refresh_loads_tree()
-        self._refresh_constraints_tree()
-        self._refresh_surface_tree()
+        self._refresh_all_trees()
 
 
     # ═════════════════════════════════════════════════════════════════════
@@ -2674,11 +2672,7 @@ class PreProcessTab:
 
         self._syncing_from_canvas = True
         try:
-            self._refresh_nodes_tree()
-            self._refresh_elements_tree()
-            self._refresh_loads_tree()
-            self._refresh_constraints_tree()
-            self._refresh_surface_tree()
+            self._refresh_all_trees()
         finally:
             self._syncing_from_canvas = False
 
