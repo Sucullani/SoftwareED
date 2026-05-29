@@ -130,19 +130,35 @@ class MainWindow:
 
         Diferido fuera del constructor (via after_idle). `configure_latex_style`
         importa matplotlib y fija rcParams en el hilo principal (antes de crear
-        cualquier figura). El cold-start del fontmanager/parser (~1s) corre en
-        un thread daemon para que el primer modulo educativo no lo pague.
+        cualquier figura). El cold-start del fontmanager/parser se calienta
+        TROCEADO en el hilo principal (2-3 expresiones por tick via
+        `after_idle`), evitando el cruce de hilos del antiguo daemon thread
+        (pyplot/fontmanager no son thread-safe respecto al main loop de Tk).
         """
         try:
-            from config.matplotlib_config import configure_latex_style, warmup_mathtext
+            from config.matplotlib_config import (
+                configure_latex_style, MATHTEXT_WARMUP_EXPRESSIONS,
+            )
             configure_latex_style()
-            import threading
-            threading.Thread(
-                target=warmup_mathtext, name="EduFEM-MathtextWarmup",
-                daemon=True,
-            ).start()
+            self._mathtext_warmup_queue = list(MATHTEXT_WARMUP_EXPRESSIONS)
+            self.root.after_idle(self._warmup_mathtext_chunk)
         except Exception:
             pass
+
+    def _warmup_mathtext_chunk(self):
+        """Calienta el cache mathtext de a 3 expresiones por tick idle, en el
+        hilo principal. Reagenda hasta vaciar la cola."""
+        queue = getattr(self, "_mathtext_warmup_queue", None)
+        if not queue:
+            return
+        chunk, self._mathtext_warmup_queue = queue[:3], queue[3:]
+        try:
+            from config.matplotlib_config import warmup_mathtext_chunk
+            warmup_mathtext_chunk(chunk)
+        except Exception:
+            pass
+        if self._mathtext_warmup_queue:
+            self.root.after_idle(self._warmup_mathtext_chunk)
 
     # ═════════════════════════════════════════════════════════════════════
     # LAYOUT PRINCIPAL
