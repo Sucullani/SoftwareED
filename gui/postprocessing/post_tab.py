@@ -39,6 +39,12 @@ class PostProcessTab:
         self.surface_3d_viewer = None      # Toplevel 3D del campo
         self.principal_cross_layer = None  # capa de cruces σ1/σ2 (toggle)
 
+        # Cache de las grillas crudas D·B·uₑ por elemento (TODOS los campos
+        # σx/σy/τxy/σ1/σ2/VM evaluados en la grilla). Se computa una vez tras
+        # el solve y se invalida al re-resolver. Evita re-evaluar D·B·uₑ al
+        # cambiar de resultado (VM↔σx) o al togglear deformada/isolíneas.
+        self._raw_grid_cache = None
+
         self._build_panel()
 
     def _build_panel(self):
@@ -472,6 +478,8 @@ class PostProcessTab:
             self.element_stresses, self.nodal_stresses = compute_all_stresses(
                 self.project, self.solution
             )
+            # Invalidar el cache de grillas crudas: nueva solución.
+            self._raw_grid_cache = None
 
             self.project.is_solved = True
             self.project.displacements = self.solution["u"]
@@ -794,9 +802,32 @@ class PostProcessTab:
             except Exception:
                 pass
 
+    def _get_raw_grids(self, n=6):
+        """Devuelve {elem_id: all_grids_dict} con TODOS los campos crudos
+        (σx/σy/τxy/σ1/σ2/VM) evaluados en la grilla (n+1, n+1) de cada
+        elemento, cacheado tras el solve. Recomputar D·B·uₑ en cada cambio
+        de resultado era el costo dominante; el cache lo hace una sola vez.
+
+        Retorna {} (cacheado) si algun elemento no se pudo evaluar — el
+        caller cae a suavizado.
+        """
+        if self._raw_grid_cache is not None:
+            return self._raw_grid_cache
+        from fem.probe_query import compute_raw_grid
+        cache = {}
+        for elem_id in self.project.elements:
+            all_grids = compute_raw_grid(self.project, self.solution,
+                                          elem_id, n=n)
+            if all_grids is None:
+                self._raw_grid_cache = {}  # marca: crudo no disponible
+                return self._raw_grid_cache
+            cache[elem_id] = all_grids
+        self._raw_grid_cache = cache
+        return cache
+
     def _compute_raw_grid(self, result_type, n=6):
         """Pre-computa la grilla (n+1, n+1) del campo de esfuerzo seleccionado
-        en cada elemento, usando fem.probe_query.compute_raw_grid.
+        en cada elemento, extrayendolo del cache crudo (`_get_raw_grids`).
 
         Returna {elem_id: ndarray(n+1, n+1)} con valores del campo `result_type`
         evaluados via D·B(ξ,η)·u_e en cada (ξ_i, η_j) ∈ [-1,1]².
@@ -805,8 +836,6 @@ class PostProcessTab:
         los componentes σx/σy/τxy correctos POR PUNTO (no interpolando el
         invariante entre corners, que da error grosero por la no-linealidad).
         """
-        from fem.probe_query import compute_raw_grid
-
         stress_key = {
             "Sx": "sigma_x", "Sy": "sigma_y", "Txy": "tau_xy",
             "S1": "sigma_1", "S2": "sigma_2", "VM": "von_mises",
@@ -814,14 +843,10 @@ class PostProcessTab:
         if stress_key is None:
             return None
 
-        result = {}
-        for elem_id in self.project.elements:
-            all_grids = compute_raw_grid(self.project, self.solution,
-                                          elem_id, n=n)
-            if all_grids is None:
-                return None
-            result[elem_id] = all_grids[stress_key]
-        return result if result else None
+        grids = self._get_raw_grids(n=n)
+        if not grids:
+            return None
+        return {eid: g[stress_key] for eid, g in grids.items()}
 
     # ═════════════════════════════════════════════════════════════════════
     # TABLA DE RESULTADOS
@@ -1062,6 +1087,7 @@ class PostProcessTab:
             self.solution = None
             self.nodal_stresses = None
             self.element_stresses = None
+            self._raw_grid_cache = None
             # Limpieza silenciosa del probe overlay: si la geometria
             # cambio (lo que invalida is_solved), la probe referenciaria
             # elem_ids que pueden ya no existir. Decision documentada en

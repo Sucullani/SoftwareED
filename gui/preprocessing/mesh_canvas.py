@@ -1145,7 +1145,12 @@ class MeshCanvas(ttk.Frame):
         levels = np.linspace(self.result_vmin, self.result_vmax,
                              n_levels + 2)[1:-1]
 
-        n_grid = 16
+        # En modo CRUDO la grilla viene pre-computada por post_tab (típicamente
+        # 7x7, n=6). Derivamos n_grid del tamaño nativo de cada grilla para
+        # NO resamplear 7x7 -> 16x16 (doble loop Python por elemento). En modo
+        # suavizado interpolamos sobre una grilla fina (16) para curvas lisas.
+        raw_mode = self.element_result_grid is not None
+        default_n_grid = 16
         scale = self.scale
         ox = self.offset_x
         oy = self.offset_y
@@ -1154,6 +1159,13 @@ class MeshCanvas(ttk.Frame):
             nids = elem.node_ids[:4]
             if not all(nid in self.project.nodes for nid in nids):
                 continue
+            if raw_mode:
+                native = self.element_result_grid.get(elem.id)
+                if native is None:
+                    continue
+                n_grid = native.shape[0]  # puntos nativos (n+1)
+            else:
+                n_grid = default_n_grid
             grid_vals, ok = self._get_grid_values(elem, n_grid - 1)
             if not ok:
                 continue
