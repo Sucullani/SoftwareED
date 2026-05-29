@@ -46,12 +46,12 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from education.overlay_module import CanvasOverlayModule
 from education.components import (
     FormulaValueBlocksToggle, LatexMatrixImage, LatexExpressionImage,
-    GaussCoordReadout, natural_to_physical,
+    GaussCoordReadout, natural_to_physical, element_coords,
 )
 from education.components.iso_inverse import iso_inverse_map
 from education.components.gauss_glyph import (
-    draw_gauss_filled_by_value, draw_gauss_halo,
-    GAUSS_CANONICAL, GAUSS_HALO,
+    draw_gauss_filled_by_value, draw_gauss_halo, draw_gauss_free_point,
+    lerp_hex, GAUSS_CANONICAL, GAUSS_HALO,
 )
 from fem.shape_functions import get_shape_functions
 from fem.jacobian import compute_jacobian
@@ -60,7 +60,8 @@ from config.settings import (
     ELEMENT_Q4, ELEMENT_Q9,
     JACOBIAN_MIN_DETERMINANT,
     HEALTH_OK_COLOR, HEALTH_WARNING_COLOR, HEALTH_ERROR_COLOR,
-    EDU_FIG_BG, EDU_AXES_BG, EDU_LABEL_BG,
+    EDU_FIG_BG, EDU_AXES_BG, EDU_LABEL_BG, EDU_SURFACE_LO_COLOR,
+    EDU_FREE_POINT_COLOR,
 )
 
 
@@ -68,9 +69,9 @@ _TAG = "edu_m2_jac"
 # Paleta de la superficie 3D y del campo de PGs. El cian alto reusa la
 # constante canónica del glifo (un solo color para "punto Gauss sano" en
 # todo el proyecto); el naranja bajo es alarma de degeneración.
-_C_SURFACE_HI = GAUSS_CANONICAL   # cian claro (det J grande sano)
-_C_SURFACE_LO = "#ff7043"          # naranja-rojo (det J cerca de 0 o negativo)
-_C_MARKER     = GAUSS_HALO         # naranja — punto seleccionado (halo unificado)
+_C_SURFACE_HI = GAUSS_CANONICAL       # cian claro (det J grande sano)
+_C_SURFACE_LO = EDU_SURFACE_LO_COLOR  # naranja-rojo (det J cerca de 0 o negativo)
+_C_MARKER     = GAUSS_HALO            # naranja — punto seleccionado (halo unificado)
 
 
 class JacobianModule(CanvasOverlayModule):
@@ -100,7 +101,6 @@ class JacobianModule(CanvasOverlayModule):
         self._mat_values: Optional[LatexMatrixImage] = None
         self._mat_formula: Optional[LatexMatrixImage] = None
         self._lbl_values_title: Optional[tk.Label] = None
-        self._lbl_status: Optional[ttk.Label] = None
         self._lbl_warning: Optional[ttk.Label] = None
         # Narrativa de transformación: estado del último click (snap a PG
         # vs libre). Determina color del title de valores.
@@ -113,6 +113,13 @@ class JacobianModule(CanvasOverlayModule):
         self._click_consumer = self._on_canvas_click_consume
         # Handle del refresh debounced (cancelable).
         self._refresh_after_id: Optional[str] = None
+        # Cache de la superficie det J(ξ,η): la malla Z solo depende del
+        # ELEMENTO, no del punto (ξ,η) seleccionado. Cachearla permite que
+        # el drag dentro del cuadrado natural (que mueve solo el marcador)
+        # no recompute las 28×28 evaluaciones de det J en cada frame.
+        # Clave: (id_elemento, hash de coords). Valor: (XI, ET, Z, zmax).
+        self._surf_cache: Optional[tuple] = None
+        self._surf_cache_key = None
 
         super().__init__(main_window, project, element_id)
 
@@ -140,11 +147,33 @@ class JacobianModule(CanvasOverlayModule):
         )
         self._lbl_warning.pack(anchor="w", pady=(0, 2))
 
+        # ── Cuadrado natural interactivo — AL TOPE, posición estratégica ──
+        # El alumno fija (ξ,η) clickeando AQUÍ o clickeando el elemento
+        # físico del canvas: dos espacios, un mismo punto. Esto materializa
+        # que J se evalúa SIEMPRE en el cuadrado natural (ξ,η), aunque el
+        # elemento viva en (x,y). El marcador se mueve en ambos a la vez.
+        # `marker_coords=True`: cuadrado natural CENTRADO, sin readout de
+        # texto aparte — la coord (ξ,η) viaja pegada al marcador dentro del
+        # cuadrado, y la (x,y) física se dibuja pegada al punto en el canvas
+        # (ver `draw_canvas_layer`). Cada coordenada vive en su elemento.
+        self._readout = GaussCoordReadout(
+            body, order=self._gauss_order(), etype=self.element_type,
+            interactive=True, on_pick=self._on_natural_pick,
+            title="J se evalúa en el cuadrado natural (ξ, η):",
+            marker_coords=True, side=140,
+        )
+        self._readout.pack(fill="x", pady=(0, 4))
+
         # ── Superficie 3D de det J(ξ, η) ──────────────────────────
         plot_frame = ttk.Frame(body)
         plot_frame.pack(fill="both", expand=True)
 
-        self._fig = Figure(figsize=(5.6, 3.0), dpi=100)
+        # Altura reducida (antes 3.0 → 2.2): la superficie de det J suele ser
+        # un rango angosto que dejaba mucho cubo 3D vacío y empujaba el mensaje
+        # inferior (crossref) fuera de vista. Combinado con el `set_zlim`
+        # ceñido de `_draw_surface_3d`, la superficie llena el panel y todo el
+        # overlay (incluido el crossref) entra en pantalla.
+        self._fig = Figure(figsize=(5.6, 2.2), dpi=100)
         self._ax_3d = self._fig.add_subplot(111, projection="3d")
         from education.components.edu_plot_style import (
             apply_edu_style_figure, apply_edu_style_3d,
@@ -163,16 +192,6 @@ class JacobianModule(CanvasOverlayModule):
             initial=FormulaValueBlocksToggle.MODE_VALUES,
         )
         self._toggle.pack(fill="x", pady=(2, 0))
-
-        # ── Readout dual físico↔natural — AL PIE, no al tope ──────
-        # Posición pedagógica: la fórmula te dice QUÉ se calcula, el
-        # readout te ancla DÓNDE se evalúa. Leer top-down: fórmula primero,
-        # luego "you-are-here" inmediatamente arriba del crossref que
-        # señala el siguiente concepto.
-        self._readout = GaussCoordReadout(
-            body, order=self._gauss_order(), etype=self.element_type,
-        )
-        self._readout.pack(fill="x", pady=(4, 2))
 
         # Cross-reference clickeable a M4 (la matriz B).
         self._pack_crossref(
@@ -236,11 +255,11 @@ class JacobianModule(CanvasOverlayModule):
                 color = _C_SURFACE_LO
             else:
                 t = max(0.0, min(1.0, dJ / d_max))
-                color = self._lerp_color(_C_SURFACE_LO, _C_SURFACE_HI, t)
+                color = lerp_hex(_C_SURFACE_LO, _C_SURFACE_HI, t)
             # M2: variante "filled-por-valor" del glifo unificado. El COLOR
             # es el campo (det J); el label numérico refuerza la lectura.
             draw_gauss_filled_by_value(
-                mesh.canvas, sx, sy, f"{dJ:+.2g}", tag=_TAG, color=color,
+                mesh.canvas, sx, sy, f"{dJ:.2g}", tag=_TAG, color=color,
             )
             if idx == self._gauss_index:
                 # Halo de selección unificado (mismo naranja/cyan que M4/M5b).
@@ -258,18 +277,38 @@ class JacobianModule(CanvasOverlayModule):
                 )
                 fx, fy = mesh.world_to_screen(float(xy_free[0]),
                                                 float(xy_free[1]))
-                # Halo dashed naranja-rojo apagado — distinto de los PGs
-                # (filled por valor) y de la selección (halo cyan limpio).
-                mesh.canvas.create_oval(
-                    fx - 11, fy - 11, fx + 11, fy + 11,
-                    outline="#d68a7a", width=2.0, dash=(4, 3),
-                    tags=_TAG,
+                # Glifo unificado de punto LIBRE (halo dashed + disco con
+                # outline blanco) — distinto de los PGs (filled por valor) y
+                # de la selección (halo cyan limpio). Color desde settings.
+                draw_gauss_free_point(mesh.canvas, fx, fy, tag=_TAG)
+            except Exception:
+                pass
+
+        # Coordenada (x, y) PEGADA al marcador físico del punto seleccionado.
+        # Complementa la (ξ,η) que viaja con el marcador del cuadrado natural
+        # del overlay: cada coordenada vive en su propio espacio, junto a su
+        # punto. Caja de fondo para legibilidad sobre el heatmap.
+        if (self._gauss_index is not None) or self._free_point:
+            try:
+                xy_sel = natural_to_physical(
+                    self._xi, self._eta, coords[: self.n_nodes],
+                    self.element_type,
                 )
-                mesh.canvas.create_oval(
-                    fx - 4, fy - 4, fx + 4, fy + 4,
-                    fill="#d68a7a", outline="#ffffff", width=1.0,
-                    tags=_TAG,
+                px, py = mesh.world_to_screen(float(xy_sel[0]), float(xy_sel[1]))
+                lbl_color = (_C_MARKER if self._gauss_index is not None
+                             else EDU_FREE_POINT_COLOR)
+                txt = f"(x, y) = ({xy_sel[0]:.3g}, {xy_sel[1]:.3g})"
+                tid = mesh.canvas.create_text(
+                    px + 12, py - 12, text=txt, fill=lbl_color,
+                    font=("Consolas", 8, "bold"), anchor="w", tags=_TAG,
                 )
+                bb = mesh.canvas.bbox(tid)
+                if bb:
+                    mesh.canvas.create_rectangle(
+                        bb[0] - 3, bb[1] - 1, bb[2] + 3, bb[3] + 1,
+                        fill=EDU_LABEL_BG, outline=lbl_color, width=1, tags=_TAG,
+                    )
+                    mesh.canvas.tag_raise(tid)
             except Exception:
                 pass
 
@@ -346,7 +385,7 @@ class JacobianModule(CanvasOverlayModule):
                     color = _C_SURFACE_LO
                 else:
                     t = max(0.0, min(1.0, dJ / d_max_pos))
-                    color = self._lerp_color(_C_SURFACE_LO, _C_SURFACE_HI, t)
+                    color = lerp_hex(_C_SURFACE_LO, _C_SURFACE_HI, t)
                 # Corners del quad en orden CCW para tk.Canvas
                 x0 = xs_screen[i,     j];     y0 = ys_screen[i,     j]
                 x1 = xs_screen[i + 1, j];     y1 = ys_screen[i + 1, j]
@@ -470,6 +509,33 @@ class JacobianModule(CanvasOverlayModule):
         self._refresh_all()
         return True
 
+    # ── Pick desde el cuadrado natural interactivo ─────────────────
+    def _match_gauss_index(self, xi: float, eta: float,
+                            tol: float = 1e-3) -> Optional[int]:
+        """Índice del PG del elemento cuyas coords (ξ,η) matchean (xi,eta),
+        o None. Matchea por COORDENADA (no por orden) — robusto al ordering
+        del grid del widget vs el de fem.gauss_quadrature."""
+        pts_natural, _ = get_gauss_points_for_element(self.element_type)
+        for idx, (gx, gy) in enumerate(pts_natural):
+            if abs(xi - gx) < tol and abs(eta - gy) < tol:
+                return idx
+        return None
+
+    def _on_natural_pick(self, xi: float, eta: float) -> None:
+        """El alumno clickeó/arrastró DENTRO del cuadrado natural del readout.
+
+        El widget ya aplicó snap PRIORITARIO a PG: si (xi,eta) coincide con un
+        punto de Gauss del elemento, lo tratamos como selección discreta de
+        ese PG (mismo estado que clickear el PG en el canvas físico); si no,
+        es un punto libre continuo. Bidireccionalidad total: el marcador y el
+        halo del PG aparecen también sobre el elemento físico. La superficie
+        3D NO se recomputa (cache); solo el marcador y la matriz J cambian."""
+        self._xi, self._eta = float(xi), float(eta)
+        idx = self._match_gauss_index(xi, eta)
+        self._gauss_index = idx
+        self._free_point = (idx is None)
+        self._refresh_all()
+
     # ── Refresh general ─────────────────────────────────────────────
     def _refresh_all(self):
         self._draw_surface_3d()
@@ -489,7 +555,6 @@ class JacobianModule(CanvasOverlayModule):
     def _refresh_status(self):
         coords = self._coords_macro()
         physical = None
-        dJ = 0.0
         if coords is not None:
             try:
                 xy = natural_to_physical(
@@ -499,15 +564,9 @@ class JacobianModule(CanvasOverlayModule):
                 physical = (float(xy[0]), float(xy[1]))
             except Exception:
                 physical = None
-            try:
-                _, dN_fn = get_shape_functions(self.element_type)
-                _, dJ, _ = compute_jacobian(
-                    dN_fn(self._xi, self._eta), coords[: self.n_nodes],
-                )
-            except Exception:
-                dJ = 0.0
 
-        # Readout dual: cuadrado natural + coords + (x, y) cuando aplica.
+        # Readout dual: cuadrado natural + coords + (x, y) — ÚNICO lugar donde
+        # viven las coords (ξ,η)/(x,y) del punto.
         if self._readout is not None:
             self._readout.set_state(
                 order=self._gauss_order(),
@@ -516,19 +575,16 @@ class JacobianModule(CanvasOverlayModule):
                 xi=self._xi, eta=self._eta,
                 physical=physical,
             )
+        # Título de los valores: SOLO el modo. Las coords están en el readout
+        # y det J en la etiqueta anclada al marcador 3D — sin repetir nada.
         if self._lbl_values_title is not None:
             if self._gauss_index is not None:
-                mode_tag = f"pg{self._gauss_index + 1}"
-                fg = GAUSS_CANONICAL
+                mode_tag, fg = f"pg{self._gauss_index + 1}", GAUSS_CANONICAL
             elif self._free_point:
-                mode_tag = f"(ξ,η) = ({self._xi:+.3f}, {self._eta:+.3f})"
-                fg = "#d68a7a"
+                mode_tag, fg = "punto libre", EDU_FREE_POINT_COLOR
             else:
-                mode_tag = f"(ξ,η) = ({self._xi:+.3f}, {self._eta:+.3f})"
-                fg = "#dcdcdc"
-            self._lbl_values_title.configure(
-                text=f"J  en  {mode_tag}     ·     det J = {dJ:+.4g}", fg=fg,
-            )
+                mode_tag, fg = "centro del elemento", "#dcdcdc"
+            self._lbl_values_title.configure(text=f"J  en  {mode_tag}", fg=fg)
 
     def _refresh_warning(self):
         if self._lbl_warning is None or self.element is None:
@@ -558,13 +614,13 @@ class JacobianModule(CanvasOverlayModule):
             d_min = min(all_dets)
             d_max = max(all_dets)
             txt = (f"✓ det J > 0 en los {len(all_dets)} PGs  "
-                   f"(min = {d_min:+.3g} · max = {d_max:+.3g})  "
-                   f"— mapeo inversible, B computable.")
+                   f"(min = {d_min:.3g} · max = {d_max:.3g})  "
+                   f"— mapeo inversible.")
             self._lbl_warning.configure(text=txt,
                                           foreground=HEALTH_OK_COLOR)
         else:
             txt = ("⚠ Elemento degenerado: det J ≤ 0 en "
-                    + ", ".join(f"pg{i+1} ({dJ:+.2g})" for i, dJ in bad)
+                    + ", ".join(f"pg{i+1} ({dJ:.2g})" for i, dJ in bad)
                     + ". Reordená los nodos en CCW o corregí la geometría.")
             self._lbl_warning.configure(text=txt,
                                           foreground=HEALTH_ERROR_COLOR)
@@ -589,25 +645,35 @@ class JacobianModule(CanvasOverlayModule):
             self._canvas_mpl.draw_idle()
             return
 
-        _, dN_fn = get_shape_functions(self.element_type)
-        xi = np.linspace(-1, 1, self.GRID_RES)
-        eta = np.linspace(-1, 1, self.GRID_RES)
-        XI, ET = np.meshgrid(xi, eta)
-        Z = np.zeros_like(XI)
-        for r in range(XI.shape[0]):
-            for c in range(XI.shape[1]):
-                try:
-                    _, dJ, _ = compute_jacobian(
-                        dN_fn(XI[r, c], ET[r, c]),
-                        coords[: self.n_nodes],
-                    )
-                except Exception:
-                    dJ = 0.0
-                Z[r, c] = dJ
+        # Cache de la superficie por elemento+geometría: Z(ξ,η) NO depende
+        # del punto seleccionado, así que el drag dentro del cuadrado
+        # natural reusa la malla y solo re-pinta el marcador.
+        cache_key = (self.element_id, self.element_type,
+                     coords[: self.n_nodes].tobytes())
+        if self._surf_cache is not None and self._surf_cache_key == cache_key:
+            XI, ET, Z, zmax = self._surf_cache
+        else:
+            _, dN_fn = get_shape_functions(self.element_type)
+            xi = np.linspace(-1, 1, self.GRID_RES)
+            eta = np.linspace(-1, 1, self.GRID_RES)
+            XI, ET = np.meshgrid(xi, eta)
+            Z = np.zeros_like(XI)
+            for r in range(XI.shape[0]):
+                for c in range(XI.shape[1]):
+                    try:
+                        _, dJ, _ = compute_jacobian(
+                            dN_fn(XI[r, c], ET[r, c]),
+                            coords[: self.n_nodes],
+                        )
+                    except Exception:
+                        dJ = 0.0
+                    Z[r, c] = dJ
+            # `coolwarm` divergente en 0 — azul = sano, rojo = problema.
+            zmax = max(abs(float(Z.min())), abs(float(Z.max())), 1e-12)
+            self._surf_cache = (XI, ET, Z, zmax)
+            self._surf_cache_key = cache_key
 
-        # `coolwarm` divergente en 0 — azul = sano, rojo = problema.
         # Alpha bajado a 0.78 para que la superficie no domine el panel.
-        zmax = max(abs(float(Z.min())), abs(float(Z.max())), 1e-12)
         ax.plot_surface(
             XI, ET, Z, cmap="coolwarm", vmin=-zmax, vmax=zmax,
             edgecolor="none", alpha=0.78, antialiased=True,
@@ -621,14 +687,38 @@ class JacobianModule(CanvasOverlayModule):
         except Exception:
             pass
 
-        # Marcador del punto seleccionado — chico, sutil.
+        # Marcador del punto seleccionado + etiqueta de det J ANCLADA a él
+        # (mismo criterio que M1): el valor flota encima del marcador, en vez
+        # de vivir en una línea de texto aparte. Es el ÚNICO lugar donde vive
+        # det J del punto. Color por modo (PG = naranja halo · libre = rojo).
+        # `dN_fn` puede no existir si entramos por la rama de cache.
+        z_lo, z_hi = float(Z.min()), float(Z.max())
+        span = max(z_hi - z_lo, 1e-9)
+        mk = _C_MARKER if self._gauss_index is not None else EDU_FREE_POINT_COLOR
         try:
+            _, dN_fn_m = get_shape_functions(self.element_type)
             _, dJ_sel, _ = compute_jacobian(
-                dN_fn(self._xi, self._eta), coords[: self.n_nodes],
+                dN_fn_m(self._xi, self._eta), coords[: self.n_nodes],
             )
-            ax.scatter([self._xi], [self._eta], [float(dJ_sel)],
-                        s=42, c=_C_MARKER, edgecolors="white",
+            dJ_sel = float(dJ_sel)
+            ax.scatter([self._xi], [self._eta], [dJ_sel],
+                        s=42, c=mk, edgecolors="white",
                         linewidths=0.8, depthshade=False, zorder=20)
+            ax.text(
+                self._xi, self._eta, dJ_sel + max(0.08 * span, 0.12),
+                rf"$\det\mathbf{{J}} = {dJ_sel:.4g}$",
+                color=mk, fontsize=10, ha="center", va="bottom", zorder=30,
+                bbox=dict(boxstyle="round,pad=0.3", facecolor=EDU_LABEL_BG,
+                           edgecolor=mk, linewidth=0.8, alpha=0.88),
+            )
+        except Exception:
+            pass
+
+        # z-lim ceñido al rango real de det J (+ sitio arriba para la etiqueta):
+        # evita el cubo 3D semivacío con la superficie hundida abajo.
+        try:
+            ax.set_zlim(z_lo - max(0.10 * span, 0.10),
+                        z_hi + max(0.32 * span, 0.32))
         except Exception:
             pass
 
@@ -708,25 +798,5 @@ class JacobianModule(CanvasOverlayModule):
 
     # ── Helpers ────────────────────────────────────────────────────
     def _coords_macro(self) -> Optional[np.ndarray]:
-        if self.project is None or self.element is None:
-            return None
-        try:
-            return np.array([
-                [self.project.nodes[nid].x, self.project.nodes[nid].y]
-                for nid in self.element.node_ids
-            ], dtype=float)
-        except KeyError:
-            return None
-
-    @staticmethod
-    def _lerp_color(c_lo: str, c_hi: str, t: float) -> str:
-        """Interpolación lineal entre 2 colores hex (sin alpha)."""
-        def _hex_to_rgb(h):
-            h = h.lstrip("#")
-            return tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
-        a = _hex_to_rgb(c_lo)
-        b = _hex_to_rgb(c_hi)
-        r = int(a[0] + (b[0] - a[0]) * t)
-        g = int(a[1] + (b[1] - a[1]) * t)
-        bl = int(a[2] + (b[2] - a[2]) * t)
-        return f"#{r:02x}{g:02x}{bl:02x}"
+        # Delega al helper compartido (antes duplicado en M1/M2/M4/M5/M7).
+        return element_coords(self.project, self.element)

@@ -215,6 +215,70 @@ def edge_aspect_ratio(corner_coords):
 robinson_stretch = edge_aspect_ratio
 
 
+def stretch_metric(corner_coords):
+    """Stretch de Verdict para cuadrilateros:  Q = sqrt(2) * L_min / D_max.
+
+    Metrica normalizada por construccion en [0, 1] con 1 = cuadrado perfecto.
+    Combina elongacion (via L_min, la arista mas corta) con distorsion angular
+    (via D_max, la diagonal mas larga). Para un cuadrado de lado L:
+        L_min = L,  D_max = L*sqrt(2)  =>  Q = 1
+    Para elementos muy degenerados puede exceder 1 (diagonales colapsando);
+    aplicamos clamp para mantener la convencion [0, 1].
+
+    Ref: Stimpson et al., The Verdict geometric quality library,
+    Sandia SAND2007-1751, Sec. 5.2 (Quad Stretch).
+
+    Ideal: 1.0.  Aceptable: >= 0.5.  Critico: < 0.4.
+    """
+    corners = corner_coords[:4]
+    if corners.shape[0] < 4:
+        return 0.0
+    # Longitud de las 4 aristas macro
+    L = [float(np.linalg.norm(corners[(i + 1) % 4] - corners[i])) for i in range(4)]
+    L_min = min(L)
+    # Diagonales N1-N3 y N2-N4
+    D1 = float(np.linalg.norm(corners[2] - corners[0]))
+    D2 = float(np.linalg.norm(corners[3] - corners[1]))
+    D_max = max(D1, D2)
+    if D_max <= JACOBIAN_MIN_DETERMINANT:
+        return 0.0
+    q = math.sqrt(2.0) * L_min / D_max
+    return min(1.0, q)
+
+
+def scaled_jacobian_corners(corner_coords):
+    """Scaled Jacobian por vertices (Verdict): min sobre los 4 corners de
+        SJ_i = cross(L_{prev,i}, L_{next,i}) / (||L_prev|| * ||L_next||)
+    donde L_{prev,i} = P_i - P_{i-1} y L_{next,i} = P_{i+1} - P_i.
+
+    Equivale a sin(angulo_interno) para cuadrilateros convexos en sentido
+    antihorario; preserva el signo (negativo = vertice reflejo, malla
+    invertida o orientacion CW).
+
+    A diferencia de `scaled_jacobian` (este modulo) que evalua en los
+    puntos de Gauss interiores, esta version evalua en las esquinas: es
+    mas estricta (toma el peor vertice) y matchea la formula que el alumno
+    deriva a mano (sin theta_i). Se usa en el modulo educativo M0 para que
+    el numero de la barra coincida con la formula del anclaje fisico.
+
+    Ref: Stimpson et al., Verdict library, Sec. 5.1 Quad Scaled Jacobian.
+    Ideal: 1.0.  Aceptable: >= 0.5.  Invalido: <= 0.
+    """
+    P = corner_coords[:4]
+    if P.shape[0] < 4:
+        return 0.0
+    sjs = []
+    for i in range(4):
+        L_prev = P[i] - P[(i - 1) % 4]
+        L_next = P[(i + 1) % 4] - P[i]
+        cross = float(L_prev[0] * L_next[1] - L_prev[1] * L_next[0])
+        denom = float(np.linalg.norm(L_prev) * np.linalg.norm(L_next))
+        if denom <= JACOBIAN_MIN_DETERMINANT:
+            return 0.0
+        sjs.append(cross / denom)
+    return min(sjs)
+
+
 # --------------------------------------------------------------------------- #
 # METRICA Q9: ADMISIBILIDAD DE NODOS MEDIOS Y CENTROIDE                        #
 # --------------------------------------------------------------------------- #

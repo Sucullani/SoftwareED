@@ -24,7 +24,27 @@ API:
 
 from __future__ import annotations
 
-from config.settings import OVERLAY_BG
+from config.settings import (
+    OVERLAY_BG, EDU_AXES_BG, EDU_FIG_BG, EDU_GRID, EDU_FG, HEALTH_INFO_COLOR,
+)
+
+
+# Paleta del tema oscuro para Figures matplotlib embebidas en diálogos
+# (element_type / analysis_type). Migrado desde el ex-plot_panel.py (cuya
+# clase PlotPanel quedó muerta tras el rediseño UX 2026); el helper
+# `_theme_colors` seguía vivo en esos dos diálogos, así que vive acá ahora.
+_DARK_THEME = {
+    "bg":     EDU_AXES_BG,
+    "fg":     EDU_FG,
+    "grid":   EDU_GRID,
+    "panel":  EDU_FIG_BG,
+    "accent": HEALTH_INFO_COLOR,
+}
+
+
+def _theme_colors() -> dict:
+    """Copia de la paleta oscura para Figures matplotlib en diálogos."""
+    return dict(_DARK_THEME)
 
 
 # Paleta neutra para el chrome de los plots edu. Los colores de los

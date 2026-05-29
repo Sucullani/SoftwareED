@@ -49,19 +49,25 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 from education.overlay_module import CanvasOverlayModule
-from education.components.iso_inverse import iso_inverse_map, natural_to_physical
+from education.components.iso_inverse import (
+    iso_inverse_map, natural_to_physical, element_coords,
+)
 from fem.shape_functions import get_shape_functions
 from config.settings import (
     ELEMENT_Q4, ELEMENT_Q9,
-    EDU_FIG_BG, EDU_AXES_BG, EDU_LABEL_BG, EDU_FG, EDU_FG_MUTED,
+    EDU_AXES_BG, EDU_LABEL_BG, EDU_FG_MUTED,
+    EDU_NATURAL_OUTLINE_COLOR, EDU_NATURAL_AXES_COLOR,
+    GAUSS_CANONICAL_COLOR, EDU_FREE_POINT_COLOR, EDU_MARKER_OUTLINE_COLOR,
 )
 
 
-_C_BLUE = "#4fa3ff"
-_C_ORANGE = "#ff9f43"
-_C_RED = "#ef5350"
-_C_CYAN = "#80deea"           # snap a nodo (modo "discreto")
-_C_MUTED_RED = "#d68a7a"      # punto libre (modo "continuo")
+# Colores del cuadrado natural — estilo de referencia, fuente única en
+# config/settings.py (compartidos con el widget tk GaussCoordReadout).
+_C_BLUE = EDU_NATURAL_OUTLINE_COLOR
+_C_ORANGE = "#ff9f43"             # nodos vértice (identidad pedagógica de M1)
+_C_RED = "#ef5350"                # marcador de punto libre (rojo M1)
+_C_CYAN = GAUSS_CANONICAL_COLOR   # snap a nodo (modo "discreto")
+_C_MUTED_RED = EDU_FREE_POINT_COLOR  # punto libre (modo "continuo")
 
 
 # Snap radius para reconocer "click sobre un nodo" en el canvas real (px).
@@ -69,6 +75,29 @@ _SNAP_PX = 18
 
 # Tag canvas — identifica TODOS los items de M1 para borrarlos en cada redraw.
 _TAG = "edu_m1"
+
+
+# Fórmulas LaTeX de las funciones de forma (idea 5). Espejan exactamente
+# fem/shape_functions.py (shape_functions_q4 / shape_functions_q9). Se
+# muestran simbólicamente en el módulo (el código sigue siendo la fuente
+# de verdad). Reactivas al nodo seleccionado.
+_N_FORMULAS_Q4 = {
+    1: r"N_1(\xi,\eta) = \dfrac{1}{4}(1-\xi)(1-\eta)",
+    2: r"N_2(\xi,\eta) = \dfrac{1}{4}(1+\xi)(1-\eta)",
+    3: r"N_3(\xi,\eta) = \dfrac{1}{4}(1+\xi)(1+\eta)",
+    4: r"N_4(\xi,\eta) = \dfrac{1}{4}(1-\xi)(1+\eta)",
+}
+_N_FORMULAS_Q9 = {
+    1: r"N_1 = \dfrac{1}{4}\,\xi(\xi-1)\,\eta(\eta-1)",
+    2: r"N_2 = \dfrac{1}{4}\,\xi(\xi+1)\,\eta(\eta-1)",
+    3: r"N_3 = \dfrac{1}{4}\,\xi(\xi+1)\,\eta(\eta+1)",
+    4: r"N_4 = \dfrac{1}{4}\,\xi(\xi-1)\,\eta(\eta+1)",
+    5: r"N_5 = \dfrac{1}{2}\,(1-\xi^2)\,\eta(\eta-1)",
+    6: r"N_6 = \dfrac{1}{2}\,\xi(\xi+1)(1-\eta^2)",
+    7: r"N_7 = \dfrac{1}{2}\,(1-\xi^2)\,\eta(\eta+1)",
+    8: r"N_8 = \dfrac{1}{2}\,\xi(\xi-1)(1-\eta^2)",
+    9: r"N_9 = (1-\xi^2)(1-\eta^2)",
+}
 
 
 class IsoMappingModule(CanvasOverlayModule):
@@ -96,22 +125,9 @@ class IsoMappingModule(CanvasOverlayModule):
 
         self._refresh_explore_type()
 
-        # ── Chip de dualidad: única razón de su existencia es ENSEÑAR
-        # que (x,y) y (ξ,η) son dos nombres del mismo punto.
-        # NO navega — para eso está el crossref al pie. SÍ pulsa cuando
-        # el alumno gatilla la traducción (click libre físico): el flash
-        # amarillo es el "instante didáctico" de ver al mapeo trabajando.
-        chip_frame = ttk.Frame(body)
-        chip_frame.pack(fill="x", padx=4, pady=(0, 4))
-        self._lbl_chip = tk.Label(
-            chip_frame,
-            text="(x, y)  ⇄  (ξ, η)",
-            bg=EDU_LABEL_BG, fg=_C_CYAN,
-            font=("Consolas", 11, "bold"),
-            padx=8, pady=4,
-        )
-        self._lbl_chip.pack(fill="x")
-        self._chip_after_id: Optional[str] = None
+        # NOTA: el chip `(x,y) ↔ (ξ,η)` fue eliminado — el título del overlay
+        # (`①  Mapeo isoparamétrico  (x,y) ↔ (ξ,η)`) ya enuncia esa dualidad,
+        # así que repetirla en el cuerpo era ruido redundante.
 
         # Línea de estado dinámica: indica el modo de la última selección.
         # Vacía hasta el primer click.
@@ -122,18 +138,23 @@ class IsoMappingModule(CanvasOverlayModule):
         self._lbl_mode.pack(fill="x", padx=4, pady=(0, 2))
 
         # ── Figura 2×1: cuadrado natural + superficie 3D ─────────
-        self._fig = Figure(figsize=(4.8, 5.0), dpi=100)
+        # La fórmula simbólica Nᵢ(ξ,η) es el TÍTULO de la superficie 3D
+        # (la superficie ES esa función) y la evaluación numérica vive como
+        # readout PINNEADO en una esquina del panel 3D — ambos dejaron de ser
+        # widgets tk apilados abajo, lo que libera alto vertical para agrandar
+        # la superficie (height_ratios favorece la fila del 3D).
+        self._fig = Figure(figsize=(4.8, 5.5), dpi=100)
         from education.components.edu_plot_style import (
             apply_edu_style_figure, apply_edu_style_2d, apply_edu_style_3d,
         )
         apply_edu_style_figure(self._fig)
         gs = self._fig.add_gridspec(
-            2, 1, height_ratios=[1, 1.05],
-            hspace=0.18, left=0.08, right=0.96, top=0.93, bottom=0.04,
+            2, 1, height_ratios=[0.82, 1.5],
+            hspace=0.30, left=0.06, right=0.94, top=0.93, bottom=0.03,
         )
         self._ax_nat = self._fig.add_subplot(gs[0, 0])
         self._ax_n3d = self._fig.add_subplot(gs[1, 0], projection="3d")
-        apply_edu_style_2d(self._ax_nat, show_spines=True)
+        apply_edu_style_2d(self._ax_nat, show_spines=False)
         apply_edu_style_3d(self._ax_n3d)
 
         self._canvas_mpl = FigureCanvasTkAgg(self._fig, master=body)
@@ -180,6 +201,11 @@ class IsoMappingModule(CanvasOverlayModule):
         El color del marcador comunica el modo:
             cyan    — snap a nodo (Nᵢ identidad geométrica)
             rojo    — punto libre (en cualquier panel)
+
+        El canvas es el espacio FÍSICO: su único trabajo es mostrar DÓNDE
+        cae el punto sobre la geometría real (marcador). El valor numérico
+        Nᵢ vive SOLO en el overlay (bajo la fórmula) — no se repite acá
+        para no duplicar el dato entre canvas y overlay.
         """
         mesh.canvas.delete(_TAG)
         if self.element is None or self.project is None:
@@ -210,33 +236,17 @@ class IsoMappingModule(CanvasOverlayModule):
         # Disco interior con outline blanco (legibilidad sobre cualquier fondo).
         mesh.canvas.create_oval(
             sx - 4, sy - 4, sx + 4, sy + 4,
-            fill=color, outline="#ffffff", width=1.0,
+            fill=color, outline=EDU_MARKER_OUTLINE_COLOR, width=1.0,
             tags=_TAG,
         )
-        # Label compacto con la Nᵢ actual y su valor en este punto.
-        try:
-            N_fn, _ = get_shape_functions(self._explore_type)
-            ni_val = float(N_fn(self._sel_xi, self._sel_eta)[self._node_idx - 1])
-        except Exception:
-            ni_val = 0.0
-        mesh.canvas.create_text(
-            sx + 14, sy - 12,
-            text=f"N{self._node_idx}={ni_val:+.3f}",
-            fill=color, font=("Consolas", 8, "bold"),
-            anchor="w", tags=_TAG,
-        )
+        # SIN label de valor sobre el canvas: el número Nᵢ vive solo en el
+        # overlay (bajo la fórmula). El marcador es el ancla física.
 
     def on_closed(self) -> None:
         try:
             self._mesh.remove_click_consumer(self._click_consumer)
         except Exception:
             pass
-        if self._chip_after_id is not None:
-            try:
-                self._mesh.after_cancel(self._chip_after_id)
-            except Exception:
-                pass
-            self._chip_after_id = None
 
     # ── Sincronización con la selección del canvas ────────────────
     def on_element_selected(self, elem_id):
@@ -314,56 +324,22 @@ class IsoMappingModule(CanvasOverlayModule):
         # dónde está ese punto físico en el cuadrado natural y CUÁNTO
         # vale la Nᵢ que tiene anclada actualmente.
         self._mode = "free_physical"
-        self._pulse_chip()
         self._redraw()
         self._refresh_mode_label()
         return True
 
     def _element_coords(self) -> Optional[np.ndarray]:
-        if self.project is None or self.element is None:
-            return None
-        try:
-            return np.array([
-                [self.project.nodes[nid].x, self.project.nodes[nid].y]
-                for nid in self.element.node_ids
-            ], dtype=float)
-        except KeyError:
-            return None
-
-    # ── Chip narrativo: pulso al gatillar inverse map ──────────────
-    def _pulse_chip(self) -> None:
-        """Flash visual del chip narrativo: cyan → amarillo → cyan.
-        Comunica "el Jacobiano acaba de traducir tu click físico"."""
-        if self._lbl_chip is None:
-            return
-        try:
-            self._lbl_chip.configure(fg="#ffd54f", bg="#3a3520")
-        except tk.TclError:
-            return
-        if self._chip_after_id is not None:
-            try:
-                self._mesh.after_cancel(self._chip_after_id)
-            except Exception:
-                pass
-        try:
-            self._chip_after_id = self._mesh.after(
-                450, self._reset_chip,
-            )
-        except tk.TclError:
-            self._chip_after_id = None
-
-    def _reset_chip(self) -> None:
-        self._chip_after_id = None
-        try:
-            self._lbl_chip.configure(fg=_C_CYAN, bg=EDU_LABEL_BG)
-        except tk.TclError:
-            pass
+        # Delega al helper compartido (antes duplicado en M1/M2/M4/M5/M7).
+        return element_coords(self.project, self.element)
 
     # ── Label de modo (compacto, sin jerga) ───────────────────────
     def _refresh_mode_label(self) -> None:
+        # Solo comunica el MODO de la última selección. Las coords (ξ,η) NO
+        # se muestran acá — viven en la sustitución bajo la fórmula
+        # (`N₁(-0.286, +0.190) = ...`), donde son el input de la evaluación.
+        # Así cada dato textual aparece una sola vez en el overlay.
         if self._lbl_mode is None:
             return
-        coord_str = f"(ξ, η) = ({self._sel_xi:+.3f}, {self._sel_eta:+.3f})"
         if self._mode == "init":
             self._lbl_mode.configure(
                 text="Clickeá un nodo o cualquier punto interior del elemento.",
@@ -371,15 +347,11 @@ class IsoMappingModule(CanvasOverlayModule):
             )
         elif self._mode == "snap_node":
             self._lbl_mode.configure(
-                text=f"nodo {self._node_idx}   ·   {coord_str}", fg=_C_CYAN,
+                text=f"nodo {self._node_idx}", fg=_C_CYAN,
             )
-        elif self._mode == "free_physical":
+        else:  # free_physical | free_natural
             self._lbl_mode.configure(
-                text=f"punto libre   ·   {coord_str}", fg=_C_MUTED_RED,
-            )
-        elif self._mode == "free_natural":
-            self._lbl_mode.configure(
-                text=f"punto libre   ·   {coord_str}", fg=_C_MUTED_RED,
+                text="punto libre", fg=_C_MUTED_RED,
             )
 
     # ── Tipo de elemento (auto desde project/element) ──────────────
@@ -441,6 +413,28 @@ class IsoMappingModule(CanvasOverlayModule):
         nc = self._natural_node_coords()
         return float(nc[idx, 0]), float(nc[idx, 1])
 
+    # ── Fórmula + evaluación de Nᵢ como LaTeX (mathtext) ───────────
+    # Ya NO son widgets tk apilados bajo la figura: la fórmula es el TÍTULO
+    # de la superficie 3D (`_draw_surface_n`) y la evaluación es un readout
+    # pinneado en la esquina del panel 3D (`_draw_markers`). Estos helpers
+    # construyen los strings mathtext que consumen esos dos métodos.
+    def _shape_formula_latex(self) -> str:
+        """`$N_i(ξ,η) = ...$` de la función activa (espeja shape_functions)."""
+        table = (_N_FORMULAS_Q9 if self._explore_type == ELEMENT_Q9
+                 else _N_FORMULAS_Q4)
+        expr = table.get(self._node_idx)
+        return f"${expr}$" if expr else ""
+
+    def _shape_value_latex(self) -> str:
+        """`$N_i(ξ,η) = valor$` sustituido en el (ξ,η) actual (mathtext)."""
+        try:
+            N_fn, _ = get_shape_functions(self._explore_type)
+            val = float(N_fn(self._sel_xi, self._sel_eta)[self._node_idx - 1])
+        except Exception:
+            return ""
+        return (rf"$N_{{{self._node_idx}}}({self._sel_xi:.3f},\,"
+                rf"{self._sel_eta:.3f}) = {val:.4f}$")
+
     # ── Render ─────────────────────────────────────────────────────
     def _redraw(self):
         if self._ax_nat is None:
@@ -462,21 +456,22 @@ class IsoMappingModule(CanvasOverlayModule):
             pass
 
     def _draw_natural(self, ax):
-        # Estética alineada con el inset compartido (gauss_inset.py): mismo
-        # marco azul `#4fa3ff` lw=1.4, ejes `#3a5278` lw=0.8, tipografía
-        # Consolas en labels. Los nodos (corners/mids/centroide) son
-        # SEMÁNTICAMENTE distintos a los PGs del inset — acá se grafica el
-        # cuadrado natural del ELEMENTO de referencia, no los puntos de
-        # cuadratura — así que la paleta de marcadores se mantiene.
+        # Estética UNIFICADA con el inset compartido (gauss_inset.py): mismo
+        # contorno azul `#4fa3ff`, ejes `#3a5278` lw=0.8, ±1 en Consolas y
+        # SIN spines (el "marco exterior" de matplotlib) — el único borde es
+        # el cuadrado natural mismo, igual que en M2/M4/M5. Los nodos
+        # (corners/mids/centroide) son SEMÁNTICAMENTE distintos a los PGs del
+        # inset (acá el cuadrado del ELEMENTO de referencia, no los puntos de
+        # cuadratura), así que la paleta de marcadores se mantiene.
         ax.clear()
         from education.components.edu_plot_style import apply_edu_style_2d
-        apply_edu_style_2d(ax, show_spines=True)
+        apply_edu_style_2d(ax, show_spines=False)
         ax.set_aspect("equal")
         sq = np.array([[-1, -1], [1, -1], [1, 1], [-1, 1], [-1, -1]])
         ax.plot(sq[:, 0], sq[:, 1], color=_C_BLUE, lw=1.0)
         ax.fill(sq[:, 0], sq[:, 1], color=_C_BLUE, alpha=0.06)
-        ax.axhline(0, color="#3a5278", lw=0.8, alpha=0.85)
-        ax.axvline(0, color="#3a5278", lw=0.8, alpha=0.85)
+        ax.axhline(0, color=EDU_NATURAL_AXES_COLOR, lw=0.8, alpha=0.85)
+        ax.axvline(0, color=EDU_NATURAL_AXES_COLOR, lw=0.8, alpha=0.85)
         corners = sq[:4]
         ax.scatter(corners[:, 0], corners[:, 1], s=110,
                     c=_C_ORANGE, edgecolors="white", linewidths=1.2,
@@ -537,8 +532,11 @@ class IsoMappingModule(CanvasOverlayModule):
                         cmap="viridis", levels=6, alpha=0.6)
         except Exception:
             pass
-        ax.set_title(f"N{node_idx}(ξ, η)",
-                      color="#90caf9", fontsize=8, pad=2)
+        # Título = la fórmula simbólica Nᵢ(ξ,η) en mathtext (reactiva al nodo).
+        # La superficie ES esta función → su fórmula la rotula. Reemplaza al
+        # antiguo `N{idx}(ξ,η)`, que duplicaba el lado izquierdo de la fórmula.
+        ax.set_title(self._shape_formula_latex(),
+                      color="#90caf9", fontsize=13, pad=8)
         try:
             ax.set_xticklabels([]); ax.set_yticklabels([])
         except Exception:
@@ -555,6 +553,10 @@ class IsoMappingModule(CanvasOverlayModule):
                               zorder=10)
         self._ax_nat.scatter([self._sel_xi], [self._sel_eta],
                               s=30, c=marker_color, zorder=11)
+        # Marcador 3D sobre la superficie Nᵢ (z = valor en el punto) + la
+        # evaluación numérica ANCLADA al marcador: flota justo encima de él en
+        # coords 3D (no pinneada a una esquina). Caja sutil para legibilidad
+        # sobre el colormap. Es el ÚNICO lugar donde vive el valor numérico Nᵢ.
         try:
             ni_val = float(N_fn(self._sel_xi, self._sel_eta)[self._node_idx - 1])
             self._ax_n3d.scatter(
@@ -562,19 +564,17 @@ class IsoMappingModule(CanvasOverlayModule):
                 s=60, c=marker_color, edgecolors="white", linewidths=1.2,
                 zorder=20, depthshade=False,
             )
-        except Exception:
-            ni_val = 0.0
-        try:
-            self._ax_nat.text(
-                0.02, 0.98,
-                f"(ξ,η) = ({self._sel_xi:+.2f}, {self._sel_eta:+.2f})\n"
-                f"N{self._node_idx} = {ni_val:+.3f}",
-                transform=self._ax_nat.transAxes,
-                color=marker_color, fontsize=7, family="monospace",
-                va="top", ha="left",
-                bbox=dict(facecolor=EDU_LABEL_BG,
-                           edgecolor=marker_color, linewidth=0.8, alpha=0.8),
-            )
+            val_tex = self._shape_value_latex()
+            if val_tex:
+                self._ax_n3d.text(
+                    self._sel_xi, self._sel_eta, ni_val + 0.10, val_tex,
+                    color=marker_color, fontsize=10,
+                    ha="center", va="bottom", zorder=30,
+                    bbox=dict(boxstyle="round,pad=0.3",
+                               facecolor=EDU_LABEL_BG,
+                               edgecolor=marker_color, linewidth=0.8,
+                               alpha=0.88),
+                )
         except Exception:
             pass
 

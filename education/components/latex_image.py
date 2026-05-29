@@ -48,11 +48,11 @@ def _ax_face_hex(ax) -> str:
     try:
         c = ax.get_facecolor()
         if isinstance(c, str):
-            return c if c.startswith("#") else "#2c2c2c"
+            return c if c.startswith("#") else EDU_AXES_BG
         r, g, b = int(c[0] * 255), int(c[1] * 255), int(c[2] * 255)
         return f"#{r:02x}{g:02x}{b:02x}"
     except Exception:
-        return "#2c2c2c"
+        return EDU_AXES_BG
 
 
 def _infer_bg(parent) -> str:
@@ -117,6 +117,7 @@ def render_matrix_image(
     bg: Optional[str] = None,
     dpi: int = 140,
     cache: bool = True,
+    shrink: bool = True,
 ) -> ImageTk.PhotoImage:
     """Renderiza una matriz como PhotoImage con corchetes NATIVOS LaTeX
     (`\\left[...\\right]`) usando `\\substack` por columna.
@@ -148,7 +149,7 @@ def render_matrix_image(
     rows, cols = cells.shape
 
     if cache:
-        key = ("matrix", _cells_key(cells), fontsize, color, prefix, bg, dpi)
+        key = ("matrix", _cells_key(cells), fontsize, color, prefix, bg, dpi, shrink)
         cached = _CACHE.get(key)
         if cached is not None:
             return cached
@@ -156,7 +157,7 @@ def render_matrix_image(
     try:
         photo = _render_matrix_via_packer_to_photoimage(
             cells, prefix=prefix, fontsize=fontsize, color=color,
-            bg=bg, dpi=dpi,
+            bg=bg, dpi=dpi, shrink=shrink,
         )
     except Exception:
         try:
@@ -174,11 +175,19 @@ def render_matrix_image(
 
 def _build_matrix_packer(
     cells: np.ndarray, *, prefix: str, fontsize: int, color: str,
+    shrink: bool = True,
 ):
     """Construye un `HPacker` `(prefijo + matriz)` con vertical-center
     alignment. Usa `TextArea` para que el render sea matplotlib-nativo
     (mismo path que cualquier `ax.text` mathtext, sin composicion PIL
     ni resampling).
+
+    `shrink=True` (default) aplica `_fit_fontsize_for_shape` que reduce el
+    fontsize para matrices anchas (que el caller quiere que entren en un
+    ancho fijo). `shrink=False` respeta el `fontsize` pedido tal cual — lo
+    usa `ScrollableMatrixImage`, que muestra la matriz a tamano legible en
+    un viewport con scroll/pan (el overflow lo resuelve el scroll, no el
+    encogido de fuente).
 
     Returns the packer + the effective `fs_substack` (para que el
     caller pueda ajustar margenes/figsizes si lo necesita).
@@ -186,7 +195,7 @@ def _build_matrix_packer(
     from matplotlib.offsetbox import TextArea, HPacker
 
     rows, cols = cells.shape
-    fs = _fit_fontsize_for_shape(rows, cols, fontsize)
+    fs = _fit_fontsize_for_shape(rows, cols, fontsize) if shrink else fontsize
     fs_substack = max(9, int(round(fs * 1.7)))
 
     matrix_expr = _build_substack_matrix_expr(cells, prefix="")
@@ -217,7 +226,7 @@ def _build_matrix_packer(
 
 def _render_matrix_via_packer_to_pil(
     cells: np.ndarray, *, prefix: str, fontsize: int, color: str,
-    bg: str, dpi: int,
+    bg: str, dpi: int, shrink: bool = True,
 ) -> Image.Image:
     """Render del packer matplotlib-nativo a `PIL.Image` con bbox tight.
 
@@ -228,7 +237,7 @@ def _render_matrix_via_packer_to_pil(
     from matplotlib.offsetbox import AnchoredOffsetbox
 
     packer, _ = _build_matrix_packer(
-        cells, prefix=prefix, fontsize=fontsize, color=color,
+        cells, prefix=prefix, fontsize=fontsize, color=color, shrink=shrink,
     )
 
     fig = Figure(figsize=(0.01, 0.01), dpi=dpi, facecolor=bg)
@@ -256,14 +265,14 @@ def _render_matrix_via_packer_to_pil(
 
 def _render_matrix_via_packer_to_photoimage(
     cells: np.ndarray, *, prefix: str, fontsize: int, color: str,
-    bg: str, dpi: int,
+    bg: str, dpi: int, shrink: bool = True,
 ) -> ImageTk.PhotoImage:
     """Wrap del `PIL.Image` del packer como `PhotoImage` Tk. Aplica el
     downscale LANCZOS 50% estandar (super-sampling AA + tamano de
     widget coherente con el resto de la UI educativa)."""
     img = _render_matrix_via_packer_to_pil(
         cells, prefix=prefix, fontsize=fontsize, color=color,
-        bg=bg, dpi=dpi,
+        bg=bg, dpi=dpi, shrink=shrink,
     )
     w, h = img.size
     img = img.resize((max(1, w // 2), max(1, h // 2)), Image.LANCZOS)
@@ -530,6 +539,9 @@ class LatexMatrixImage(ttk.Label):
         bg: Optional[str] = None,
         dpi: int = 140,
         cache_values: bool = False,
+        zoomable: bool = False,  # DEPRECADO: el pop-up MatrixZoom se eliminó
+                                 # (era ruido). Aceptado y IGNORADO por compat;
+                                 # para matrices anchas usar ScrollableMatrixImage.
         **label_kwargs,
     ):
         # Si no se especifica bg, inferir del parent para que el PNG
@@ -578,6 +590,149 @@ class LatexMatrixImage(ttk.Label):
                 self.configure(background=bg)
             except Exception:
                 pass
+
+
+class ScrollableMatrixImage(ttk.Frame):
+    """Matriz LaTeX en un viewport de tamaño fijo con scroll + pan IN-FRAME.
+
+    Reemplazo del pop-up `MatrixZoom` (eliminado por ruido). Para matrices
+    anchas (B 3×18, k_e 18×18 en Q9) que en un `tk.Label` salían comprimidas
+    a ~6-7 pt, este widget las renderiza a fontsize LEGIBLE (`shrink=False`,
+    sin el encogido de `_fit_fontsize_for_shape`) y deja al alumno
+    inspeccionarlas:
+        • arrastrando con el mouse (pan, cursor `fleur`), y
+        • con la rueda (scroll vertical; Shift+rueda = horizontal).
+
+    API espejo de `LatexMatrixImage` (`set_matrix`, `cleanup`) para
+    sustituirlo donde el corte era severo. Para matrices chicas (Q4) el
+    contenido entra entero en el viewport y no hace falta scrollear — el
+    widget funciona igual, sin pop-up ni segunda ventana.
+
+    Implementación: `tk.Canvas` con `create_image` + `scrollregion`. NO abre
+    ningún Toplevel — vive como hijo del `body` del overlay, así que NO toca
+    el ciclo de vida frágil del `overrideredirect` (a diferencia del pop-up).
+
+    Conflicto de rueda con el overlay: `CanvasOverlay._consume_wheel_recursive`
+    bindea `<MouseWheel>→break` en TODOS los descendants al hacer `show()`
+    (que corre DESPUÉS de construir el body), pisando cualquier bind de rueda
+    hecho acá en `__init__`. Solución: re-bindeamos la rueda en `<Enter>` del
+    canvas (corre en runtime, gana sobre el break) y la devolvemos a `break`
+    en `<Leave>` (así fuera del canvas el wheel sigue protegido). El handler
+    propio retorna `"break"`, de modo que el scroll NO se propaga a la
+    MeshCanvas ni al FigureCanvasTkAgg vecino (regla de oro #3 preservada).
+    """
+
+    def __init__(
+        self,
+        parent,
+        *,
+        matrix: Optional[MatrixLike] = None,
+        fmt: str = "{:.3g}",
+        fontsize: int = 15,
+        color: str = EDU_FG,
+        prefix: str = "",
+        bg: Optional[str] = None,
+        dpi: int = 140,
+        viewport: tuple = (440, 200),
+        **frame_kwargs,
+    ):
+        if bg is None:
+            bg = _infer_bg(parent)
+        super().__init__(parent, **frame_kwargs)
+        self._fmt = fmt
+        self._fontsize = fontsize
+        self._color = color
+        self._prefix = prefix
+        self._bg = bg
+        self._dpi = dpi
+        self._vw, self._vh = int(viewport[0]), int(viewport[1])
+        self._photo = None  # anti-GC
+
+        import tkinter as _tk
+        self._canvas = _tk.Canvas(
+            self, width=self._vw, height=self._vh,
+            bg=bg, highlightthickness=0, bd=0, cursor="fleur",
+        )
+        self._canvas.pack(fill="both", expand=True)
+
+        # Pan por arrastre (no afectado por el bloqueo de rueda del overlay).
+        self._canvas.bind("<ButtonPress-1>",
+                          lambda e: self._canvas.scan_mark(e.x, e.y))
+        self._canvas.bind("<B1-Motion>",
+                          lambda e: self._canvas.scan_dragto(e.x, e.y, gain=1))
+        # Rueda: re-asertar en <Enter> (gana sobre el break del overlay) y
+        # restaurar el break en <Leave>.
+        self._canvas.bind("<Enter>", self._enable_wheel)
+        self._canvas.bind("<Leave>", self._disable_wheel)
+
+        if matrix is not None:
+            self.set_matrix(matrix)
+
+    # ── Rueda (scroll) ─────────────────────────────────────────────
+    def _enable_wheel(self, _e=None) -> None:
+        self._canvas.bind("<MouseWheel>", self._on_wheel)
+        self._canvas.bind("<Shift-MouseWheel>", self._on_wheel_h)
+
+    def _disable_wheel(self, _e=None) -> None:
+        # Devolver el comportamiento "break" del overlay: fuera del canvas
+        # la rueda NO debe llegar a la MeshCanvas ni al FigureCanvasTkAgg.
+        self._canvas.bind("<MouseWheel>", lambda _ev: "break")
+        self._canvas.bind("<Shift-MouseWheel>", lambda _ev: "break")
+
+    def _on_wheel(self, e):
+        self._canvas.yview_scroll(int(-1 * (e.delta / 120)), "units")
+        return "break"
+
+    def _on_wheel_h(self, e):
+        self._canvas.xview_scroll(int(-1 * (e.delta / 120)), "units")
+        return "break"
+
+    # ── API espejo de LatexMatrixImage ─────────────────────────────
+    def set_matrix(self, matrix: MatrixLike, *, prefix: Optional[str] = None) -> None:
+        if prefix is not None:
+            self._prefix = prefix
+        # shrink=False → fontsize pleno (el scroll resuelve el overflow, no
+        # el encogido). cache=False → matrices live (cambian con ξ,η).
+        photo = render_matrix_image(
+            matrix, fmt=self._fmt, fontsize=self._fontsize, color=self._color,
+            prefix=self._prefix, bg=self._bg, dpi=self._dpi,
+            cache=False, shrink=False,
+        )
+        self._photo = photo  # anti-GC
+        c = self._canvas
+        c.delete("all")
+        iw, ih = photo.width(), photo.height()
+        # Centrar si la imagen es más chica que el viewport; sino anclar arriba-izq.
+        ox = max(4, (self._vw - iw) // 2)
+        oy = max(4, (self._vh - ih) // 2)
+        c.create_image(ox, oy, image=photo, anchor="nw")
+        c.configure(scrollregion=(0, 0, max(iw + 8, self._vw),
+                                  max(ih + 8, self._vh)))
+        # Hint de arrastre solo si el contenido excede el viewport.
+        if iw > self._vw or ih > self._vh:
+            c.create_text(
+                self._vw - 6, self._vh - 6, anchor="se",
+                text="⤡ arrastrá / rueda", fill=EDU_FG, font=("Segoe UI", 7),
+            )
+
+    def set_style(self, *, fontsize: Optional[int] = None,
+                  color: Optional[str] = None, bg: Optional[str] = None) -> None:
+        if fontsize is not None:
+            self._fontsize = fontsize
+        if color is not None:
+            self._color = color
+        if bg is not None:
+            self._bg = bg
+            try:
+                self._canvas.configure(bg=bg)
+            except Exception:
+                pass
+
+    def cleanup(self) -> None:
+        """No-op: este widget NO abre Toplevels (a diferencia del ex-pop-up).
+        Presente por simetría de API con LatexMatrixImage y para el walk de
+        `CanvasOverlayModule._cleanup_child_widgets`."""
+        pass
 
 
 class LatexExpressionImage(ttk.Label):
@@ -1066,12 +1221,38 @@ _UNICODE_MATH_MAP = {
 }
 
 
+# Comandos LaTeX comunes que matplotlib mathtext NO soporta, mapeados a
+# su equivalente soportado. Evita que una expresión "casi válida" caiga al
+# fallback de texto plano (se veía el LaTeX crudo en pantalla). matplotlib
+# mathtext NO conoce: \lvert \rvert \lVert \rVert \tfrac (sí conoce \frac,
+# \dfrac, \left| \right|, \|).
+_MATHTEXT_UNSUPPORTED = (
+    (r"\lvert", r"|"),
+    (r"\rvert", r"|"),
+    (r"\lVert", r"\|"),
+    (r"\rVert", r"\|"),
+    (r"\tfrac", r"\frac"),
+)
+
+
+def _sanitize_mathtext_commands(s: str) -> str:
+    """Normaliza comandos LaTeX no soportados por mathtext a equivalentes
+    válidos. Defensa para que expresiones con \\lvert/\\tfrac no caigan al
+    fallback de texto crudo."""
+    for bad, good in _MATHTEXT_UNSUPPORTED:
+        if bad in s:
+            s = s.replace(bad, good)
+    return s
+
+
 def _unicode_math_to_latex(s: str) -> str:
     """Reemplaza chars Unicode math por sus comandos LaTeX. Inserta
     espacios despues de comandos para evitar ambiguedad
-    (`\\partial x` no `\\partialx`)."""
+    (`\\partial x` no `\\partialx`). Primero normaliza comandos LaTeX que
+    mathtext no soporta (\\lvert, \\tfrac, ...) a equivalentes válidos."""
     if not s:
         return s
+    s = _sanitize_mathtext_commands(s)
     out = []
     for ch in s:
         rep = _UNICODE_MATH_MAP.get(ch)

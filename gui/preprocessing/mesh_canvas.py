@@ -260,7 +260,7 @@ from config.settings import (
     CANVAS_ELEMENT_COLOR, CANVAS_LOAD_COLOR, CANVAS_CONSTRAINT_COLOR,
     CANVAS_SELECTED_COLOR, CANVAS_NODE_RADIUS, CANVAS_FONT_SIZE,
     CANVAS_NODE_MID_COLOR, CANVAS_NODE_CENTER_COLOR, CANVAS_NODE_MID_RADIUS,
-    CANVAS_NODE_ORPHAN_COLOR,
+    CANVAS_NODE_ORPHAN_COLOR, CANVAS_GHOST_COLOR,
     DECIMALS_LENGTH, DECIMALS_FORCE, DECIMALS_STRESS, fmt,
     SHADOW_LOAD, SHADOW_SURFACE, SHADOW_CONSTRAINT, LABEL_BG, LABEL_FG,
     FONT_MONO_SMALL,
@@ -349,6 +349,10 @@ class MeshCanvas(ttk.Frame):
         self.show_loads = True
         self.show_constraints = True
         self.show_mesh_edges = True
+        # Geometria "fantasma": cuando un modulo overlay lo activa (M0), la
+        # malla base se dibuja atenuada (gris tenue, sin etiquetas) para que la
+        # capa del modulo sea la protagonista. El modulo lo resetea al cerrar.
+        self.ghost_geometry = False
 
         # Gradiente e isolineas
         self._gradient_photo = None  # referencia PIL para evitar GC
@@ -1185,21 +1189,28 @@ class MeshCanvas(ttk.Frame):
             fill_color = ""
 
             is_elem_selected = elem.id in self.selected_elements
-            outline_color = CANVAS_ELEMENT_COLOR
             if is_elem_selected:
                 outline_color = CANVAS_SELECTED_COLOR
+            elif self.ghost_geometry:
+                outline_color = CANVAS_GHOST_COLOR  # malla base atenuada
+            else:
+                outline_color = CANVAS_ELEMENT_COLOR
 
             edge_color = outline_color if self.show_mesh_edges else ""
+            line_w = (2 if is_elem_selected
+                      else (1 if self.ghost_geometry else 1.5))
 
             self.canvas.create_polygon(
                 *coords,
                 outline=edge_color,
                 fill=fill_color,
-                width=2 if is_elem_selected else 1.5,
+                width=line_w,
                 tags=("world", "elements"),
             )
 
-            if self.show_elem_labels:
+            # En modo fantasma se omiten las etiquetas de elemento (ruido sobre
+            # el X-ray del modulo).
+            if self.show_elem_labels and not self.ghost_geometry:
                 cx = sum(coords[::2]) / 4
                 cy = sum(coords[1::2]) / 4
                 text_color = "#222" if self.result_values else "#aaaaaa"
@@ -1247,6 +1258,12 @@ class MeshCanvas(ttk.Frame):
                 inner_color = "#2a2a32"
 
             is_selected = nid in self.selected_nodes
+            # Modo fantasma: nodos no seleccionados atenuados a gris tenue (el
+            # punto de agarre real durante un drag es el vertice distorsionado
+            # del X-ray del modulo, no el nodo en su posicion original).
+            if self.ghost_geometry and not is_selected:
+                base_color = CANVAS_GHOST_COLOR
+                inner_color = CANVAS_GHOST_COLOR
             color = CANVAS_SELECTED_COLOR if is_selected else base_color
 
             self.canvas.create_oval(
@@ -1269,7 +1286,7 @@ class MeshCanvas(ttk.Frame):
                 tags=("world", "nodes"),
             )
 
-            if self.show_node_labels:
+            if self.show_node_labels and not self.ghost_geometry:
                 if self.result_values and nid in self.result_values:
                     label = f"{nid}: {fmt(self.result_values[nid], 'stress')}"
                 else:
@@ -1284,6 +1301,8 @@ class MeshCanvas(ttk.Frame):
 
     def _draw_loads(self):
         arrow_len = 44
+        ghost = self.ghost_geometry          # malla base atenuada (M0)
+        shadow_col = "" if ghost else SHADOW_LOAD
         orphan_status = classify_orphan_status(self.project)
         for load in self.project.nodal_loads.values():
             node = self.project.nodes.get(load.node_id)
@@ -1298,6 +1317,8 @@ class MeshCanvas(ttk.Frame):
                 color = CANVAS_SELECTED_COLOR
             elif is_orphan:
                 color = CANVAS_NODE_ORPHAN_COLOR
+            elif ghost:
+                color = CANVAS_GHOST_COLOR
             else:
                 color = CANVAS_LOAD_COLOR
             width = 3 if highlighted else 2
@@ -1308,7 +1329,7 @@ class MeshCanvas(ttk.Frame):
                 # Sombra/glow detras de la flecha
                 self.canvas.create_line(
                     x_start, sy, sx, sy,
-                    fill=SHADOW_LOAD, width=width + 3, arrow=tk.LAST,
+                    fill=shadow_col, width=width + 3, arrow=tk.LAST,
                     arrowshape=(14, 16, 7),
                     tags=("world", "loads"),
                 )
@@ -1319,18 +1340,19 @@ class MeshCanvas(ttk.Frame):
                     arrowshape=(11, 13, 5),
                     tags=("world", "loads"),
                 )
-                self._draw_label_with_bg(
-                    x_start, sy - 14, f"Fx={fmt(load.fx, 'force')}",
-                    fg=color, anchor=tk.S,
-                    tags=("world", "loads"),
-                )
+                if not ghost:
+                    self._draw_label_with_bg(
+                        x_start, sy - 14, f"Fx={fmt(load.fx, 'force')}",
+                        fg=color, anchor=tk.S,
+                        tags=("world", "loads"),
+                    )
 
             if abs(load.fy) > 1e-10:
                 d = -1 if load.fy > 0 else 1
                 y_start = sy - d * arrow_len
                 self.canvas.create_line(
                     sx, y_start, sx, sy,
-                    fill=SHADOW_LOAD, width=width + 3, arrow=tk.LAST,
+                    fill=shadow_col, width=width + 3, arrow=tk.LAST,
                     arrowshape=(14, 16, 7),
                     tags=("world", "loads"),
                 )
@@ -1340,11 +1362,12 @@ class MeshCanvas(ttk.Frame):
                     arrowshape=(11, 13, 5),
                     tags=("world", "loads"),
                 )
-                self._draw_label_with_bg(
-                    sx + 16, y_start, f"Fy={fmt(load.fy, 'force')}",
-                    fg=color, anchor=tk.W,
-                    tags=("world", "loads"),
-                )
+                if not ghost:
+                    self._draw_label_with_bg(
+                        sx + 16, y_start, f"Fy={fmt(load.fy, 'force')}",
+                        fg=color, anchor=tk.W,
+                        tags=("world", "loads"),
+                    )
 
     def _draw_label_with_bg(self, x, y, text, *, fg, anchor=tk.W,
                             font=None, padx=4, pady=2, tags=None):
@@ -1403,12 +1426,15 @@ class MeshCanvas(ttk.Frame):
                 color = CANVAS_SELECTED_COLOR
             elif is_orphan:
                 color = CANVAS_NODE_ORPHAN_COLOR
+            elif self.ghost_geometry:
+                color = CANVAS_GHOST_COLOR   # malla base atenuada (M0)
             else:
                 color = CANVAS_CONSTRAINT_COLOR
             width = 3 if highlighted else 2
-            # Relleno suave para mejorar visibilidad sin saturar
-            fill_fixed  = "#3a2a10"
-            fill_roller = "#1a3a4a"
+            # Relleno suave para mejorar visibilidad sin saturar (hueco en
+            # modo fantasma para que el simbolo quede como silueta tenue).
+            fill_fixed  = "" if self.ghost_geometry else "#3a2a10"
+            fill_roller = "" if self.ghost_geometry else "#1a3a4a"
 
             if bc.is_fixed:
                 # Triangulo (vertice arriba en el nodo)
@@ -1561,6 +1587,8 @@ class MeshCanvas(ttk.Frame):
         import math
         if not self.project.surface_loads:
             return
+        ghost = self.ghost_geometry          # malla base atenuada (M0)
+        shadow_col = "" if ghost else SHADOW_SURFACE
         qmax = 0.0
         for sl in self.project.surface_loads:
             qmax = max(qmax, abs(sl.q_start), abs(sl.q_end))
@@ -1606,6 +1634,8 @@ class MeshCanvas(ttk.Frame):
                 col = CANVAS_SELECTED_COLOR
             elif is_orphan:
                 col = CANVAS_NODE_ORPHAN_COLOR
+            elif ghost:
+                col = CANVAS_GHOST_COLOR
             else:
                 col = CANVAS_LOAD_COLOR
             wid = 3 if is_h else 2
@@ -1644,7 +1674,7 @@ class MeshCanvas(ttk.Frame):
                 ey = py + rdy * L_loc * slsign
                 # Sombra detras
                 self.canvas.create_line(
-                    ex, ey, px, py, fill=SHADOW_SURFACE, width=wid + 2,
+                    ex, ey, px, py, fill=shadow_col, width=wid + 2,
                     arrow=tk.LAST, arrowshape=(11, 13, 5),
                     tags=("world", "surfaces"),
                 )
@@ -1665,10 +1695,11 @@ class MeshCanvas(ttk.Frame):
             label = f"q: {sl.q_start:g} → {sl.q_end:g}"
             if abs(sl.angle) > 1e-9:
                 label += f"  ∠{sl.angle:g}°"
-            self._draw_label_with_bg(
-                cx, cy, label, fg=col, anchor=tk.CENTER,
-                tags=("world", "surfaces"),
-            )
+            if not ghost:
+                self._draw_label_with_bg(
+                    cx, cy, label, fg=col, anchor=tk.CENTER,
+                    tags=("world", "surfaces"),
+                )
 
             # Sin halo extra: el cambio de color ya indica la seleccion.
 

@@ -1,29 +1,37 @@
 """
-Módulo 5 — Matriz de Rigidez Elemental K_e (overlay)
+Módulo 5 — Matriz de Rigidez Elemental K_e + Cuadratura de Gauss (overlay)
 
-Construye y muestra LA FORMA ANALÍTICA de la rigidez elemental:
+FUSIÓN 2026-05 (ex-M5 + ex-M5b en un solo módulo). La narrativa que antes
+estaba partida en dos overlays vecinos ("la integral es imposible" →
+"por eso usamos Gauss") es ahora UN solo argumento contado de arriba
+hacia abajo, con el salto conceptual ∫ → Σ como héroe visual:
 
-        k_e = ∫∫ Bᵀ D B |det J| t  dξ dη   sobre   [-1, 1]²
+        k_e = ∫∫ Bᵀ D B |det J| t dξ dη        (imposible a mano)
+                            ≈
+        k_e ≈ Σ_p  w_p · Bᵀ(ξ_p,η_p) D B |det J| t   (lo aproximamos en PGs)
 
-El alumno selecciona una entrada (i, j) y ve el integrando simbólico
-K_(i,j)(ξ, η) renderizado. La expresión crece a varias páginas incluso
-para Q4 con elementos rectos, y excede el parser de mathtext en Q9
-(donde B es 3×18). **El mensaje pedagógico es justamente ese**: la
-integral no se puede resolver analíticamente.
+Estructura del overlay (problema → solución, sin scroll forzado):
+  1. Fórmula héroe: la integral analítica ≈ la suma de Gauss. El salto
+     conceptual se ve de una sola lectura.
+  2. Expander colapsable "▸ ¿Por qué no se puede integrar a mano?":
+     oculta por defecto el "monstruo" simbólico K_(i,j)(ξ,η) — selector
+     de entrada (i,j) + integrando LaTeX + ventana scrollable con la
+     expresión completa. Cero ruido si el alumno no lo abre; evidencia
+     contundente si lo abre.
+  3. Cuadratura interactiva (acto principal, siempre visible): chips de
+     orden 1×1/2×2/3×3 + PGs clickeables sobre el elemento real del
+     canvas (sumar/quitar) + matriz k_e que CRECE con cada PG + warnings
+     de hourglass (1 PG) / sobre-integración (3×3 en Q4).
+  4. Cross-ref a ⑦ Ensamblaje.
 
-Narrativa par M5 → M5b:
-    M5 (este):  "esta es la rigidez analítica. Mirá el integrando. NO
-                 se puede integrar en cerrado."
-    M5b:        "por eso integramos numéricamente, evaluando en puntos
-                 de Gauss y sumando con pesos."
-
-`SymbolicIntegrandQ4` vive en este archivo (movida de la versión previa
-`mod05_gauss.py`). Importada por `file_io.memoria_calculo` para el PDF
-de memoria — **no mover sin actualizar también ese import**.
+`SymbolicIntegrandQ4` vive en este archivo. Importada por
+`file_io.memoria_calculo` para el PDF de memoria — **no mover sin
+actualizar también ese import**.
 """
 
 from __future__ import annotations
 
+import math
 from typing import Optional
 
 import numpy as np
@@ -32,12 +40,33 @@ import ttkbootstrap as ttk
 import sympy as sp
 
 from education.overlay_module import CanvasOverlayModule
-from education.components import LatexExpressionImage
+from education.components import (
+    LatexExpressionImage, natural_to_physical, GaussCoordReadout, element_coords,
+)
+from education.components.expander import Expander
+from education.components.latex_image import LatexMatrixImage, ScrollableMatrixImage
+from education.components.gauss_glyph import (
+    draw_gauss_base, draw_gauss_ghost, GAUSS_ACTIVE,
+)
+
+from fem.shape_functions import get_shape_functions
+from fem.jacobian import compute_jacobian, compute_dN_physical
+from fem.b_matrix import compute_b_matrix
+from fem.constitutive import constitutive_matrix
+from fem.gauss_quadrature import get_gauss_points_2d
 
 from config.settings import (
     ANALYSIS_PLANE_STRESS, ANALYSIS_PLANE_STRAIN,
+    ELEMENT_Q4, ELEMENT_Q9,
     EDU_FIG_BG, EDU_AXES_BG, EDU_LABEL_BG, EDU_FG, EDU_FG_MUTED,
+    HEALTH_WARNING_COLOR, HEALTH_ERROR_COLOR,
 )
+
+
+# Tag de la capa overlay sobre el canvas (PGs interactivos).
+_TAG = "edu_m5_pg"
+# Radio de snap para togglear un PG con el click.
+_SNAP_PX = 14
 
 
 # ────────────── CAPA SIMBÓLICA ──────────────
@@ -113,442 +142,360 @@ class SymbolicIntegrandQ4:
         return sp.simplify(K[i, j])
 
 
-# ────────────── MÓDULO M5 OVERLAY ──────────────
+# ══════════════ MÓDULO M5 OVERLAY (fusión K_e + Gauss) ══════════════
 
 
 class StiffnessElementModule(CanvasOverlayModule):
-    """M5 overlay: matriz K_e analítica + integrando "imposible"."""
+    """M5 overlay fusionado: integral imposible (colapsable) + cuadratura
+    de Gauss interactiva (acto principal). El alumno suma PGs clickeándolos
+    sobre el elemento real y ve crecer k_e."""
 
-    TITLE = "⑤  Matriz K_e  (rigidez elemental)"
+    TITLE = "⑤  Rigidez K_e  —  de la integral a la suma de Gauss"
     PHASE = "proc"
     OVERLAY_INITIAL_POS = (24, 24)
-    OVERLAY_WIDTH = 560
+    # Width=None → auto-fit al ancho real de la matriz k_e (Q4 8×8 y Q9
+    # 18×18 son "fat"; forzar un ancho clipea el corchete derecho).
+    OVERLAY_WIDTH = None
     OVERLAY_HEIGHT = None
     REQUIRES_ELEMENT = False
 
     def build_overlay(self, body):
-        # Estado
+        # ── Estado: integrando simbólico (ex-M5) ──
         self._i = 1
         self._j = 1
         self._last_kij_expr = None
         self._last_kij_key = None
+        self._full_window: Optional[tk.Toplevel] = None
+        # ── Estado: cuadratura (ex-M5b) ──
+        self._order = 2
+        self._selected_pgs: set = set()
+        self._contributions: list = []
+        self._click_consumer = self._on_canvas_click_consume
 
-        # Banner: la fórmula central del módulo.
-        ttk.Label(
+        bg = self._infer_bg(body)
+
+        # ── 1) FÓRMULA HÉROE: el salto ∫ → Σ ──────────────────────
+        # Es el CENTRO PEDAGÓGICO del módulo, así que va en LaTeX real
+        # (LatexExpressionImage) — no en Consolas monospace. Arriba la
+        # integral imposible (rojo), una línea de transición (texto, es
+        # prosa), abajo la suma de Gauss que la aproxima (ámbar).
+        hero = ttk.Frame(body)
+        hero.pack(fill="x", padx=2, pady=(0, 2))
+        LatexExpressionImage(
+            hero,
+            expr=(r"k_e = \int\!\!\int B^{T} D\, B\,\left|\det J\right|\, t"
+                  r"\;\; d\xi\, d\eta"),
+            fontsize=13, color="#ef5350", bg=bg,
+        ).pack(fill="x", pady=(0, 1))
+        tk.Label(
+            hero,
+            text="≈   imposible a mano  →  la aproximamos en los PGs",
+            bg=bg, fg=EDU_FG_MUTED, font=("Segoe UI", 9, "italic"),
+            anchor="center",
+        ).pack(fill="x", pady=(1, 1))
+        LatexExpressionImage(
+            hero,
+            expr=(r"k_e \approx \sum_{p} w_p\, B^{T}(\xi_p,\eta_p)\, D\,"
+                  r"B(\xi_p,\eta_p)\,\left|\det J\right|\, t"),
+            fontsize=13, color="#ffd54f", bg=bg,
+        ).pack(fill="x", pady=(1, 0))
+
+        # ── 2) EXPANDER: el "monstruo" simbólico (ex-M5), colapsado ──
+        self._exp = Expander(
+            body, title="¿Por qué no se puede integrar a mano?",
+            on_toggle=self._on_expander_toggle, bg=bg,
+        )
+        self._exp.pack(fill="x", padx=2, pady=(2, 2))
+        self._build_integrand_panel(self._exp.body, bg)
+
+        ttk.Separator(body, orient="horizontal").pack(fill="x", pady=(4, 4))
+
+        # ── 3) CUADRATURA INTERACTIVA (ex-M5b), acto principal ───────
+        tk.Label(
             body,
-            text=("k_e = ∫∫  Bᵀ D B  |det J|  t  dξ dη"
-                  "     sobre  [-1, 1]²"),
-            font=("Consolas", 10, "bold"),
-            foreground="#90caf9", justify="center",
-        ).pack(fill="x", padx=4, pady=(0, 2))
+            text="Sumá los puntos de Gauss clickeándolos sobre el elemento:",
+            bg=bg, fg=EDU_FG, font=("Segoe UI", 9, "bold"),
+            anchor="w",
+        ).pack(fill="x", padx=2, pady=(0, 2))
 
-        # Mensaje pedagógico inmediato.
-        ttk.Label(
-            body,
-            text=("Imposible de resolver analíticamente — el integrando "
-                  "crece a varias páginas incluso para Q4."),
-            font=("Segoe UI", 9, "italic"),
-            foreground="#ef5350", wraplength=540, justify="left",
-        ).pack(fill="x", padx=4, pady=(0, 2))
+        chips = ttk.Frame(body)
+        chips.pack(fill="x", pady=(0, 2))
+        ttk.Label(chips, text="Cuadratura:",
+                  font=("Segoe UI", 9), foreground=EDU_FG_MUTED,
+                  ).pack(side="left", padx=(2, 4))
+        self._var_order = tk.StringVar(value=f"{self._order}×{self._order}")
+        for n in (1, 2, 3):
+            ttk.Radiobutton(
+                chips, text=f"{n}×{n}", value=f"{n}×{n}",
+                variable=self._var_order,
+                bootstyle="info-outline-toolbutton",
+                command=self._on_order_change,
+            ).pack(side="left", padx=1)
 
-        # Métrica de complejidad en vivo — el alumno ve la afirmación
-        # "imposible" cuantificada: # de términos del polinomio en (ξ,η)
-        # tras expansión, # de chars del LaTeX, y una equivalencia visual
-        # ("~ N páginas"). Cambia con (i, j) y con la geometría del
-        # elemento. Anti-rule del "banner sin evidencia".
-        #
-        # El label es CLICKEABLE — abre un Toplevel scrollable con la
-        # expresión REAL sin truncar. Convierte la afirmación textual
-        # ("crece a varias páginas") en una experiencia: el alumno
-        # scrollea por el integrando entero y ve con sus propios ojos
-        # que sí, son páginas. No queda como dato — queda como vivencia.
+        # ── Cuadrado natural: ANCLA el espacio donde se evalúa ───────
+        # (idea 6) M5 evalúa la cuadratura en los PGs del CUADRADO NATURAL
+        # (ξ,η). Sin este inset el alumno solo veía los PGs sobre el canvas
+        # físico y perdía el "dónde se evalúa realmente". El highlight
+        # dorado/ghost espeja exactamente la selección del canvas.
+        self._readout = GaussCoordReadout(
+            body, order=self._order, etype=self._element_type(),
+            title="Se evalúa en los PGs del cuadrado natural (ξ, η):",
+        )
+        self._readout.pack(fill="x", padx=2, pady=(2, 2))
+
+        # Warning hourglass / sobre-integración (vacío salvo casos límite).
+        self._lbl_warning = tk.Label(
+            body, text="", bg=bg, fg=HEALTH_ERROR_COLOR,
+            font=("Segoe UI Semibold", 9), anchor="w",
+        )
+        self._lbl_warning.pack(fill="x", padx=2, pady=(2, 0))
+
+        # Matriz k_e que crece con los PGs sumados.
+        self._k_frame = ttk.Frame(body)
+        self._k_frame.pack(fill="both", expand=True, pady=(2, 2))
+        self._k_placeholder = tk.Label(
+            self._k_frame,
+            text="◎  Clickeá un elemento\ny luego los PGs del canvas",
+            bg=EDU_AXES_BG, fg=EDU_FG_MUTED, font=("Segoe UI", 10),
+            justify="center",
+        )
+        self._k_placeholder.pack(expand=True)
+        self._mat_k: Optional[LatexMatrixImage] = None
+        self._lbl_k_title = tk.Label(
+            self._k_frame, text="", bg=EDU_AXES_BG, fg=EDU_FG,
+            font=("Consolas", 9, "bold"), anchor="center",
+        )
+
+        # Status (Σ n/total pg + último sumado).
+        self._lbl_status = tk.Label(
+            body, text="", bg=bg, fg="#ffd54f",
+            font=("Consolas", 9, "bold"), anchor="w",
+        )
+        self._lbl_status.pack(fill="x", padx=2)
+
+        # ── 4) Cross-ref a ⑦ Ensamblaje ──────────────────────────
+        self._pack_crossref(
+            body, "mod07",
+            "👉 k_e completo se ENSAMBLA en K global. Ver ⑦ Ensamblaje.",
+            wraplength=520,
+        )
+
+        # Estado inicial: TODOS los PGs sumados (la cuadratura correcta).
+        self._rebuild_contributions()
+        self._selected_pgs = set(range(len(self._contributions)))
+        self._refresh_all()
+
+    @staticmethod
+    def _infer_bg(widget) -> str:
+        try:
+            from education.components.latex_image import _infer_bg
+            return _infer_bg(widget)
+        except Exception:
+            return EDU_AXES_BG
+
+    # ── Panel del integrando (dentro del expander) ─────────────────
+    def _build_integrand_panel(self, parent, bg) -> None:
+        # Métrica de complejidad en vivo — CLICKEABLE (abre la expresión
+        # completa, scrollable). Convierte "imposible" en evidencia.
         self._lbl_complexity = ttk.Label(
-            body, text="", font=("Consolas", 9, "bold"),
-            foreground="#ffd54f", wraplength=540, justify="left",
+            parent, text="", font=("Consolas", 9, "bold"),
+            foreground="#ffd54f", wraplength=520, justify="left",
             cursor="hand2",
         )
-        self._lbl_complexity.pack(fill="x", padx=4, pady=(0, 4))
+        self._lbl_complexity.pack(fill="x", pady=(2, 2))
         self._lbl_complexity.bind(
             "<Button-1>", lambda _e: self._open_full_integrand_window()
         )
-        # Handle del Toplevel expandido (singleton — segundo click trae
-        # al frente en vez de abrir un duplicado).
-        self._full_window: Optional[tk.Toplevel] = None
 
-        # Chips: selector de entrada K_(i,j) a inspeccionar
-        chips = ttk.Frame(body)
-        chips.pack(fill="x", pady=(0, 4))
-        ttk.Label(chips, text="Entrada K_(i,j):",
-                   font=("Segoe UI", 9), foreground=EDU_FG_MUTED,
-                   ).pack(side="left", padx=(0, 4))
+        # Selector de entrada K_(i,j).
+        sel = ttk.Frame(parent)
+        sel.pack(fill="x", pady=(0, 2))
+        ttk.Label(sel, text="Entrada K_(i,j):",
+                  font=("Segoe UI", 9), foreground=EDU_FG_MUTED,
+                  ).pack(side="left", padx=(0, 4))
         n_dofs_init = 2 * (self.element.num_nodes if self.element else 4)
         self._var_i = tk.StringVar(value=str(self._i))
-        ttk.Spinbox(chips, from_=1, to=n_dofs_init, width=4,
-                     textvariable=self._var_i,
-                     command=self._on_ij_change,
-                     ).pack(side="left", padx=1)
+        ttk.Spinbox(sel, from_=1, to=n_dofs_init, width=4,
+                    textvariable=self._var_i, command=self._on_ij_change,
+                    ).pack(side="left", padx=1)
         self._var_j = tk.StringVar(value=str(self._j))
-        ttk.Spinbox(chips, from_=1, to=n_dofs_init, width=4,
-                     textvariable=self._var_j,
-                     command=self._on_ij_change,
-                     ).pack(side="left", padx=1)
-
-        ttk.Separator(chips, orient="vertical").pack(side="left",
-                                                       fill="y", padx=8)
-        self._lbl_dim = ttk.Label(chips, text="",
-                                    font=("Segoe UI", 9),
-                                    foreground=EDU_FG_MUTED)
+        ttk.Spinbox(sel, from_=1, to=n_dofs_init, width=4,
+                    textvariable=self._var_j, command=self._on_ij_change,
+                    ).pack(side="left", padx=1)
+        ttk.Separator(sel, orient="vertical").pack(side="left",
+                                                    fill="y", padx=8)
+        self._lbl_dim = ttk.Label(sel, text="", font=("Segoe UI", 9),
+                                  foreground=EDU_FG_MUTED)
         self._lbl_dim.pack(side="left")
 
-        # Panel del integrando simbólico — renderizado como imagen LaTeX
-        # independiente (Tk Label con PhotoImage), no como ax matplotlib.
-        # Ventaja: la expresión completa cabe a fontsize legible, sin
-        # truncamientos artificiales por overflow del axes.
-        self._integrand_container = tk.Frame(body, bg=EDU_LABEL_BG,
-                                              relief="solid", borderwidth=1)
+        # Integrando simbólico como imagen LaTeX.
+        self._integrand_container = tk.Frame(parent, bg=EDU_LABEL_BG,
+                                             relief="solid", borderwidth=1)
         self._integrand_container.pack(fill="both", expand=True, pady=(2, 2))
         self._integrand_widget: Optional[LatexExpressionImage] = None
-        # Placeholder mientras no hay elemento seleccionado.
         self._integrand_placeholder = tk.Label(
             self._integrand_container,
             text="◎  Clickeá un elemento\nen el canvas",
-            bg=EDU_LABEL_BG, fg=EDU_FG_MUTED,
-            font=("Segoe UI", 11),
+            bg=EDU_LABEL_BG, fg=EDU_FG_MUTED, font=("Segoe UI", 11),
         )
-        self._integrand_placeholder.pack(expand=True, fill="both", padx=8, pady=8)
+        self._integrand_placeholder.pack(expand=True, fill="both",
+                                         padx=8, pady=8)
 
-        # Cross-reference clickeable a M5b (bridge pedagógico explícito).
-        self._pack_crossref(
-            body, "mod05b",
-            "👉 Como no se puede integrar analíticamente, en "
-            "⑤′ Cuadratura de Gauss aproximamos numéricamente.",
-            wraplength=540,
-        )
+    # ── Ciclo de vida ──────────────────────────────────────────────
+    def on_activated(self):
+        self._mesh.add_click_consumer(self._click_consumer)
+        self._mesh.redraw()
 
-        self._refresh_all()
+    def on_closed(self):
+        try:
+            self._mesh.remove_click_consumer(self._click_consumer)
+        except Exception:
+            pass
+        # Cerrar la ventana de la expresión completa si quedó abierta.
+        if self._full_window is not None:
+            try:
+                self._full_window.destroy()
+            except Exception:
+                pass
+            self._full_window = None
 
     def on_element_selected(self, elem_id):
         if elem_id == self.element_id:
             return
         self.element_id = elem_id
         self.element = self.project.elements.get(elem_id) if self.project else None
-        # Invalida cache simbólico — coords cambiaron.
+        # Invalida cache simbólico (coords cambiaron) y recontruye PGs.
         self._last_kij_expr = None
         self._last_kij_key = None
+        self._rebuild_contributions()
+        self._selected_pgs = set(range(len(self._contributions)))
         self._refresh_all()
 
-    # ── Callbacks ──────────────────────────────────────────────────
-    def _on_ij_change(self):
-        if self.element is None:
-            return
-        try:
-            n_dofs = 2 * self.element.num_nodes
-            i = max(1, min(n_dofs, int(self._var_i.get())))
-            j = max(1, min(n_dofs, int(self._var_j.get())))
-        except (tk.TclError, ValueError):
-            return
-        self._i, self._j = i, j
-        self._var_i.set(str(i))
-        self._var_j.set(str(j))
-        self._refresh_integrand()
+    def _on_expander_toggle(self):
+        """Render perezoso del integrando: solo cuando el expander se abre.
 
-    # ── Render ─────────────────────────────────────────────────────
-    def _refresh_all(self):
-        # Update label dim (depende del element_type)
-        n_nodes = self.element.num_nodes if self.element else 4
-        n_dof = 2 * n_nodes
+        Tras togglear, el body cambia de alto y el overlay no crece solo
+        (geometria fijada en show()) — re-ajustamos para que el integrando
+        expandido no quede recortado. Inmediato + diferido (captura el swap
+        async a pdflatex de la imagen del integrando)."""
+        if self._exp is not None and self._exp.is_expanded:
+            self._refresh_integrand()
+        self.refit_overlay()
         try:
-            self._lbl_dim.configure(
-                text=f"k_e es {n_dof}×{n_dof}  ·  {'Q9' if n_nodes==9 else 'Q4'}"
-            )
-        except tk.TclError:
+            self._mesh.after(120, self.refit_overlay)
+        except Exception:
             pass
-        self._refresh_integrand()
 
-    def _is_q9(self) -> bool:
-        return (self.element is not None
-                 and getattr(self.element, "num_nodes", 0) == 9)
+    # ── Callbacks de la cuadratura ─────────────────────────────────
+    def _on_order_change(self):
+        try:
+            self._order = int(self._var_order.get().split("×")[0])
+        except (ValueError, AttributeError):
+            return
+        self._rebuild_contributions()
+        self._selected_pgs = set(range(len(self._contributions)))
+        self._refresh_all()
 
-    def _refresh_integrand(self):
-        """Refresca el integrando simbólico.
-
-        Migrado a `LatexExpressionImage`: cada render produce su propio
-        PNG en una figura matplotlib aislada con `bbox_inches="tight"`,
-        embebido como `tk.Label` PhotoImage. Sin competencia por el espacio
-        de un ax compartido — la fórmula crece a su tamaño natural.
-        """
-        # Caso vacío: mostrar placeholder, ocultar el widget LaTeX.
+    def _on_canvas_click_consume(self, event) -> bool:
+        """Toggle del PG bajo el click (suma/quita su contribución a k_e).
+        Consume el click (return True) si pegó en un PG; sino False y el
+        canvas hace su hit-test estándar (cambio de elemento)."""
         if self.element is None or self.project is None:
-            self._show_placeholder("◎  Clickeá un elemento\nen el canvas")
-            self._set_complexity("")
-            return
-
-        if self._is_q9():
-            self._show_q9_notice()
-            # Estimación conservadora para Q9: B es 3×18, BᵀDB tiene 18×18
-            # = 324 entradas, cada una con cientos de monomios. Damos un
-            # rango grueso en vez del número exacto (el sympy expand
-            # podría tomar segundos).
-            self._set_complexity(
-                "Q9: B es 3×18 ⇒ cada K_(i,j) expande a 10³–10⁴ términos."
-            )
-            return
-
+            return False
         coords = self._node_coords()
         if coords is None:
-            self._show_placeholder("(sin coords)")
-            self._set_complexity("")
-            return
+            return False
+        n_nodes = self.element.num_nodes
+        coords = coords[:n_nodes]
+        try:
+            pts, _ = get_gauss_points_2d(self._order)
+        except Exception:
+            return False
+        et = self._element_type()
+        best_idx, best_dpx = -1, float("inf")
+        for idx, (xi, eta) in enumerate(pts):
+            xy = natural_to_physical(float(xi), float(eta), coords, et)
+            sx, sy = self._mesh.world_to_screen(float(xy[0]), float(xy[1]))
+            d = math.hypot(sx - event.x, sy - event.y)
+            if d < best_dpx:
+                best_dpx, best_idx = d, idx
+        if best_idx < 0 or best_dpx > _SNAP_PX:
+            return False
+        if best_idx in self._selected_pgs:
+            self._selected_pgs.discard(best_idx)
+        else:
+            self._selected_pgs.add(best_idx)
+        self._refresh_all()
+        return True
 
+    # ── Capa overlay: PGs sobre el elemento ────────────────────────
+    def draw_canvas_layer(self, mesh):
+        mesh.canvas.delete(_TAG)
+        if self.element is None or self.project is None:
+            return
+        coords = self._node_coords()
+        if coords is None:
+            return
+        n_nodes = self.element.num_nodes
+        coords = coords[:n_nodes]
+        try:
+            pts, _ = get_gauss_points_2d(self._order)
+        except Exception:
+            return
+        et = self._element_type()
+        # PG sumado → base dorado; PG excluido → ghost gris dashed.
+        for idx, (xi, eta) in enumerate(pts):
+            xy = natural_to_physical(float(xi), float(eta), coords, et)
+            sx, sy = mesh.world_to_screen(float(xy[0]), float(xy[1]))
+            if idx in self._selected_pgs:
+                draw_gauss_base(mesh.canvas, sx, sy, label=None,
+                                tag=_TAG, color=GAUSS_ACTIVE)
+            else:
+                draw_gauss_ghost(mesh.canvas, sx, sy, tag=_TAG)
+
+    # ── Cálculo de contribuciones ──────────────────────────────────
+    def _element_type(self) -> str:
+        if self.element is not None and getattr(self.element, "num_nodes", 0) == 9:
+            return ELEMENT_Q9
+        if self.project is not None and \
+                getattr(self.project, "element_type", None) == ELEMENT_Q9:
+            return ELEMENT_Q9
+        return ELEMENT_Q4
+
+    def _rebuild_contributions(self):
+        if self.element is None or self.project is None:
+            self._contributions = []
+            return
+        coords = self._node_coords()
+        if coords is None:
+            self._contributions = []
+            return
+        n_nodes = self.element.num_nodes
+        coords = coords[:n_nodes]
         E, nu, t = self._resolve_params()
-        analysis = self._analysis_type()
-        coords_list = coords[:4].tolist()
-        cache_key = (self._i, self._j, analysis, tuple(map(tuple, coords_list)))
-        if cache_key == self._last_kij_key and self._last_kij_expr is not None:
-            expr = self._last_kij_expr
-        else:
-            try:
-                sym = SymbolicIntegrandQ4(E, nu, t, coords_list)
-                expr = sym.integrand_entry(self._i - 1, self._j - 1, analysis)
-                self._last_kij_expr = expr
-                self._last_kij_key = cache_key
-            except Exception as exc:
-                self._show_placeholder(f"Error K_(i={self._i},j={self._j}):\n{exc}",
-                                        fg="#ef5350")
-                self._set_complexity("")
-                return
-
+        D = constitutive_matrix(E, nu, self._analysis_type())
+        _, dN_fn = get_shape_functions(self._element_type())
         try:
-            latex_body = sp.latex(expr)
+            pts, wts = get_gauss_points_2d(self._order)
         except Exception:
-            latex_body = str(expr)
-        # Métricas SOBRE EL LATEX COMPLETO (antes de truncar) — el
-        # contador refleja la expresión real, no la versión recortada
-        # para mostrar. Estimación de páginas: ~1500 chars LaTeX / página
-        # A4 fontsize 11 con tight layout.
-        n_terms = self._count_terms(expr)
-        n_chars = len(latex_body)
-        pages = max(1, round(n_chars / 1500))
-        cmp_txt = (f"📏 K_({self._i},{self._j}): {n_terms} términos · "
-                   f"{n_chars:,} chars LaTeX · ≈{pages} pág impresas")
-        self._set_complexity(cmp_txt.replace(",", "."))
-
-        latex_body = self._truncate_latex(latex_body, max_chars=320)
-        full = (f"K_{{{self._i},{self._j}}}(\\xi,\\eta) \\;=\\; "
-                + latex_body)
-        self._show_latex(full)
-
-    def _set_complexity(self, text: str) -> None:
-        """Escribe el label de complejidad (silenciosamente robusto)."""
-        try:
-            self._lbl_complexity.configure(text=text)
-        except (tk.TclError, AttributeError):
-            pass
-
-    @staticmethod
-    def _count_terms(expr) -> int:
-        """N° de monomios tras `expand`. Acota a 0 si sympy falla."""
-        try:
-            expanded = sp.expand(expr)
-        except Exception:
-            return 0
-        # sympy.Add.make_args devuelve la tupla de sumandos top-level;
-        # para una expresión monomial devuelve (expr,) — len = 1, correcto.
-        try:
-            return len(sp.Add.make_args(expanded))
-        except Exception:
-            return 0
-
-    # ── Toplevel expandido: la expresión REAL, sin truncar ──────────
-    def _open_full_integrand_window(self) -> None:
-        """Abre un Toplevel scrollable con `sp.pretty(sp.expand(expr))` —
-        la expresión completa, sin truncar, tabulada por sympy.
-
-        Pedagogía: el banner "imposible" + el contador "N términos" son
-        afirmaciones. Esto las convierte en EXPERIENCIA — el alumno
-        scrollea, ve la expresión real y siente el crecimiento polinomial
-        en su propio dedo. Después de scrollear 3-4 segundos por una
-        sola entrada K_(i,j) entiende emocionalmente por qué Gauss
-        existe, no solo intelectualmente.
-
-        Singleton suave: segundo click trae al frente en vez de duplicar."""
-        if self._last_kij_expr is None:
+            self._contributions = []
             return
-        # Singleton: traer al frente si ya está abierto
-        if (self._full_window is not None
-                and self._full_window.winfo_exists()):
-            try:
-                self._full_window.lift()
-                self._full_window.focus_set()
-                return
-            except tk.TclError:
-                self._full_window = None
+        contribs = []
+        for ((xi, eta), w) in zip(pts, wts):
+            dN_nat = dN_fn(xi, eta)
+            _, detJ, invJ = compute_jacobian(dN_nat, coords)
+            dN_phys = compute_dN_physical(dN_nat, invJ)
+            B = compute_b_matrix(dN_phys)
+            contrib = B.T @ D @ B * abs(detJ) * t * w
+            contribs.append({
+                "xi": float(xi), "eta": float(eta), "w": float(w),
+                "detJ": float(detJ), "contrib": contrib,
+            })
+        self._contributions = contribs
 
-        top = tk.Toplevel(self._mesh.canvas)
-        top.title(f"Integrando K_({self._i},{self._j}) — expresión completa")
-        top.geometry("900x700")
-        top.configure(bg=EDU_AXES_BG)
-        # Posicionar relativo al canvas (un poco hacia adentro para que
-        # no caiga sobre el overlay flotante de M5).
-        try:
-            top.geometry(f"+{self._mesh.canvas.winfo_rootx() + 80}"
-                         f"+{self._mesh.canvas.winfo_rooty() + 60}")
-        except tk.TclError:
-            pass
-
-        # Header con metadata pedagógica
-        try:
-            latex_full = sp.latex(self._last_kij_expr)
-        except Exception:
-            latex_full = ""
-        n_terms = self._count_terms(self._last_kij_expr)
-        n_chars = len(latex_full)
-        n_dofs = 2 * (self.element.num_nodes if self.element else 4)
-
-        header = tk.Frame(top, bg=EDU_AXES_BG)
-        header.pack(fill="x", padx=10, pady=(10, 4))
-        tk.Label(
-            header,
-            text=(f"K_({self._i},{self._j})(ξ, η)  ·  {n_terms} términos  ·  "
-                  f"{n_chars:,} chars LaTeX").replace(",", "."),
-            bg=EDU_AXES_BG, fg="#ffd54f",
-            font=("Consolas", 12, "bold"),
-            anchor="w",
-        ).pack(fill="x")
-        tk.Label(
-            header,
-            text=(f"Esta es UNA entrada de la matriz k_e ({n_dofs}×{n_dofs}). "
-                  f"Hay {n_dofs * n_dofs} expresiones como esta — y todavía "
-                  "falta integrarlas. Por eso Gauss."),
-            bg=EDU_AXES_BG, fg=EDU_FG_MUTED,
-            font=("Segoe UI", 9, "italic"),
-            anchor="w", justify="left", wraplength=860,
-        ).pack(fill="x", pady=(2, 2))
-
-        # Body: tk.Text con scrollbar V+H. sp.pretty produce ASCII art
-        # multi-línea, así que necesitamos scroll en ambos ejes.
-        body_frame = tk.Frame(top, bg=EDU_AXES_BG)
-        body_frame.pack(fill="both", expand=True, padx=10, pady=(4, 10))
-
-        text = tk.Text(
-            body_frame, wrap="none", bg=EDU_LABEL_BG, fg="#dcdcdc",
-            font=("Consolas", 9), insertbackground="#dcdcdc",
-            relief="flat", borderwidth=0,
-        )
-        vscroll = ttk.Scrollbar(body_frame, orient="vertical",
-                                command=text.yview)
-        hscroll = ttk.Scrollbar(body_frame, orient="horizontal",
-                                command=text.xview)
-        text.configure(yscrollcommand=vscroll.set,
-                       xscrollcommand=hscroll.set)
-        text.grid(row=0, column=0, sticky="nsew")
-        vscroll.grid(row=0, column=1, sticky="ns")
-        hscroll.grid(row=1, column=0, sticky="ew")
-        body_frame.rowconfigure(0, weight=1)
-        body_frame.columnconfigure(0, weight=1)
-
-        # Volcar la expresión expandida con sp.pretty. num_columns alto
-        # para minimizar wrap automático (que rompería términos).
-        try:
-            pretty = sp.pretty(sp.expand(self._last_kij_expr),
-                                num_columns=240, use_unicode=True)
-        except Exception:
-            pretty = str(self._last_kij_expr)
-        text.insert("1.0", pretty)
-        text.configure(state="disabled")  # read-only
-
-        # Footer con stats de "qué tan grande es"
-        footer = tk.Frame(top, bg=EDU_AXES_BG)
-        footer.pack(fill="x", padx=10, pady=(0, 10))
-        n_lines = pretty.count("\n") + 1
-        tk.Label(
-            footer,
-            text=(f"📏 {n_lines:,} líneas tabuladas  ·  "
-                  f"≈ {max(1, n_lines // 60)} páginas impresas "
-                  "(Esc cierra)").replace(",", "."),
-            bg=EDU_AXES_BG, fg=EDU_FG_MUTED,
-            font=("Consolas", 9), anchor="w",
-        ).pack(fill="x")
-
-        # Cleanup del singleton al cerrar
-        def _close(_e=None):
-            try:
-                top.destroy()
-            except tk.TclError:
-                pass
-            self._full_window = None
-        top.protocol("WM_DELETE_WINDOW", _close)
-        top.bind("<Escape>", _close)
-
-        self._full_window = top
-
-    def _show_placeholder(self, text: str, *, fg: str = EDU_FG_MUTED) -> None:
-        """Reemplaza el widget LaTeX por un label de texto plano."""
-        if self._integrand_widget is not None:
-            self._integrand_widget.destroy()
-            self._integrand_widget = None
-        try:
-            self._integrand_placeholder.configure(text=text, fg=fg)
-            if not self._integrand_placeholder.winfo_ismapped():
-                self._integrand_placeholder.pack(expand=True, fill="both",
-                                                   padx=8, pady=8)
-        except tk.TclError:
-            pass
-
-    def _show_q9_notice(self) -> None:
-        """Q9: muestra fórmula simbólica + texto explicativo (no calcula
-        la expansión, que excede mathtext)."""
-        if self._integrand_widget is not None:
-            self._integrand_widget.destroy()
-            self._integrand_widget = None
-        try:
-            self._integrand_placeholder.configure(
-                text=("K_(i,j)(ξ, η) = [Bᵀ D B]_(i,j) · |det J| · t\n\n"
-                      "Q9: B es 3×18 → la expansión simbólica de K_(i,j)\n"
-                      "excede el parser de mathtext.\n"
-                      "La conclusión es la misma: imposible analíticamente."),
-                fg="#dcdcdc",
-            )
-            if not self._integrand_placeholder.winfo_ismapped():
-                self._integrand_placeholder.pack(expand=True, fill="both",
-                                                   padx=8, pady=8)
-        except tk.TclError:
-            pass
-
-    def _show_latex(self, expr: str) -> None:
-        """Reemplaza placeholder por widget LaTeX renderizado a imagen."""
-        try:
-            if self._integrand_placeholder.winfo_ismapped():
-                self._integrand_placeholder.pack_forget()
-        except tk.TclError:
-            pass
-        # Re-build del widget en cada cambio (cada (i,j) es una imagen
-        # distinta; reusar la instancia para set_expression aprovecha la
-        # cache interna del renderer).
-        if self._integrand_widget is None:
-            self._integrand_widget = LatexExpressionImage(
-                self._integrand_container, expr=expr,
-                fontsize=13, color="#dcdcdc", bg=EDU_LABEL_BG,
-                cache=True,
-            )
-            self._integrand_widget.pack(expand=True, padx=8, pady=8)
-        else:
-            try:
-                self._integrand_widget.set_expression(expr)
-            except tk.TclError:
-                pass
-
-    # ── Helpers ─────────────────────────────────────────────────────
     def _node_coords(self) -> Optional[np.ndarray]:
-        if self.project and self.element:
-            try:
-                return np.array([
-                    [self.project.nodes[nid].x, self.project.nodes[nid].y]
-                    for nid in self.element.node_ids
-                ], dtype=float)
-            except KeyError:
-                return None
-        return None
+        # Delega al helper compartido (antes duplicado en M1/M2/M4/M5/M7).
+        return element_coords(self.project, self.element)
 
     def _resolve_params(self):
         E_def, nu_def, t_def = 225_000.0, 0.2, 0.8
@@ -567,6 +514,278 @@ class StiffnessElementModule(CanvasOverlayModule):
             if at in (ANALYSIS_PLANE_STRESS, ANALYSIS_PLANE_STRAIN):
                 return at
         return ANALYSIS_PLANE_STRESS
+
+    def _k_from_selection(self) -> Optional[np.ndarray]:
+        if not self._contributions:
+            return None
+        n_dof = self._contributions[0]["contrib"].shape[0]
+        K = np.zeros((n_dof, n_dof))
+        for idx in self._selected_pgs:
+            if 0 <= idx < len(self._contributions):
+                K = K + self._contributions[idx]["contrib"]
+        return K
+
+    # ── Render general ─────────────────────────────────────────────
+    def _refresh_all(self):
+        # Dim label del expander (depende del element_type).
+        n_nodes = self.element.num_nodes if self.element else 4
+        n_dof = 2 * n_nodes
+        try:
+            self._lbl_dim.configure(
+                text=f"k_e es {n_dof}×{n_dof} · {'Q9' if n_nodes == 9 else 'Q4'}"
+            )
+        except (tk.TclError, AttributeError):
+            pass
+        # Integrando: solo si el expander está abierto (perezoso).
+        if self._exp is not None and self._exp.is_expanded:
+            self._refresh_integrand()
+        self._refresh_warning()
+        self._refresh_k_heatmap()
+        self._refresh_readout()
+        self._refresh_status()
+        try:
+            self._mesh.redraw()
+        except Exception:
+            pass
+
+    def _refresh_readout(self):
+        """Sincroniza el cuadrado natural con la cuadratura: actualiza el
+        orden (grid de PGs) y resalta en dorado los PGs sumados (ghost los
+        excluidos) — espeja la selección del canvas físico."""
+        if getattr(self, "_readout", None) is None:
+            return
+        self._readout.set_state(order=self._order, etype=self._element_type())
+        if not self._contributions:
+            self._readout.set_pg_highlight(None)
+            return
+        selected_coords = [
+            (self._contributions[i]["xi"], self._contributions[i]["eta"])
+            for i in self._selected_pgs
+            if 0 <= i < len(self._contributions)
+        ]
+        self._readout.set_pg_highlight(selected_coords)
+
+    # ── Render del integrando simbólico (ex-M5) ────────────────────
+    def _is_q9(self) -> bool:
+        return (self.element is not None
+                and getattr(self.element, "num_nodes", 0) == 9)
+
+    def _refresh_integrand(self):
+        if self.element is None or self.project is None:
+            self._show_placeholder("◎  Clickeá un elemento\nen el canvas")
+            self._set_complexity("")
+            return
+        if self._is_q9():
+            self._show_q9_notice()
+            self._set_complexity(
+                "Q9: B es 3×18 ⇒ cada K_(i,j) expande a 10³–10⁴ términos."
+            )
+            return
+        coords = self._node_coords()
+        if coords is None:
+            self._show_placeholder("(sin coords)")
+            self._set_complexity("")
+            return
+        E, nu, t = self._resolve_params()
+        analysis = self._analysis_type()
+        coords_list = coords[:4].tolist()
+        cache_key = (self._i, self._j, analysis, tuple(map(tuple, coords_list)))
+        if cache_key == self._last_kij_key and self._last_kij_expr is not None:
+            expr = self._last_kij_expr
+        else:
+            try:
+                sym = SymbolicIntegrandQ4(E, nu, t, coords_list)
+                expr = sym.integrand_entry(self._i - 1, self._j - 1, analysis)
+                self._last_kij_expr = expr
+                self._last_kij_key = cache_key
+            except Exception as exc:
+                self._show_placeholder(
+                    f"Error K_(i={self._i},j={self._j}):\n{exc}", fg="#ef5350")
+                self._set_complexity("")
+                return
+        try:
+            latex_body = sp.latex(expr)
+        except Exception:
+            latex_body = str(expr)
+        n_terms = self._count_terms(expr)
+        n_chars = len(latex_body)
+        pages = max(1, round(n_chars / 1500))
+        cmp_txt = (f"📏 K_({self._i},{self._j}): {n_terms} términos · "
+                   f"{n_chars:,} chars LaTeX · ≈{pages} pág impresas")
+        self._set_complexity(cmp_txt.replace(",", "."))
+        latex_body = self._truncate_latex(latex_body, max_chars=320)
+        full = (f"K_{{{self._i},{self._j}}}(\\xi,\\eta) \\;=\\; " + latex_body)
+        self._show_latex(full)
+
+    def _on_ij_change(self):
+        if self.element is None:
+            return
+        try:
+            n_dofs = 2 * self.element.num_nodes
+            i = max(1, min(n_dofs, int(self._var_i.get())))
+            j = max(1, min(n_dofs, int(self._var_j.get())))
+        except (tk.TclError, ValueError):
+            return
+        self._i, self._j = i, j
+        self._var_i.set(str(i))
+        self._var_j.set(str(j))
+        self._refresh_integrand()
+
+    def _set_complexity(self, text: str) -> None:
+        try:
+            self._lbl_complexity.configure(text=text)
+        except (tk.TclError, AttributeError):
+            pass
+
+    @staticmethod
+    def _count_terms(expr) -> int:
+        try:
+            expanded = sp.expand(expr)
+        except Exception:
+            return 0
+        try:
+            return len(sp.Add.make_args(expanded))
+        except Exception:
+            return 0
+
+    def _open_full_integrand_window(self) -> None:
+        if self._last_kij_expr is None:
+            return
+        if (self._full_window is not None
+                and self._full_window.winfo_exists()):
+            try:
+                self._full_window.lift()
+                self._full_window.focus_set()
+                return
+            except tk.TclError:
+                self._full_window = None
+        top = tk.Toplevel(self._mesh.canvas)
+        top.title(f"Integrando K_({self._i},{self._j}) — expresión completa")
+        top.geometry("900x700")
+        top.configure(bg=EDU_AXES_BG)
+        try:
+            top.geometry(f"+{self._mesh.canvas.winfo_rootx() + 80}"
+                         f"+{self._mesh.canvas.winfo_rooty() + 60}")
+        except tk.TclError:
+            pass
+        try:
+            latex_full = sp.latex(self._last_kij_expr)
+        except Exception:
+            latex_full = ""
+        n_terms = self._count_terms(self._last_kij_expr)
+        n_chars = len(latex_full)
+        n_dofs = 2 * (self.element.num_nodes if self.element else 4)
+        header = tk.Frame(top, bg=EDU_AXES_BG)
+        header.pack(fill="x", padx=10, pady=(10, 4))
+        tk.Label(
+            header,
+            text=(f"K_({self._i},{self._j})(ξ, η)  ·  {n_terms} términos  ·  "
+                  f"{n_chars:,} chars LaTeX").replace(",", "."),
+            bg=EDU_AXES_BG, fg="#ffd54f",
+            font=("Consolas", 12, "bold"), anchor="w",
+        ).pack(fill="x")
+        tk.Label(
+            header,
+            text=(f"Esta es UNA entrada de la matriz k_e ({n_dofs}×{n_dofs}). "
+                  f"Hay {n_dofs * n_dofs} expresiones como esta — y todavía "
+                  "falta integrarlas. Por eso Gauss."),
+            bg=EDU_AXES_BG, fg=EDU_FG_MUTED,
+            font=("Segoe UI", 9, "italic"),
+            anchor="w", justify="left", wraplength=860,
+        ).pack(fill="x", pady=(2, 2))
+        body_frame = tk.Frame(top, bg=EDU_AXES_BG)
+        body_frame.pack(fill="both", expand=True, padx=10, pady=(4, 10))
+        text = tk.Text(
+            body_frame, wrap="none", bg=EDU_LABEL_BG, fg="#dcdcdc",
+            font=("Consolas", 9), insertbackground="#dcdcdc",
+            relief="flat", borderwidth=0,
+        )
+        vscroll = ttk.Scrollbar(body_frame, orient="vertical",
+                                command=text.yview)
+        hscroll = ttk.Scrollbar(body_frame, orient="horizontal",
+                                command=text.xview)
+        text.configure(yscrollcommand=vscroll.set, xscrollcommand=hscroll.set)
+        text.grid(row=0, column=0, sticky="nsew")
+        vscroll.grid(row=0, column=1, sticky="ns")
+        hscroll.grid(row=1, column=0, sticky="ew")
+        body_frame.rowconfigure(0, weight=1)
+        body_frame.columnconfigure(0, weight=1)
+        try:
+            pretty = sp.pretty(sp.expand(self._last_kij_expr),
+                               num_columns=240, use_unicode=True)
+        except Exception:
+            pretty = str(self._last_kij_expr)
+        text.insert("1.0", pretty)
+        text.configure(state="disabled")
+        footer = tk.Frame(top, bg=EDU_AXES_BG)
+        footer.pack(fill="x", padx=10, pady=(0, 10))
+        n_lines = pretty.count("\n") + 1
+        tk.Label(
+            footer,
+            text=(f"📏 {n_lines:,} líneas tabuladas  ·  "
+                  f"≈ {max(1, n_lines // 60)} páginas impresas "
+                  "(Esc cierra)").replace(",", "."),
+            bg=EDU_AXES_BG, fg=EDU_FG_MUTED,
+            font=("Consolas", 9), anchor="w",
+        ).pack(fill="x")
+
+        def _close(_e=None):
+            try:
+                top.destroy()
+            except tk.TclError:
+                pass
+            self._full_window = None
+        top.protocol("WM_DELETE_WINDOW", _close)
+        top.bind("<Escape>", _close)
+        self._full_window = top
+
+    def _show_placeholder(self, text: str, *, fg: str = EDU_FG_MUTED) -> None:
+        if self._integrand_widget is not None:
+            self._integrand_widget.destroy()
+            self._integrand_widget = None
+        try:
+            self._integrand_placeholder.configure(text=text, fg=fg)
+            if not self._integrand_placeholder.winfo_ismapped():
+                self._integrand_placeholder.pack(expand=True, fill="both",
+                                                 padx=8, pady=8)
+        except tk.TclError:
+            pass
+
+    def _show_q9_notice(self) -> None:
+        if self._integrand_widget is not None:
+            self._integrand_widget.destroy()
+            self._integrand_widget = None
+        try:
+            self._integrand_placeholder.configure(
+                text=("K_(i,j)(ξ, η) = [Bᵀ D B]_(i,j) · |det J| · t\n\n"
+                      "Q9: B es 3×18 → la expansión simbólica de K_(i,j)\n"
+                      "excede el parser de mathtext.\n"
+                      "La conclusión es la misma: imposible analíticamente."),
+                fg="#dcdcdc",
+            )
+            if not self._integrand_placeholder.winfo_ismapped():
+                self._integrand_placeholder.pack(expand=True, fill="both",
+                                                 padx=8, pady=8)
+        except tk.TclError:
+            pass
+
+    def _show_latex(self, expr: str) -> None:
+        try:
+            if self._integrand_placeholder.winfo_ismapped():
+                self._integrand_placeholder.pack_forget()
+        except tk.TclError:
+            pass
+        if self._integrand_widget is None:
+            self._integrand_widget = LatexExpressionImage(
+                self._integrand_container, expr=expr,
+                fontsize=13, color="#dcdcdc", bg=EDU_LABEL_BG, cache=True,
+            )
+            self._integrand_widget.pack(expand=True, padx=8, pady=8)
+        else:
+            try:
+                self._integrand_widget.set_expression(expr)
+            except tk.TclError:
+                pass
 
     @staticmethod
     def _truncate_latex(s: str, max_chars: int = 320) -> str:
@@ -587,3 +806,128 @@ class StiffnessElementModule(CanvasOverlayModule):
             opens = stub.count("{") - stub.count("}")
             return stub + "}" * max(0, opens) + r"\,\cdots"
         return s[:last_safe] + r"\,\cdots"
+
+    # ── Render de la cuadratura (ex-M5b) ───────────────────────────
+    def _refresh_warning(self):
+        if self._lbl_warning is None:
+            return
+        try:
+            n_sel = len(self._selected_pgs)
+            n_total = len(self._contributions)
+            et = self._element_type()
+            if n_total > 0 and n_sel == 1:
+                self._lbl_warning.configure(
+                    text="⚠ 1 PG ⇒ SUB-INTEGRACIÓN: modos hourglass posibles",
+                    fg=HEALTH_ERROR_COLOR,
+                )
+            elif (et == ELEMENT_Q4 and self._order == 3
+                  and n_sel == n_total and n_total == 9):
+                self._lbl_warning.configure(
+                    text="ⓘ 3×3 sobre-integra Q4 (no daña, computa de más)",
+                    fg=HEALTH_WARNING_COLOR,
+                )
+            elif n_sel == 0:
+                self._lbl_warning.configure(
+                    text="◎ Clickeá los PGs sobre el elemento para sumarlos",
+                    fg=EDU_FG_MUTED,
+                )
+            else:
+                self._lbl_warning.configure(text="")
+        except tk.TclError:
+            pass
+
+    def _refresh_k_heatmap(self):
+        n_pg = len(self._contributions)
+        n_sel = len(self._selected_pgs)
+        if self.element is None or not self._contributions or n_sel == 0:
+            placeholder_text = (
+                "◎  Clickeá un elemento\ny luego los PGs del canvas"
+                if (self.element is None or not self._contributions)
+                else "k_e = 0\nClickeá PGs sobre el elemento"
+            )
+            self._show_k_placeholder(placeholder_text)
+            return
+        K = self._k_from_selection()
+        if K is None:
+            self._show_k_placeholder("k_e = 0")
+            return
+        prefix = r"\mathbf{k}_e = "
+        fs_base = 14 if K.shape[0] <= 12 else 11
+        title = f"k_e  ·  {n_sel}/{n_pg} pg"
+        self._show_k_matrix(K, prefix=prefix, fs=fs_base, title=title)
+
+    def _show_k_placeholder(self, text: str) -> None:
+        if self._mat_k is not None:
+            try:
+                self._mat_k.pack_forget()
+            except tk.TclError:
+                pass
+        try:
+            self._lbl_k_title.pack_forget()
+        except tk.TclError:
+            pass
+        try:
+            self._k_placeholder.configure(text=text)
+            if not self._k_placeholder.winfo_ismapped():
+                self._k_placeholder.pack(expand=True)
+        except tk.TclError:
+            pass
+
+    def _show_k_matrix(self, Kn: np.ndarray, *, prefix: str,
+                       fs: int, title: str) -> None:
+        try:
+            self._k_placeholder.pack_forget()
+        except tk.TclError:
+            pass
+        if self._mat_k is None:
+            # k_e en viewport con scroll/pan IN-FRAME (sin pop-up). Render a
+            # fontsize legible (shrink=False): Q4 (8×8) entra; Q9 (18×18) se
+            # explora arrastrando o con la rueda, en vez de salir a ~6 pt.
+            self._mat_k = ScrollableMatrixImage(
+                self._k_frame, matrix=Kn,
+                fmt="{:.0f}", fontsize=fs, prefix=prefix,
+                viewport=(460, 300),
+            )
+        else:
+            self._mat_k.set_style(fontsize=fs)
+            self._mat_k.set_matrix(Kn, prefix=prefix)
+        try:
+            if not self._lbl_k_title.winfo_ismapped():
+                self._lbl_k_title.pack(fill="x", pady=(2, 0))
+            self._lbl_k_title.configure(text=title)
+            newly_shown = not self._mat_k.winfo_ismapped()
+            if newly_shown:
+                self._mat_k.pack(fill="x", pady=(4, 4))
+                # k_e (viewport 460×300) aparece DESPUÉS de show() — re-ajustar
+                # el overlay una vez para que el viewport entre completo (antes
+                # se recortaba). Idempotente; no se redispara por click de PG
+                # (el widget ya queda mapeado).
+                self.refit_overlay()
+                try:
+                    self._mesh.after(120, self.refit_overlay)
+                except Exception:
+                    pass
+        except tk.TclError:
+            pass
+
+    def _refresh_status(self):
+        if self._lbl_status is None:
+            return
+        n_sel = len(self._selected_pgs)
+        n_total = len(self._contributions)
+        try:
+            if n_total == 0:
+                self._lbl_status.configure(text="")
+                return
+            if n_sel > 0:
+                idx = max(self._selected_pgs)
+                c = self._contributions[idx]
+                self._lbl_status.configure(
+                    text=(f"Σ {n_sel}/{n_total} pg   "
+                          f"último: pg{idx + 1}  w={c['w']:.3f}  "
+                          f"|det J|={c['detJ']:.3g}")
+                )
+            else:
+                self._lbl_status.configure(text=f"Σ 0/{n_total} pg")
+        except tk.TclError:
+            pass

@@ -48,6 +48,11 @@ CANVAS_ELEMENT_COLOR = "#81c784"
 CANVAS_LOAD_COLOR = "#ef5350"
 CANVAS_CONSTRAINT_COLOR = "#ffa726"
 CANVAS_SELECTED_COLOR = "#ffeb3b"
+# Geometria "fantasma": malla base atenuada cuando un modulo overlay quiere que
+# su capa propia sea la protagonista (M0: el X-ray de calidad distorsionado se
+# confundia con la malla base de color normal al arrastrar). Gris azulado tenue,
+# mas visible que la grilla pero claramente "inactivo".
+CANVAS_GHOST_COLOR = "#4a5060"
 CANVAS_NODE_RADIUS = 4
 # Nodos extra de Q9 (medios de arista y centroide): más pequeños y de color
 # distinto para diferenciarlos visualmente de los vértices.
@@ -195,6 +200,33 @@ EDU_LABEL_BG  = "#1f1f1f"   # bbox de text boxes / legend dentro de axes
 EDU_GRID      = "#404040"   # grilla / spines tenues
 EDU_FG        = "#e8e8ea"   # alias semántico de LABEL_FG para context edu
 EDU_FG_MUTED  = "#9ea3aa"   # alias semántico de TEXT_MUTED_FG
+
+# ─── Puntos de Gauss + cuadrado natural (módulos educativos) ───────────────
+# Fuente única de verdad de la paleta del glifo de PG y del cuadrado natural
+# [-1,1]². Antes vivían como literales locales duplicados en gauss_glyph.py,
+# gauss_inset.py y en cada módulo (mod01.._C_BLUE, mod02.._C_SURFACE_LO, el
+# hex #d68a7a repetido 6 veces). `education/components/gauss_glyph.py` las
+# re-exporta con sus nombres cortos (GAUSS_CANONICAL, ...) para compat.
+GAUSS_CANONICAL_COLOR     = "#80deea"   # cian — PG neutral
+GAUSS_ACTIVE_COLOR        = "#ffd54f"   # dorado — PG sumado / activo en cuadratura
+GAUSS_HALO_COLOR          = "#ff8a65"   # naranja — selección del alumno (snap)
+GAUSS_GHOST_COLOR         = "#7a7a85"   # gris — PG disponible no usado
+GAUSS_LABEL_OUTLINE_COLOR = "#1f1f29"   # outline sutil del disco filled
+# Cuadrado natural [-1,1]² — estilo de referencia de M1, compartido por el
+# render matplotlib (mod01) y el tk.Canvas (GaussCoordReadout en M2/M4/M5).
+EDU_NATURAL_OUTLINE_COLOR = "#4fa3ff"   # contorno del cuadrado natural
+EDU_NATURAL_AXES_COLOR    = "#3a5278"   # ejes ξ, η (cruz en el origen)
+EDU_NATURAL_FILL_COLOR    = "#4fa3ff"   # relleno tenue (solo backend matplotlib)
+EDU_FREE_POINT_COLOR      = "#d68a7a"   # marcador de punto LIBRE (no-Gauss)
+EDU_MARKER_OUTLINE_COLOR  = "#ffffff"   # outline blanco de marcadores sobre fondo variable
+EDU_SURFACE_LO_COLOR      = "#ff7043"   # naranja-rojo: det J cerca de 0 / negativo (M2)
+# Anotaciones geometricas de M0 (calidad de malla) sobre el canvas: el arco
+# del peor angulo y la arista/diagonal de Compacidad. Deben contrastar con el
+# X-ray rojo/amarillo/verde (HEALTH_*) y con los nodos azul/cian/violeta, por
+# eso NO reusan la paleta de salud (se camuflarian sobre el relleno del
+# elemento — p.ej. una arista amarilla sobre un elemento amarillo).
+EDU_M0_ANGLE_COLOR  = "#ce93d8"   # orquidea — arco del peor angulo (Jacobiano)
+EDU_M0_LENGTH_COLOR = "#4dd0e1"   # cian-verdoso — arista Lmin / diagonal Dmax (Compacidad)
 
 # Compatibilidad: MOHR_BG y _TOGGLE_BG_DARK (formula_value_toggle) se
 # rebindean a EDU_FIG_BG para unificar el "bloque oscuro" del Mohr inset

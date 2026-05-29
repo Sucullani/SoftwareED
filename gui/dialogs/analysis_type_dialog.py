@@ -25,7 +25,7 @@ from ttkbootstrap.constants import *
 from config.settings import (
     ANALYSIS_PLANE_STRESS, ANALYSIS_PLANE_STRAIN,
 )
-from education.components.plot_panel import _theme_colors
+from education.components.edu_plot_style import _theme_colors
 from gui.widgets.webp_player import WebpPlayer
 
 

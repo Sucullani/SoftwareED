@@ -44,7 +44,7 @@ from config.settings import (
     LABEL_BG, TEXT_MUTED_FG, ORPHAN_NODE_FG,
     PHASE_PROC_COLOR,
 )
-from education.components.plot_panel import _theme_colors
+from education.components.edu_plot_style import _theme_colors
 from gui.widgets.webp_player import WebpPlayer
 from models.mesh_utils import expand_q4_to_q9, shrink_q9_to_q4
 

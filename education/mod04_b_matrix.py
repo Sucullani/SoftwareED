@@ -41,11 +41,11 @@ import ttkbootstrap as ttk
 from education.overlay_module import CanvasOverlayModule
 from education.components import (
     FormulaValueBlocksToggle, LatexMatrixImage, LatexExpressionImage,
-    GaussCoordReadout, natural_to_physical,
+    ScrollableMatrixImage, GaussCoordReadout, natural_to_physical, element_coords,
 )
 from education.components.iso_inverse import iso_inverse_map
 from education.components.gauss_glyph import (
-    draw_gauss_base, draw_gauss_halo, draw_gauss_ripple,
+    draw_gauss_base, draw_gauss_halo, draw_gauss_ripple, draw_gauss_free_point,
     GAUSS_CANONICAL, GAUSS_HALO,
 )
 
@@ -53,6 +53,8 @@ from fem.shape_functions import get_shape_functions
 from fem.jacobian import compute_jacobian
 from fem.b_matrix import compute_b_matrix
 from fem.gauss_quadrature import get_gauss_points_for_element
+
+from config.settings import EDU_FREE_POINT_COLOR
 
 
 # Tag canvas — identifica TODOS los items de M4 para borrarlos en cada
@@ -66,7 +68,9 @@ class BMatrixModule(CanvasOverlayModule):
     TITLE = "④  Matriz B  (ε = B · u)"
     PHASE = "proc"
     OVERLAY_INITIAL_POS = (24, 24)
-    OVERLAY_WIDTH = 520
+    # Width=None → auto-fit. B es "fat" (3×8 en Q4, 3×18 en Q9); un ancho
+    # fijo clipea la matriz Q9. El auto-fit la deja completa, igual que M5.
+    OVERLAY_WIDTH = None
     OVERLAY_HEIGHT = None  # auto
 
     SNAP_PX = 24      # radio de snap a punto Gauss (en px de canvas)
@@ -119,6 +123,18 @@ class BMatrixModule(CanvasOverlayModule):
         # toggle Fórmula (que muestra B y la relación con J⁻¹·∂N/∂ξ) + el
         # crossref al pie ya orientan al alumno.
 
+        # ── Cuadrado natural interactivo — AL TOPE, posición estratégica ──
+        # B se evalúa en (ξ,η). El alumno fija el punto clickeando AQUÍ o
+        # clickeando el elemento físico del canvas: dos espacios, un mismo
+        # punto. El marcador se mueve en ambos a la vez — así queda claro
+        # que B(ξ,η) es función del espacio natural, NO de (x,y).
+        self._readout = GaussCoordReadout(
+            body, order=self._gauss_order(), etype=self.element_type,
+            interactive=True, on_pick=self._on_natural_pick,
+            title="B se evalúa en el cuadrado natural (ξ, η):",
+        )
+        self._readout.pack(fill="x", pady=(0, 4))
+
         # ── Toggle Fórmula ↔ Valores (frames Tk, no axes compartido) ──
         # El nuevo toggle deja que cada panel maneje su propio layout con
         # widgets Tk — la matriz B se muestra como imagen PNG generada en
@@ -131,19 +147,11 @@ class BMatrixModule(CanvasOverlayModule):
         )
         self._toggle.pack(fill="both", expand=True, pady=(2, 0))
 
-        # ── Readout dual físico↔natural — AL PIE, no al tope ──────
-        # Mismo orden pedagógico que M2: fórmula primero, "you-are-here"
-        # justo arriba del crossref al siguiente módulo.
-        self._readout = GaussCoordReadout(
-            body, order=self._gauss_order(), etype=self.element_type,
-        )
-        self._readout.pack(fill="x", pady=(4, 2))
-
         # Cross-reference clickeable: B + D forman el integrando de k_e.
         self._pack_crossref(
             body, "mod05",
             "👉 B + D (③) construyen el integrando de k_e — "
-            "ver ⑤ Matriz K_e y ⑤′ Cuadratura.",
+            "ver ⑤ Rigidez K_e + Gauss.",
             wraplength=500,
         )
 
@@ -188,19 +196,13 @@ class BMatrixModule(CanvasOverlayModule):
         sel_sx, sel_sy = mesh.world_to_screen(sel_xy_world[0], sel_xy_world[1])
 
         if self._gauss_index is None:
-            # Color según el origen del punto libre: rojo apagado si fue
-            # un click físico (`_free_point=True`), naranja canónico si fue
-            # un setteo por defecto (al cambiar de elemento, etc.).
-            free_color = "#d68a7a" if self._free_point else GAUSS_HALO
-            draw_gauss_halo(
+            # Glifo unificado de punto LIBRE. Color según el origen: rojo
+            # apagado (default EDU_FREE_POINT_COLOR) si fue un click físico
+            # (`_free_point=True`), naranja canónico si fue un setteo por
+            # defecto (al cambiar de elemento, ξ=η=0).
+            draw_gauss_free_point(
                 mesh.canvas, sel_sx, sel_sy, tag=_TAG,
-                color=free_color, extra=5.0, width=2.2, dash=(4, 3),
-            )
-            # Disco interior pequeño para legibilidad sobre cualquier fondo.
-            mesh.canvas.create_oval(
-                sel_sx - 3, sel_sy - 3, sel_sx + 3, sel_sy + 3,
-                fill=free_color, outline="#ffffff", width=1.0,
-                tags=_TAG,
+                color=None if self._free_point else GAUSS_HALO,
             )
 
         # Dibujar TODOS los puntos de Gauss del elemento bajo análisis.
@@ -324,6 +326,32 @@ class BMatrixModule(CanvasOverlayModule):
         self._refresh_all()
         return True
 
+    # ── Pick desde el cuadrado natural interactivo ─────────────────
+    def _match_gauss_index(self, xi: float, eta: float,
+                            tol: float = 1e-3) -> Optional[int]:
+        """Índice del PG del elemento cuyas coords (ξ,η) matchean (xi,eta),
+        o None. Por COORDENADA (robusto al ordering del grid del widget)."""
+        pts_natural, _ = get_gauss_points_for_element(self.element_type)
+        for idx, (gx, gy) in enumerate(pts_natural):
+            if abs(xi - gx) < tol and abs(eta - gy) < tol:
+                return idx
+        return None
+
+    def _on_natural_pick(self, xi: float, eta: float) -> None:
+        """El alumno clickeó/arrastró DENTRO del cuadrado natural del readout.
+
+        El widget ya aplicó snap PRIORITARIO a PG. Si (xi,eta) coincide con un
+        punto de Gauss del elemento, lo tratamos como selección discreta de
+        ese PG (idéntico a clickear el PG en el canvas físico — bidireccional):
+        B se evalúa exactamente en el PG, con su halo de selección. Si no,
+        es un punto libre continuo. El marcador aparece también sobre el
+        elemento físico del canvas en ambos casos."""
+        self._xi, self._eta = float(xi), float(eta)
+        idx = self._match_gauss_index(xi, eta)
+        self._gauss_index = idx
+        self._free_point = (idx is None)
+        self._refresh_all()
+
     # ── Refresh del overlay (tras cambio de selección/elemento) ────
     def _refresh_all(self) -> None:
         # Live-update de la matriz numérica (siempre, aunque esté en modo
@@ -380,7 +408,7 @@ class BMatrixModule(CanvasOverlayModule):
                 fg = GAUSS_CANONICAL
             elif self._free_point:
                 mode_tag = f"(ξ,η) = ({self._xi:+.3f}, {self._eta:+.3f})"
-                fg = "#d68a7a"
+                fg = EDU_FREE_POINT_COLOR
             else:
                 mode_tag = f"(ξ,η) = ({self._xi:+.3f}, {self._eta:+.3f})"
                 fg = "#dcdcdc"
@@ -410,16 +438,8 @@ class BMatrixModule(CanvasOverlayModule):
 
     # ── Cómputo de B ────────────────────────────────────────────────
     def _coords_macro(self) -> Optional[np.ndarray]:
-        if self.project is None or self.element is None:
-            return None
-        try:
-            coords = np.array([
-                [self.project.nodes[nid].x, self.project.nodes[nid].y]
-                for nid in self.element.node_ids
-            ], dtype=float)
-        except KeyError:
-            return None
-        return coords
+        # Delega al helper compartido (antes duplicado en M1/M2/M4/M5/M7).
+        return element_coords(self.project, self.element)
 
     def _compute_b(self) -> Optional[np.ndarray]:
         coords = self._coords_macro()
@@ -483,18 +503,17 @@ class BMatrixModule(CanvasOverlayModule):
             font=("Consolas", 9, "bold"), anchor="center",
         )
         self._lbl_values_title.pack(fill="x", pady=(2, 2))
-        # fontsize chico para Q9 (matriz 3×18 más ancha).
-        # Para Q4 (3x8) damos `base=13` que el auto-shrink interpreta
-        # como `n<=9 → max(10, 13-2)=11`; para Q9 (3x18) damos `base=12`
-        # que cae a `n<=18 → max(7, 12-5)=7` y entra en el overlay.
-        fs = 13 if self.n_nodes == 4 else 12
+        # B en un viewport con scroll/pan IN-FRAME (sin pop-up). Render a
+        # fontsize pleno y LEGIBLE (shrink=False): Q4 (3×8) entra entero en
+        # el viewport; Q9 (3×18) se explora arrastrando o con la rueda —
+        # antes salía a ~7 pt ilegible. 3 filas → viewport bajo.
         B = self._compute_b()
-        self._mat_values = LatexMatrixImage(
+        self._mat_values = ScrollableMatrixImage(
             frame, matrix=B if B is not None else np.zeros((3, 2 * self.n_nodes)),
-            fmt="{:.3g}", fontsize=fs, prefix=r"\mathbf{B}=",
-            cache_values=False,  # cambia con ξ,η — no cachear
+            fmt="{:.3g}", fontsize=15, prefix=r"\mathbf{B}=",
+            viewport=(460, 130),
         )
-        self._mat_values.pack(anchor="center", pady=(0, 4))
+        self._mat_values.pack(fill="x", pady=(0, 4))
         self._lbl_status = tk.Label(
             frame, text="", bg=EDU_AXES_BG, fg=EDU_FG_MUTED,
             font=("Consolas", 9), anchor="center",

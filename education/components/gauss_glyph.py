@@ -32,7 +32,12 @@ from __future__ import annotations
 
 from typing import Optional
 
-from config.settings import CANVAS_BG_COLOR
+from config.settings import (
+    CANVAS_BG_COLOR,
+    GAUSS_CANONICAL_COLOR, GAUSS_ACTIVE_COLOR, GAUSS_HALO_COLOR,
+    GAUSS_GHOST_COLOR, GAUSS_LABEL_OUTLINE_COLOR,
+    EDU_FREE_POINT_COLOR, EDU_MARKER_OUTLINE_COLOR,
+)
 
 
 # ─── Geometría compartida ────────────────────────────────────────────
@@ -43,12 +48,15 @@ GAUSS_LABEL_DX = 11
 GAUSS_LABEL_DY = -11
 GAUSS_LABEL_FONT = ("Consolas", 8, "bold")
 
-# ─── Paleta canónica ────────────────────────────────────────────────
-GAUSS_CANONICAL = "#80deea"      # cian — PG neutral
-GAUSS_ACTIVE    = "#ffd54f"      # dorado — sumado / activo
-GAUSS_HALO      = "#ff8a65"      # naranja — selección del alumno
-GAUSS_GHOST     = "#7a7a85"      # gris — disponible no usado
-GAUSS_LABEL_OUTLINE = "#1f1f29"  # outline sutil del disco filled
+# ─── Paleta canónica (re-export desde config/settings.py) ────────────
+# Las constantes viven en settings (regla: cero hex fuera de config/). Acá
+# se re-exportan con los nombres cortos históricos para no romper los ~6
+# módulos que hacen `from ...gauss_glyph import GAUSS_CANONICAL`.
+GAUSS_CANONICAL     = GAUSS_CANONICAL_COLOR      # cian — PG neutral
+GAUSS_ACTIVE        = GAUSS_ACTIVE_COLOR         # dorado — sumado / activo
+GAUSS_HALO          = GAUSS_HALO_COLOR           # naranja — selección del alumno
+GAUSS_GHOST         = GAUSS_GHOST_COLOR          # gris — disponible no usado
+GAUSS_LABEL_OUTLINE = GAUSS_LABEL_OUTLINE_COLOR  # outline sutil del disco filled
 
 
 # ─── Animación: parámetros del ripple compartido ─────────────────────
@@ -147,6 +155,29 @@ def draw_gauss_halo(canvas, sx: float, sy: float, *, tag: str,
     canvas.create_oval(sx - r, sy - r, sx + r, sy + r, **kwargs)
 
 
+def draw_gauss_free_point(canvas, sx: float, sy: float, *, tag: str,
+                           color: Optional[str] = None,
+                           label: Optional[str] = None) -> None:
+    """Marcador de PUNTO LIBRE (no-Gauss): halo dashed + disco interior con
+    outline blanco para legibilidad sobre cualquier fondo.
+
+    Encapsula el patrón que antes estaba duplicado a mano en M1/M2/M4 (dos
+    `create_oval` + el literal `#d68a7a` repetido). Un único helper, color
+    desde `config.settings.EDU_FREE_POINT_COLOR` (default si `color=None`).
+    """
+    if color is None:
+        color = EDU_FREE_POINT_COLOR
+    canvas.create_oval(sx - 11, sy - 11, sx + 11, sy + 11,
+                       outline=color, width=2.0, dash=(4, 3), tags=tag)
+    canvas.create_oval(sx - 4, sy - 4, sx + 4, sy + 4,
+                       fill=color, outline=EDU_MARKER_OUTLINE_COLOR,
+                       width=1.0, tags=tag)
+    if label:
+        canvas.create_text(sx + GAUSS_LABEL_DX, sy + GAUSS_LABEL_DY,
+                           text=label, fill=color,
+                           font=GAUSS_LABEL_FONT, tags=tag)
+
+
 def draw_gauss_ripple(canvas, sx: float, sy: float, *, tag: str,
                        phase: float, color_fg: str = GAUSS_CANONICAL,
                        color_bg: str = CANVAS_BG_COLOR,
@@ -175,7 +206,7 @@ def draw_gauss_ripple(canvas, sx: float, sy: float, *, tag: str,
     for k in range(n_rings):
         t = (phase + k / float(n_rings)) % 1.0
         r = r_min + (r_max - r_min) * t
-        col = _lerp_hex(color_fg, color_bg, t)
+        col = lerp_hex(color_fg, color_bg, t)
         w = max(0.6, 2.0 * (1.0 - t))
         canvas.create_oval(
             sx - r, sy - r, sx + r, sy + r,
@@ -184,15 +215,29 @@ def draw_gauss_ripple(canvas, sx: float, sy: float, *, tag: str,
 
 
 # ═══════════════════════════════════════════════════════════════════
-# HELPERS INTERNOS
+# HELPERS DE COLOR (públicos — fuente única de la interpolación HEX)
 # ═══════════════════════════════════════════════════════════════════
 
-def _lerp_hex(c1: str, c2: str, t: float) -> str:
-    """Interpolación lineal entre dos colores HEX `#rrggbb`."""
+def hex_to_rgb(h: str) -> tuple:
+    """`#rrggbb` -> (r, g, b) enteros 0..255."""
+    h = h.lstrip("#")
+    return int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+
+
+def lerp_hex(c1: str, c2: str, t: float) -> str:
+    """Interpolación lineal entre dos colores HEX `#rrggbb`.
+
+    Fuente ÚNICA de la rgb-lerp del proyecto educativo. Antes estaba
+    triplicada (este helper privado + mod02._lerp_color + quality_bar._lerp).
+    """
     t = max(0.0, min(1.0, float(t)))
-    r1, g1, b1 = int(c1[1:3], 16), int(c1[3:5], 16), int(c1[5:7], 16)
-    r2, g2, b2 = int(c2[1:3], 16), int(c2[3:5], 16), int(c2[5:7], 16)
+    r1, g1, b1 = hex_to_rgb(c1)
+    r2, g2, b2 = hex_to_rgb(c2)
     r = int(r1 + (r2 - r1) * t)
     g = int(g1 + (g2 - g1) * t)
     b = int(b1 + (b2 - b1) * t)
     return f"#{r:02x}{g:02x}{b:02x}"
+
+
+# Alias retrocompat por si algún módulo importó el nombre privado.
+_lerp_hex = lerp_hex

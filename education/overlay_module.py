@@ -291,6 +291,22 @@ class CanvasOverlayModule:
         except Exception:
             pass
 
+    def refit_overlay(self) -> None:
+        """Re-ajusta el alto del overlay flotante a su contenido actual.
+
+        Llamar cuando el body cambia de tamaño DESPUÉS de `show()` — p.ej.
+        al expandir/colapsar un `Expander` de derivación (M0, M5): la
+        geometría del Toplevel se fija una sola vez y no crece sola, así que
+        el contenido nuevo quedaría recortado. No-op si el overlay no existe
+        o no expone `refit` (Toplevels legacy)."""
+        ov = getattr(self, "_overlay", None)
+        refit = getattr(ov, "refit", None)
+        if callable(refit):
+            try:
+                refit()
+            except Exception:
+                pass
+
     def on_activated(self) -> None:
         """Hook tras inicialización completa (overlay visible + layer
         registrada). Default: no-op."""
@@ -427,6 +443,24 @@ class CanvasOverlayModule:
         _chained._overlay_edu_chain = True
         return _chained
 
+    def _cleanup_child_widgets(self, widget) -> None:
+        """Recorre recursivamente los hijos de `widget` y llama `cleanup()`
+        en los que lo expongan (duck-typing). Usado para cerrar popups y
+        desenganchar bindings de componentes (LatexMatrixImage,
+        GaussCoordReadout) que sobreviven al withdraw del overlay."""
+        try:
+            children = widget.winfo_children()
+        except Exception:
+            return
+        for child in children:
+            fn = getattr(child, "cleanup", None)
+            if callable(fn):
+                try:
+                    fn()
+                except Exception:
+                    pass
+            self._cleanup_child_widgets(child)
+
     def _draw_layer_wrapper(self, mesh_canvas):
         # Wrapper que aisla excepciones: una capa rota NO bloquea redraw.
         try:
@@ -450,6 +484,17 @@ class CanvasOverlayModule:
         # cancelar after_id pendientes, borrar tags privados, etc.
         try:
             self.on_closed()
+        except Exception:
+            pass
+
+        # Cerrar recursos de widgets hijos que sobreviven al withdraw del
+        # overlay (popups de zoom de LatexMatrixImage, bindings de
+        # GaussCoordReadout, etc.). El overlay se cierra con withdraw — NO
+        # destroy —, así que el `<Destroy>` de los widgets no dispara; un
+        # popup Toplevel abierto quedaría huérfano. Recorremos el árbol del
+        # body y llamamos `cleanup()` en cualquier widget que lo exponga.
+        try:
+            self._cleanup_child_widgets(self._overlay.body)
         except Exception:
             pass
 

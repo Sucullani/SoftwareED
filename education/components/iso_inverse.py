@@ -101,4 +101,28 @@ def natural_to_physical(xi: float, eta: float, node_coords: np.ndarray,
     return N @ np.asarray(node_coords, dtype=float)[: len(N)]
 
 
-__all__ = ["iso_inverse_map", "natural_to_physical", "in_natural_domain"]
+def element_coords(project, element):
+    """Coords [N×2] de los nodos de `element` desde `project.nodes`, o None
+    si el elemento referencia un nodo inexistente.
+
+    Helper compartido — antes estaba duplicado byte-a-byte en M1
+    (_element_coords), M2/M4 (_coords_macro), M5 (_node_coords) y M7 (inline)
+    con el mismo try/except KeyError. Centralizarlo evita el drift y respeta
+    la separación identidad/índice (usa element.node_ids, no `2*(nid-1)`).
+    """
+    if project is None or element is None:
+        return None
+    try:
+        return np.array(
+            [[project.nodes[nid].x, project.nodes[nid].y]
+             for nid in element.node_ids],
+            dtype=float,
+        )
+    except KeyError:
+        return None
+
+
+__all__ = [
+    "iso_inverse_map", "natural_to_physical", "in_natural_domain",
+    "element_coords",
+]

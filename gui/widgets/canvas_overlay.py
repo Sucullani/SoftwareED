@@ -220,6 +220,30 @@ class CanvasOverlay(tk.Toplevel):
         self.deiconify()
         self.lift()
 
+    def refit(self) -> None:
+        """Re-ajusta el tamaño del overlay a su contenido ACTUAL, preservando
+        la posición en pantalla.
+
+        La geometría se fija UNA vez en `show()`; si el `body` cambia de
+        tamaño después (p.ej. al expandir un `Expander` de derivación), el
+        Toplevel NO crece solo y el contenido nuevo queda recortado. Este
+        método recalcula el tamaño (respetando los ejes con tamaño fijo
+        `width`/`height` no-None; los None se toman de `winfo_req*`) y
+        re-aplica la geometría sin mover la ventana (`geometry("WxH")` sin
+        `+x+y` conserva la posición). Re-aplica también el bloqueo de rueda
+        sobre los descendants nuevos (las imágenes LaTeX recién creadas)."""
+        if self._destroyed:
+            return
+        try:
+            self.update_idletasks()
+            w, h = self._fixed_size
+            final_w = int(w) if w is not None else self.winfo_reqwidth()
+            final_h = int(h) if h is not None else self.winfo_reqheight()
+            self.geometry(f"{final_w}x{final_h}")
+            self._consume_wheel_recursive()
+        except tk.TclError:
+            pass
+
     def _consume_wheel_recursive(self) -> None:
         """Bind <MouseWheel> -> 'break' en este Toplevel y todos sus descendants.
 

@@ -47,10 +47,10 @@ MODULE_MAP = {
     "mod02":  ("education.mod02_jacobian",            "JacobianModule"),
     "mod03":  ("education.mod03_constitutive",        "ConstitutiveModule"),
     "mod04":  ("education.mod04_b_matrix",            "BMatrixModule"),
-    # Narrativa M5 → M5b: M5 muestra la rigidez ANALÍTICA (integral
-    # imposible); M5b muestra la SOLUCIÓN NUMÉRICA (cuadratura de Gauss).
+    # M5 fusionado (ex-M5 + ex-M5b): la rigidez analítica (integral
+    # imposible, colapsable) Y la solución numérica (cuadratura de Gauss
+    # interactiva) viven en UN solo overlay con la narrativa ∫ → Σ.
     "mod05":  ("education.mod05_stiffness",           "StiffnessElementModule"),
-    "mod05b": ("education.mod05b_gauss",              "GaussQuadratureModule"),
     "mod06":  ("education.mod06_equivalent_forces",   "EquivalentForcesModule"),
     "mod07":  ("education.mod07_assembly",            "AssemblyModule"),
     "mod09":  ("education.mod09_q4_vs_q9_comparison", "Q4vsQ9ComparisonModule"),
@@ -62,27 +62,27 @@ MODULE_MAP = {
 #   2. Jacobiano (det J, distorsion local)  (M2)
 #   3. Matriz constitutiva D (E, nu, TP/DP)  (M3)
 #   4. Matriz B (gradiente, J^-1)  (M4)
-#   5. Cuadratura de Gauss (motivacion: integral imposible)  (M5)
-#   5b. Matriz K_e (acumulacion PG a PG)  (M5b)
+#   5. Rigidez K_e + cuadratura de Gauss (integral imposible → suma)  (M5)
 #   6. Fuerzas equivalentes nodales  (M6)
 #   7. Ensamblaje K, F + BCs (vuelo Bezier + sparsity)  (M7)
 #
-# Split 2026-05 de M5: el toplevel original "Rigidez K + Gauss" combinaba
-# DOS conceptos en un panel grande (1380×880). Lo separamos en dos overlays
-# chicos (~520 px) que se referencian explícitamente — M5 muestra el
-# integrando y los PG, M5b muestra la acumulación. Cada uno cuenta una
-# historia más simple y respeta la convención overlay-único.
+# Fusión 2026-05 de M5: el split previo (M5 integrando + M5b cuadratura)
+# se reunió en UN solo overlay. La narrativa "la integral es imposible →
+# por eso usamos Gauss" es un único argumento; partirlo en dos overlays
+# obligaba al alumno a abrir/cerrar para conectar las mitades. Ahora el
+# salto ∫ → Σ es el héroe visual, el "monstruo" simbólico queda en un
+# expander colapsable, y la cuadratura interactiva es el acto principal.
 MODULE_PHASE = {
     "pre":  ["mod00"],
     "proc": ["mod01", "mod02", "mod03", "mod04",
-              "mod05", "mod05b", "mod06", "mod07"],
+              "mod05", "mod06", "mod07"],
     "post": ["mod09"],
 }
 
 # Etiquetas y descripciones para el launcher_panel (UI homogenea entre fases)
 MODULE_META = {
     "mod00":  ("Ⓜ Calidad de malla",
-               "Jacobiano · aspect ratio · Robinson"),
+               "Jacobiano escalado · Compacidad (Stretch)"),
     "mod01":  ("① Mapeo iso + funciones N",
                "Coordenadas naturales (ξ,η) ↔ (x,y)"),
     "mod02":  ("② Jacobiano  det J(ξ,η)",
@@ -91,10 +91,8 @@ MODULE_META = {
                "D(E,ν, caso) por material del elemento"),
     "mod04":  ("④ Matriz B (Deformacion)",
                "∂N/∂x con J⁻¹, snap a Gauss"),
-    "mod05":  ("⑤ Matriz K_e (rigidez)",
-               "k_e = ∫∫ BᵀDB |det J| t  ·  imposible analiticamente"),
-    "mod05b": ("⑤′ Cuadratura de Gauss",
-               "Solucion numerica: suma w_p · BᵀDB en PGs"),
+    "mod05":  ("⑤ Rigidez K_e + Gauss",
+               "Integral imposible → suma en PGs (cuadratura interactiva)"),
     "mod06":  ("⑥ Fuerzas equivalentes",
                "Carga arista / peso propio"),
     "mod07":  ("⑦ Ensamblaje K, F + BCs",

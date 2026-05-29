@@ -1,33 +1,39 @@
 """
 Memoria de Cálculo: generador de PDF educativo paso-a-paso del análisis MEF.
 
-Compila un documento LaTeX (vía pylatex + pdflatex) que describe EXACTAMENTE
-el pipeline implementado en `fem/` para el proyecto resuelto: planteo del
-problema, discretización, calidad de malla, formulación elemental detallada
-(N → J → B → D → kₑ por cuadratura de Gauss), ensamblaje disperso, aplicación
-de restricciones por eliminación, resolución con `scipy.sparse.linalg.spsolve`
-(factorización LU dispersa), reacciones, verificación de equilibrio y
-post-proceso (tensiones en puntos de Gauss → extrapolación M⁻¹ → promediado
-nodal → principales / von Mises) con contornos renderizados al estilo del
-MeshCanvas del Post-Proceso.
+Compila un documento LaTeX (vía pylatex + pdflatex) que describe el pipeline
+clásico del Método de los Elementos Finitos aplicado al proyecto resuelto:
+planteo del problema, discretización, calidad de malla, formulación
+elemental detallada (N → J → B → D → kₑ por cuadratura de Gauss),
+ensamblaje, aplicación de restricciones, resolución del sistema lineal,
+reacciones, verificación de equilibrio y post-proceso (tensiones en puntos
+de Gauss → extrapolación → promediado nodal → principales / von Mises) con
+contornos y figuras de campo.
 
-Reformulación 2026-05 (ver CLAUDE.md §Memoria de Cálculo):
-  - Toda afirmación está verificada contra el código de `fem/`. En particular
-    el solver es spsolve (LU dispersa), NO Cholesky; el indexado de GDL es
-    ordinal vía `node_index_map` (soporta IDs no contiguos), NO 2·(id−1).
-  - Las figuras de campo se dibujan con Pillow (file_io.figure_export), no con
-    matplotlib, replicando el estilo del canvas con fondo blanco.
-  - Sin referencias cruzadas circulares al Hub ni glosario duplicado en cada
-    estilo. Los positivos en matrices/vectores no llevan prefijo '+'.
-  - El invariante histórico "style=completo bit-a-bit idéntico" ya NO aplica.
+La narrativa se basa en la teoría general de los textos clásicos del MEF
+(Zienkiewicz, Hughes, Bathe, Cook) y NO menciona detalles internos del
+software (librerías, factorizaciones específicas, estructuras de datos):
+es una memoria de cálculo educativa autocontenida.
+
+Modo de presentación del paso-a-paso elemental (auto-detectado en función
+del tamaño del modelo):
+  - Modo "compacto" (todo el modelo paso a paso): aplica cuando
+      * Q4 con <= 2 elementos / <= 12 GDL, o
+      * Q9 con = 1 elemento / 18 GDL.
+    En esos casos las matrices kₑ, B y J caben legibles para cada elemento
+    del modelo y se muestran todas en el cuerpo principal.
+  - Modo "showcase" (un solo elemento + nota): aplica cuando el modelo
+    excede ese umbral. Se desarrolla con detalle el elemento de mayor
+    energía de deformación, y se aclara que los restantes se obtienen
+    siguiendo el mismo procedimiento.
 
 Estilos (`MemoriaCalculo.STYLES`):
-  - 'educativo' (default recomendado): narrativa completa y autocontenida del
-    procedimiento + figuras + cajas "¿por qué?". Sin apéndices de volcado.
+  - 'educativo' (default recomendado): narrativa completa y autocontenida,
+    figuras y cajas "por que?". Sin apéndices de volcado.
   - 'completo': el documento 'educativo' + apéndices (kₑ de todos los
     elementos, datos completos, glosario). Documento de archivo.
-  - 'directo': solo tablas de datos, matrices (D, kₑ, K, F, u, R) y contornos.
-    Sin párrafos narrativos.
+  - 'directo': sólo tablas de datos, matrices (D, kₑ, K, F, u, R) y
+    contornos. Sin párrafos narrativos.
 """
 
 from __future__ import annotations
@@ -277,14 +283,19 @@ class MemoriaCalculo:
         self._build_cap_discretizacion()
         self._build_cap_calidad()
         showcase_id = self._select_showcase_element()
-        if showcase_id is not None:
+        compact_ids = self._compact_showcase_ids()
+        if compact_ids is not None:
+            # Modo compacto: desarrollar TODOS los elementos paso a paso.
+            self._build_cap_showcase_compact(compact_ids)
+        elif showcase_id is not None:
+            # Modo showcase: sólo el elemento estrella + nota.
             self._build_cap_showcase(showcase_id)
         self._build_cap_ensamblaje()
         self._build_cap_bcs_solucion()
         self._build_cap_postproceso(showcase_id)
         if self._appendices:
             self._td.raw(r"\appendix")
-            self._build_appendix_a_kes(showcase_id)
+            self._build_appendix_a_kes(showcase_id, compact_ids)
             self._build_appendix_b_datos()
             self._build_appendix_c_glosario()
         self._build_pie()
@@ -421,12 +432,15 @@ class MemoriaCalculo:
         if self._prose:
             td.raw(r"\vspace{1em}")
             td.para(
-                r"\emph{Este documento describe paso a paso el análisis MEF "
-                r"realizado por EduFEM sobre este proyecto. Cada capítulo "
-                r"combina el planteo con los valores numéricos concretos, "
-                r"reproduciendo exactamente el procedimiento que ejecuta el "
-                r"motor de cálculo del software — no un método genérico de "
-                r"libro, sino el pipeline implementado en su código.}"
+                r"\emph{Este documento desarrolla paso a paso el análisis "
+                r"por Elementos Finitos del proyecto, siguiendo el "
+                r"procedimiento clásico de la formulación isoparamétrica: "
+                r"planteo del problema, discretización, formulación "
+                r"elemental, ensamblaje, condiciones de contorno, "
+                r"resolución del sistema lineal y post-proceso de "
+                r"tensiones. La teoría utilizada es la habitual de los "
+                r"textos del MEF; los valores numéricos corresponden al "
+                r"modelo concreto del usuario.}"
             )
         td.raw(r"\newpage")
 
@@ -435,28 +449,44 @@ class MemoriaCalculo:
         td.raw(r"\section*{¿Qué resuelve el MEF y cómo?}")
         td.raw(r"\addcontentsline{toc}{section}{¿Qué resuelve el MEF y cómo?}")
         td.para(
-            r"El \textbf{Método de los Elementos Finitos (MEF)} discretiza un "
-            r"problema elástico continuo en $N$ elementos: las incógnitas "
-            r"pasan de un campo $\mathbf{u}(x,y)$ infinito-dimensional a un "
-            r"vector $\mathbf{u}$ de $2\,N_{nodos}$ entradas (dos GDL por "
-            r"nodo en 2D), y el equilibrio se reduce al sistema algebraico "
-            r"$\mathbf{K}\,\mathbf{u} = \mathbf{F}$."
+            r"El \textbf{Método de los Elementos Finitos (MEF)} busca el "
+            r"campo de desplazamientos $\mathbf{u}(x,y)$ que satisface el "
+            r"equilibrio elástico $\nabla\cdot\boldsymbol\sigma+\mathbf{b}="
+            r"\mathbf{0}$ en el dominio $\Omega$, con desplazamientos "
+            r"prescritos en una parte del contorno y tracciones aplicadas "
+            r"en el resto. Como esa ecuación diferencial no admite solución "
+            r"analítica para geometrías generales, el MEF la reemplaza por "
+            r"su \emph{forma débil} (principio de los trabajos virtuales) y "
+            r"restringe el espacio de soluciones a polinomios a trozos "
+            r"definidos sobre una malla finita."
         )
-        td.para(r"El cálculo de EduFEM sigue esta secuencia:")
+        td.para(
+            r"En la práctica, el dominio se divide en $N$ \textbf{elementos} "
+            r"unidos por \textbf{nodos}: el campo continuo se reemplaza por "
+            r"un vector $\mathbf{u}$ de $2\,N_{nodos}$ valores nodales (dos "
+            r"GDL por nodo en 2D), y el equilibrio se reduce al sistema "
+            r"algebraico"
+        )
+        td.equation(r"\mathbf{K}\,\mathbf{u} = \mathbf{F}.")
+        td.para(r"La secuencia de cálculo desarrollada en esta memoria es:")
         td.raw(r"\begin{enumerate}")
         td.raw(r"\item \textbf{Pre-proceso} — material(es), nodos, "
                r"conectividad, cargas, restricciones; auditoría de calidad "
                r"de la malla.")
         td.raw(r"\item \textbf{Formulación elemental} — para cada elemento: "
                r"funciones de forma $\mathbf{N}$, Jacobiano $\mathbf{J}$, "
-               r"matriz $\mathbf{B}$, constitutiva $\mathbf{D}$ y rigidez "
-               r"$\mathbf{k}_e$ por cuadratura de Gauss.")
-        td.raw(r"\item \textbf{Ensamblaje} — las $\mathbf{k}_e$ y las cargas "
-               r"se acumulan en $\mathbf{K}$ (matriz dispersa) y $\mathbf{F}$.")
-        td.raw(r"\item \textbf{Restricciones + solución} — se eliminan los "
-               r"GDL prescritos y se resuelve el sistema reducido.")
+               r"matriz deformación–desplazamiento $\mathbf{B}$, constitutiva "
+               r"$\mathbf{D}$ y rigidez $\mathbf{k}_e$ por cuadratura de "
+               r"Gauss-Legendre.")
+        td.raw(r"\item \textbf{Ensamblaje} — las $\mathbf{k}_e$ y las "
+               r"cargas equivalentes se acumulan en la matriz global "
+               r"$\mathbf{K}$ y en el vector $\mathbf{F}$.")
+        td.raw(r"\item \textbf{Condiciones de contorno + solución} — se "
+               r"separan los GDL libres de los restringidos y se resuelve "
+               r"el sistema reducido por factorización directa.")
         td.raw(r"\item \textbf{Post-proceso} — desplazamientos, reacciones, "
-               r"tensiones y contornos.")
+               r"tensiones en puntos de Gauss y nodales, principales y "
+               r"von Mises; contornos.")
         td.raw(r"\end{enumerate}")
         td.raw(r"\newpage")
 
@@ -493,10 +523,12 @@ class MemoriaCalculo:
             td.subsection_numbered("Hipótesis del análisis")
             td.para(self._narrativa_caso_plano())
             td.educational_teaser(
-                r"Tensión plana = placas delgadas cargadas en su plano; "
-                r"deformación plana = sólidos prismáticos largos. Elegir mal "
-                r"no rompe el cálculo: resuelve otro problema con otra "
-                r"$\mathbf{D}$.",
+                r"\textbf{Tensión plana}: cuerpos delgados cargados en su "
+                r"plano medio (placas, membranas). "
+                r"\textbf{Deformación plana}: cuerpos prismáticos largos "
+                r"con sección y carga invariantes en una dirección (presas, "
+                r"túneles). Cada hipótesis fija una forma distinta de la "
+                r"matriz constitutiva $\mathbf{D}$.",
                 phase="pre",
             )
         self._matriz_D_teorica()
@@ -733,10 +765,12 @@ class MemoriaCalculo:
         td.section_numbered("Calidad de la malla")
         if self._prose:
             td.para(
-                r"Antes de resolver, EduFEM audita la malla. Las métricas "
-                r"evalúan cuánto se aleja cada elemento del cuadrado regular: "
-                r"$q_{SJ}\approx 1$ y $R_J\approx 1$ indican un mapeo bien "
-                r"condicionado; $q_{SJ}<0$ señala un elemento invertido "
+                r"Antes de resolver se audita la malla. Las métricas "
+                r"clásicas evalúan cuánto se aleja cada elemento del "
+                r"cuadrado regular ideal: el \emph{Jacobiano escalado} "
+                r"$q_{SJ}\approx 1$ y la \emph{razón de Jacobianos} "
+                r"$R_J\approx 1$ indican un mapeo bien condicionado, "
+                r"mientras que $q_{SJ}<0$ señala un elemento invertido "
                 r"($\det\mathbf{J}<0$) que rompería la formulación."
             )
         try:
@@ -850,7 +884,132 @@ class MemoriaCalculo:
             return None
         return ke, gauss_data, material, node_coords
 
+    # ---------- auto-detección del modo de presentación ----------
+
+    # Umbrales para que el desarrollo paso-a-paso de TODOS los elementos
+    # quepa legible en el documento (matrices kₑ, B y K con tamaño razonable):
+    #   Q4 ≤ 2 elementos (≤ 12 GDL en K, kₑ de 8×8)
+    #   Q9 = 1 elemento  (18 GDL en K, kₑ de 18×18 ya apaisada)
+    # Por encima de esos umbrales se desarrolla SÓLO el elemento de mayor
+    # energía de deformación y se aclara que los demás se calculan igual.
+    _COMPACT_MAX_ELEMENTS_Q4 = 2
+    _COMPACT_MAX_ELEMENTS_Q9 = 1
+
+    def _compact_showcase_ids(self) -> Optional[list[int]]:
+        """Si el modelo cabe en modo compacto, devuelve la lista ordenada de
+        IDs a desarrollar; si no, devuelve None (modo showcase de un solo
+        elemento). El criterio depende del tipo de elemento."""
+        proj = self._project
+        n_elem = len(proj.elements)
+        if n_elem == 0:
+            return None
+        if proj.element_type == ELEMENT_Q9:
+            limit = self._COMPACT_MAX_ELEMENTS_Q9
+        else:
+            limit = self._COMPACT_MAX_ELEMENTS_Q4
+        if n_elem > limit:
+            return None
+        # Verificar que para cada elemento se pueda recomputar el showcase
+        # (material asignado, nodos válidos). Si alguno falla, degradar a
+        # showcase clásico para no producir un capítulo a medias.
+        ids = sorted(proj.elements.keys())
+        for eid in ids:
+            if self._recompute_showcase(eid) is None:
+                return None
+        return ids
+
+    def _build_cap_showcase_compact(self, elem_ids: list[int]) -> None:
+        """Capítulo de formulación elemental con TODOS los elementos del
+        modelo desarrollados paso a paso (modo compacto)."""
+        td = self._td
+        td.section_numbered("Formulación elemental")
+        if self._prose:
+            if len(elem_ids) == 1:
+                texto_intro = (
+                    r"El modelo tiene un único elemento, así que este "
+                    r"capítulo desarrolla \emph{paso a paso} su matriz de "
+                    r"rigidez siguiendo la cadena clásica de la "
+                    r"formulación isoparamétrica: geometría $\to$ "
+                    r"$\mathbf{N}$ $\to$ $\mathbf{J}$ $\to$ $\mathbf{B}$ "
+                    r"$\to$ $\mathbf{D}$ $\to$ integración de "
+                    r"Gauss-Legendre $\to$ $\mathbf{k}_e$."
+                )
+            else:
+                texto_intro = (
+                    rf"El modelo tiene \textbf{{{len(elem_ids)} elementos}}, "
+                    rf"así que este capítulo desarrolla \emph{{cada uno}} "
+                    rf"paso a paso, siguiendo la cadena clásica de la "
+                    rf"formulación isoparamétrica: geometría $\to$ "
+                    rf"$\mathbf{{N}}$ $\to$ $\mathbf{{J}}$ $\to$ "
+                    rf"$\mathbf{{B}}$ $\to$ $\mathbf{{D}}$ $\to$ "
+                    rf"integración de Gauss-Legendre $\to$ $\mathbf{{k}}_e$."
+                )
+            td.para(texto_intro)
+        for idx, eid in enumerate(elem_ids):
+            td.subsection_numbered(rf"Elemento {eid}")
+            # Sólo en el primer elemento mostramos la caja "¿por qué Gauss?";
+            # repetirla en los siguientes sería redundante.
+            self._develop_element_content(
+                eid,
+                use_subsections=False,
+                show_motivation_box=(idx == 0),
+            )
+
     def _build_cap_showcase(self, elem_id: int) -> None:
+        td = self._td
+        proj = self._project
+        elem = proj.elements.get(elem_id)
+        recomputed = self._recompute_showcase(elem_id)
+        if elem is None or recomputed is None:
+            return
+        n_total = len(proj.elements)
+
+        td.section_numbered(rf"Formulación elemental — Elemento {elem_id}")
+        if self._prose:
+            td.para(
+                rf"Este capítulo desarrolla \emph{{paso a paso}} la matriz "
+                rf"de rigidez del elemento $E_{{{elem_id}}}$, siguiendo la "
+                rf"cadena clásica de la formulación isoparamétrica: "
+                rf"geometría $\to$ $\mathbf{{N}}$ $\to$ $\mathbf{{J}}$ "
+                rf"$\to$ $\mathbf{{B}}$ $\to$ $\mathbf{{D}}$ $\to$ "
+                rf"integración de Gauss-Legendre $\to$ $\mathbf{{k}}_e$."
+            )
+            if n_total > 1:
+                td.educational_box(
+                    rf"El modelo tiene \textbf{{{n_total} elementos}}; "
+                    rf"desarrollar las matrices de todos saturaría el "
+                    rf"documento. Se eligió el elemento de mayor "
+                    rf"\textbf{{energía de deformación}} "
+                    rf"($U_e=\tfrac{{1}}{{2}}\mathbf{{u}}_e^T"
+                    rf"\mathbf{{k}}_e\mathbf{{u}}_e$), que es el más "
+                    rf"solicitado del modelo. \textbf{{Para los demás "
+                    rf"elementos el procedimiento es exactamente el "
+                    rf"mismo}}: cambian únicamente las coordenadas "
+                    rf"nodales $\mathbf{{X}}_e$ (y, si los hubiera, el "
+                    rf"material y/o el espesor). El ensamblaje del "
+                    rf"capítulo siguiente utiliza la contribución de "
+                    rf"todos los elementos del modelo, calculados de "
+                    rf"esta misma forma.",
+                    title=r"\textbf{¿Por qué un solo elemento?}",
+                    phase="proc",
+                )
+        self._develop_element_content(elem_id, use_subsections=True)
+
+    # ---------- desarrollo paso-a-paso de UN elemento (helper) ----------
+
+    def _develop_element_content(
+        self, elem_id: int, *, use_subsections: bool,
+        show_motivation_box: bool = True,
+    ) -> None:
+        """Desarrolla paso a paso un elemento (geometría → N → J → B → D →
+        integrando → kₑ). Si `use_subsections=True`, cada paso es una
+        \\subsection numerada (uso de showcase de un solo elemento). Si es
+        False, cada paso usa \\paragraph (modo compacto: varios elementos
+        compartiendo un mismo capítulo, sin saturar el TOC).
+
+        `show_motivation_box`: si False, omite la caja pedagógica del paso
+        6 (¿Por qué Gauss?). Útil para no repetirla en elementos
+        sucesivos del modo compacto."""
         td = self._td
         proj = self._project
         elem = proj.elements.get(elem_id)
@@ -860,22 +1019,14 @@ class MemoriaCalculo:
         ke, gauss_data, material, node_coords = recomputed
         n_nodes = node_coords.shape[0]
 
-        td.section_numbered(rf"Formulación elemental — Elemento {elem_id}")
-        if self._prose:
-            td.para(
-                rf"Este capítulo desarrolla \emph{{paso a paso}} la matriz de "
-                rf"rigidez del elemento $E_{{{elem_id}}}$ (el de mayor energía "
-                rf"de deformación del modelo). El procedimiento es idéntico "
-                rf"para los demás elementos y sigue la cadena de la "
-                rf"formulación isoparamétrica: geometría $\to$ $\mathbf{{N}}$ "
-                rf"$\to$ $\mathbf{{J}}$ $\to$ $\mathbf{{B}}$ $\to$ "
-                rf"$\mathbf{{D}}$ $\to$ integración de Gauss. Para que todas "
-                rf"las matrices quepan legibles, conviene partir de un modelo "
-                rf"pequeño (ver nota al cierre del capítulo)."
-            )
+        def heading(title: str) -> None:
+            if use_subsections:
+                td.subsection_numbered(title)
+            else:
+                td.raw(rf"\paragraph{{{title}}}")
 
-        # 4.1 Geometría
-        td.subsection_numbered("Geometría y conectividad del elemento")
+        # 1. Geometría
+        heading("Geometría y conectividad del elemento")
         rows = []
         for i, nid in enumerate(elem.node_ids[:n_nodes]):
             x, y = node_coords[i]
@@ -892,83 +1043,102 @@ class MemoriaCalculo:
 
         gauss_to_show = self._select_gauss_to_display(gauss_data, n_nodes)
 
-        # 4.2 Funciones de forma N en puntos de Gauss
-        td.subsection_numbered(
-            r"Funciones de forma $N_i(\xi,\eta)$ en los puntos de Gauss")
+        # 2. Funciones de forma N en puntos de Gauss
+        heading(r"Funciones de forma $N_i(\xi,\eta)$ en los puntos de Gauss")
         if self._prose:
             td.para(
-                r"Las $N_i$ interpolan geometría y desplazamientos "
-                r"(formulación \emph{isoparamétrica}): $\mathbf{x}=\sum_i "
-                r"N_i\mathbf{x}_i$ y $\mathbf{u}=\sum_i N_i\mathbf{u}_i$. "
-                r"Evaluadas en cada punto de Gauss definen el muestreo que la "
-                r"cuadratura usa para integrar."
+                r"Las funciones de forma $N_i(\xi,\eta)$ son los "
+                r"interpoladores de Lagrange del cuadrilátero "
+                r"(bilineales para Q4, biquadráticos para Q9). En la "
+                r"formulación \emph{isoparamétrica} las mismas $N_i$ "
+                r"interpolan la geometría y los desplazamientos: "
+                r"$\mathbf{x}(\xi,\eta)=\sum_i N_i\mathbf{x}_i$ y "
+                r"$\mathbf{u}(\xi,\eta)=\sum_i N_i\mathbf{u}_i$. "
+                r"Evaluadas en cada punto de Gauss-Legendre proporcionan "
+                r"el muestreo que la cuadratura usa para aproximar la "
+                r"integral de la rigidez."
             )
         if gauss_data:
             self._tabla_N_en_gauss(gauss_data, n_nodes, proj.element_type)
         else:
             td.para(r"\emph{Datos de Gauss no disponibles.}")
 
-        # 4.3 Jacobiano
-        td.subsection_numbered(
-            r"Jacobiano $\mathbf{J}(\xi,\eta)$ y $\det\mathbf{J}$")
+        # 3. Jacobiano
+        heading(r"Jacobiano $\mathbf{J}(\xi,\eta)$ y $\det\mathbf{J}$")
         if self._prose:
             td.para(
-                r"El Jacobiano relaciona los diferenciales natural y físico: "
-                r"$d\mathbf{x}=\mathbf{J}\,d\boldsymbol{\xi}$, con "
-                r"$\mathbf{J}=\partial(x,y)/\partial(\xi,\eta)$. EduFEM lo "
-                r"calcula como $\mathbf{J}=\partial\mathbf{N}\cdot "
-                r"\mathbf{X}_e$. Su determinante escala el área en la "
-                r"integración y debe ser $>0$ en todo el elemento."
+                r"El Jacobiano relaciona los diferenciales natural y "
+                r"físico: $d\mathbf{x}=\mathbf{J}\,d\boldsymbol{\xi}$, con "
+                r"$\mathbf{J}=\partial(x,y)/\partial(\xi,\eta)$. Operando "
+                r"sobre la interpolación isoparamétrica, "
+                r"$\mathbf{J}=\partial\mathbf{N}\cdot\mathbf{X}_e$, donde "
+                r"$\mathbf{X}_e$ son las coordenadas nodales del "
+                r"elemento. Su determinante escala el diferencial de "
+                r"área $dA=|\det\mathbf{J}|\,d\xi\,d\eta$ y debe ser "
+                r"positivo en todo el elemento; si se anula o cambia "
+                r"de signo, el elemento está plegado y la formulación "
+                r"no es válida."
             )
         if len(gauss_to_show) < len(gauss_data):
-            td.para(rf"\emph{{Por compacidad se muestran {len(gauss_to_show)} "
-                    rf"de los {len(gauss_data)} puntos de Gauss; el resto "
-                    rf"sigue el mismo procedimiento.}}")
+            td.para(
+                rf"\emph{{Por compacidad se muestran {len(gauss_to_show)} "
+                rf"de los {len(gauss_data)} puntos de Gauss; el resto "
+                rf"sigue el mismo procedimiento.}}"
+            )
         for gp in gauss_to_show:
             self._mostrar_jacobiano_pg(gp)
 
-        # 4.4 Matriz B
-        td.subsection_numbered(r"Matriz de deformación $\mathbf{B}(\xi,\eta)$")
+        # 4. Matriz B
+        heading(r"Matriz de deformación $\mathbf{B}(\xi,\eta)$")
         if self._prose:
             td.para(
-                r"$\mathbf{B}$ contiene las derivadas de las $N_i$ respecto de "
-                r"$x,y$, obtenidas por la regla de la cadena "
-                r"$\partial\mathbf{N}/\partial\mathbf{x}=\mathbf{J}^{-1}\,"
-                r"\partial\mathbf{N}/\partial\boldsymbol{\xi}$, y relaciona "
-                r"desplazamientos nodales con deformaciones: "
-                r"$\boldsymbol{\varepsilon}=\mathbf{B}\,\mathbf{u}_e$."
+                r"La matriz $\mathbf{B}$ relaciona los desplazamientos "
+                r"nodales del elemento con las deformaciones continuas: "
+                r"$\boldsymbol\varepsilon(\xi,\eta)=\mathbf{B}(\xi,\eta)\,"
+                r"\mathbf{u}_e$. Cada par de columnas $(2i{-}1,2i)$ "
+                r"corresponde al nodo $i$ y contiene las derivadas "
+                r"físicas $\partial N_i/\partial x$ y "
+                r"$\partial N_i/\partial y$, que se obtienen de las "
+                r"naturales por la regla de la cadena "
+                r"$\partial\mathbf{N}/\partial\mathbf{x}=\mathbf{J}^{-1}"
+                r"\,\partial\mathbf{N}/\partial\boldsymbol{\xi}$."
             )
         for gp in gauss_to_show:
             self._mostrar_matriz_B_pg(gp)
 
-        # 4.5 Constitutiva D
-        td.subsection_numbered(
-            r"Matriz constitutiva $\mathbf{D}$ del material asignado")
+        # 5. Constitutiva D
+        heading(r"Matriz constitutiva $\mathbf{D}$ del material asignado")
         from fem.constitutive import constitutive_matrix
         D = constitutive_matrix(material.E, material.nu, proj.analysis_type)
         if self._prose:
             td.para(
-                r"$\mathbf{D}$ relaciona deformaciones con tensiones (ley de "
-                rf"Hooke). Para \textbf{{{TheoryDoc.escape(material.name)}}} "
-                rf"con $E={material.E:g}$, $\nu={material.nu:g}$, bajo "
-                rf"{TheoryDoc.escape(proj.analysis_type).lower()}:"
+                r"$\mathbf{D}$ relaciona deformaciones y tensiones por la "
+                rf"ley de Hooke generalizada: "
+                rf"$\boldsymbol\sigma=\mathbf{{D}}\,\boldsymbol\varepsilon$. "
+                rf"Para el material "
+                rf"\textbf{{{TheoryDoc.escape(material.name)}}} con "
+                rf"$E={material.E:g}$ y $\nu={material.nu:g}$, bajo "
+                rf"{TheoryDoc.escape(proj.analysis_type).lower()}, queda:"
             )
         td.matrix(D, name=r"\mathbf{D}", fmt="{:.4g}")
 
-        # 4.6 Integrando simbólico (motivación de Gauss)
-        td.subsection_numbered(r"Integrando simbólico $K_{ij}(\xi,\eta)$")
-        if self._prose:
+        # 6. Integrando simbólico (motivación de Gauss)
+        heading(r"Integrando simbólico $K_{ij}(\xi,\eta)$")
+        if self._prose and show_motivation_box:
             td.educational_box(
-                r"Aquí se ve por qué \textbf{no} integramos $\mathbf{k}_e$ "
-                r"analíticamente: el integrando "
-                r"$\mathbf{B}^T\mathbf{D}\,\mathbf{B}\,|\det\mathbf{J}|\,t$ "
-                r"contiene $\mathbf{J}^{-1}$, que introduce $\det\mathbf{J}$ "
-                r"en el denominador. Apenas el elemento se distorsiona, "
-                r"$\det\mathbf{J}$ es polinómico en $(\xi,\eta)$ y el "
-                r"integrando se vuelve \emph{racional} — sin primitiva "
-                r"elemental. Esa es la motivación directa de la cuadratura "
-                r"de Gauss: no es una opción más eficiente, es la única vía "
-                r"práctica.",
+                r"La rigidez elemental es "
+                r"$\mathbf{k}_e=\int_{-1}^{1}\!\!\int_{-1}^{1}"
+                r"\mathbf{B}^T\mathbf{D}\,\mathbf{B}\,|\det\mathbf{J}|\,t\,"
+                r"d\xi\,d\eta$. El integrando contiene $\mathbf{J}^{-1}$ "
+                r"dentro de $\mathbf{B}$, lo que introduce $\det\mathbf{J}$ "
+                r"en el denominador. En elementos rectos $\det\mathbf{J}$ "
+                r"es constante y la integral cierra en forma cerrada, "
+                r"pero apenas el elemento se distorsiona el integrando "
+                r"se vuelve una expresión \emph{racional} en $(\xi,\eta)$, "
+                r"sin primitiva elemental. Por eso se recurre a la "
+                r"\textbf{cuadratura de Gauss-Legendre}: aproxima la "
+                r"integral por una suma ponderada del integrando evaluado "
+                r"en unos pocos puntos óptimamente elegidos.",
                 title=r"\textbf{¿Por qué cuadratura numérica y no analítica?}",
                 phase="proc",
             )
@@ -977,48 +1147,40 @@ class MemoriaCalculo:
         else:
             td.para(
                 r"\emph{La expansión simbólica del integrando para Q9 "
-                r"(matrices $18\times 18$) excede la utilidad didáctica del "
-                r"documento. Se muestra solo la sumatoria numérica de Gauss.}"
+                r"(matrices $18\times 18$) excede la utilidad didáctica "
+                r"del documento. Se muestra sólo la sumatoria numérica "
+                r"de Gauss.}"
             )
             td.equation(
-                r"\mathbf{k}_e=\int_{-1}^{1}\!\!\int_{-1}^{1}"
+                r"\mathbf{k}_e = \int_{-1}^{1}\!\!\int_{-1}^{1}"
                 r"\mathbf{B}^T\mathbf{D}\,\mathbf{B}\,|\det\mathbf{J}|\,t\,"
-                r"d\xi\,d\eta"
+                r"d\xi\,d\eta."
             )
 
-        # 4.7 Cuadratura -> ke
-        td.subsection_numbered(
-            r"Cuadratura de Gauss y matriz $\mathbf{k}_e$ resultante")
+        # 7. Cuadratura -> ke
+        heading(r"Cuadratura de Gauss y matriz $\mathbf{k}_e$ resultante")
         if self._prose:
             ng = "4 ($2\\times 2$)" if proj.element_type == ELEMENT_Q4 \
                 else "9 ($3\\times 3$)"
             td.para(
                 rf"La integral se aproxima sumando la contribución "
                 rf"$w_p\,\mathbf{{B}}_p^T\mathbf{{D}}\,\mathbf{{B}}_p\,"
-                rf"|\det\mathbf{{J}}_p|\,t$ en cada uno de los {ng} puntos de "
-                rf"Gauss:"
+                rf"|\det\mathbf{{J}}_p|\,t$ en cada uno de los {ng} "
+                rf"puntos de Gauss:"
             )
         td.equation(
-            r"\mathbf{k}_e \approx \sum_p w_p\,\mathbf{B}_p^T\mathbf{D}\,"
-            r"\mathbf{B}_p\,|\det\mathbf{J}_p|\,t"
+            r"\mathbf{k}_e \approx \sum_p w_p\,\mathbf{B}_p^T\,\mathbf{D}\,"
+            r"\mathbf{B}_p\,|\det\mathbf{J}_p|\,t."
         )
         self._mostrar_matriz_ke(ke, name=r"\mathbf{k}_e")
         td.values([
             (r"Energía de deformación $U_e=\tfrac{1}{2}\mathbf{u}_e^T"
              r"\mathbf{k}_e\mathbf{u}_e$",
              self._energia_deformacion_str(elem_id, ke)),
-            (r"$\|\mathbf{k}_e\|_F$", f"{float(np.linalg.norm(ke, 'fro')):.4g}"),
+            (r"$\|\mathbf{k}_e\|_F$",
+             f"{float(np.linalg.norm(ke, 'fro')):.4g}"),
             (r"Condición $\kappa_2(\mathbf{k}_e)$", self._cond_str(ke)),
         ])
-        if self._prose:
-            td.educational_teaser(
-                r"Para que el ensamblaje de $\mathbf{K}$ y los $\mathbf{k}_e$ "
-                r"sean legibles a mano conviene un modelo mínimo: Q4 con "
-                r"\textbf{2 elementos} (6 nodos, 12 GDL) basta para mostrar la "
-                r"suma del ensamblaje; Q9 con \textbf{1 elemento} (18 GDL) ya "
-                r"genera matrices grandes y no admite un segundo sin saturar.",
-                phase="proc",
-            )
 
     @staticmethod
     def _select_gauss_to_display(gauss_data: list, n_nodes: int) -> list:
@@ -1175,22 +1337,27 @@ class MemoriaCalculo:
         F = np.asarray(sol["F"])
         n_dof = _K_dimension(K)
 
-        td.subsection_numbered("Mapeo de grados de libertad")
+        td.subsection_numbered("Mapeo de grados de libertad (LM)")
         if self._prose:
             td.para(
-                r"EduFEM indexa los GDL por la \emph{posición ordinal} del "
-                r"nodo en el orden creciente de IDs (no por el ID en sí), de "
-                r"modo que soporta IDs no contiguos tras borrados. Si $p(n)$ "
-                r"es esa posición $0$-based, el nodo $n$ aporta los GDL "
-                r"globales $2\,p(n)$ ($u_x$) y $2\,p(n)+1$ ($u_y$). Los "
-                r"índices del elemento (su \emph{location matrix}) se obtienen "
-                r"concatenando ese par por cada nodo del elemento, y el "
-                r"ensamblaje suma $\mathbf{K}[\mathbf{LM}_e,\mathbf{LM}_e]"
-                r"\mathrel{+}=\mathbf{k}_e$ y $\mathbf{F}[\mathbf{LM}_e]"
-                r"\mathrel{+}=\mathbf{f}_e$. Internamente $\mathbf{K}$ se "
-                r"construye como matriz \textbf{dispersa} (formato CSR): la "
-                r"suma de entradas con el mismo índice global ES el scatter "
-                r"local$\to$global del MEF."
+                r"Cada nodo del modelo aporta dos GDL (uno por componente: "
+                r"$u_x$ y $u_y$). La \textbf{location matrix} "
+                r"$\mathbf{LM}_e$ del elemento enumera, para cada uno de "
+                r"sus $2\,n_e$ GDL locales, el GDL global correspondiente "
+                r"en el vector solución. Con esa tabla, el ensamblaje suma "
+                r"cada matriz y cada vector locales en sus posiciones "
+                r"globales:"
+            )
+            td.equation(
+                r"\mathbf{K}[\mathbf{LM}_e,\mathbf{LM}_e]\,\mathrel{+}=\,"
+                r"\mathbf{k}_e, \qquad "
+                r"\mathbf{F}[\mathbf{LM}_e]\,\mathrel{+}=\,\mathbf{f}_e."
+            )
+            td.para(
+                r"$\mathbf{K}$ resulta \emph{dispersa}: $K_{IJ}\neq 0$ sólo "
+                r"si los GDL globales $I$ y $J$ pertenecen al menos a un "
+                r"elemento común. Por ser una sumatoria, el orden de "
+                r"ensamblaje no altera el resultado."
             )
         td.values([
             ("Cantidad de nodos", str(proj.num_nodes)),
@@ -1248,9 +1415,12 @@ class MemoriaCalculo:
                 path = self._save_figure(img, "K_sparsity")
                 if path is not None:
                     td.figure(path,
-                              caption=(r"Patrón de no-nulos de $\mathbf{K}$. La "
-                                       r"concentración cerca de la diagonal es "
-                                       r"la estructura de banda del MEF."),
+                              caption=(r"Patrón de no-nulos de $\mathbf{K}$. "
+                                       r"La concentración cerca de la "
+                                       r"diagonal refleja la estructura de "
+                                       r"banda característica del MEF: dos "
+                                       r"GDL sólo interactúan si pertenecen "
+                                       r"al menos a un elemento común."),
                               label="fig:K_sparsity", width=r"0.6\textwidth")
             except Exception:
                 pass
@@ -1299,22 +1469,35 @@ class MemoriaCalculo:
 
         if self._prose:
             td.para(
-                r"EduFEM aplica las restricciones por \textbf{eliminación}: "
-                r"las filas y columnas de los GDL restringidos se quitan de "
-                r"$\mathbf{K}$ y $\mathbf{F}$, formando el sistema reducido "
-                r"$\mathbf{K}_{red}\,\mathbf{u}_{red}=\mathbf{F}_{red}$. Sin "
-                r"restricciones $\mathbf{K}$ es singular (3 modos de cuerpo "
-                r"rígido en 2D); la eliminación restaura la definida-"
-                r"positividad de $\mathbf{K}_{red}$."
+                r"Las condiciones de contorno esenciales prescriben el "
+                r"valor de ciertos GDL (típicamente $u=0$ en apoyos "
+                r"perfectos). Separando los GDL libres ($f$) de los "
+                r"restringidos ($r$), el sistema global se particiona:"
             )
-            td.equation(r"\mathbf{K}_{red}\,\mathbf{u}_{red}=\mathbf{F}_{red}")
-            td.educational_teaser(
-                r"Si algún apoyo prescribe un desplazamiento no nulo "
-                r"($u\neq 0$), EduFEM lo trata por condensación estática: "
-                r"$\mathbf{F}_{red}\mathrel{-}=\mathbf{K}_{fr}\,\mathbf{u}_r$ "
-                r"antes de resolver, preservando la simetría de "
-                r"$\mathbf{K}_{red}$.",
-                phase="proc",
+            td.equation(
+                r"\begin{bmatrix}\mathbf{K}_{ff}&\mathbf{K}_{fr}\\"
+                r"\mathbf{K}_{rf}&\mathbf{K}_{rr}\end{bmatrix}"
+                r"\begin{bmatrix}\mathbf{u}_f\\\mathbf{u}_r\end{bmatrix}="
+                r"\begin{bmatrix}\mathbf{F}_f\\\mathbf{F}_r\end{bmatrix}."
+            )
+            td.para(
+                r"La primera fila proporciona el \textbf{sistema reducido} "
+                r"para las incógnitas:"
+            )
+            td.equation(
+                r"\mathbf{K}_{ff}\,\mathbf{u}_f = \mathbf{F}_f - "
+                r"\mathbf{K}_{fr}\,\mathbf{u}_r."
+            )
+            td.para(
+                r"Si los apoyos son homogéneos ($\mathbf{u}_r=\mathbf{0}$), "
+                r"el término $\mathbf{K}_{fr}\,\mathbf{u}_r$ se anula. Si "
+                r"un apoyo prescribe un desplazamiento no nulo, ese término "
+                r"actúa como una \emph{fuerza equivalente} que se resta "
+                r"del lado derecho (condensación estática). Eliminar los "
+                r"GDL restringidos restaura la definida-positividad de "
+                r"$\mathbf{K}_{ff}$ (sin restricciones $\mathbf{K}$ es "
+                r"singular por los 3 modos de cuerpo rígido del problema "
+                r"plano)."
             )
 
         self._valores_sistema_reducido()
@@ -1322,23 +1505,34 @@ class MemoriaCalculo:
         td.subsection_numbered("Método de resolución")
         if self._prose:
             td.para(
-                r"El sistema reducido se resuelve con "
-                r"\texttt{scipy.sparse.linalg.spsolve} sobre $\mathbf{K}_{red}$ "
-                r"en formato disperso CSR. \texttt{spsolve} realiza una "
-                r"\textbf{factorización LU dispersa} (SuperLU; UMFPACK si está "
-                r"disponible) y dos sustituciones triangulares. Aunque "
-                r"$\mathbf{K}_{red}$ es simétrica definida positiva, el "
-                r"software usa el solver disperso de propósito general porque "
-                r"escala bien con el tamaño del modelo y aprovecha la "
-                r"dispersión de $\mathbf{K}$ (memoria $O(\text{nnz})$). Tras "
-                r"resolver $\mathbf{u}_{red}$, los desplazamientos prescritos "
-                r"se reinsertan en el vector global $\mathbf{u}$."
+                r"El sistema reducido $\mathbf{K}_{ff}\,\mathbf{u}_f=$ "
+                r"$\mathbf{F}_f - \mathbf{K}_{fr}\,\mathbf{u}_r$ se "
+                r"resuelve por \textbf{factorización directa}: la matriz "
+                r"se descompone como $\mathbf{K}_{ff}=\mathbf{L}\,\mathbf{U}$ "
+                r"(factorización LU) y los desplazamientos se obtienen en "
+                r"cascada resolviendo dos sistemas triangulares:"
+            )
+            td.equation(
+                r"\mathbf{L}\,\mathbf{y} = \mathbf{F}_f - "
+                r"\mathbf{K}_{fr}\,\mathbf{u}_r, \qquad "
+                r"\mathbf{U}\,\mathbf{u}_f = \mathbf{y}."
+            )
+            td.para(
+                r"Cuando $\mathbf{K}_{ff}$ es grande y dispersa se usan "
+                r"variantes \emph{sparse} de la factorización, que sólo "
+                r"almacenan y operan sobre las entradas no nulas — la "
+                r"memoria se reduce de $O(n^2)$ a $O(\text{nnz})$. Una "
+                r"vez calculados los desplazamientos libres "
+                r"$\mathbf{u}_f$, el vector global $\mathbf{u}$ se "
+                r"completa con los valores prescritos $\mathbf{u}_r$."
             )
             td.educational_teaser(
-                r"Si $\mathbf{K}_{red}$ fuera singular (BCs insuficientes, "
-                r"elemento invertido, $E/\nu$ fuera de rango), la solución "
-                r"contiene NaN/Inf y el solver lo detecta y aborta — no "
-                r"devuelve un resultado espurio.",
+                r"\textbf{Síntomas de un sistema mal planteado}: si "
+                r"$\mathbf{K}_{ff}$ resulta singular o mal condicionada "
+                r"(BCs insuficientes, elemento invertido, $E$ o $\nu$ "
+                r"fuera de rango físico), los desplazamientos pueden "
+                r"contener NaN/Inf o valores absurdamente grandes — "
+                r"revisar el modelo antes de creer las tensiones.",
                 phase="proc",
             )
 
@@ -1346,9 +1540,10 @@ class MemoriaCalculo:
         td.subsection_numbered("Vector de desplazamientos nodales")
         if self._prose:
             td.para(
-                r"$\mathbf{u}$ contiene un par $(u_x,u_y)$ por nodo, ordenado "
-                r"por índice ordinal ascendente. Compacto (exponente común) y "
-                r"desagregado por nodo:"
+                r"$\mathbf{u}$ contiene un par $(u_x,u_y)$ por nodo. Se "
+                r"presenta primero en forma compacta (con un factor común "
+                r"de escala) y luego desagregado nodo por nodo en una "
+                r"tabla con la magnitud $|u|=\sqrt{u_x^{\,2}+u_y^{\,2}}$:"
             )
         u = sol["u"]
         td.raw(r"{\scriptsize")
@@ -1464,32 +1659,45 @@ class MemoriaCalculo:
 
         if self._prose:
             td.para(
-                r"El post-proceso recorre la cadena $\mathbf{u}\to"
-                r"\boldsymbol{\varepsilon}_{Gauss}\to"
-                r"\boldsymbol{\sigma}_{Gauss}\to\boldsymbol{\sigma}_{nodo}\to"
-                r"\boldsymbol{\sigma}_{prom}\to(\sigma_1,\sigma_2,\sigma_{VM})$ "
-                r"para obtener las magnitudes con las que se juzga el diseño."
+                r"El post-proceso transforma los desplazamientos nodales "
+                r"$\mathbf{u}$ — la única incógnita directa del MEF — en "
+                r"las magnitudes con las que un ingeniero juzga el diseño. "
+                r"La cadena clásica de cálculo es:"
+            )
+            td.equation(
+                r"\mathbf{u}\;\to\;\boldsymbol\varepsilon_{Gauss}\;\to\;"
+                r"\boldsymbol\sigma_{Gauss}\;\to\;\boldsymbol\sigma_{nodo}\;\to\;"
+                r"\boldsymbol\sigma_{prom}\;\to\;(\sigma_1,\sigma_2,\sigma_{VM})."
             )
 
         td.subsection_numbered("Tensiones en los puntos de Gauss")
         if self._prose:
             td.para(
-                r"Para cada elemento, $\boldsymbol{\sigma}=\mathbf{D}\,"
-                r"\mathbf{B}(\xi_p,\eta_p)\,\mathbf{u}_e$ en cada punto de "
-                r"Gauss. EduFEM las calcula allí (y no directamente en los "
-                r"nodos) porque los puntos de Gauss son los \emph{puntos "
-                r"superconvergentes} de Barlow: la tensión calculada en ellos "
-                r"converge un orden más rápido que en el resto del elemento."
+                r"Para cada elemento se reconstruye la deformación en sus "
+                r"puntos de Gauss vía "
+                r"$\boldsymbol\varepsilon(\xi_p,\eta_p)=\mathbf{B}(\xi_p,"
+                r"\eta_p)\,\mathbf{u}_e$ y, por la ley de Hooke, "
+                r"$\boldsymbol\sigma(\xi_p,\eta_p)=\mathbf{D}\,"
+                r"\boldsymbol\varepsilon(\xi_p,\eta_p)$. Se calculan allí "
+                r"(y no directamente en los nodos) por la "
+                r"\emph{superconvergencia} de Barlow: las tensiones en los "
+                r"puntos de Gauss convergen con un orden adicional "
+                r"respecto del resto del elemento."
             )
 
         td.subsection_numbered("Extrapolación de Gauss a nodos")
         if self._prose:
             td.para(
                 r"Los valores en los puntos de Gauss se llevan a los nodos "
-                r"mediante $\boldsymbol{\sigma}^{nodo}=\mathbf{E}\,"
-                r"\boldsymbol{\sigma}^{Gauss}$, con $\mathbf{E}=\mathbf{N}_p^{-1}$ "
-                r"(inversa de las funciones de forma evaluadas en los puntos "
-                r"de Gauss)."
+                r"mediante una matriz de extrapolación $\mathbf{E}$, "
+                r"definida como la inversa de la matriz de funciones de "
+                r"forma evaluadas en los puntos de Gauss:"
+            )
+            td.equation(
+                r"(\mathbf{N}_p)_{ji} = N_i(\xi_p,\eta_p), \qquad "
+                r"\boldsymbol\sigma^{\,nodo} = \mathbf{E}\,"
+                r"\boldsymbol\sigma^{\,Gauss}, \qquad "
+                r"\mathbf{E} = \mathbf{N}_p^{-1}."
             )
         is_q9 = proj.element_type == ELEMENT_Q9
         if not is_q9:
@@ -1510,11 +1718,11 @@ class MemoriaCalculo:
             td.matrix(E_q4, name=r"\mathbf{E}_{Q4}", fmt="{:.4f}")
         elif self._prose:
             td.para(
-                r"Para Q9 ($3\times 3$ puntos de Gauss) no hay forma cerrada "
-                r"simple: $\mathbf{E}_{Q9}$ es la inversa numérica de la "
-                r"matriz $9\times 9$ de funciones de forma en los puntos de "
-                r"Gauss, cacheada a nivel de módulo (misma para todo elemento "
-                r"Q9, independiente de su geometría)."
+                r"Para Q9 ($3\times 3$ puntos de Gauss) no existe forma "
+                r"cerrada simple: $\mathbf{E}_{Q9}$ es la inversa numérica "
+                r"de la matriz $9\times 9$ de funciones de forma evaluadas "
+                r"en los 9 puntos de Gauss. Es la misma matriz para todos "
+                r"los elementos Q9, independiente de su geometría física."
             )
 
         td.subsection_numbered("Promediado nodal entre elementos adyacentes")
@@ -1540,11 +1748,13 @@ class MemoriaCalculo:
             r"Tensiones principales $\sigma_1$, $\sigma_2$ y $\theta_p$")
         if self._prose:
             td.para(
-                r"$\sigma_1\geq\sigma_2$ son los autovalores del tensor de "
-                r"tensiones 2D — las tensiones normales máxima y mínima sobre "
-                r"los planos donde el corte se anula. EduFEM las recalcula "
-                r"desde las componentes ya promediadas (no promedia "
-                r"$\sigma_1/\sigma_2$ directamente, porque no son lineales):"
+                r"$\sigma_1\geq\sigma_2$ son los autovalores del tensor "
+                r"de tensiones 2D: las tensiones normales máxima y "
+                r"mínima sobre los planos donde el corte se anula. Se "
+                r"recalculan a partir de las componentes ya promediadas "
+                r"(promediar las principales directamente daría valores "
+                r"incorrectos: no son funciones lineales de las "
+                r"componentes):"
             )
         td.equation(
             r"\sigma_{1,2}=\frac{\sigma_x+\sigma_y}{2}\pm\sqrt{\left("
@@ -1592,16 +1802,17 @@ class MemoriaCalculo:
                                "Malla original en gris, deformada en verde."),
                       label="fig:deformed", width=r"0.82\textwidth")
 
-        # Contornos (PIL, estilo canvas)
+        # Contornos
         td.subsection_numbered("Mapas de contornos de tensiones")
         if self._prose:
             td.para(
-                r"Los contornos se dibujan al estilo del Post-Proceso del "
-                r"software (gradiente bilineal sobre cada elemento) con fondo "
-                r"blanco. Convención de mapa: \emph{coolwarm} (divergente) "
-                r"para $\sigma_x$, $\sigma_y$, $\tau_{xy}$ —donde el cero "
-                r"separa tracción de compresión— y \emph{viridis} (secuencial) "
-                r"para $\sigma_{VM}$, que es no negativo."
+                r"Los contornos se dibujan con un gradiente bilineal sobre "
+                r"cada elemento, a partir de los valores nodales "
+                r"promediados. Convención de mapa: \emph{coolwarm} "
+                r"(divergente) para $\sigma_x$, $\sigma_y$, $\tau_{xy}$ "
+                r"— donde el cero separa tracción de compresión — y "
+                r"\emph{viridis} (secuencial) para $\sigma_{VM}$, que es "
+                r"no negativo."
             )
         for component in ("sigma_x", "sigma_y", "tau_xy", "von_mises"):
             self._insertar_contorno(component)
@@ -1724,21 +1935,29 @@ class MemoriaCalculo:
     # Apéndices (solo estilo 'completo')
     # ------------------------------------------------------------------
 
-    def _build_appendix_a_kes(self, showcase_id: Optional[int]) -> None:
+    def _build_appendix_a_kes(self, showcase_id: Optional[int],
+                               compact_ids: Optional[list[int]] = None) -> None:
         td = self._td
         proj = self._project
         elem_data = self._solution.get("element_data", {})
         td.section_numbered("Matrices de rigidez elementales")
+        # En modo compacto las kₑ ya se mostraron en el capítulo principal,
+        # por lo que NO se repiten en el apéndice (sería ruido).
+        already_shown = set(compact_ids) if compact_ids else (
+            {showcase_id} if showcase_id is not None else set()
+        )
         td.para(
-            r"Matrices $\mathbf{k}_e$ del resto de los elementos (la del "
-            r"elemento desarrollado en la formulación elemental no se repite)."
+            r"Matrices $\mathbf{k}_e$ de los elementos no desarrollados en "
+            r"el capítulo de formulación elemental. El procedimiento de "
+            r"cálculo es idéntico al expuesto allí; aquí se listan sólo "
+            r"los resultados."
         )
         is_q9 = proj.element_type == ELEMENT_Q9
         if is_q9:
             td.package("pdflscape")
         any_shown = False
         for eid in sorted(proj.elements.keys()):
-            if eid == showcase_id:
+            if eid in already_shown:
                 continue
             data = elem_data.get(eid)
             if data is None:
@@ -1757,8 +1976,11 @@ class MemoriaCalculo:
             ])
             self._mostrar_matriz_ke(ke, name=rf"\mathbf{{k}}_{{{eid}}}")
         if not any_shown:
-            td.para(r"\emph{El modelo posee un único elemento; no hay matrices "
-                    r"adicionales para listar.}")
+            td.para(
+                r"\emph{Todas las matrices $\mathbf{k}_e$ del modelo ya se "
+                r"desarrollaron en el capítulo principal; no hay matrices "
+                r"adicionales para listar.}"
+            )
 
     def _build_appendix_b_datos(self) -> None:
         td = self._td

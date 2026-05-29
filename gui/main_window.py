@@ -4,7 +4,7 @@ Arquitectura: PanedWindow con Notebook a la izquierda y MeshCanvas a la derecha.
 
 Filosofía de menús: "pocos e importantes". 3 menús (Archivo, Modelo, Ayuda).
 Los módulos educativos viven en la pestaña PROCESO y se abren también vía
-atajos Ctrl+1..6. La profundidad vive en diálogos pop-up autónomos que
+atajos Ctrl+1..7. La profundidad vive en diálogos pop-up autónomos que
 pueden invocarse desde múltiples lugares.
 """
 
@@ -426,7 +426,6 @@ class MainWindow:
             ("mod03",  "③"),
             ("mod04",  "④"),
             ("mod05",  "⑤"),
-            ("mod05b", "⑤′"),
             ("mod06",  "⑥"),
             ("mod07",  "⑦"),
             ("mod09",  "⑨"),
@@ -695,12 +694,12 @@ class MainWindow:
         b("<Control-z>", lambda e: self._on_undo())
         b("<Control-y>", lambda e: self._on_redo())
         b("<Control-Shift-Z>", lambda e: self._on_redo())
-        # Ctrl+1..8 para módulos educativos en orden canónico FEM.
-        # Mapeo: Ctrl+1=mod01 ... Ctrl+5=mod05 (Gauss) ·
-        # Ctrl+6=mod05b (K_e acumulación, "5 prima") · Ctrl+7=mod06 (fuerzas)
-        # · Ctrl+8=mod07 (ensamblaje).
+        # Ctrl+1..7 para módulos educativos en orden canónico FEM.
+        # Mapeo: Ctrl+1=mod01 (mapeo) ... Ctrl+5=mod05 (rigidez K_e +
+        # cuadratura de Gauss, fusionado) · Ctrl+6=mod06 (fuerzas) ·
+        # Ctrl+7=mod07 (ensamblaje).
         _kbd_map = ["mod01", "mod02", "mod03", "mod04",
-                     "mod05", "mod05b", "mod06", "mod07"]
+                     "mod05", "mod06", "mod07"]
         for i, mod_key in enumerate(_kbd_map, start=1):
             key = f"<Control-Key-{i}>"
             b(key, lambda e, mk=mod_key: self._open_education_module(mk))
@@ -1452,10 +1451,9 @@ class MainWindow:
             "  Ctrl+2           M2 · Jacobiano det J\n"
             "  Ctrl+3           M3 · Matriz Constitutiva D\n"
             "  Ctrl+4           M4 · Matriz B\n"
-            "  Ctrl+5           M5 · Matriz K_e (rigidez analítica)\n"
-            "  Ctrl+6           M5' · Cuadratura de Gauss\n"
-            "  Ctrl+7           M6 · Fuerzas Equivalentes\n"
-            "  Ctrl+8           M7 · Ensamblaje K, F + BCs\n\n"
+            "  Ctrl+5           M5 · Rigidez K_e + Cuadratura de Gauss\n"
+            "  Ctrl+6           M6 · Fuerzas Equivalentes\n"
+            "  Ctrl+7           M7 · Ensamblaje K, F + BCs\n\n"
             "Vista\n"
             "  F                Ajustar Vista\n"
             "  F11              Pantalla Completa\n"

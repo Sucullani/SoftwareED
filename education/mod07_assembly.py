@@ -529,6 +529,27 @@ class AssemblyModule(CanvasOverlayModule):
         self._ptr = len(head)
         self._do_assemble(elem_id)
 
+    def on_element_deselected(self) -> None:
+        """Deseleccionar mientras un pulso está en curso: cancelar el
+        after pendiente y limpiar el estado, para que el outline del
+        elemento no siga parpadeando sobre un elemento ya deseleccionado
+        (hasta ~210 ms residuales)."""
+        super().on_element_deselected()
+        if self._pulse_after_id:
+            try:
+                self._mesh.canvas.after_cancel(self._pulse_after_id)
+            except tk.TclError:
+                pass
+            self._pulse_after_id = None
+        self._pulse_eid = None
+        self._pulse_dofs = []
+        self._pulse_frame_idx = 0
+        self._anim_running = False
+        try:
+            self._mesh.redraw()
+        except Exception:
+            pass
+
     def _on_canvas_hover_element(self, eid: Optional[int],
                                    *args, **kwargs) -> None:
         """Callback hover del MeshCanvas.
@@ -579,6 +600,17 @@ class AssemblyModule(CanvasOverlayModule):
             self._render_F(ax_f, compact=True)
             self._ax_k = ax_k
             self._ax_f = ax_f
+            # Ecuación central del MEF en LaTeX (mathtext) — la vista
+            # SISTEMA es donde "K·u=F" deja de ser una etiqueta de control
+            # y pasa a ser la ecuación que se resuelve. Aquí sí va como
+            # fórmula renderizada, no como texto de botón.
+            from education.components.edu_plot_style import EDU_PLOT_TITLE_COLOR
+            try:
+                self._fig.suptitle(r"$\mathbf{K}\,\mathbf{u} = \mathbf{F}$",
+                                   color=EDU_PLOT_TITLE_COLOR, fontsize=13,
+                                   y=0.99)
+            except Exception:
+                pass
         try:
             self._canvas_mpl.draw_idle()
         except tk.TclError:

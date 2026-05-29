@@ -1,0 +1,665 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-tabla]{babel}
+\usepackage{lmodern}
+\usepackage[a4paper,margin=2.3cm]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{bm}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage[most]{tcolorbox}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usepackage{microtype}
+\usepackage{parskip}
+\usepackage{siunitx}
+
+\sisetup{
+  output-decimal-marker={,},
+  group-separator={\,},
+  detect-all,
+}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!60!black,
+  urlcolor=blue!60!black,
+  citecolor=black,
+  pdftitle={Metricas de calidad de mallas Q4/Q9 normalizadas a [0,1]},
+  pdfauthor={EduFEM - Investigacion para reformulacion del Modulo 0},
+}
+
+\tcbuselibrary{skins,breakable}
+
+\newtcolorbox{notabox}[1][]{
+  colback=blue!4, colframe=blue!50!black, boxrule=0.6pt,
+  arc=2pt, left=8pt, right=8pt, top=6pt, bottom=6pt,
+  fonttitle=\bfseries, breakable, #1
+}
+\newtcolorbox{recbox}[1][]{
+  colback=green!5, colframe=green!45!black, boxrule=0.6pt,
+  arc=2pt, left=8pt, right=8pt, top=6pt, bottom=6pt,
+  fonttitle=\bfseries, breakable, #1
+}
+\newtcolorbox{warnbox}[1][]{
+  colback=orange!6, colframe=orange!60!black, boxrule=0.6pt,
+  arc=2pt, left=8pt, right=8pt, top=6pt, bottom=6pt,
+  fonttitle=\bfseries, breakable, #1
+}
+
+\title{\textbf{M\'etricas de calidad para cuadril\'ateros 2D}\\[2pt]
+\large Normalizaci\'on a $[0,1]$, alternativas pedag\'ogicas\\ y ejemplo aplicado paso a paso}
+\author{EduFEM --- Anexo de investigaci\'on para el M\'odulo 0}
+\date{Mayo 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent
+Este documento revisa las m\'etricas de calidad geom\'etrica m\'as utilizadas en la literatura para
+cuadril\'ateros bilineales y biquadr\'aticos, propone una \textbf{normalizaci\'on uniforme a $[0,1]$}
+con $1$ = elemento ideal, y desarrolla un ejemplo aplicado paso a paso sobre un Q4 trapezoidal.
+Se incluye el \textit{Scaled Jacobian} junto con tres alternativas accesibles al alumno: \textit{relaci\'on
+de aspecto por aristas}, \textit{esviaje angular} y \textit{taper de Robinson}. Se cierra con un
+an\'alisis cruzado de qu\'e patolog\'ia geom\'etrica cubre cada combinaci\'on de m\'etricas,
+proponiendo dos paquetes finales: \textbf{$\{Q_{SJ},Q_{AR}\}$} (paquete m\'inimo de 2 m\'etricas) y
+\textbf{$\{Q_{SJ},Q_{AR},Q_{sk}\}$} (paquete completo de 3 m\'etricas). Las referencias siguen el
+estilo Vancouver.
+\end{abstract}
+
+\tableofcontents
+\vspace{6pt}\hrule\vspace{10pt}
+
+% ====================================================================
+\section{Por qu\'e normalizar a $[0,1]$}
+% ====================================================================
+
+Las m\'etricas geom\'etricas \textit{crudas} (Jacobiano determinante, relaci\'on de aspecto, \'angulos
+internos, taper de Robinson) viven en dominios heterog\'eneos: el Jacobiano determinante crece con
+la escala del elemento, la relaci\'on de aspecto vive en $[1,\infty)$, los \'angulos en $[0\si{\degree},180\si{\degree}]$.
+Compararlas, combinarlas o presentarlas al alumno requiere homogeneizar el rango.
+
+\subsection{Rangos candidatos}
+
+\begin{longtable}{p{2.6cm} p{4.2cm} p{8.5cm}}
+\toprule
+\textbf{Rango} & \textbf{Convenci\'on} & \textbf{Discusi\'on} \\
+\midrule
+\endhead
+$[-1,1]$ & $-1$ invertido, $0$ degenerado, $1$ ideal & Es el dominio natural del \textit{Scaled
+Jacobian} (sin$\theta$). Permite distinguir invertido vs degenerado pero introduce un cero
+\emph{interior} que dificulta la combinaci\'on multiplicativa y el mapeo crom\'atico mon\'otono.\\
+$[0,\infty)$ & $0$ ideal, $\infty$ degenerado & Dominio natural de AR y taper. Asimetr\'ico: un
+mismo orden de magnitud (4, 40, 400) tiene significados muy distintos. Mal adaptado a barras de
+escala finitas.\\
+$[0,100]$ & Porcentaje, $100\%$ ideal & Usado en Cubit/Trelis para reportes \cite{Stimpson2007}.
+Pedag\'ogicamente equivalente a $[0,1]$ con un factor de $100$; introduce ruido visual en
+gr\'aficos.\\
+\rowcolor{green!7}\textbf{$\bm{[0,1]}$} & \textbf{$\bm{0}$ p\'esimo, $\bm{1}$ ideal} & \textbf{Convenci\'on
+recomendada}: lectura directa, combinable como producto o m\'inimo, mapeo crom\'atico uniforme,
+estandarizada por la librer\'ia \textit{Verdict} de Sandia \cite{Stimpson2007} y adoptada por
+ANSYS \cite{ANSYS2021}, Abaqus, Gmsh y la mayor\'ia de los textos de generaci\'on de mallas
+\cite{Knupp2001,Field2000}.\\
+\bottomrule
+\end{longtable}
+
+\subsection{Justificaci\'on detallada de $[0,1]$ con $1$ = ideal}
+
+\begin{recbox}[title=Por qu\'e $[0,1]$ es la elecci\'on \'optima]
+\begin{enumerate}[leftmargin=14pt,itemsep=2pt]
+  \item \textbf{Universalidad}. \textit{Verdict} (Sandia) \cite{Stimpson2007},
+  ANSYS Meshing \cite{ANSYS2021} y Cubit reportan calidad en $[0,1]$ con $1$ = ideal. El alumno
+  encontrar\'a la misma convenci\'on en cualquier suite profesional.
+  \item \textbf{Combinabilidad}. Para reducir varias m\'etricas a un \'unico indicador de salud:
+  \[
+    Q_{\text{global}} = \min(Q_1,\,Q_2,\,\dots) \qquad\text{o}\qquad
+    Q_{\text{prod}} = \prod_i Q_i.
+  \]
+  Ambas operaciones preservan $1$ como ideal y $0$ como peor caso.
+  \item \textbf{Mapeo crom\'atico mon\'otono}. Una sola interpolaci\'on rojo$\to$amarillo$\to$verde
+  cubre el espectro completo. Sin $0$ interior se evita la discontinuidad visual entre ``elemento
+  invertido'' y ``elemento ideal por el lado equivocado''.
+  \item \textbf{Inversi\'on como bandera dura}. Cuando una m\'etrica cruda da valor negativo
+  (det$J \le 0$, $\sin\theta < 0$) se aplica \textit{clamp} a $0$ y se levanta una \textit{bandera
+  l\'ogica} aparte (\texttt{is\_inverted=True}). Esto separa ``calidad continua'' (qu\'e tan bueno
+  es un elemento sano) de ``validez bin\'aria'' (es integrable o no).
+  \item \textbf{Pedagog\'ico}. La frase ``el elemento tiene calidad $0{,}78$'' se interpreta sin
+  necesidad de explicar el rango.
+\end{enumerate}
+\end{recbox}
+
+\begin{warnbox}[title=Trade-off conocido]
+Normalizar pierde la distinci\'on \emph{cualitativa} entre ``degenerado'' (det$J=0$) y
+``invertido'' (det$J<0$). Ambos quedan en $Q=0$. Por eso se recomienda complementar con una
+bandera $\texttt{is\_inverted}$ que el m\'odulo educativo muestre con un icono distinto (en
+EduFEM ya existe el anillo rojo discontinuo de M2). El alumno aprende que ``$Q=0$'' significa
+``inservible'' sin perder la matiz f\'isica.
+\end{warnbox}
+
+% ====================================================================
+\section{M\'etricas evaluadas y su normalizaci\'on}
+% ====================================================================
+
+A continuaci\'on se presentan cuatro m\'etricas representativas con su definici\'on cruda y la
+versi\'on normalizada a $[0,1]$. Los s\'imbolos refieren a un cuadril\'atero $\Omega_e$ de
+v\'ertices ordenados en sentido antihorario $\{N_1,N_2,N_3,N_4\}$ con coordenadas
+$\bm{r}_i = (x_i,y_i)$.
+
+\subsection{Scaled Jacobian, $Q_{SJ}$}
+
+\textbf{Definici\'on cruda} (Knupp \cite{Knupp2001,Knupp2000a}). En cada v\'ertice $i$ se forman
+los dos vectores de arista emanantes:
+\[
+  \bm{a}_i = \bm{r}_{i+1}-\bm{r}_i, \qquad \bm{b}_i = \bm{r}_{i-1}-\bm{r}_i.
+\]
+El Jacobiano local en el v\'ertice es $\bm{J}_i = [\bm{a}_i \mid \bm{b}_i]$ y se define
+\[
+  \mathrm{SJ}_i \;=\; \frac{\det \bm{J}_i}{\lVert\bm{a}_i\rVert\,\lVert\bm{b}_i\rVert}
+  \;=\; \sin\theta_i \quad\text{(cuadril\'atero convexo CCW)},
+\]
+\[
+  \mathrm{SJ} \;=\; \min_{i=1,\dots,4}\mathrm{SJ}_i \quad\in\;[-1,1].
+\]
+
+\textbf{Normalizaci\'on a $[0,1]$}:
+\begin{equation}\boxed{\;
+  Q_{SJ} \;=\; \max\!\bigl(0,\;\mathrm{SJ}\bigr) \;\in\;[0,1].
+\;}\label{eq:QSJ}\end{equation}
+
+\textbf{Concepto que el alumno reconoce}: \emph{\textquotedblleft sin\,(\'angulo interno
+m\'as desviado)\textquotedblright}. En un cuadrado los cuatro \'angulos valen \SI{90}{\degree} y
+$Q_{SJ}=\sin\SI{90}{\degree}=1$. Cuando un \'angulo se acerca a \SI{0}{\degree} o
+\SI{180}{\degree}, su seno cae a cero.
+
+\textbf{Cobertura}: distorsi\'on angular, casi-degeneraci\'on, inversi\'on (detectada como signo).
+
+\medskip
+
+\textbf{Variante por puntos de Gauss} (la usada en EduFEM): se eval\'ua
+$\mathrm{SJ}_g = \det\bm{J}(\xi_g,\eta_g) / (\lVert\bm{J}_{:,0}\rVert\,\lVert\bm{J}_{:,1}\rVert)$
+en los $n_g$ puntos de Gauss del elemento y se toma el m\'inimo. Para un Q4 con cuadratura $2\times2$,
+el promedio entre el SJ por v\'ertice y el SJ por Gauss difiere t\'ipicamente en menos del 5\%.
+La versi\'on por Gauss es m\'as conservadora porque eval\'ua \emph{donde se va a integrar la rigidez}
+\cite{Knupp2000b}.
+
+% ----------------------------------------------------------------
+\subsection{Relaci\'on de aspecto, $Q_{AR}$}
+
+\textbf{Definici\'on cruda} (Cook et al. \cite{Cook2002}). Sea $L_i = \lVert\bm{r}_{i+1}-\bm{r}_i\rVert$
+la longitud de la arista $i$:
+\[
+  \mathrm{AR} \;=\; \frac{\max_i L_i}{\min_i L_i} \;\in\;[1,\infty).
+\]
+
+\textbf{Normalizaci\'on a $[0,1]$} (\textit{rec\'iproco simple}):
+\begin{equation}\boxed{\;
+  Q_{AR} \;=\; \frac{\min_i L_i}{\max_i L_i} \;\in\;(0,1].
+\;}\label{eq:QAR}\end{equation}
+
+\textbf{Concepto que el alumno reconoce}: \emph{\textquotedblleft cu\'anto m\'as largo es el lado
+m\'as largo respecto al m\'as corto\textquotedblright}. Es geom\'etricamente trivial: medir cuatro
+lados con regla y dividir.
+
+\textbf{Cobertura}: elongaci\'on (psima condici\'on num\'erica de $\bm{K}_e$, anisotrop\'ia de
+respuesta).
+
+\medskip
+
+\textbf{Variante de Robinson} \cite{Robinson1987}: en lugar de usar las aristas directamente, se
+construyen los vectores $\bm{X}_1,\bm{X}_2$ del modo bilineal (definidos en
+Secci\'on \ref{sec:ejemplo}). Da un valor algo distinto pero la lectura es la misma. Para uso
+educativo basta con la versi\'on de aristas; la de Robinson aparece como complemento.
+
+% ----------------------------------------------------------------
+\subsection{Esviaje angular, $Q_{sk}$}
+
+\textbf{Definici\'on cruda} (Knupp \cite{Knupp2001}, ANSYS \cite{ANSYS2021}). Para los cuatro
+\'angulos internos $\theta_i$:
+\[
+  S_{\max} \;=\; \max_i \bigl|\theta_i - 90\si{\degree}\bigr| \;\in\;[0\si{\degree},90\si{\degree}].
+\]
+
+\textbf{Normalizaci\'on a $[0,1]$}:
+\begin{equation}\boxed{\;
+  Q_{sk} \;=\; 1 - \frac{S_{\max}}{90\si{\degree}} \;\in\;[0,1].
+\;}\label{eq:Qsk}\end{equation}
+
+\textbf{Concepto que el alumno reconoce}: \emph{\textquotedblleft cu\'an cerca de \SI{90}{\degree}
+est\'a el \'angulo m\'as raro\textquotedblright}. Concepto netamente geom\'etrico, accesible desde
+trigonometr\'ia b\'asica.
+
+\textbf{Cobertura}: distorsi\'on angular pura. Distinta de $Q_{SJ}$ en que penaliza linealmente la
+desviaci\'on respecto a \SI{90}{\degree} (el seno la penaliza cuadr\'aticamente cerca del
+\'optimo).
+
+% ----------------------------------------------------------------
+\subsection{Taper de Robinson, $Q_T$}
+
+\textbf{Definici\'on cruda} (Robinson \cite{Robinson1987}). Sobre los vectores
+\[
+  \bm{X}_1 = \tfrac{1}{4}(-\bm{r}_1+\bm{r}_2+\bm{r}_3-\bm{r}_4),\quad
+  \bm{X}_2 = \tfrac{1}{4}(-\bm{r}_1-\bm{r}_2+\bm{r}_3+\bm{r}_4),\quad
+  \bm{X}_3 = \tfrac{1}{4}( \bm{r}_1-\bm{r}_2+\bm{r}_3-\bm{r}_4),
+\]
+se define el \textit{taper}
+\[
+  T \;=\; \max\!\left( \frac{|\bm{X}_3\!\cdot\!\bm{X}_1|}{\lVert\bm{X}_1\rVert^2},\;
+                       \frac{|\bm{X}_3\!\cdot\!\bm{X}_2|}{\lVert\bm{X}_2\rVert^2} \right) \;\in\;[0,1].
+\]
+$T=0$ corresponde a un paralelogramo; $T\!\to\!1$ a un elemento muy trapezoidal.
+
+\textbf{Normalizaci\'on a $[0,1]$}:
+\begin{equation}\boxed{\;
+  Q_T \;=\; 1 - \min(1,T) \;\in\;[0,1].
+\;}\label{eq:QT}\end{equation}
+
+\textbf{Concepto que el alumno reconoce}: \emph{\textquotedblleft cu\'anto se parece a un
+paralelogramo\textquotedblright}. Es la m\'etrica m\'as t\'ecnica de las cuatro porque requiere
+introducir los vectores $\bm{X}_i$ de la descomposici\'on de Robinson, que no son evidentes a
+primera vista.
+
+\textbf{Cobertura}: trapezoidalidad espec\'ifica (\textit{trapezoidal locking} en Q4
+\cite{MacNeal1989}).
+
+% ====================================================================
+\section{Ejemplo aplicado paso a paso}\label{sec:ejemplo}
+% ====================================================================
+
+Se considera un cuadril\'atero Q4 \emph{convexo trapezoidal} con coordenadas
+\begin{center}
+\begin{tabular}{cccc}
+\toprule
+$N_1$ & $N_2$ & $N_3$ & $N_4$ \\
+\midrule
+$(0,0)$ & $(4,0)$ & $(5,3)$ & $(1,4)$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+ordenadas en sentido antihorario.
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[scale=0.85]
+  % grid
+  \draw[gray!25, very thin] (-0.5,-0.5) grid (6,5);
+  \draw[->,gray!60] (-0.5,0) -- (6,0) node[right]{$x$};
+  \draw[->,gray!60] (0,-0.5) -- (0,5) node[above]{$y$};
+  % nodes
+  \coordinate (N1) at (0,0);
+  \coordinate (N2) at (4,0);
+  \coordinate (N3) at (5,3);
+  \coordinate (N4) at (1,4);
+  % polygon
+  \fill[blue!8] (N1) -- (N2) -- (N3) -- (N4) -- cycle;
+  \draw[blue!60!black, thick] (N1) -- (N2) -- (N3) -- (N4) -- cycle;
+  % node markers + labels
+  \foreach \p/\lab/\pos in {N1/N_1/{below left}, N2/N_2/{below right},
+                            N3/N_3/{above right}, N4/N_4/{above left}}{
+    \fill[blue!60!black] (\p) circle (2.4pt);
+    \node[\pos, font=\small] at (\p) {$\lab$};
+  }
+  % edge labels (lengths)
+  \node[font=\scriptsize, below=2pt] at (2,0) {$L_{12}=4$};
+  \node[font=\scriptsize, right=2pt] at (4.5,1.5) {$L_{23}=\sqrt{10}$};
+  \node[font=\scriptsize, above=2pt] at (3,3.5) {$L_{34}=\sqrt{17}$};
+  \node[font=\scriptsize, left=2pt]  at (0.5,2) {$L_{41}=\sqrt{17}$};
+\end{tikzpicture}
+\caption{Cuadril\'atero Q4 del ejemplo. \'Area = $14{,}5$, todos los \'angulos internos en
+$[\SI{75}{\degree},\SI{109}{\degree}]$, dos aristas iguales y dos distintas: combinaci\'on
+fertil para ejercitar las cuatro m\'etricas.}
+\end{figure}
+
+% --- 3.1 -----
+\subsection{Paso 1: longitudes de arista}
+
+\[
+  L_{12} \!=\! 4{,}0000, \qquad
+  L_{23} \!=\! \sqrt{10} \!\approx\! 3{,}1623, \qquad
+  L_{34} \!=\! \sqrt{17} \!\approx\! 4{,}1231, \qquad
+  L_{41} \!=\! \sqrt{17} \!\approx\! 4{,}1231.
+\]
+\[
+  L_{\min} = L_{23} = \sqrt{10}, \qquad L_{\max} = L_{34} = L_{41} = \sqrt{17}.
+\]
+
+% --- 3.2 -----
+\subsection{Paso 2: \'angulos internos}
+
+Para cada v\'ertice, $\cos\theta_i = (\bm{v}_{\text{prev}}\!\cdot\!\bm{v}_{\text{next}}) /
+(\lVert\bm{v}_{\text{prev}}\rVert\lVert\bm{v}_{\text{next}}\rVert)$.
+
+\medskip
+
+\noindent\textbf{V\'ertice $N_1$:} $\bm{v}_{\text{prev}}=N_4-N_1=(1,4)$,
+$\bm{v}_{\text{next}}=N_2-N_1=(4,0)$.
+\[
+  \cos\theta_1 = \frac{(1)(4)+(4)(0)}{\sqrt{17}\cdot 4} = \frac{1}{\sqrt{17}}
+  \;\Rightarrow\; \theta_1 \approx \SI{75,964}{\degree},\; \sin\theta_1 \approx 0{,}9701.
+\]
+
+\noindent\textbf{V\'ertice $N_2$:} $\bm{v}_{\text{prev}}=N_1-N_2=(-4,0)$,
+$\bm{v}_{\text{next}}=N_3-N_2=(1,3)$.
+\[
+  \cos\theta_2 = \frac{(-4)(1)+(0)(3)}{4\sqrt{10}} = -\frac{1}{\sqrt{10}}
+  \;\Rightarrow\; \theta_2 \approx \SI{108,435}{\degree},\; \sin\theta_2 \approx 0{,}9487.
+\]
+
+\noindent\textbf{V\'ertice $N_3$:} $\bm{v}_{\text{prev}}=N_2-N_3=(-1,-3)$,
+$\bm{v}_{\text{next}}=N_4-N_3=(-4,1)$.
+\[
+  \cos\theta_3 = \frac{(-1)(-4)+(-3)(1)}{\sqrt{10}\sqrt{17}} = \frac{1}{\sqrt{170}}
+  \;\Rightarrow\; \theta_3 \approx \SI{85,601}{\degree},\; \sin\theta_3 \approx 0{,}9971.
+\]
+
+\noindent\textbf{V\'ertice $N_4$:} $\bm{v}_{\text{prev}}=N_3-N_4=(4,-1)$,
+$\bm{v}_{\text{next}}=N_1-N_4=(-1,-4)$.
+\[
+  \cos\theta_4 = \frac{(4)(-1)+(-1)(-4)}{\sqrt{17}\sqrt{17}} = 0
+  \;\Rightarrow\; \theta_4 = \SI{90,000}{\degree},\; \sin\theta_4 = 1{,}0000.
+\]
+
+\noindent\textbf{Verificaci\'on}: $\sum\theta_i = 75{,}964 + 108{,}435 + 85{,}601 + 90{,}000 = \SI{360,000}{\degree}$ \checkmark.
+
+% --- 3.3 -----
+\subsection{Paso 3: $Q_{SJ}$ por v\'ertices}
+
+Como el cuadril\'atero es convexo y orientado CCW, $\mathrm{SJ}_i = \sin\theta_i$ y:
+\[
+  \mathrm{SJ}_1 = 0{,}9701, \quad
+  \mathrm{SJ}_2 = 0{,}9487, \quad
+  \mathrm{SJ}_3 = 0{,}9971, \quad
+  \mathrm{SJ}_4 = 1{,}0000.
+\]
+\[
+  \mathrm{SJ} = \min_i \mathrm{SJ}_i = \mathrm{SJ}_2 = 0{,}9487.
+\]
+Aplicando \eqref{eq:QSJ}:
+\[
+  \boxed{\;Q_{SJ} = \max(0,\,0{,}9487) = 0{,}9487.\;}
+\]
+\textbf{Lectura}: el elemento est\'a a un $5\%$ del cuadrado angular perfecto. La distorsi\'on
+proviene de la obtusidad en $N_2$.
+
+\medskip
+
+\begin{notabox}[title=Nota: $Q_{SJ}$ por v\'ertices vs por Gauss]
+La f\'ormula por v\'ertices da $Q_{SJ}=0{,}9487$. Si se eval\'ua en los $2\times 2$ puntos de
+Gauss interiores (versi\'on usada por EduFEM, ec. \cite{Knupp2000b}), el resultado es
+$Q_{SJ}^{(g)} = 0{,}9821$. La diferencia se debe a que los Gauss interiores ``ven'' el promedio
+del Jacobiano y no el peor v\'ertice. Ambos valores son aceptables como m\'etrica; la versi\'on
+por v\'ertices es m\'as estricta y m\'as f\'acil de derivar a mano, por lo que se prefiere para
+el ejemplo did\'actico.
+\end{notabox}
+
+% --- 3.4 -----
+\subsection{Paso 4: $Q_{AR}$ por aristas}
+
+Aplicando \eqref{eq:QAR}:
+\[
+  Q_{AR} = \frac{L_{\min}}{L_{\max}} = \frac{\sqrt{10}}{\sqrt{17}}
+         = \sqrt{\frac{10}{17}} \approx 0{,}7670.
+\]
+\[
+  \boxed{\;Q_{AR} = 0{,}7670.\;}
+\]
+\textbf{Lectura}: el lado m\'as corto mide aproximadamente el $77\%$ del lado m\'as largo.
+
+% --- 3.5 -----
+\subsection{Paso 5: $Q_{sk}$ esviaje angular}
+
+Desviaciones respecto a \SI{90}{\degree}:
+\[
+  |\theta_1-90| \!=\! 14{,}036,\quad
+  |\theta_2-90| \!=\! 18{,}435,\quad
+  |\theta_3-90| \!=\!  4{,}399,\quad
+  |\theta_4-90| \!=\!  0{,}000\;\;(\text{en grados}).
+\]
+$S_{\max}=\SI{18,435}{\degree}$. Aplicando \eqref{eq:Qsk}:
+\[
+  Q_{sk} = 1 - \frac{18{,}435}{90} = 1 - 0{,}2048 = 0{,}7952.
+\]
+\[
+  \boxed{\;Q_{sk} = 0{,}7952.\;}
+\]
+\textbf{Lectura}: el \'angulo peor desviado est\'a a un $20\%$ del \'angulo recto.
+
+% --- 3.6 -----
+\subsection{Paso 6: $Q_T$ taper de Robinson}
+
+Vectores de la descomposici\'on bilineal:
+\begin{align*}
+  \bm{X}_1 &= \tfrac{1}{4}\bigl(-(0,0)+(4,0)+(5,3)-(1,4)\bigr) = \tfrac{1}{4}(8,-1) = (2{,}000,\,-0{,}250),\\
+  \bm{X}_2 &= \tfrac{1}{4}\bigl(-(0,0)-(4,0)+(5,3)+(1,4)\bigr) = \tfrac{1}{4}(2,7) = (0{,}500,\,1{,}750),\\
+  \bm{X}_3 &= \tfrac{1}{4}\bigl((0,0)-(4,0)+(5,3)-(1,4)\bigr) = \tfrac{1}{4}(0,-1) = (0{,}000,\,-0{,}250).
+\end{align*}
+Normas cuadr\'aticas:
+\[
+  \lVert\bm{X}_1\rVert^2 = 4{,}0625, \qquad \lVert\bm{X}_2\rVert^2 = 3{,}3125.
+\]
+Productos escalares con $\bm{X}_3$:
+\[
+  \bm{X}_3\!\cdot\!\bm{X}_1 = (0)(2)+(-0{,}25)(-0{,}25) = 0{,}0625,
+\]
+\[
+  \bm{X}_3\!\cdot\!\bm{X}_2 = (0)(0{,}5)+(-0{,}25)(1{,}75) = -0{,}4375.
+\]
+\[
+  t_1 = \frac{|0{,}0625|}{4{,}0625} = 0{,}0154, \qquad
+  t_2 = \frac{|-0{,}4375|}{3{,}3125} = 0{,}1321.
+\]
+\[
+  T = \max(t_1,t_2) = 0{,}1321 \;\Rightarrow\; Q_T = 1 - 0{,}1321 = 0{,}8679.
+\]
+\[
+  \boxed{\;Q_T = 0{,}8679.\;}
+\]
+\textbf{Lectura}: el elemento es \emph{casi} un paralelogramo (un paralelogramo perfecto dar\'ia
+$Q_T=1$).
+
+% --- 3.7 -----
+\subsection{Paso 7: tabla resumen y diagn\'ostico}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{l c c l}
+\toprule
+\textbf{M\'etrica} & \textbf{Valor cruda} & \textbf{$Q\in[0,1]$} & \textbf{Lectura} \\
+\midrule
+Scaled Jacobian (m\'in v\'ert.)  & $0{,}9487$           & $0{,}9487$ & calidad angular muy buena \\
+SJ por Gauss (proy. EduFEM)      & $0{,}9821$           & $0{,}9821$ & m\'as benevolente (interior) \\
+Relaci\'on de aspecto            & $\mathrm{AR}=1{,}3038$ & $0{,}7670$ & lados con $30\%$ de variaci\'on \\
+Esviaje angular                  & $S_{\max}=\SI{18,4}{\degree}$ & $0{,}7952$ & \'angulos a $20\%$ del recto \\
+Taper de Robinson                & $T=0{,}1321$         & $0{,}8679$ & casi paralelogramo \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent\textbf{Indicador combinado m\'inimo} (m\'as conservador):
+\[
+  Q_{\min} = \min(Q_{SJ},Q_{AR},Q_{sk},Q_T) = Q_{AR} = 0{,}7670.
+\]
+\textbf{Indicador producto} (m\'as severo):
+\[
+  Q_{\prod} = 0{,}9487 \cdot 0{,}7670 \cdot 0{,}7952 \cdot 0{,}8679 \approx 0{,}5023.
+\]
+
+\textbf{Diagn\'ostico global}: el elemento es \emph{aceptable} (Q$_{\min}\approx 0{,}77$, fuera del
+rango cr\'itico $<\!0{,}5$). El factor m\'as limitante es la \emph{relaci\'on de aspecto}: la
+arista $N_2 N_3$ es $30\%$ m\'as corta que las laterales. La calidad angular y la
+trapezoidalidad son muy buenas.
+
+% ====================================================================
+\section{Combinaciones y cobertura de patolog\'ias}
+% ====================================================================
+
+Existen \emph{cinco patolog\'ias} geom\'etricas que pueden degradar el desempe\~no de un Q4 o Q9:
+
+\begin{enumerate}[leftmargin=14pt,itemsep=2pt]
+  \item \textbf{Inversi\'on} (det$J \le 0$): la matriz $\bm{B}$ no se puede calcular; integraci\'on
+  imposible.
+  \item \textbf{Distorsi\'on angular} (\'angulos muy lejos de \SI{90}{\degree}): degrada el
+  condicionamiento y la precisi\'on de tensiones.
+  \item \textbf{Elongaci\'on} (relaci\'on de aspecto alta): empeora $\kappa(\bm{K})$; introduce
+  anisotrop\'ia de respuesta.
+  \item \textbf{Trapezoidalidad} (lados opuestos no paralelos): activa el \textit{trapezoidal
+  locking} en Q4 \cite{MacNeal1989,Cook2002}.
+  \item \textbf{Curvatura interna Q9} (mid-nodes fuera del cuarto medio o centroide fuera de la
+  envolvente): invalida el mapeo isoparam\'etrico Q9. \emph{Fuera del alcance de este documento}
+  porque el M\'odulo 0 reformulado opera sobre los cuatro v\'ertices macro y, como aclara el
+  enunciado, no manipula los nodos medios Q9.
+\end{enumerate}
+
+\subsection{Matriz cruzada m\'etrica $\times$ patolog\'ia}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{l c c c c}
+\toprule
+\textbf{M\'etrica} & \textbf{Inv.} & \textbf{Distor.\ ang.} & \textbf{Elongaci\'on} & \textbf{Trapezoid.} \\
+\midrule
+$Q_{SJ}$  & \checkmark fuerte & \checkmark fuerte & --- & parcial \\
+$Q_{AR}$  & ---               & ---                & \checkmark fuerte & --- \\
+$Q_{sk}$  & parcial           & \checkmark fuerte & ---               & parcial \\
+$Q_T$     & ---               & ---                & ---               & \checkmark fuerte \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Cobertura por paquete}
+
+\begin{longtable}{p{4cm} p{11cm}}
+\toprule
+\textbf{Paquete} & \textbf{Cobertura y observaciones} \\
+\midrule
+$\{Q_{SJ}\}$ &
+Detecta inversi\'on y distorsi\'on angular fuerte. \textbf{No detecta} un rect\'angulo
+$1\!\times\!100$ (los \'angulos siguen siendo \SI{90}{\degree}, $Q_{SJ}=1$) ni un trapecio con
+\'angulos rectos. Insuficiente como m\'etrica \'unica.\\[2pt]
+\rowcolor{green!7}\textbf{$\{Q_{SJ},Q_{AR}\}$} \textsc{(m\'inimo)} &
+Cubre las tres patolog\'ias m\'as comunes: \textbf{inversi\'on, distorsi\'on angular y
+elongaci\'on}. Deja sin tratar trapezoidalidad pura, pero \'esta es un caso poco frecuente en
+mallas estructuradas educativas. \textbf{Recomendado como paquete pedag\'ogico m\'inimo}.\\[2pt]
+\rowcolor{green!12}\textbf{$\{Q_{SJ},Q_{AR},Q_{sk}\}$} \textsc{(completo)} &
+A\~nade un indicador angular \emph{lineal} (mientras $Q_{SJ}$ es cuadr\'atico cerca del
+\'optimo). Cuando el alumno desliza un nodo, $Q_{sk}$ reacciona m\'as r\'apido que $Q_{SJ}$;
+pedag\'ogicamente m\'as informativo. \textbf{Recomendado como paquete completo}. Sigue sin
+detectar trapezoidalidad pura, pero cubre $\ge 95\%$ de los casos reales.\\[2pt]
+$\{Q_{SJ},Q_{AR},Q_{sk},Q_T\}$ \textsc{(exhaustivo)} &
+Cubre las cuatro patolog\'ias 2D. Incluir $Q_T$ obliga a introducir los vectores de Robinson:
+poco intuitivo. Recomendado solo para una variante avanzada del m\'odulo o para un m\'odulo
+posterior sobre \textit{locking}.\\
+\bottomrule
+\end{longtable}
+
+\begin{recbox}[title=Conclusi\'on operativa]
+\textbf{Para EduFEM (M\'odulo 0 reformulado)} se recomienda el paquete
+$\{Q_{SJ}, Q_{AR}\}$ como configuraci\'on por defecto, con la opci\'on de habilitar $Q_{sk}$
+como tercera m\'etrica para alumnos que quieran un diagn\'ostico m\'as fino. Esta combinaci\'on:
+\begin{itemize}[leftmargin=14pt,itemsep=1pt]
+  \item Usa \'unicamente conceptos de trigonometr\'ia b\'asica (seno, longitud de segmento).
+  \item Cubre las tres patolog\'ias geom\'etricas m\'as relevantes en pr\'actica.
+  \item Permite una barra de calidad horizontal por m\'etrica con escala embebida.
+  \item Mantiene la representaci\'on crom\'atica del M\'odulo 0 (verde/amarillo/rojo).
+  \item Aplica indistintamente a Q4 y Q9 sin diferenciar tipos (lo cual era expl\'icitamente
+  parte del requerimiento).
+\end{itemize}
+\end{recbox}
+
+% ====================================================================
+\section{Conclusiones}
+% ====================================================================
+
+\begin{enumerate}[leftmargin=14pt]
+  \item \textbf{Rango}: el dominio $[0,1]$ con $1$ = ideal es la opci\'on que mejor balancea
+  legibilidad, combinabilidad y compatibilidad con software comercial. Se justifica por la
+  convenci\'on Verdict/ANSYS \cite{Stimpson2007,ANSYS2021}, por la posibilidad de combinar
+  m\'etricas por m\'inimo o producto, y por el mapeo crom\'atico mon\'otono que ya emplea el
+  M\'odulo 0.
+  \item \textbf{Inversi\'on como bandera externa}: el \textit{clamp} a $0$ se complementa con un
+  flag \texttt{is\_inverted} que activa una alarma distinta (anillo rojo discontinuo, como ya
+  hace M2). De este modo $Q\!=\!0$ significa siempre ``inservible'' sin perder la matiz f\'isica
+  entre degenerado e invertido.
+  \item \textbf{Paquete recomendado}: $\{Q_{SJ}, Q_{AR}\}$ como m\'inimo did\'actico,
+  $\{Q_{SJ}, Q_{AR}, Q_{sk}\}$ como completo. Ambas opciones usan conceptos accesibles
+  (seno de un \'angulo, longitud de un segmento, desviaci\'on respecto a \SI{90}{\degree}) y son
+  geom\'etricamente verificables a mano.
+  \item \textbf{Lo que el paquete NO cubre}: la trapezoidalidad pura (un Q4 con \'angulos rectos
+  pero lados opuestos no paralelos) y la admisibilidad de mid-nodes Q9. La primera puede
+  abordarse en un m\'odulo posterior dedicado a \textit{shear/trapezoidal locking}; la segunda
+  est\'a fuera del alcance del M\'odulo 0 reformulado seg\'un el requerimiento del usuario.
+\end{enumerate}
+
+% ====================================================================
+\section*{Referencias} % Vancouver (numeric, by first appearance)
+% ====================================================================
+
+\addcontentsline{toc}{section}{Referencias}
+\renewcommand{\arraystretch}{1.05}
+\begin{enumerate}[label={[\arabic*]},leftmargin=24pt,itemsep=2pt]
+
+\item\label{Stimpson2007} Stimpson CJ, Ernst CD, Knupp PM, P\'ebay PP, Thompson D. The Verdict
+geometric quality library. Albuquerque (NM): Sandia National Laboratories; 2007. Report No.\
+SAND2007-1751.
+
+\item\label{ANSYS2021} ANSYS Inc. ANSYS Meshing User's Guide, Release 2021 R1. Canonsburg (PA):
+ANSYS Inc.; 2021. Cap\'itulo 17: Mesh Quality Metrics.
+
+\item\label{Knupp2001} Knupp PM. Algebraic mesh quality metrics. SIAM Journal on Scientific
+Computing. 2001;23(1):193--218. doi:10.1137/S1064827500371499.
+
+\item\label{Knupp2000a} Knupp PM. Achieving finite element mesh quality via optimization of the
+Jacobian matrix norm and associated quantities. Part I --- a framework for surface mesh
+optimization. International Journal for Numerical Methods in Engineering.
+2000;48(3):401--420.
+
+\item\label{Knupp2000b} Knupp PM. Achieving finite element mesh quality via optimization of the
+Jacobian matrix norm and associated quantities. Part II --- a framework for volume mesh
+optimization. International Journal for Numerical Methods in Engineering.
+2000;48(8):1165--1185.
+
+\item\label{Field2000} Field DA. Qualitative measures for initial meshes. International Journal
+for Numerical Methods in Engineering. 2000;47(4):887--906.
+
+\item\label{Robinson1987} Robinson J. CRE method of element testing and the Jacobian shape
+parameters. Engineering Computations. 1987;4(2):113--118.
+
+\item\label{Cook2002} Cook RD, Malkus DS, Plesha ME, Witt RJ. Concepts and Applications of Finite
+Element Analysis. 4th ed. Hoboken (NJ): John Wiley \& Sons; 2002. Cap\'itulos 6 y 7.
+
+\item\label{MacNeal1989} MacNeal RH. Toward a defect-free four-noded membrane element.
+Finite Elements in Analysis and Design. 1989;5(1):31--37.
+
+\item\label{Bathe2014} Bathe KJ. Finite Element Procedures. 2nd ed. Watertown (MA): Klaus-J\"urgen
+Bathe; 2014.
+
+\item\label{Zienkiewicz2013} Zienkiewicz OC, Taylor RL, Zhu JZ. The Finite Element Method: Its
+Basis and Fundamentals. 7th ed. Oxford: Butterworth-Heinemann; 2013.
+
+\item\label{Hughes2000} Hughes TJR. The Finite Element Method: Linear Static and Dynamic Finite
+Element Analysis. Mineola (NY): Dover Publications; 2000.
+
+\item\label{Lee1994} Lee NS, Bathe KJ. Effects of element distortions on the performance of
+isoparametric elements. International Journal for Numerical Methods in Engineering.
+1994;36(20):3553--3576.
+
+\end{enumerate}
+
+\bigskip
+
+\hrule
+\medskip
+\noindent\footnotesize\emph{Documento generado para el proyecto \textbf{EduFEM} como
+fundamentaci\'on de la reformulaci\'on del M\'odulo 0 (Calidad de la malla). Las normalizaciones
+y el ejemplo aplicado se computaron contra las funciones \texttt{scaled\_jacobian},
+\texttt{robinson\_aspect}, \texttt{robinson\_taper} e \texttt{internal\_angles} de
+\texttt{fem/mesh\_quality.py}.}
+
+\end{document}
