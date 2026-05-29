@@ -221,39 +221,56 @@ def _fill_field(img_arr, w, h, project, view, node_values, vmin, vmax, lut,
     """
     v_range = max(vmax - vmin, 1e-15)
     n = subdiv
+
+    # Matriz de funciones de forma Q4 en la grilla (n+1)^2 x 4, precomputada
+    # UNA vez (no depende del elemento). Antes se reevaluaban N0..N3 en un
+    # doble loop Python por cada punto de cada elemento; ahora las coords
+    # mundo y el valor salen de un producto matriz-vector (broadcasting).
+    npts = (n + 1) * (n + 1)
+    Nmat = np.empty((npts, 4))
+    k = 0
+    for i in range(n + 1):
+        xi = -1 + 2 * i / n
+        for j in range(n + 1):
+            eta = -1 + 2 * j / n
+            Nmat[k, 0] = (1 - xi) * (1 - eta) * 0.25
+            Nmat[k, 1] = (1 + xi) * (1 - eta) * 0.25
+            Nmat[k, 2] = (1 + xi) * (1 + eta) * 0.25
+            Nmat[k, 3] = (1 - xi) * (1 + eta) * 0.25
+            k += 1
+
+    stride = n + 1
     for elem in project.elements.values():
         nids = elem.node_ids[:4]
         if not all(nid in project.nodes for nid in nids):
             continue
         if not all(nid in node_values for nid in nids):
             continue
-        nv = [float(node_values[nid]) for nid in nids]
+        nv = np.array([float(node_values[nid]) for nid in nids])
         if deformed_coords is not None:
-            nc = [deformed_coords[nid] for nid in nids]
+            nc = np.array([deformed_coords[nid] for nid in nids], dtype=float)
         else:
-            nc = [(project.nodes[nid].x, project.nodes[nid].y) for nid in nids]
+            nc = np.array(
+                [(project.nodes[nid].x, project.nodes[nid].y) for nid in nids],
+                dtype=float,
+            )
 
-        grid = {}
-        for i in range(n + 1):
-            xi = -1 + 2 * i / n
-            for j in range(n + 1):
-                eta = -1 + 2 * j / n
-                N0 = (1 - xi) * (1 - eta) * 0.25
-                N1 = (1 + xi) * (1 - eta) * 0.25
-                N2 = (1 + xi) * (1 + eta) * 0.25
-                N3 = (1 - xi) * (1 + eta) * 0.25
-                wx = N0 * nc[0][0] + N1 * nc[1][0] + N2 * nc[2][0] + N3 * nc[3][0]
-                wy = N0 * nc[0][1] + N1 * nc[1][1] + N2 * nc[2][1] + N3 * nc[3][1]
-                sx, sy = view.w2s(wx, wy)
-                val = N0 * nv[0] + N1 * nv[1] + N2 * nv[2] + N3 * nv[3]
-                grid[(i, j)] = (sx, sy, val)
+        # world coords y valores por punto via broadcasting.
+        world = Nmat @ nc            # (npts, 2)
+        vals = Nmat @ nv             # (npts,)
+        sx = world[:, 0] * view.scale + view.offset_x
+        sy = -world[:, 1] * view.scale + view.offset_y
 
         for i in range(n):
             for j in range(n):
-                p00 = grid[(i, j)]
-                p10 = grid[(i + 1, j)]
-                p11 = grid[(i + 1, j + 1)]
-                p01 = grid[(i, j + 1)]
+                k00 = i * stride + j
+                k10 = (i + 1) * stride + j
+                k11 = (i + 1) * stride + (j + 1)
+                k01 = i * stride + (j + 1)
+                p00 = (sx[k00], sy[k00], vals[k00])
+                p10 = (sx[k10], sy[k10], vals[k10])
+                p11 = (sx[k11], sy[k11], vals[k11])
+                p01 = (sx[k01], sy[k01], vals[k01])
                 _rasterize_triangle(img_arr, w, h, p00, p10, p11,
                                     vmin, v_range, lut)
                 _rasterize_triangle(img_arr, w, h, p00, p11, p01,
