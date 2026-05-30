@@ -30,14 +30,23 @@ del tamaño del modelo):
 Estilos (`MemoriaCalculo.STYLES`) — DOS, comparten un único pipeline; la
 diferencia la gobierna la property `_prose`:
   - 'educativo' (default): infografía + narrativa mínima. Cada concepto se
-    resume en UNA idea clave (teaser de 1 línea, dict `_INSIGHTS`), con
-    tarjetas "entra · fórmula · salida" por capítulo, mapa del cálculo,
-    fórmulas al margen, barra de fase en el encabezado y glosario final.
-    Solo 2 cajas "¿por qué?" en todo el documento (Gauss y promediado).
-  - 'directo': el MISMO procedimiento matricial paso a paso (N → J → B →
-    D → integrando → kₑ por elemento, ensamblaje, partición de BCs,
-    resolución, tensiones), pero SECO: encabezados + fórmula + matriz +
-    resultado clave, sin párrafos ni cajas.
+    resume en UNA idea clave (teaser de 1 línea), con tarjetas "entra ·
+    fórmula · salida" por capítulo, mapa del cálculo, fórmulas al margen,
+    barra de fase en el encabezado, diagnóstico comentado, interpretación
+    de resultados y glosario final. Solo 2 cajas "¿por qué?" en todo el
+    documento (Gauss y promediado).
+  - 'directo': el MISMO procedimiento matricial paso a paso de inicio a fin
+    (N → u=Na → J → B → D → integrando → kₑ por elemento, ensamblaje,
+    partición de BCs, resolución, recuperación ε→σ por punto de Gauss,
+    extrapolación, principales/von Mises con sustitución, diagnóstico y
+    resumen), pero SECO: encabezados + fórmula + matriz + resultado clave,
+    sin párrafos ni cajas.
+
+El pipeline tiene 9 capítulos (mapean a las fases pre/proc/post, en eco a
+los 9 módulos educativos M0..M9): ① Planteo → ② Discretización →
+③ Calidad → ④ Formulación elemental → ⑤ Ensamblaje → ⑥ Condiciones de
+contorno y solución → ⑦ Post-proceso → ⑧ Diagnóstico y validación →
+⑨ Resumen e interpretación.
 
 Regla de oro del pipeline compartido: las FÓRMULAS/MATRICES/ECUACIONES se
 emiten SIEMPRE (incondicional); SOLO los párrafos narrativos y las cajas
@@ -236,6 +245,11 @@ class MemoriaCalculo:
         self._scope = scope
         self._style = style if style in self.STYLES else "educativo"
         self._tmpdir: Optional[tempfile.TemporaryDirectory] = None
+        # Caches: la calidad de malla y la validación se consultan en varios
+        # capítulos (calidad, diagnóstico, resumen). Memoizar evita recorrer
+        # los elementos / re-validar 3-4 veces.
+        self._mq_cache = None
+        self._health_cache = None
 
         title = TheoryDoc.escape(self.TITLE)
         subtitle = TheoryDoc.escape(
@@ -315,10 +329,39 @@ class MemoriaCalculo:
         self._build_cap_ensamblaje()
         self._build_cap_bcs_solucion()
         self._build_cap_postproceso(showcase_id)
+        # ⑧ Diagnóstico y ⑨ Resumen: ambos estilos (datos + veredictos). El
+        # educativo añade la prosa/interpretación; el directo, solo las tablas.
+        self._build_cap_diagnostico()
+        self._build_cap_resumen(showcase_id)
         if self._prose:
             # Glosario de símbolos: subsección final, solo educativo.
             self._build_glosario()
         self._build_pie()
+
+    # ------------------------------------------------------------------
+    # Cachés compartidos (calidad de malla + validación del modelo)
+    # ------------------------------------------------------------------
+
+    def _mesh_quality(self) -> dict:
+        """Evaluación de calidad por elemento, memoizada (la consumen los
+        capítulos de calidad, diagnóstico y resumen)."""
+        if self._mq_cache is None:
+            try:
+                from fem.mesh_quality import evaluate_mesh_quality
+                self._mq_cache = evaluate_mesh_quality(self._project)
+            except Exception:
+                self._mq_cache = {}
+        return self._mq_cache
+
+    def _health(self):
+        """HealthReport del modelo, memoizado. None si el validador falla."""
+        if self._health_cache is None:
+            try:
+                from models.model_health import validate_project
+                self._health_cache = validate_project(self._project)
+            except Exception:
+                self._health_cache = None
+        return self._health_cache
 
     def compile(self, filepath_no_ext: str, *, keep_tex: bool = False) -> None:
         try:
@@ -499,6 +542,14 @@ class MemoriaCalculo:
                 r"túneles).",
                 phase="pre",
             )
+            td.para(
+                rf"\textbf{{Hipótesis del modelo}}: material isótropo y "
+                rf"homogéneo, comportamiento lineal elástico (ley de Hooke "
+                rf"$\boldsymbol\sigma=\mathbf{{D}}\,\boldsymbol\varepsilon$), "
+                rf"pequeñas deformaciones y estado de {caso.lower()}. "
+                rf"Sistema de unidades: "
+                rf"\textbf{{{TheoryDoc.escape(proj.unit_system)}}}."
+            )
         else:
             # Directo: hipótesis + tipo de elemento como dato seco (2 filas).
             td.values([("Hipótesis", caso), ("Elemento", elem_desc)])
@@ -583,6 +634,13 @@ class MemoriaCalculo:
                 entra=r"Geometría · cargas · apoyos",
                 formula=r"\Omega \;\approx\; \bigcup_e \Omega_e",
                 sale=r"Modelo discreto (nodos, elementos)",
+                phase="pre",
+            )
+            td.educational_teaser(
+                r"Un \textbf{nodo} es un punto donde se calculan los "
+                r"desplazamientos (las incógnitas del MEF); un "
+                r"\textbf{elemento} es la región sobre la que esas "
+                r"incógnitas se interpolan entre sus nodos.",
                 phase="pre",
             )
         td.subsection_numbered("Materiales")
@@ -732,12 +790,7 @@ class MemoriaCalculo:
                 r"distorsión tolerables.",
                 phase="pre",
             )
-        try:
-            from fem.mesh_quality import evaluate_mesh_quality
-            results = evaluate_mesh_quality(proj)
-        except Exception as e:
-            td.para(rf"\emph{{No se pudo evaluar la calidad: {e}}}")
-            return
+        results = self._mesh_quality()
         if not results:
             td.para(r"\emph{Sin elementos para evaluar.}")
             return
@@ -1024,6 +1077,30 @@ class MemoriaCalculo:
         else:
             td.para(r"\emph{Datos de Gauss no disponibles.}")
 
+        # 2b. Campo de desplazamientos interpolado u = N·u_e — base de la
+        # relación deformación–desplazamiento ε = B·u_e (paso siguiente).
+        heading(r"Campo de desplazamientos interpolado "
+                r"$\mathbf{u}=\mathbf{N}\,\mathbf{u}_e$")
+        td.equation(
+            r"\mathbf{u}(\xi,\eta)=\mathbf{N}(\xi,\eta)\,\mathbf{u}_e,\qquad "
+            r"\mathbf{N}=\begin{bmatrix}"
+            r"N_1 & 0 & N_2 & 0 & \cdots & N_n & 0\\"
+            r"0 & N_1 & 0 & N_2 & \cdots & 0 & N_n\end{bmatrix}"
+        )
+        td.equation(
+            r"\boldsymbol\varepsilon=\partial\mathbf{u}=\mathbf{B}\,"
+            r"\mathbf{u}_e,\qquad "
+            r"\mathbf{u}_e=[\,u_{x1},u_{y1},\dots,u_{xn},u_{yn}\,]^{T}."
+        )
+        if self._prose:
+            td.educational_teaser(
+                r"Las mismas $N_i$ interpolan el desplazamiento dentro del "
+                r"elemento a partir de los valores nodales $\mathbf{u}_e$. "
+                r"La deformación es su derivada espacial, y el operador que "
+                r"la calcula es justamente $\mathbf{B}$.",
+                phase="proc",
+            )
+
         # 3. Jacobiano — operador + reemplazo numérico por punto de Gauss.
         heading(r"Jacobiano $\mathbf{J}=\partial\mathbf{N}\,\mathbf{X}_e$ "
                 r"y $\det\mathbf{J}$")
@@ -1309,7 +1386,8 @@ class MemoriaCalculo:
             from education.mod05_stiffness import SymbolicIntegrandQ4
             import sympy as sp
         except Exception as e:
-            td.para(rf"\emph{{No se pudo cargar la capa simbólica: {e}}}")
+            td.para(rf"\emph{{No se pudo cargar la capa simbólica: "
+                    rf"{TheoryDoc.escape(str(e))}}}")
             return
         try:
             sim = SymbolicIntegrandQ4(
@@ -1338,7 +1416,8 @@ class MemoriaCalculo:
                 )
         except Exception as e:
             td.para(rf"\emph{{No se pudo construir el integrando simbólico: "
-                    rf"{e}. Se procede con la cuadratura numérica.}}")
+                    rf"{TheoryDoc.escape(str(e))}. Se procede con la "
+                    rf"cuadratura numérica.}}")
 
     def _energia_deformacion_str(self, elem_id, ke: np.ndarray) -> str:
         sol = self._solution
@@ -1726,6 +1805,10 @@ class MemoriaCalculo:
             r"\boldsymbol\sigma(\xi_p,\eta_p)=\mathbf{D}\,"
             r"\boldsymbol\varepsilon(\xi_p,\eta_p)."
         )
+        # Sustitución ε → σ desarrollada en el elemento estrella (valores
+        # numéricos por punto de Gauss): completa la cadena del paso a paso.
+        if showcase_id is not None and showcase_id in self._element_stresses:
+            self._tabla_recuperacion_showcase(showcase_id)
         # Tabla de tensiones por punto de Gauss: AMBOS estilos (verificación
         # de valores crudos, previa al promediado).
         if self._element_stresses:
@@ -1792,6 +1875,8 @@ class MemoriaCalculo:
                 title=r"\textbf{¿Por qué importa el promediado?}",
                 phase="post",
             )
+        # Comparación cuantitativa sin/con promedio en un nodo compartido.
+        self._tabla_comparacion_promedio()
 
         td.subsection_numbered(
             r"Tensiones principales $\sigma_1$, $\sigma_2$ y $\theta_p$")
@@ -1823,6 +1908,8 @@ class MemoriaCalculo:
             r"+3\tau_{xy}^{\,2}}=\sqrt{\sigma_1^{\,2}-\sigma_1\sigma_2"
             r"+\sigma_2^{\,2}}"
         )
+        # Sustitución numérica de σ1, σ2, θp y σVM en el nodo más solicitado.
+        self._sustitucion_principales_vm()
 
         td.subsection_numbered("Tensiones nodales (promediadas)")
         if self._prose:
@@ -1949,6 +2036,490 @@ class MemoriaCalculo:
             headers=["Elem", "PG", r"$\sigma_x$", r"$\sigma_y$", r"$\tau_{xy}$",
                      r"$\sigma_1$", r"$\sigma_2$", r"$\sigma_{VM}$"],
             rows=rows, col_align="ccrrrrrr")
+
+    # ------------------------------------------------------------------
+    # Recuperación ε → σ y sustituciones numéricas del post-proceso
+    # ------------------------------------------------------------------
+
+    def _tabla_recuperacion_showcase(self, elem_id: int) -> None:
+        """Sustitución ε = B·u_e → σ = D·ε en cada punto de Gauss del
+        elemento estrella. Muestra εx, εy, γxy y las σ resultantes — cierra
+        con números la cadena que el capítulo de formulación desarrolló
+        simbólicamente."""
+        es = self._element_stresses.get(elem_id)
+        if not es:
+            return
+        gauss = es.get("gauss_stresses", [])
+        if not gauss:
+            return
+        td = self._td
+        if self._prose:
+            td.para(
+                rf"Sustitución desarrollada en el \textbf{{elemento {elem_id}}} "
+                rf"(el de mayor energía de deformación): en cada punto de "
+                rf"Gauss, la $\mathbf{{B}}$ ya calculada y los "
+                rf"desplazamientos del elemento dan $\boldsymbol\varepsilon$, "
+                rf"y la ley de Hooke la convierte en $\boldsymbol\sigma$."
+            )
+        rows = []
+        for k, gs in enumerate(gauss, start=1):
+            strain = np.asarray(gs.get("strain", [0.0, 0.0, 0.0])).ravel()
+            ex = float(strain[0]) if strain.size > 0 else 0.0
+            ey = float(strain[1]) if strain.size > 1 else 0.0
+            gxy = float(strain[2]) if strain.size > 2 else 0.0
+            rows.append([
+                f"PG{k}", f"{ex:.4e}", f"{ey:.4e}", f"{gxy:.4e}",
+                fmt(gs.get("sigma_x", 0.0), "stress"),
+                fmt(gs.get("sigma_y", 0.0), "stress"),
+                fmt(gs.get("tau_xy", 0.0), "stress"),
+            ])
+        self._longtable(
+            headers=["PG", r"$\varepsilon_x$", r"$\varepsilon_y$",
+                     r"$\gamma_{xy}$", r"$\sigma_x$", r"$\sigma_y$",
+                     r"$\tau_{xy}$"],
+            rows=rows, col_align="ccccrrr")
+
+    def _sustitucion_principales_vm(self) -> None:
+        """Sustitución numérica de σ1, σ2, θp y σVM en el nodo de mayor von
+        Mises, a partir de sus componentes promediadas. Demuestra con números
+        las fórmulas de los dos subcapítulos anteriores."""
+        if not self._nodal_stresses:
+            return
+        nid = max(self._nodal_stresses,
+                  key=lambda n: self._nodal_stresses[n].get("von_mises", 0.0))
+        s = self._nodal_stresses[nid]
+        sx = float(s.get("sigma_x", 0.0))
+        sy = float(s.get("sigma_y", 0.0))
+        txy = float(s.get("tau_xy", 0.0))
+        avg = 0.5 * (sx + sy)
+        R = float(np.hypot(0.5 * (sx - sy), txy))
+        s1, s2 = avg + R, avg - R
+        theta = 0.5 * float(np.degrees(np.arctan2(2.0 * txy, sx - sy)))
+        vm = float(np.sqrt(max(s1 * s1 - s1 * s2 + s2 * s2, 0.0)))
+        td = self._td
+        if self._prose:
+            td.para(
+                rf"A modo de ejemplo, en el \textbf{{nodo {nid}}} (el de mayor "
+                rf"von Mises) las componentes promediadas se sustituyen así:"
+            )
+        td.equation(
+            rf"\sigma_{{1,2}}=\frac{{{sx:.4g}+({sy:.4g})}}{{2}}\pm\sqrt{{"
+            rf"\left(\frac{{{sx:.4g}-({sy:.4g})}}{{2}}\right)^2+({txy:.4g})^2}}"
+            rf"\;\Rightarrow\;\sigma_1={s1:.4g},\ \sigma_2={s2:.4g}"
+        )
+        if abs(sx - sy) > NUMERICAL_TOLERANCE:
+            theta_expr = (
+                rf"\theta_p=\tfrac12\arctan\!\frac{{2({txy:.4g})}}"
+                rf"{{{sx:.4g}-({sy:.4g})}}={theta:.4g}^\circ"
+            )
+        else:
+            theta_expr = rf"\theta_p={theta:.4g}^\circ"
+        td.equation(
+            theta_expr + rf",\qquad \sigma_{{VM}}=\sqrt{{({s1:.4g})^2"
+            rf"-({s1:.4g})({s2:.4g})+({s2:.4g})^2}}={vm:.4g}"
+        )
+
+    def _tabla_comparacion_promedio(self) -> None:
+        """Comparación sin/con promedio en el nodo más compartido: lista las
+        k contribuciones extrapoladas, el promedio del pipeline real y el
+        salto Δ = máx − mín (indicador de error de malla)."""
+        proj = self._project
+        if not self._element_stresses or not self._nodal_stresses:
+            return
+        # Nodo incidente en más elementos (el más compartido).
+        incid: dict = {}
+        for eid, elem in proj.elements.items():
+            ns_list = self._element_stresses.get(eid, {}).get(
+                "nodal_stresses", [])
+            for nid in elem.node_ids[:len(ns_list)]:
+                incid.setdefault(nid, []).append(eid)
+        shared = {n: es for n, es in incid.items() if len(es) >= 2}
+        td = self._td
+        td.subsection_numbered("Comparación sin promedio vs. con promedio")
+        if not shared:
+            td.para(
+                r"\emph{Ningún nodo es compartido por dos o más elementos "
+                r"(malla mínima): no hay salto inter-elemental que "
+                r"promediar.}")
+            return
+        nid = max(shared, key=lambda n: len(shared[n]))
+        elems = sorted(shared[nid])
+        if self._prose:
+            td.para(
+                rf"El \textbf{{nodo {nid}}} es compartido por {len(elems)} "
+                rf"elementos. Cada uno extrapola su propia tensión a ese "
+                rf"nodo; el salto entre ellas mide cuán bien la malla "
+                rf"captura el gradiente local:")
+        comps = (("sigma_x", r"$\sigma_x$"), ("sigma_y", r"$\sigma_y$"),
+                 ("tau_xy", r"$\tau_{xy}$"), ("von_mises", r"$\sigma_{VM}$"))
+        vals_by_comp = {c: [] for c, _ in comps}
+        rows = []
+        for eid in elems:
+            elem = proj.elements[eid]
+            ns_list = self._element_stresses.get(eid, {}).get(
+                "nodal_stresses", [])
+            try:
+                li = list(elem.node_ids).index(nid)
+            except ValueError:
+                continue
+            if li >= len(ns_list):
+                continue
+            ns_i = ns_list[li]
+            row = [f"E{eid}"]
+            for c, _ in comps:
+                v = float(ns_i.get(c, 0.0))
+                vals_by_comp[c].append(v)
+                row.append(fmt(v, "stress"))
+            rows.append(row)
+        avg = self._nodal_stresses.get(nid, {})
+        rows.append([r"\textbf{Promedio}"] + [
+            rf"\textbf{{{fmt(float(avg.get(c, 0.0)), 'stress')}}}"
+            for c, _ in comps])
+        rows.append([r"Salto $\Delta$"] + [
+            fmt((max(vs) - min(vs)) if vs else 0.0, "stress")
+            for c, vs in ((c, vals_by_comp[c]) for c, _ in comps)])
+        self._longtable(
+            headers=["Origen"] + [sym for _, sym in comps],
+            rows=rows, col_align="l" + "r" * len(comps))
+        if self._prose:
+            td.educational_teaser(
+                r"\textbf{Ventaja} del promedio: un único campo continuo, "
+                r"apto para contornos. \textbf{Limitación}: oculta el salto "
+                r"$\Delta$ — si es grande frente al valor, conviene refinar "
+                r"la malla en esa zona.", phase="post")
+
+    # ------------------------------------------------------------------
+    # Capítulo 8: diagnóstico y validación del modelo
+    # ------------------------------------------------------------------
+
+    # Recomendación de nivel-libro por cada código del validador (sin
+    # mencionar internals del software — ver CLAUDE.md).
+    _DIAG_RECO = {
+        "negative_jacobian":
+            r"Reordenar los nodos en sentido antihorario o corregir la "
+            r"geometría: con $\det\mathbf{J}\le 0$ el elemento está plegado "
+            r"y su rigidez no es válida.",
+        "degenerate_element":
+            r"Área casi nula o nodos coincidentes; revisar las coordenadas "
+            r"del elemento.",
+        "no_restraints":
+            r"Agregar apoyos: sin restricciones $\mathbf{K}$ es singular "
+            r"(3 modos de cuerpo rígido en el plano).",
+        "insufficient_restraints":
+            r"Restringir al menos 3 GDL independientes para suprimir los "
+            r"modos de cuerpo rígido.",
+        "bc_orphan_node":
+            r"El nodo restringido no pertenece a ningún elemento; eliminar "
+            r"la restricción o conectarlo a la malla.",
+        "elem_node_missing":
+            r"El elemento referencia un nodo inexistente; corregir la "
+            r"conectividad.",
+        "elem_material_missing":
+            r"Asignar un material válido al elemento.",
+        "surface_node_missing":
+            r"La carga superficial referencia un nodo inexistente; revisar "
+            r"sus extremos.",
+        "no_elements":
+            r"El modelo no tiene elementos: no hay sistema que resolver.",
+        "load_orphan_node":
+            r"La carga actúa sobre un nodo sin elementos; no contribuye a la "
+            r"rigidez.",
+        "unused_material":
+            r"Material definido pero no asignado a ningún elemento; puede "
+            r"eliminarse.",
+        "zero_nodal_load":
+            r"Carga nodal nula: no aporta al vector $\mathbf{F}$.",
+        "zero_surface_load":
+            r"Carga superficial nula: no aporta al vector $\mathbf{F}$.",
+        "suspicious_young_modulus":
+            r"El módulo $E$ cae fuera del rango usual de materiales "
+            r"estructurales; verificar las unidades.",
+        "suspicious_model_scale":
+            r"La extensión del modelo es atípica; verificar el sistema de "
+            r"unidades.",
+        "gravity_no_density":
+            r"Gravedad activa pero densidad $\le 0$: la fuerza másica "
+            r"resulta nula.",
+    }
+
+    @staticmethod
+    def _verdict_cell(state: str) -> str:
+        """Celda de veredicto coloreada (verde/ámbar/rojo)."""
+        m = {"ok": ("edufemPost", "OK"),
+             "warn": ("edufemProc", "Revisar"),
+             "fail": ("red", "Crítico")}
+        col, word = m.get(state, ("edufemInfo", "--"))
+        return rf"\textcolor{{{col}}}{{{word}}}"
+
+    def _build_cap_diagnostico(self) -> None:
+        td = self._td
+        td.section_numbered("Diagnóstico y validación del modelo")
+        if self._prose:
+            self._chapter_card(
+                entra=r"Modelo + solución",
+                formula=r"q_{SJ},\ \kappa_2(\mathbf{K}),\ \text{equilibrio}",
+                sale=r"Anomalías + recomendaciones",
+                phase="pre",
+            )
+            td.educational_teaser(
+                r"Un resultado solo es confiable si el modelo que lo produjo "
+                r"es sano. Este capítulo reúne las verificaciones "
+                r"automáticas: validez geométrica, condicionamiento y "
+                r"equilibrio.", phase="pre")
+
+        # (a) Hallazgos del validador.
+        td.subsection_numbered("Verificaciones automáticas del modelo")
+        report = self._health()
+        if report is None:
+            td.para(r"\emph{No se pudo ejecutar el validador del modelo.}")
+        else:
+            from models.model_health import Severity
+            issues = report.errors + report.warnings
+            if not issues:
+                td.para(
+                    r"\textcolor{edufemPost}{\textbf{Sin anomalías críticas "
+                    r"ni advertencias.}} El modelo pasó todas las "
+                    r"verificaciones automáticas.")
+            else:
+                rows = []
+                for iss in issues:
+                    is_err = iss.severity == Severity.ERROR
+                    sev = r"\textcolor{red}{Error}" if is_err \
+                        else r"\textcolor{edufemProc}{Advertencia}"
+                    reco = self._DIAG_RECO.get(
+                        iss.code, r"Revisar el item indicado.")
+                    rows.append([sev, TheoryDoc.escape(iss.message), reco])
+                self._longtable(
+                    headers=["Severidad", "Hallazgo", "Recomendación"],
+                    rows=rows, col_align=r"lp{4.3cm}p{6.2cm}")
+
+        # (b) Indicadores numéricos con veredicto.
+        td.subsection_numbered("Indicadores numéricos")
+        self._tabla_indicadores_numericos()
+
+    def _tabla_indicadores_numericos(self) -> None:
+        td = self._td
+        sol = self._solution
+        rows = []
+
+        mq = self._mesh_quality()
+        q_sj_vals = [r["scaled_jacobian"] for r in mq.values()]
+        ar_vals = [r["robinson_aspect"] for r in mq.values()
+                   if np.isfinite(r.get("robinson_aspect", np.inf))]
+        if q_sj_vals:
+            worst = min(q_sj_vals)
+            state = "fail" if worst <= 0 else ("warn" if worst < 0.5 else "ok")
+            rows.append([r"Peor Jacobiano escalado $q_{SJ}$", f"{worst:.3f}",
+                         self._verdict_cell(state)])
+        if ar_vals:
+            worst_ar = max(ar_vals)
+            state = "fail" if worst_ar > 10 else \
+                ("warn" if worst_ar > 4 else "ok")
+            rows.append([r"Peor relación de aspecto", f"{worst_ar:.2f}",
+                         self._verdict_cell(state)])
+
+        cond = _K_cond(sol.get("K"))
+        if cond is not None:
+            state = "fail" if cond >= 1e12 else \
+                ("warn" if cond >= 1e8 else "ok")
+            rows.append([r"$\kappa_2(\mathbf{K})$ (estimado)", f"{cond:.2e}",
+                         self._verdict_cell(state)])
+
+        res_rel = self._equilibrio_residuo_rel()
+        if res_rel is not None:
+            state = "ok" if res_rel < 1e-6 else \
+                ("warn" if res_rel < 1e-3 else "fail")
+            rows.append([r"Residuo de equilibrio relativo", f"{res_rel:.2e}",
+                         self._verdict_cell(state)])
+
+        umax, umax_n = self._max_disp()
+        if umax is not None:
+            rows.append([rf"Desplazamiento máximo $|u|$ (nodo {umax_n})",
+                         f"{umax:.4e}", self._verdict_cell("ok")])
+
+        vmax, vmax_n, vmean = self._max_vm()
+        if vmax is not None:
+            rows.append([rf"$\sigma_{{VM}}$ máxima (nodo {vmax_n})",
+                         fmt(vmax, "stress"), self._verdict_cell("ok")])
+            if vmean and vmean > 0:
+                ratio = vmax / vmean
+                state = "warn" if ratio > 5 else "ok"
+                rows.append([
+                    r"Concentración $\sigma_{VM,\max}/\sigma_{VM,prom}$",
+                    f"{ratio:.2f}", self._verdict_cell(state)])
+
+        if not rows:
+            td.para(r"\emph{Sin indicadores numéricos disponibles.}")
+            return
+        self._longtable(headers=["Indicador", "Valor", "Estado"],
+                        rows=rows, col_align="lrc")
+        if self._prose:
+            td.educational_teaser(
+                r"\textbf{OK} = dentro de rango usual; \textbf{Revisar} = "
+                r"tolerable, conviene controlar o refinar; \textbf{Crítico} "
+                r"= corregir antes de confiar en los resultados.",
+                phase="pre")
+
+    def _equilibrio_residuo_rel(self):
+        """Residuo de equilibrio global relativo: $|\\sum F+\\sum R|/|\\sum F|$
+        (o normalizado por las reacciones si no hay cargas externas)."""
+        try:
+            proj = self._project
+            R = np.asarray(self._solution["reactions"])
+            idx = proj.node_index_map
+            fx = sum(ld.fx for ld in proj.nodal_loads.values())
+            fy = sum(ld.fy for ld in proj.nodal_loads.values())
+            rx = ry = 0.0
+            for nid, bc in proj.boundary_conditions.items():
+                base = 2 * idx[nid]
+                if bc.restrain_x:
+                    rx += float(R[base])
+                if bc.restrain_y:
+                    ry += float(R[base + 1])
+            num = float(np.hypot(fx + rx, fy + ry))
+            den = float(np.hypot(fx, fy))
+            if den < NUMERICAL_TOLERANCE:
+                den = float(np.hypot(rx, ry))
+            return num / den if den > NUMERICAL_TOLERANCE else None
+        except Exception:
+            return None
+
+    def _max_disp(self):
+        try:
+            proj = self._project
+            u = np.asarray(self._solution["u"])
+            idx = proj.node_index_map
+            best_n, best = None, -1.0
+            for nid in proj.nodes:
+                base = 2 * idx[nid]
+                m = float(np.hypot(u[base], u[base + 1]))
+                if m > best:
+                    best, best_n = m, nid
+            return (best, best_n) if best_n is not None else (None, None)
+        except Exception:
+            return (None, None)
+
+    def _min_disp(self):
+        try:
+            proj = self._project
+            u = np.asarray(self._solution["u"])
+            idx = proj.node_index_map
+            best_n, best = None, float("inf")
+            for nid in proj.nodes:
+                base = 2 * idx[nid]
+                m = float(np.hypot(u[base], u[base + 1]))
+                if m < best:
+                    best, best_n = m, nid
+            return (best, best_n) if best_n is not None else (None, None)
+        except Exception:
+            return (None, None)
+
+    def _max_vm(self):
+        if not self._nodal_stresses:
+            return (None, None, None)
+        try:
+            vals = {n: float(s.get("von_mises", 0.0))
+                    for n, s in self._nodal_stresses.items()}
+            best_n = max(vals, key=vals.get)
+            mean = float(np.mean(list(vals.values()))) if vals else 0.0
+            return (vals[best_n], best_n, mean)
+        except Exception:
+            return (None, None, None)
+
+    def _stress_extremes(self, comp: str):
+        ns = self._nodal_stresses
+        if not ns:
+            return ((None, None), (None, None))
+        vals = {n: float(s.get(comp, 0.0)) for n, s in ns.items()}
+        nmax = max(vals, key=vals.get)
+        nmin = min(vals, key=vals.get)
+        return ((vals[nmax], nmax), (vals[nmin], nmin))
+
+    def _mesh_quality_global(self):
+        mq = self._mesh_quality()
+        q = [r["scaled_jacobian"] for r in mq.values()]
+        if not q:
+            return None
+        worst = min(q)
+        if worst <= 0:
+            return r"\textcolor{red}{Inválida (elemento plegado)}"
+        if worst < 0.5:
+            return r"\textcolor{edufemProc}{Aceptable con distorsión}"
+        return r"\textcolor{edufemPost}{Buena}"
+
+    # ------------------------------------------------------------------
+    # Capítulo 9: resumen ejecutivo e interpretación
+    # ------------------------------------------------------------------
+
+    def _build_cap_resumen(self, showcase_id: Optional[int]) -> None:
+        td = self._td
+        td.section_numbered("Resumen e interpretación de resultados")
+        if self._prose:
+            self._chapter_card(
+                entra=r"$\mathbf{u}$, $\boldsymbol\sigma$ + diagnóstico",
+                formula=r"\max|u|,\ \max\sigma_{VM},\ \dots",
+                sale=r"Tabla ejecutiva + zonas críticas",
+                phase="post",
+            )
+
+        rows = []
+        umax, umax_n = self._max_disp()
+        if umax is not None:
+            rows.append([r"Desplazamiento máximo $|u|$", f"{umax:.4e}",
+                         f"nodo {umax_n}"])
+        umin, umin_n = self._min_disp()
+        if umin is not None:
+            rows.append([r"Desplazamiento mínimo $|u|$", f"{umin:.4e}",
+                         f"nodo {umin_n}"])
+        if self._nodal_stresses:
+            for comp, sym in (("sigma_x", r"$\sigma_x$"),
+                              ("sigma_y", r"$\sigma_y$"),
+                              ("tau_xy", r"$\tau_{xy}$"),
+                              ("von_mises", r"$\sigma_{VM}$")):
+                (vmx, nmx), (vmn, nmn) = self._stress_extremes(comp)
+                if vmx is not None:
+                    rows.append([rf"{sym} máximo", fmt(vmx, "stress"),
+                                 f"nodo {nmx}"])
+                    rows.append([rf"{sym} mínimo", fmt(vmn, "stress"),
+                                 f"nodo {nmn}"])
+        if showcase_id is not None:
+            rows.append([r"Elemento crítico (máx. energía)",
+                         f"E{showcase_id}", "--"])
+        vmax, vmax_n, _ = self._max_vm()
+        if vmax_n is not None:
+            rows.append([r"Nodo crítico (máx. $\sigma_{VM}$)",
+                         fmt(vmax, "stress"), f"nodo {vmax_n}"])
+        report = self._health()
+        if report is not None:
+            rows.append([r"Errores detectados", str(len(report.errors)),
+                         "--"])
+            rows.append([r"Advertencias detectadas",
+                         str(len(report.warnings)), "--"])
+        mq_verdict = self._mesh_quality_global()
+        if mq_verdict is not None:
+            rows.append([r"Calidad global de la malla", mq_verdict, "--"])
+
+        if rows:
+            self._longtable(headers=["Magnitud", "Valor", "Ubicación"],
+                            rows=rows, col_align="lrl")
+        else:
+            td.para(r"\emph{Sin resultados para resumir.}")
+
+        if self._prose:
+            partes = []
+            if vmax_n is not None:
+                partes.append(rf"la tensión equivalente máxima se concentra "
+                              rf"en el entorno del \textbf{{nodo {vmax_n}}}")
+            if umax_n is not None:
+                partes.append(rf"el mayor desplazamiento ocurre en el "
+                              rf"\textbf{{nodo {umax_n}}}")
+            if partes:
+                td.para(
+                    r"\textbf{Interpretación}: " + "; ".join(partes) +
+                    r". Esas son las zonas a vigilar: conviene revisar si "
+                    r"coinciden con apoyos, cambios bruscos de sección o "
+                    r"puntos de aplicación de carga, donde es esperable la "
+                    r"concentración de esfuerzos.")
 
     # ------------------------------------------------------------------
     # Glosario de símbolos (subsección final, solo educativo)

@@ -349,7 +349,7 @@ class StiffnessElementModule(CanvasOverlayModule):
         self._var_j = tk.StringVar(value=str(self._j))
         self._spin_j = ttk.Spinbox(sel, from_=1, to=n_dofs_init, width=4,
                     textvariable=self._var_j, command=self._on_ij_change)
-                    ).pack(side="left", padx=1)
+        self._spin_j.pack(side="left", padx=1)
         ttk.Separator(sel, orient="vertical").pack(side="left",
                                                     fill="y", padx=8)
         self._lbl_dim = ttk.Label(sel, text="", font=("Segoe UI", 9),
