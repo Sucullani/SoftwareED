@@ -117,6 +117,7 @@ class AssemblyModule(CanvasOverlayModule):
         self._assembled: set = set()
         self._anim_running = False
         self._pulse_after_id: Optional[str] = None
+        self._strike_after_id: Optional[str] = None
         self._mode = self.MODE_K
         self._show_reduced = False
         # Hover state: elemento bajo cursor del CANVAS o (i, j) bajo cursor
@@ -384,12 +385,14 @@ class AssemblyModule(CanvasOverlayModule):
             # Reparto: a cada DOF residual, asignamos su contribución al
             # primer elemento que contiene el nodo asociado. Es la misma
             # heurística que para nodal_loads.
+            # inv_map fuera del loop: antes se reconstruia por cada DOF
+            # (O(n_dof^2)); ahora una sola vez (O(n_dof)).
+            inv_map = {v: k for k, v in idx_map.items()}
             for dof, val in enumerate(residual):
                 if abs(val) < 1e-12:
                     continue
                 node_idx = dof // 2
                 # node_id desde index_map inverso
-                inv_map = {v: k for k, v in idx_map.items()}
                 node_id = inv_map.get(node_idx)
                 if node_id is None:
                     continue
@@ -466,8 +469,11 @@ class AssemblyModule(CanvasOverlayModule):
             self._redraw_panel()
             return
         self._pulse_frame_idx += 1
-        # Redibuja canvas (parpadeo binario) y matplotlib (flash de cells).
-        self._mesh.redraw()
+        # Redibuja SOLO las capas overlay (parpadeo binario del pulso, en el
+        # tag edu_m7) + matplotlib (flash de cells). La base ya esta dibujada
+        # (redraw completo en _do_assemble antes de iniciar el pulso); evitar
+        # el redraw() completo por frame mantiene el pulso fluido a ~30 fps.
+        self._mesh.redraw_overlays_only()
         self._redraw_panel()
         try:
             self._pulse_after_id = self._mesh.canvas.after(
@@ -890,7 +896,8 @@ class AssemblyModule(CanvasOverlayModule):
                          cy + (y_full[1] - cy) * t],
                     )
                 self._canvas_mpl.draw_idle()
-                self._mesh.canvas.after(30, lambda: step(k + 1))
+                self._strike_after_id = self._mesh.canvas.after(
+                    30, lambda: step(k + 1))
             except (tk.TclError, ValueError, AttributeError):
                 return
         step(1)
@@ -936,6 +943,14 @@ class AssemblyModule(CanvasOverlayModule):
             except tk.TclError:
                 pass
             self._pulse_after_id = None
+        # Cancelar el after pendiente de la animacion de tachado (_animate_strike)
+        # para que no dispare draw_idle sobre un canvas matplotlib destruido.
+        if getattr(self, "_strike_after_id", None):
+            try:
+                self._mesh.canvas.after_cancel(self._strike_after_id)
+            except tk.TclError:
+                pass
+            self._strike_after_id = None
         # Restaurar el hook hover.
         try:
             if self._mesh.on_hover_element == self._on_canvas_hover_element:

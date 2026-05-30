@@ -365,7 +365,7 @@ Hooks que cada módulo Overlay sobrescribe:
 2. **La iluminación se aplica al canvas REAL** vía `add_overlay_layer`, no a una copia auxiliar.
 3. **Los datos extensos (matrices LaTeX, gráficos)** viven en el overlay flotante. Arrastrable, cerrable.
 4. **Tags propios con prefijo `edu_X`** (donde X = módulo): `edu_m0`, `edu_m2`, etc. El primer paso de `draw_canvas_layer` es siempre `mesh.canvas.delete(_TAG)`.
-5. **Pulsación / animación**: usar `mesh.after(33, callback)` para ~30 fps. Guardar el `after_id` para cancelarlo en `on_closed()`.
+5. **Pulsación / animación**: usar `mesh.after(33, callback)` para ~30 fps. Guardar el `after_id` para cancelarlo en `on_closed()`. **En el loop usar `mesh.redraw_overlays_only()`, NO `mesh.redraw()`**: el redraw completo rasteriza toda la malla + campo (~80-200ms) por frame; `redraw_overlays_only()` re-ejecuta SOLO las capas `edu_*` registradas (cada una borra su tag propio), asumiendo que un `redraw()` completo corrió antes (lo garantiza `add_overlay_layer`). Usado por M4, M7 y el hover de snap del probe del Post.
 6. **No mutar el project sin confirmar** — el drag de M0 distorsiona la *visualización* pero NO el `project.nodes`. La mutación real requiere acción explícita del usuario.
 
 #### Migración completada (9 módulos)
@@ -502,7 +502,7 @@ Componentes VIVOS en [education/components/](education/components/): `LatexMatri
 - [config/settings.py](config/settings.py): magic strings, colores, tolerancias, fonts, decimales. **Importar desde aquí, no hardcodear**.
 - [config/units.py](config/units.py): 8 sistemas predefinidos (SI ×4 + Imperial ×2 + Técnico kgf/tonf ×2) + factores `_LENGTH_TO_M / _FORCE_TO_N / _STRESS_TO_PA` para conversión real.
 - [gui/widgets/](gui/widgets/): `ToolTip`, `phase_banner.build_phase_banner`, `module_launcher_panel.render_module_buttons`.
-- [file_io/](file_io/): CSV ([csv_io.py](file_io/csv_io.py) con columnas dinámicas Q4/Q9), PDF (reportlab/PyMuPDF/pylatex), JSON proyecto, ZIP modelo, DXF (ver sección dedicada).
+- [file_io/](file_io/): CSV/ZIP del modelo ([model_io.py](file_io/model_io.py) con columnas dinámicas Q4/Q9), PDF (reportlab/PyMuPDF/pylatex), JSON proyecto ([project_io.py](file_io/project_io.py), escritura atómica tmp+fsync+replace), DXF (ver sección dedicada).
 - [tests/example_data.py](tests/example_data.py): canónico (E=225000, ν=0.2, t=0.8, P=1000). `load_example_project(P)` Q4 9-nodos, `load_example_project_q9(P)` 25-nodos.
 
 ### Memoria de Cálculo — tres estilos + auto-detect de paso-a-paso (reformulada 2026-05)
@@ -801,7 +801,7 @@ Prioridades sugeridas (mantener API estable):
 
 1. **K sparse** (alta): `scipy.sparse.csr_matrix` vía COO incremental. Memoria O(nnz). Mantener rama densa solo para M5 (`K.toarray()`). El resto consume K vía operadores sparse-friendly.
 2. **Solver SPD sparse** (alta): `scipy.sparse.linalg.spsolve` (UMFPACK) por default, opcional `sksparse.cholmod.cholesky` con import diferido (pattern `_require_cholmod()` igual que `ezdxf`).
-3. **RCM** (media): `scipy.sparse.csgraph.reverse_cuthill_mckee` antes de factorizar. 2–5× menos fill-in en mallas estructuradas. Flag `SOLVER_USE_RCM` en settings para comparar en M9.
+3. **RCM** (media): `scipy.sparse.csgraph.reverse_cuthill_mckee` antes de factorizar. 2–5× menos fill-in en mallas estructuradas. **Implementado** tras el flag `SOLVER_USE_RCM` en `config/settings.py` (DEFAULT `False`): `fem/solver._solve_reduced` permuta K_red, resuelve y despermuta. Con el flag en `False` el output es bit-a-bit idéntico al solver clásico; con `True` coincide dentro de 1e-13. Activar para comparar en M9.
 4. **Ensamblaje vectorizado** (media): `np.einsum("egki,kl,eglj,eg,g->eij", ...)` batch. **Mantener** la versión escalar como referencia pedagógica para M2/M4/M5. Decidir cuál usar según `VECTORIZED_THRESHOLD`.
 5. **Cache de B/J por shape signature** (baja): solo si profiling muestra que domina.
 6. **SRI / B-bar para volumetric locking** (baja, alto valor pedagógico): opt-in vía `Material.use_sri`. Excelente para un módulo M10 "Locking volumétrico".

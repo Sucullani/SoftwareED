@@ -44,6 +44,8 @@ from typing import Optional
 
 import tkinter as tk
 
+import numpy as np
+
 from config.settings import (
     PROBE_PIN_COLOR, GAUSS_MARKER_COLOR, GAUSS_MARKER_SIZE_PX,
     PROBE_GAUSS_SNAP_PX, PROBE_NODE_SNAP_PX, PROBE_NODE_SNAP_COLOR,
@@ -52,8 +54,10 @@ from config.settings import (
 )
 from fem.probe_query import (
     inverse_iso_map_NR, compute_raw, compute_smooth,
-    crude_values_at_node, gauss_physical_coords,
+    crude_values_at_node, gauss_physical_coords, displacement_at,
+    _Q4_NODE_NATURAL, _Q9_NODE_NATURAL,
 )
+from fem.shape_functions import get_shape_functions
 from gui.widgets.probe_tooltip import ProbeTooltip
 
 
@@ -295,7 +299,6 @@ class ProbeOverlay:
 
     def _elem_coords(self, elem):
         """Coords originales del elemento en orden de node_ids."""
-        import numpy as np
         return np.array(
             [[self.project.nodes[nid].x, self.project.nodes[nid].y]
              for nid in elem.node_ids],
@@ -379,25 +382,28 @@ class ProbeOverlay:
             else:
                 self._snapped_node_id = nid
                 self._show_node_tooltip(nid, event.x, event.y)
-                self.mesh_canvas.redraw()
+                # Solo la capa overlay (anillo de snap, tag _TAG): el campo,
+                # isolineas y malla no cambian en el hover. redraw() completo
+                # rasterizaria todo por movimiento del mouse.
+                self.mesh_canvas.redraw_overlays_only()
             return
         if gp is not None:
             if self._snapped_node_id is not None:
                 self._snapped_node_id = None
-                self.mesh_canvas.redraw()
+                self.mesh_canvas.redraw_overlays_only()
             self._show_gauss_tooltip(gp, event.x, event.y)
             return
         if nid is not None:
             if self._snapped_node_id != nid:
                 self._snapped_node_id = nid
-                self.mesh_canvas.redraw()
+                self.mesh_canvas.redraw_overlays_only()
             self._show_node_tooltip(nid, event.x, event.y)
             return
 
         # Si veniamos snappeados a un nodo, redibujar para quitar el anillo
         if self._snapped_node_id is not None:
             self._snapped_node_id = None
-            self.mesh_canvas.redraw()
+            self.mesh_canvas.redraw_overlays_only()
 
         # Punto libre: con throttle.
         self._last_motion_xy = (event.x, event.y)
@@ -690,7 +696,6 @@ class ProbeOverlay:
             if target_elem is None or local_idx is None:
                 return None
             # Coords naturales del nodo dentro de ese elemento
-            from fem.probe_query import _Q4_NODE_NATURAL, _Q9_NODE_NATURAL
             table = (_Q4_NODE_NATURAL if self.project.element_type.startswith("Q4")
                      else _Q9_NODE_NATURAL)
             if local_idx >= len(table):
@@ -757,7 +762,6 @@ class ProbeOverlay:
 
     def _ux_uy_at(self, elem_id, xi, eta):
         """Helper: interpola (ux, uy) usando las shape functions."""
-        from fem.probe_query import displacement_at
         return displacement_at(self.project, self.solution, elem_id, xi, eta)
 
     def _copy_values_tsv(self, target):
@@ -874,7 +878,6 @@ class ProbeOverlay:
 
 
     def _natural_to_physical(self, elem_id, xi, eta):
-        from fem.shape_functions import get_shape_functions
         elem = self.project.elements[elem_id]
         coords = self._elem_coords(elem)
         N_func, _ = get_shape_functions(self.project.element_type)

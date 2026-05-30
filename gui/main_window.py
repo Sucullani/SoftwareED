@@ -96,24 +96,69 @@ class MainWindow:
         # mucho antes de que el usuario abra un modulo educativo.
         self.root.after_idle(self._init_matplotlib_style)
 
+        # ─── Cold-start de Numba (JIT) ──────────────────────────────────
+        # El primer `solve_system` paga la compilacion JIT de los kernels
+        # @njit del motor FEM (~2-6s), congelando el loop de Tk justo cuando
+        # el alumno cambia a Post-Proceso. Disparamos un solve dummy en un
+        # thread daemon al boot (no toca Tk: solo NumPy/Numba puro) para que
+        # la compilacion ocurra en background y el primer solve real sea
+        # cache-hit. Mismo patron que el warmup de mathtext.
+        self.root.after_idle(self._warmup_numba)
+
+    def _warmup_numba(self):
+        """Fuerza la compilacion JIT de Numba en un thread daemon resolviendo
+        un modelo de ejemplo. No toca Tk (solo el motor FEM puro), por eso es
+        seguro fuera del hilo principal."""
+        def _worker():
+            try:
+                from tests.example_data import load_example_project
+                from fem.solver import solve_system
+                from fem.stress import compute_all_stresses
+                proj = load_example_project()
+                sol = solve_system(proj)
+                compute_all_stresses(proj, sol)
+            except Exception:
+                pass
+
+        import threading
+        threading.Thread(
+            target=_worker, name="EduFEM-NumbaWarmup", daemon=True
+        ).start()
+
     def _init_matplotlib_style(self):
         """Configura mathtext (CM) y calienta el cache de fuentes.
 
         Diferido fuera del constructor (via after_idle). `configure_latex_style`
         importa matplotlib y fija rcParams en el hilo principal (antes de crear
-        cualquier figura). El cold-start del fontmanager/parser (~1s) corre en
-        un thread daemon para que el primer modulo educativo no lo pague.
+        cualquier figura). El cold-start del fontmanager/parser se calienta
+        TROCEADO en el hilo principal (2-3 expresiones por tick via
+        `after_idle`), evitando el cruce de hilos del antiguo daemon thread
+        (pyplot/fontmanager no son thread-safe respecto al main loop de Tk).
         """
         try:
-            from config.matplotlib_config import configure_latex_style, warmup_mathtext
+            from config.matplotlib_config import (
+                configure_latex_style, MATHTEXT_WARMUP_EXPRESSIONS,
+            )
             configure_latex_style()
-            import threading
-            threading.Thread(
-                target=warmup_mathtext, name="EduFEM-MathtextWarmup",
-                daemon=True,
-            ).start()
+            self._mathtext_warmup_queue = list(MATHTEXT_WARMUP_EXPRESSIONS)
+            self.root.after_idle(self._warmup_mathtext_chunk)
         except Exception:
             pass
+
+    def _warmup_mathtext_chunk(self):
+        """Calienta el cache mathtext de a 3 expresiones por tick idle, en el
+        hilo principal. Reagenda hasta vaciar la cola."""
+        queue = getattr(self, "_mathtext_warmup_queue", None)
+        if not queue:
+            return
+        chunk, self._mathtext_warmup_queue = queue[:3], queue[3:]
+        try:
+            from config.matplotlib_config import warmup_mathtext_chunk
+            warmup_mathtext_chunk(chunk)
+        except Exception:
+            pass
+        if self._mathtext_warmup_queue:
+            self.root.after_idle(self._warmup_mathtext_chunk)
 
     # ═════════════════════════════════════════════════════════════════════
     # LAYOUT PRINCIPAL
@@ -899,11 +944,9 @@ class MainWindow:
 
     def _save_to_file(self, filepath):
         try:
-            data = self.project.to_dict()
-            with open(filepath, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=2, ensure_ascii=False)
-            self.project.file_path = filepath
-            self.project.is_modified = False
+            # Delega en save_project (escritura atómica: tmp + fsync + replace).
+            from file_io.project_io import save_project
+            save_project(self.project, filepath)
             self.set_status(f"Proyecto guardado: {os.path.basename(filepath)}")
 
             recent_files.add(filepath)

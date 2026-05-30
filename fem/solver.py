@@ -67,6 +67,32 @@ def apply_boundary_conditions(K, F, restrained_dofs, u_prescribed=None):
     return K_red, F_red, free_dofs
 
 
+def _solve_reduced(K_red, F_red):
+    """Resuelve K_red · u = F_red.
+
+    Si `SOLVER_USE_RCM` esta activo y K_red es sparse, aplica el
+    reordenamiento Reverse Cuthill-McKee antes de factorizar (reduce el
+    fill-in en mallas estructuradas) y despermuta la solucion. Con el flag
+    en False resuelve directo — output bit-a-bit identico al solver clasico.
+    """
+    from config.settings import SOLVER_USE_RCM
+
+    if SOLVER_USE_RCM and hasattr(K_red, "tocsr"):
+        from scipy.sparse.csgraph import reverse_cuthill_mckee
+        K_csr = K_red.tocsr()
+        perm = reverse_cuthill_mckee(K_csr, symmetric_mode=True)
+        # Permutar filas y columnas: K_p = K[perm][:, perm], F_p = F[perm].
+        K_perm = K_csr[perm, :][:, perm]
+        F_perm = F_red[perm]
+        u_perm = spsolve(K_perm, F_perm)
+        # Despermutar: u[perm[i]] = u_perm[i].
+        u_free = np.empty_like(u_perm)
+        u_free[perm] = u_perm
+        return u_free
+
+    return spsolve(K_red, F_red)
+
+
 def solve_system(project, *, body_force_fn=None):
     """
     Resuelve el sistema completo: ensamblaje + condiciones de borde + solución.
@@ -90,9 +116,11 @@ def solve_system(project, *, body_force_fn=None):
 
     # 2. Obtener GDL restringidos
     restrained_dofs = project.get_restrained_dofs()
-    free_dofs_list = project.get_free_dofs()
 
-    if len(free_dofs_list) == 0:
+    # Chequeo "todos restringidos" sin construir get_free_dofs() (O(n) lista):
+    # basta el conteo total - restringidos.
+    n_free = project.total_dof - len(restrained_dofs)
+    if n_free == 0:
         raise ValueError("Todos los GDL están restringidos. No hay nada que resolver.")
 
     if len(restrained_dofs) == 0:
@@ -110,7 +138,7 @@ def solve_system(project, *, body_force_fn=None):
     )
 
     # 5. Resolver K_red · u_free = F_red (spsolve acepta CSR/CSC y denso)
-    u_free = spsolve(K_red, F_red)
+    u_free = _solve_reduced(K_red, F_red)
     if np.any(~np.isfinite(u_free)):
         raise ValueError(
             "El solver produjo valores NaN o Inf. Verifica que K no sea "
@@ -128,8 +156,14 @@ def solve_system(project, *, body_force_fn=None):
         rest_arr = np.asarray(restrained_dofs, dtype=np.intp)
         u[rest_arr] = u_prescribed[rest_arr]
 
-    # 7. Calcular reacciones: R = K · u - F
-    reactions = K @ u - F
+    # 7. Calcular reacciones: R = K · u - F, SOLO en los GDL restringidos.
+    #    En los GDL libres R es ~0 (residuo numerico ~1e-12); ponerlo en 0
+    #    exacto evita la multiplicacion densa K @ u completa (solo se evaluan
+    #    las filas restringidas) y deja R limpio para lectura/reporte.
+    reactions = np.zeros(project.total_dof)
+    if len(restrained_dofs) > 0:
+        rest = np.asarray(restrained_dofs, dtype=np.intp)
+        reactions[rest] = np.asarray(K[rest, :] @ u).ravel() - F[rest]
 
     return {
         "u": u,

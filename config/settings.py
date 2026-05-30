@@ -272,6 +272,14 @@ LATEX_OVERLAY_FONTSIZE   = 12
 NUMERICAL_TOLERANCE = 1e-10
 JACOBIAN_MIN_DETERMINANT = 1e-12
 
+# ─── Solucionador ──────────────────────────────────────────────────────────
+# Reordenamiento Reverse Cuthill-McKee (RCM) antes de factorizar K_red.
+# Reduce el fill-in 2-5x en mallas estructuradas. DESACTIVADO por defecto:
+# con el flag en False el output es bit-a-bit idéntico al solver clásico
+# (la permutación + despermutación son una identidad numérica). Activarlo
+# para comparar rendimiento en mallas grandes (M9).
+SOLVER_USE_RCM = False
+
 # ─── Formato de archivos ───────────────────────────────────────────────────
 PROJECT_FILE_EXTENSION = ".edufem"
 PROJECT_FILE_DESCRIPTION = "Proyecto EduFEM"

@@ -4,6 +4,7 @@ Soporta zoom, pan, nodos, elementos, cargas, restricciones,
 visualizacion de resultados con gradiente suave (jet) e isolineas.
 """
 
+import math
 import tkinter as tk
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
@@ -635,17 +636,23 @@ class MeshCanvas(ttk.Frame):
             if not painted:
                 self._draw_gradient_elements()
 
+        # Clasificaciones puras computadas UNA vez por redraw y compartidas
+        # entre las capas de dibujo (antes cada _draw_* las recomputaba:
+        # classify_orphan_status corria 4x, classify_nodes 2x por frame).
+        roles = classify_nodes(self.project)
+        orphan_status = classify_orphan_status(self.project)
+
         self._draw_elements()
-        self._draw_nodes()
+        self._draw_nodes(roles=roles, orphan_status=orphan_status)
 
         if self.show_loads:
-            self._draw_loads()
+            self._draw_loads(orphan_status=orphan_status)
             # Cargas superficiales (trapezoide + flechitas distribuidas).
             # Visibles siempre que show_loads este activo, no solo al
             # seleccionar. El metodo dibuja su propio halo si highlighted.
-            self._draw_surface_loads()
+            self._draw_surface_loads(orphan_status=orphan_status)
         if self.show_constraints:
-            self._draw_constraints()
+            self._draw_constraints(orphan_status=orphan_status)
 
         self._draw_highlight()
 
@@ -680,6 +687,24 @@ class MeshCanvas(ttk.Frame):
                 # Una capa defectuosa NO debe romper el redraw global.
                 pass
 
+    def redraw_overlays_only(self):
+        """Re-ejecuta SOLO las capas educativas registradas, sin tocar la
+        base (no hace `canvas.delete("all")` ni redibuja grilla/malla/campo).
+
+        Cada capa borra su propio tag `edu_*` al inicio de su callable, asi
+        que re-ejecutarlas las refresca sin acumular dibujos. Pensado para
+        los loops de animacion (~30 fps) de los modulos overlay (glow de M4,
+        pulso de M7, hover de snap del probe): un `redraw()` completo por
+        frame rasteriza toda la malla y el campo (~80-200ms), inutilizable a
+        30 fps. PRECONDICION: un `redraw()` completo debe haber corrido antes
+        (la base ya esta dibujada en el canvas)."""
+        for layer in list(self._overlay_layers):
+            try:
+                layer(self)
+            except Exception:
+                # Una capa defectuosa NO debe romper la animacion.
+                pass
+
     # ═════════════════════════════════════════════════════════════════════
     # GRILLA, EJES, GHOST
     # ═════════════════════════════════════════════════════════════════════
@@ -692,15 +717,21 @@ class MeshCanvas(ttk.Frame):
         spacing = max(30, int(50 * self.scale))
         if spacing > 200:
             spacing = 200
-        for i in range(-20, 60):
-            sx = i * spacing + (self.offset_x % spacing)
+        # Iterar SOLO el rango visible (antes range(-20, 60) fijo: desperdicia
+        # iteraciones fuera de pantalla y, peor, omite lineas en viewports
+        # anchos cuando spacing es chico). Las lineas estan en
+        # sx = i*spacing + (offset_x % spacing), fase en [0, spacing).
+        phase_x = self.offset_x % spacing
+        for i in range(0, math.ceil((w - phase_x) / spacing) + 1):
+            sx = i * spacing + phase_x
             if 0 <= sx <= w:
                 self.canvas.create_line(
                     sx, 0, sx, h, fill=CANVAS_GRID_COLOR, width=1, dash=(2, 6),
                     tags=("screen", "grid"),
                 )
-        for i in range(-20, 60):
-            sy = i * spacing + (self.offset_y % spacing)
+        phase_y = self.offset_y % spacing
+        for i in range(0, math.ceil((h - phase_y) / spacing) + 1):
+            sy = i * spacing + phase_y
             if 0 <= sy <= h:
                 self.canvas.create_line(
                     0, sy, w, sy, fill=CANVAS_GRID_COLOR, width=1, dash=(2, 6),
@@ -1121,7 +1152,12 @@ class MeshCanvas(ttk.Frame):
         levels = np.linspace(self.result_vmin, self.result_vmax,
                              n_levels + 2)[1:-1]
 
-        n_grid = 16
+        # En modo CRUDO la grilla viene pre-computada por post_tab (típicamente
+        # 7x7, n=6). Derivamos n_grid del tamaño nativo de cada grilla para
+        # NO resamplear 7x7 -> 16x16 (doble loop Python por elemento). En modo
+        # suavizado interpolamos sobre una grilla fina (16) para curvas lisas.
+        raw_mode = self.element_result_grid is not None
+        default_n_grid = 16
         scale = self.scale
         ox = self.offset_x
         oy = self.offset_y
@@ -1130,6 +1166,13 @@ class MeshCanvas(ttk.Frame):
             nids = elem.node_ids[:4]
             if not all(nid in self.project.nodes for nid in nids):
                 continue
+            if raw_mode:
+                native = self.element_result_grid.get(elem.id)
+                if native is None:
+                    continue
+                n_grid = native.shape[0]  # puntos nativos (n+1)
+            else:
+                n_grid = default_n_grid
             grid_vals, ok = self._get_grid_values(elem, n_grid - 1)
             if not ok:
                 continue
@@ -1228,9 +1271,13 @@ class MeshCanvas(ttk.Frame):
         """
         return classify_nodes(self.project)
 
-    def _draw_nodes(self):
-        roles = self._classify_nodes()
-        orphan_status = classify_orphan_status(self.project)
+    def _draw_nodes(self, roles=None, orphan_status=None):
+        # roles / orphan_status: clasificaciones puras opcionalmente
+        # precomputadas por redraw() (evita recomputarlas 4-5x por frame).
+        if roles is None:
+            roles = self._classify_nodes()
+        if orphan_status is None:
+            orphan_status = classify_orphan_status(self.project)
         for nid, node in self.project.nodes.items():
             sx, sy = self._get_node_screen_pos(nid)
             role = roles.get(nid, "corner")
@@ -1299,11 +1346,12 @@ class MeshCanvas(ttk.Frame):
                     tags=("world", "nodes"),
                 )
 
-    def _draw_loads(self):
+    def _draw_loads(self, orphan_status=None):
         arrow_len = 44
         ghost = self.ghost_geometry          # malla base atenuada (M0)
         shadow_col = "" if ghost else SHADOW_LOAD
-        orphan_status = classify_orphan_status(self.project)
+        if orphan_status is None:
+            orphan_status = classify_orphan_status(self.project)
         for load in self.project.nodal_loads.values():
             node = self.project.nodes.get(load.node_id)
             if node is None:
@@ -1397,7 +1445,7 @@ class MeshCanvas(ttk.Frame):
         self.canvas.tag_raise(tid, rid)
         return tid
 
-    def _draw_constraints(self):
+    def _draw_constraints(self, orphan_status=None):
         """Dibuja simbolos de restriccion con notacion estandar:
         - is_fixed     : triangulo + hatching (empotramiento)
         - is_roller_y  : restringe Δy => triangulo apoyado en una superficie
@@ -1410,7 +1458,8 @@ class MeshCanvas(ttk.Frame):
         del fondo oscuro; outline en color de fase; hatching mas espaciado.
         """
         size = 12
-        orphan_status = classify_orphan_status(self.project)
+        if orphan_status is None:
+            orphan_status = classify_orphan_status(self.project)
         for bc in self.project.boundary_conditions.values():
             node = self.project.nodes.get(bc.node_id)
             if node is None:
@@ -1570,7 +1619,7 @@ class MeshCanvas(ttk.Frame):
                 tags=("world", "highlight"),
             )
 
-    def _draw_surface_loads(self):
+    def _draw_surface_loads(self, orphan_status=None):
         """Dibuja todas las cargas superficiales como trapezoide + flechitas.
 
         Para cada SurfaceLoad:
@@ -1584,7 +1633,6 @@ class MeshCanvas(ttk.Frame):
         - Si la carga esta highlighted, usa color SELECTED y dibuja halos
           en los nodos extremos.
         """
-        import math
         if not self.project.surface_loads:
             return
         ghost = self.ghost_geometry          # malla base atenuada (M0)
@@ -1596,7 +1644,8 @@ class MeshCanvas(ttk.Frame):
             qmax = 1.0
         arrow_max = 60   # px maximo de flecha
         n_arrows = 8     # cantidad de flechitas distribuidas
-        orphan_status = classify_orphan_status(self.project)
+        if orphan_status is None:
+            orphan_status = classify_orphan_status(self.project)
 
         for idx, sl in enumerate(self.project.surface_loads):
             if (sl.node_start not in self.project.nodes

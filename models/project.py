@@ -100,6 +100,8 @@ class ProjectModel:
             return
         del self.nodes[node_id]
         self._node_index_map_cache = None
+        # Mantener el indice inverso coherente (el nodo ya no existe).
+        self._node_to_elements.pop(node_id, None)
         # Cargas nodales asociadas
         if node_id in self.nodal_loads:
             del self.nodal_loads[node_id]
@@ -210,10 +212,9 @@ class ProjectModel:
             return {"elements_to_delete": [], "nodes_to_delete": [],
                     "nodes_to_preserve": []}
 
-        elements_to_delete = [
-            eid for eid, e in self.elements.items()
-            if node_id in e.node_ids
-        ]
+        # Elementos que contienen el nodo: lookup O(1) en el indice inverso.
+        elements_to_delete = list(self._node_to_elements.get(node_id, set()))
+        deleted_set = set(elements_to_delete)
         # Conjunto de nodos que estarian en los elementos eliminados,
         # excluyendo el objetivo (lo reportamos aparte).
         candidate_nodes = set()
@@ -224,15 +225,12 @@ class ProjectModel:
 
         nodes_to_delete = []
         nodes_to_preserve = []
-        elements_after = {
-            eid: e for eid, e in self.elements.items()
-            if eid not in elements_to_delete
-        }
         for nid in candidate_nodes:
             if nid not in self.nodes:
                 continue
-            still_in_element = any(
-                nid in e.node_ids for e in elements_after.values()
+            # Sigue en algun elemento NO marcado para borrar? O(1) via indice.
+            still_in_element = bool(
+                self._node_to_elements.get(nid, set()) - deleted_set
             )
             if still_in_element:
                 continue

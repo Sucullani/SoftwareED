@@ -2,16 +2,12 @@
 latex_image: Renderiza matrices y expresiones LaTeX como PhotoImages
 embebibles en widgets Tk.
 
-Backend dual (UX 2026):
-    1. **pdflatex + fitz** (default cuando MiKTeX/TeX Live disponible):
-       compila via `config.latex_cache` y produce PNG con calidad
-       documento (`\\begin{bmatrix}` real, kerning AMS, tipografia CMU).
-       El cache persiste en disco entre sesiones.
-    2. **matplotlib mathtext** (fallback): render legacy con corchetes
-       manuales celda-por-celda. Sigue funcionando sin pdflatex.
-
-La decision es transparente para el caller: misma API. Si pdflatex no
-esta disponible, las llamadas degradan automaticamente al fallback.
+Backend único: matplotlib mathtext (UX 2026).
+    Renderiza con corchetes manuales celda-por-celda (mathtext NO soporta
+    `\\begin{bmatrix}`) + `\\substack` por columna. Tipografia Computer
+    Modern via `config.matplotlib_config`. ~30-80 ms por render. No requiere
+    pdflatex/MiKTeX (el antiguo pipeline pdflatex + cache en disco fue
+    retirado en la limpieza 2026-05).
 
 Componentes:
     - `render_matrix_image(matrix, ...)` -> PhotoImage de la matriz.
@@ -20,10 +16,9 @@ Componentes:
     - `LatexExpressionImage` -> ttk.Label para expresiones escalares.
 
 Caché:
-    Dual: cache en disco del pipeline pdflatex (~/.edufem/latex_cache/)
-    + cache en memoria del fallback mathtext (~30-80 ms por render).
-    Para matrices con valores que cambian (live update en M2/M4), el
-    caller habilita `cache=False` para invalidar la memoria.
+    En memoria, por clave (cells/expr + fontsize + color + bg). Para
+    matrices con valores que cambian (live update en M2/M4), el caller
+    habilita `cache=False` para invalidar la memoria.
 """
 
 from __future__ import annotations
@@ -408,16 +403,6 @@ def render_expression_image(
     if cache:
         _CACHE[key] = photo
     return photo
-
-
-def _pdflatex_available() -> bool:
-    """Cached check de pdflatex. Wrapper sobre latex_cache para evitar
-    imports circulares en topo modulo."""
-    try:
-        from config import latex_cache
-        return latex_cache.is_latex_available()
-    except Exception:
-        return False
 
 
 def _placeholder_for_matrix(
@@ -980,154 +965,7 @@ def clear_cache() -> None:
     _CACHE.clear()
 
 
-# ─── Backend pdflatex: cache-hit-only (sin bloquear) + helpers ─────────────
-#
-# Politica anti-lag (2026-05):
-#   - Las funciones puras `render_*_image` SOLO chequean el cache disco;
-#     NO compilan. Si miss, devuelven mathtext rapido.
-#   - Los widgets LatexMatrixImage / LatexExpressionImage agendan el
-#     compile en un thread daemon (`_schedule_async_upgrade`). Cuando
-#     termina, hacen `widget.after(0, swap_photo)` en el main thread.
-#   - Resultado: cold render = mathtext instantaneo. ~2-3 s despues,
-#     swap silencioso al PNG LaTeX. Refresh siguiente con misma matriz
-#     = cache hit directo desde la primera llamada.
-
-
-def _build_latex_body_matrix(cells: np.ndarray, prefix: str) -> Optional[str]:
-    """Construye el body LaTeX completo para una matriz. Retorna None si
-    la matriz esta vacia (caller cae al fallback)."""
-    rows, cols = cells.shape
-    if rows == 0 or cols == 0:
-        return None
-    rows_tex = [" & ".join(_cell_for_latex(c) for c in row) for row in cells]
-    body_matrix = r"\begin{bmatrix} " + r" \\ ".join(rows_tex) + r" \end{bmatrix}"
-    return f"{prefix} {body_matrix}" if prefix else body_matrix
-
-
-def _latex_dpi_for_fontsize(fontsize: int) -> int:
-    """DPI de compile pdflatex calibrado al fontsize mathtext equivalente.
-    Mathtext fontsize ~12 ≈ pdflatex CMU 11pt @ dpi 204; ~14 ≈ dpi 238."""
-    return max(160, int(fontsize * 17))
-
-
-def _load_cached_latex_png(
-    body: str, *, fontsize: int, color: str, bg: str,
-) -> Optional[ImageTk.PhotoImage]:
-    """Carga el PNG si esta en cache disco. NO compila. Retorna None si
-    pdflatex no esta o el body no esta cacheado."""
-    try:
-        from config import latex_cache
-    except Exception:
-        return None
-    if not latex_cache.is_latex_available():
-        return None
-
-    target_dpi = _latex_dpi_for_fontsize(fontsize)
-    try:
-        # Check sin compile: replica el hashing del cache y mira disco.
-        # latex_cache no expone esto directo; usamos get_or_compile que
-        # hace cache check FIRST y retorna inmediato si hit.
-        # Para garantizar no-compile, validamos con un hash manual.
-        key = _make_latex_key(body, target_dpi, color, bg)
-        png = latex_cache.cache_dir() / f"{key}.png"
-        if not (png.exists() and png.stat().st_size > 0):
-            return None
-        img = Image.open(png).convert("RGBA")
-        w, h = img.size
-        img = img.resize((max(1, w // 2), max(1, h // 2)), Image.LANCZOS)
-        return ImageTk.PhotoImage(img)
-    except Exception:
-        return None
-
-
-def _make_latex_key(body: str, dpi: int, color: str, bg: str) -> str:
-    """Replica el `_make_key` de latex_cache (sin exponer al import path
-    interno de latex_cache). Mantenelo sincronizado."""
-    import hashlib
-    payload = f"v1|{body}|{dpi}|{color}|{bg}".encode("utf-8")
-    return hashlib.sha256(payload).hexdigest()[:16]
-
-
-def _try_load_expression_latex_from_cache(
-    body: str, *, fontsize: int, color: str, bg: str,
-) -> Optional[ImageTk.PhotoImage]:
-    """Wrapper de `_load_cached_latex_png` para expresiones."""
-    return _load_cached_latex_png(body, fontsize=fontsize, color=color, bg=bg)
-
-
-def _try_load_matrix_latex_from_cache(
-    cells: np.ndarray, *, prefix: str, fontsize: int, color: str, bg: str,
-) -> Optional[ImageTk.PhotoImage]:
-    """Wrapper para matrices."""
-    body = _build_latex_body_matrix(cells, prefix)
-    if body is None:
-        return None
-    return _load_cached_latex_png(body, fontsize=fontsize, color=color, bg=bg)
-
-
-def schedule_async_latex_upgrade(
-    widget,
-    *,
-    body: str,
-    fontsize: int,
-    color: str,
-    bg: str,
-) -> None:
-    """Agenda en thread daemon la compilacion pdflatex de `body` y, al
-    terminar, hace `widget.configure(image=new_photo)` desde el main
-    thread via `widget.after(0, ...)`.
-
-    Si pdflatex no esta o compile falla, no hace nada (el widget
-    conserva su render mathtext inicial). Idempotente: el cache de
-    latex_cache deduplica compiles concurrentes con la misma key.
-    """
-    try:
-        from config import latex_cache
-    except Exception:
-        return
-    if not latex_cache.is_latex_available():
-        return
-
-    target_dpi = _latex_dpi_for_fontsize(fontsize)
-
-    def _worker():
-        try:
-            png = latex_cache.get_or_compile(
-                body, dpi=target_dpi, color=color, bg=bg,
-            )
-        except Exception:
-            return
-        if png is None or not png.exists():
-            return
-        try:
-            img = Image.open(png).convert("RGBA")
-            w, h = img.size
-            img = img.resize((max(1, w // 2), max(1, h // 2)), Image.LANCZOS)
-        except Exception:
-            return
-
-        # Cambio de UI debe correr en main thread.
-        def _swap():
-            try:
-                # Anti-race: si el widget fue destruido entre el spawn
-                # del thread y este callback, `winfo_exists` retorna 0.
-                if not widget.winfo_exists():
-                    return
-                photo = ImageTk.PhotoImage(img)
-                widget.configure(image=photo)
-                # Guardar referencia anti-GC en el widget.
-                widget._latex_async_photo_ref = photo  # type: ignore[attr-defined]
-            except Exception:
-                pass
-
-        try:
-            widget.after(0, _swap)
-        except Exception:
-            pass
-
-    import threading
-    t = threading.Thread(target=_worker, name="EduFEM-LatexAsync", daemon=True)
-    t.start()
+# ─── Conversion de celdas a mathtext ───────────────────────────────────────
 
 
 def _cell_for_mathtext(raw: str) -> str:
@@ -1149,43 +987,6 @@ def _cell_for_mathtext(raw: str) -> str:
         return s
     converted = _unicode_math_to_latex(s)
     return f"${converted}$"
-
-
-def _cell_for_latex(cell) -> str:
-    """Normaliza una celda (string desde _matrix_to_strings) para LaTeX
-    matematico. Casos:
-       - "..." -> `\\ldots`
-       - numeros (+0.234) -> tal cual (math mode los acepta nativo)
-       - chars de math Unicode (∂, ξ, η, etc.) -> convertir a comandos
-         LaTeX y dejar en math mode (los modulos pasan "∂x/∂ξ" como
-         celda; CMU Roman NO tiene esos glifos asi que sin conversion
-         pdflatex falla silenciosamente)
-       - texto que ya parece sintaxis LaTeX math (`\\partial x`) -> tal cual
-       - todo lo demas -> `\\text{...}` con escape de chars especiales
-    """
-    s = str(cell)
-    if s in ("...", "…"):
-        return r"\ldots"
-    if all(c.isdigit() or c in "+-.eE " for c in s):
-        return s
-    # Si parece sintaxis LaTeX math (contiene \\backslash y solo chars
-    # de math), usar tal cual.
-    if "\\" in s and not any(c.isalpha() and c not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ\\{}_^/+-*= " for c in s):
-        return s
-    # Si contiene math Unicode, convertir y devolver en math mode.
-    converted = _unicode_math_to_latex(s)
-    if converted != s:
-        return converted
-    # Texto plain con chars especiales: protege con \\text.
-    safe = (s.replace("\\", r"\textbackslash{}")
-              .replace("&", r"\&")
-              .replace("%", r"\%")
-              .replace("$", r"\$")
-              .replace("#", r"\#")
-              .replace("_", r"\_")
-              .replace("{", r"\{")
-              .replace("}", r"\}"))
-    return rf"\text{{{safe}}}"
 
 
 # Mapa Unicode math -> LaTeX. Cubre los chars que los modulos

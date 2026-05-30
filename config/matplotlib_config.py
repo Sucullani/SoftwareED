@@ -89,75 +89,86 @@ def is_configured() -> bool:
     return _CONFIGURED
 
 
-def warmup_mathtext() -> None:
-    """Renderiza expresiones dummy para forzar la inicializacion del
-    parser mathtext + font cache de matplotlib + cachear los tokens que
-    los modulos educativos usan en cold.
+# Expresiones canonicas precompiladas. Cubre los tokens de los modulos
+# educativos para que el primer render real sea cache-hit. El parser
+# mathtext cachea por string EXACTO (no por token), asi que el warmup
+# debe incluir las strings reales que los modulos pasaran. Cubre los
+# building-blocks de M2 (Jacobiano), M3 (D), M4 (B), M5 (k_e), M6
+# (fuerzas), M7 (ensamblaje) y el Post.
+MATHTEXT_WARMUP_EXPRESSIONS = [
+    # M2: Jacobiano (celdas + det J)
+    r"$\partial x/\partial \xi$",
+    r"$\partial y/\partial \xi$",
+    r"$\partial x/\partial \eta$",
+    r"$\partial y/\partial \eta$",
+    r"$\mathbf{J}=$",
+    r"$\det\mathbf{J}$",
+    r"$\dfrac{\partial x}{\partial \xi}$",
+    r"$\dfrac{\partial y}{\partial \eta}$",
+    # M3: matriz D
+    r"$\nu$", r"$\nu = 0.200$",
+    r"$\dfrac{E}{1-\nu^2}$",
+    r"$\mathbf{D}=$",
+    # M4: matriz B
+    r"$\mathbf{B}=$", r"$\mathbf{B}_i$",
+    r"$\partial N_i/\partial \xi$",
+    r"$\partial N_i/\partial \eta$",
+    r"$\sum_i$",
+    # M5: rigidez
+    r"$\mathbf{k}_e$", r"$|\det\mathbf{J}|$",
+    r"$\int\!\!\int$",
+    # Post: tensiones
+    r"$\sigma_{vm}$", r"$\sigma_x$", r"$\sigma_y$", r"$\tau_{xy}$",
+    r"$\sqrt{3}$", r"$-1/\sqrt{3}$", r"$+1/\sqrt{3}$",
+    r"$\sqrt{\sigma_x^2 + 3\tau_{xy}^2}$",
+    r"$(\xi, \eta)$", r"$(x, y)$", r"$\to$",
+    # Numericos comunes
+    r"$+1.000$", r"$-0.577$", r"$+0.577$",
+]
 
-    El parser mathtext cachea por string EXACTO (no por token), asi que
-    el warmup debe incluir las strings reales que los modulos pasaran.
-    Cubre los building-blocks de M2 (Jacobiano), M3 (D), M4 (B), M5 (k_e),
-    M6 (fuerzas), M7 (ensamblaje) y el Post.
 
-    Lanzar en background al boot evita que el PRIMER widget educativo
-    pague el cold-start. Subsecuentes son ~30-150 ms.
+def warmup_mathtext_chunk(expressions) -> None:
+    """Calienta el cache del parser mathtext para un subconjunto de
+    expresiones, usando la API orientada a objetos de matplotlib
+    (`matplotlib.figure.Figure` + canvas Agg, SIN pyplot).
 
-    Idempotente.
+    Diseñado para correr troceado en el HILO PRINCIPAL via `after_idle`
+    (2-3 expresiones por tick): evita el cruce de hilos del antiguo warmup
+    en daemon thread (pyplot/fontmanager no son thread-safe respecto al
+    main loop de Tk).
+
+    Idempotente y defensivo: cualquier fallo de render se ignora.
     """
+    if not expressions:
+        return
     try:
-        import matplotlib.pyplot as plt
-        import io
+        from matplotlib.figure import Figure
+        from matplotlib.backends.backend_agg import FigureCanvasAgg
         configure_latex_style()
 
-        # Expresiones canonicas precompiladas. Cubre los tokens de los
-        # modulos educativos para que el primer render real sea cache-hit.
-        # Cada string aqui = una entrada en el ParserCache de mathtext.
-        primitives = [
-            # M2: Jacobiano (celdas + det J)
-            r"$\partial x/\partial \xi$",
-            r"$\partial y/\partial \xi$",
-            r"$\partial x/\partial \eta$",
-            r"$\partial y/\partial \eta$",
-            r"$\mathbf{J}=$",
-            r"$\det\mathbf{J}$",
-            r"$\dfrac{\partial x}{\partial \xi}$",
-            r"$\dfrac{\partial y}{\partial \eta}$",
-            # M3: matriz D
-            r"$\nu$", r"$\nu = 0.200$",
-            r"$\dfrac{E}{1-\nu^2}$",
-            r"$\mathbf{D}=$",
-            # M4: matriz B
-            r"$\mathbf{B}=$", r"$\mathbf{B}_i$",
-            r"$\partial N_i/\partial \xi$",
-            r"$\partial N_i/\partial \eta$",
-            r"$\sum_i$",
-            # M5: rigidez
-            r"$\mathbf{k}_e$", r"$|\det\mathbf{J}|$",
-            r"$\int\!\!\int$",
-            # Post: tensiones
-            r"$\sigma_{vm}$", r"$\sigma_x$", r"$\sigma_y$", r"$\tau_{xy}$",
-            r"$\sqrt{3}$", r"$-1/\sqrt{3}$", r"$+1/\sqrt{3}$",
-            r"$\sqrt{\sigma_x^2 + 3\tau_{xy}^2}$",
-            r"$(\xi, \eta)$", r"$(x, y)$", r"$\to$",
-            # Numericos comunes
-            r"$+1.000$", r"$-0.577$", r"$+0.577$",
-        ]
-
-        fig = plt.figure(figsize=(0.01, 0.01), dpi=140)
+        fig = Figure(figsize=(0.01, 0.01), dpi=140)
+        FigureCanvasAgg(fig)  # asocia un canvas Agg para forzar el draw
         ax = fig.add_axes([0, 0, 1, 1])
         ax.axis("off")
-        for expr in primitives:
+        for expr in expressions:
             try:
                 ax.text(0, 0, expr, fontsize=12, family="serif")
             except Exception:
                 pass
-        buf = io.BytesIO()
-        # Una sola savefig al final (para que el path Figure/PIL tambien
-        # quede caliente; el parser ya cacheo cada expr individualmente).
         try:
-            fig.savefig(buf, format="png", bbox_inches="tight", dpi=140)
+            fig.canvas.draw()  # fuerza el parse mathtext + font cache
         except Exception:
             pass
-        plt.close(fig)
     except Exception:
         pass
+
+
+def warmup_mathtext() -> None:
+    """Calienta el cache mathtext de TODAS las expresiones de una sola vez.
+
+    Conservada por compatibilidad; el arranque ahora usa el warmup troceado
+    `warmup_mathtext_chunk` en el hilo principal (ver `MainWindow`).
+
+    Idempotente.
+    """
+    warmup_mathtext_chunk(MATHTEXT_WARMUP_EXPRESSIONS)
