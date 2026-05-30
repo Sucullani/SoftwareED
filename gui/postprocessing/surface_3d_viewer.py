@@ -42,7 +42,7 @@ import numpy as np
 import tkinter as tk
 import ttkbootstrap as ttk
 
-# matplotlib se importa en _build_jet_cmap() y __init__() para diferir el
+# matplotlib se importa en _build_lut_cmap() y __init__() para diferir el
 # costo de arranque. El visor 3D se abre solo cuando el usuario lo solicita.
 
 from config.settings import (
@@ -72,28 +72,36 @@ _DISPLACEMENT_LABEL = {
 }
 
 
-# ── Colormap JET coherente con MeshCanvas ─────────────────────────────────
-# Construimos un ListedColormap de 256 colores muestreando la misma JET
-# que usa el canvas del Post (_jet_rgb_vectorized). Esto unifica la
-# paleta cromatica entre vista 2D (contorno) y vista 3D (superficie).
-def _build_jet_cmap():
+# ── Colormap perceptual coherente con MeshCanvas ──────────────────────────
+# Construimos ListedColormaps de 256 colores a partir de los MISMOS LUT que
+# usa el canvas del Post (config/colormaps): viridis para campos no negativos,
+# coolwarm para campos con signo (centrados en 0). Auditoria UX 2026-05:
+# antes era JET; ahora unifica la paleta perceptual entre 2D y 3D.
+from config.colormaps import (
+    VIRIDIS_LUT, COOLWARM_LUT, is_diverging_range, symmetric_bounds,
+)
+
+
+def _build_lut_cmap(lut):
     from matplotlib.colors import ListedColormap
-    t = np.linspace(0.0, 1.0, 256)
-    r = np.zeros_like(t)
-    g = np.zeros_like(t)
-    b = np.zeros_like(t)
-    m1 = t < 0.25
-    m2 = (t >= 0.25) & (t < 0.5)
-    m3 = (t >= 0.5) & (t < 0.75)
-    m4 = t >= 0.75
-    g[m1] = t[m1] / 0.25; b[m1] = 1.0
-    g[m2] = 1.0; b[m2] = 1.0 - (t[m2] - 0.25) / 0.25
-    r[m3] = (t[m3] - 0.5) / 0.25; g[m3] = 1.0
-    r[m4] = 1.0; g[m4] = 1.0 - (t[m4] - 0.75) / 0.25
-    return ListedColormap(np.column_stack([r, g, b, np.ones_like(t)]))
+    rgba = np.column_stack([
+        lut[:, 0] / 255.0, lut[:, 1] / 255.0, lut[:, 2] / 255.0,
+        np.ones(256),
+    ])
+    return ListedColormap(rgba)
 
 
-_JET_CMAP = None  # inicializado en primera apertura del visor
+_VIRIDIS_CMAP = None   # inicializados en primera apertura del visor
+_COOLWARM_CMAP = None
+
+
+def _cmap_for_range(vmin, vmax):
+    """(cmap, vmin, vmax) coherente con el canvas: coolwarm centrado en 0 si
+    el rango cruza el cero, viridis secuencial si no."""
+    if is_diverging_range(vmin, vmax):
+        lo, hi = symmetric_bounds(vmin, vmax)
+        return _COOLWARM_CMAP, lo, hi
+    return _VIRIDIS_CMAP, vmin, vmax
 
 
 class Surface3DViewer(tk.Toplevel):
@@ -158,11 +166,12 @@ class Surface3DViewer(tk.Toplevel):
         self._info_label.pack(side=tk.RIGHT)
 
         # Body: matplotlib Figure 3D (import diferido: solo al abrir el visor)
-        global _JET_CMAP
+        global _VIRIDIS_CMAP, _COOLWARM_CMAP
         from matplotlib.figure import Figure
         from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-        if _JET_CMAP is None:
-            _JET_CMAP = _build_jet_cmap()
+        if _VIRIDIS_CMAP is None:
+            _VIRIDIS_CMAP = _build_lut_cmap(VIRIDIS_LUT)
+            _COOLWARM_CMAP = _build_lut_cmap(COOLWARM_LUT)
 
         body = ttk.Frame(self, padding=(8, 4))
         body.pack(fill=tk.BOTH, expand=True)
@@ -361,8 +370,10 @@ class Surface3DViewer(tk.Toplevel):
         edge_lw = 0.6 if is_raw else 0.15
         edge_color = "#ffe082" if is_raw else "#dddddd"
 
+        cmap, c_vmin, c_vmax = _cmap_for_range(vmin, vmax)
+        c_range = max(c_vmax - c_vmin, 1e-15)
         for X, Y, Z, _elem, _v in elem_data:
-            facecolors = _JET_CMAP((Z - vmin) / v_range)
+            facecolors = cmap((Z - c_vmin) / c_range)
             ax.plot_surface(
                 X, Y, Z, facecolors=facecolors,
                 edgecolor=edge_color, linewidth=edge_lw,
@@ -474,8 +485,10 @@ class Surface3DViewer(tk.Toplevel):
         if self._show_z0_plane:
             self._draw_z0_plane(ax, elem_data)
 
+        cmap, c_vmin, c_vmax = _cmap_for_range(vmin, vmax)
+        c_range = max(c_vmax - c_vmin, 1e-15)
         for X, Y, Z, _elem, _v in elem_data:
-            facecolors = _JET_CMAP((Z - vmin) / v_range)
+            facecolors = cmap((Z - c_vmin) / c_range)
             ax.plot_surface(
                 X, Y, Z, facecolors=facecolors,
                 edgecolor="#dddddd", linewidth=0.15,

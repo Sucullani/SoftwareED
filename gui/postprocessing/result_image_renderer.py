@@ -1,9 +1,10 @@
 """
 ResultImageRenderer: renderiza un campo nodal a una imagen PIL.
 
-Replica el pipeline visual del MeshCanvas del Post-Proceso (JET +
-gradiente bilineal Gouraud + wireframe blanco) pero genera una imagen
-estatica (PIL.Image) en lugar de pintar sobre un tk.Canvas interactivo.
+Replica el pipeline visual del MeshCanvas del Post-Proceso (LUT perceptual
+viridis/coolwarm + gradiente bilineal Gouraud + wireframe blanco) pero
+genera una imagen estatica (PIL.Image) en lugar de pintar sobre un
+tk.Canvas interactivo.
 
 Usado por:
   - education/mod09_q4_vs_q9_comparison.py: 8 mini-paneles del grid 2x4
@@ -11,10 +12,11 @@ Usado por:
     mostrar el mismo "look" que el canvas del Post.
 
 Decision pedagogica: M9 usaba matplotlib pcolormesh para los 8 paneles,
-lo cual cromaticamente no coincidia con el contorno del Post (viridis/
-plasma vs JET) y agregaba ticks/labels de matplotlib. Con esta funcion
-las 8 mini-vistas se ven IDENTICAS al canvas principal -- el alumno
-reconoce los mismos colores.
+lo cual cromaticamente no coincidia con el contorno del Post y agregaba
+ticks/labels de matplotlib. Con esta funcion las 8 mini-vistas se ven
+IDENTICAS al canvas principal -- el alumno reconoce los mismos colores.
+Auditoria UX 2026-05: ambos migraron de JET a viridis/coolwarm; este
+modulo sigue al canvas usando el mismo LUT (config/colormaps).
 """
 
 from __future__ import annotations
@@ -23,6 +25,10 @@ from typing import Optional
 
 import numpy as np
 
+from config.colormaps import (
+    VIRIDIS_LUT, COOLWARM_LUT, is_diverging_range, symmetric_bounds,
+)
+
 try:
     from PIL import Image  # noqa: F401
     HAS_PIL = True
@@ -30,25 +36,14 @@ except ImportError:
     HAS_PIL = False
 
 
-def _jet_rgb_vectorized(t: np.ndarray):
-    """Jet colormap vectorizado (identico al de MeshCanvas)."""
-    t = np.clip(t, 0, 1)
-    r = np.zeros_like(t)
-    g = np.zeros_like(t)
-    b = np.zeros_like(t)
-    m1 = t < 0.25
-    m2 = (t >= 0.25) & (t < 0.5)
-    m3 = (t >= 0.5) & (t < 0.75)
-    m4 = t >= 0.75
-    g[m1] = t[m1] / 0.25; b[m1] = 1.0
-    g[m2] = 1.0; b[m2] = 1.0 - (t[m2] - 0.25) / 0.25
-    r[m3] = (t[m3] - 0.5) / 0.25; g[m3] = 1.0
-    r[m4] = 1.0; g[m4] = 1.0 - (t[m4] - 0.75) / 0.25
-    return r, g, b
+def _lut_rgb_u8(t: np.ndarray, lut):
+    """t en [0,1] (array) -> canales (r, g, b) uint8 leidos del LUT."""
+    idx = np.clip((t * 255.0).astype(np.int64), 0, 255)
+    return lut[idx, 0], lut[idx, 1], lut[idx, 2]
 
 
-def _rasterize_triangle(img, w, h, p0, p1, p2, vmin, v_range):
-    """Rasteriza un triangulo con interpolacion baricentrica + JET cmap.
+def _rasterize_triangle(img, w, h, p0, p1, p2, vmin, v_range, lut):
+    """Rasteriza un triangulo con interpolacion baricentrica + LUT.
 
     Cada p es (sx, sy, valor). Identica logica que MeshCanvas._rasterize_triangle.
     """
@@ -81,15 +76,15 @@ def _rasterize_triangle(img, w, h, p0, p1, p2, vmin, v_range):
 
     vals = lam0 * v0 + lam1 * v1 + lam2 * v2
     t = np.clip((vals - vmin) / v_range, 0, 1)
-    rc, gc, bc = _jet_rgb_vectorized(t)
+    rc, gc, bc = _lut_rgb_u8(t, lut)
 
     iy = PY[inside].astype(int)
     ix = PX[inside].astype(int)
     valid = (iy >= 0) & (iy < h) & (ix >= 0) & (ix < w)
     iy, ix = iy[valid], ix[valid]
-    img[iy, ix, 0] = (rc[inside][valid] * 255).astype(np.uint8)
-    img[iy, ix, 1] = (gc[inside][valid] * 255).astype(np.uint8)
-    img[iy, ix, 2] = (bc[inside][valid] * 255).astype(np.uint8)
+    img[iy, ix, 0] = rc[inside][valid]
+    img[iy, ix, 1] = gc[inside][valid]
+    img[iy, ix, 2] = bc[inside][valid]
     img[iy, ix, 3] = 255
 
 
@@ -157,6 +152,13 @@ def render_result_to_pil(
     img_arr[..., 2] = bg_rgba[2]
     img_arr[..., 3] = bg_rgba[3]
 
+    # Colormap coherente con el canvas: coolwarm divergente (centrado en 0)
+    # si el rango cruza el cero, viridis secuencial si no.
+    if is_diverging_range(vmin, vmax):
+        lut = COOLWARM_LUT
+        vmin, vmax = symmetric_bounds(vmin, vmax)
+    else:
+        lut = VIRIDIS_LUT
     v_range = max(vmax - vmin, 1e-15)
 
     # ── 3. Render por elemento (mismo algoritmo que MeshCanvas) ──────
@@ -197,9 +199,9 @@ def render_result_to_pil(
                 p11 = pts_grid[(i + 1, j + 1)]
                 p01 = pts_grid[(i, j + 1)]
                 _rasterize_triangle(img_arr, width, height, p00, p10, p11,
-                                     vmin, v_range)
+                                     vmin, v_range, lut)
                 _rasterize_triangle(img_arr, width, height, p00, p11, p01,
-                                     vmin, v_range)
+                                     vmin, v_range, lut)
 
     img = Image.fromarray(img_arr, "RGBA")
 
