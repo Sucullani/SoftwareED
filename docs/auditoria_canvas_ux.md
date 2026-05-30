@@ -370,4 +370,32 @@ profesional. Las 7–9 son escalabilidad. Ninguna toca el rasterizador Numba ni 
 
 ---
 
+## Estado de implementación (2026-05-30)
+
+Implementado en la rama `claude/fem-canvas-ux-audit-05qH5`. Toda la lógica nueva
+se factorizó en **módulos puros testeables headless** (el contenedor de CI no
+tiene Tk/PIL/numba), con `tests/test_canvas_visualization.py` (49 checks).
+
+### Hecho
+
+| Ítem auditoría | Implementación |
+|---|---|
+| **B — LOD por zoom** | `canvas_logic.lod_level` + `_lod_level`/`_median_edge_px`. Umbrales en `settings.py`. Mallas ≤12 elem siempre `near`. |
+| **B — Numeración bajo demanda** | `node_label_mode`/`elem_label_mode` (auto/always/never, default auto) + realce por selección. Default OFF efectivo en mallas densas. Menubutton "Vista" en la toolbar. |
+| **C — Halo de selección** | Anillo claro bajo nodos/elementos/aristas (`CANVAS_SELECTED_HALO_COLOR`). Reemplaza la ex decisión "sin halo". |
+| **C — Hover (pre-selección)** | `_update_hover_highlight` sobre `<Motion>`: outline cian + nº del elemento bajo cursor, sin redraw global. |
+| **C — Focus-and-context** | `_focus_active`/`focus_keep_sets`: atenúa el contexto reusando `ghost_geometry`. Auto en mallas ≥60 elem. |
+| **D — Silueta del dominio** | `boundary_edges` + overlay `CANVAS_BOUNDARY_COLOR`; en `far` es la única geometría dibujada. |
+| **E — Culling por viewport** | `bbox_visible`/`point_visible` en `_draw_elements`/`_draw_nodes`. Recorta el árbol Tk (palanca de rendimiento). |
+| **F — Colormap perceptual** | JET → viridis/coolwarm (`config/colormaps.py`) en canvas + renderer M9 + vista 3D. Coolwarm centrado en 0 para campos con signo. |
+
+### Diferido (con justificación)
+
+- **Restyle incremental de selección** (evitar `delete("all")` por selección, E.3): se evaluó y se **difirió**. El redraw completo por selección es imperceptible en el rango educativo (<1000 elem) una vez aplicado el culling + LOD, y reescribir el flujo de selección arriesgaba la maquinaria de sync canvas↔spreadsheet y el cache de pan/zoom (no verificable sin GUI en CI). Ratio riesgo/beneficio desfavorable ahora.
+- **Estados Locked/Hidden** (C.1): requieren modelo de persistencia + UI de "aislar/ocultar región" no triviales. El **focus-and-context** entrega el beneficio central (resaltar por contraste) sin esa superficie. Candidato a una fase posterior.
+- **Etiquetas de valor en isolíneas** (R3): el kernel JIT `_marching_squares_njit` pierde la asociación segmento→nivel en su retorno aplanado; etiquetarlas obligaría a cambiar su contrato. La colorbar ya comunica la escala de valores. Bajo impacto.
+- **Validación con usuarios (Fase 5)**: requiere sesiones presenciales — fuera del alcance de esta implementación autónoma; el protocolo de test queda definido en G.
+
+---
+
 *Toda referencia `archivo:línea` apunta a `gui/preprocessing/mesh_canvas.py` salvo indicación contraria.*

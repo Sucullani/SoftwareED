@@ -2316,6 +2316,20 @@ class MeshCanvas(ttk.Frame):
                 self.canvas.delete("hover")
                 self._hover_highlight_eid = None
             return
+        # Fast-path: si el cursor sigue dentro del elemento ya resaltado, no
+        # rehacer el hit-test global (O(n)) — un solo point-in-quad basta.
+        # Hovering DENTRO de un elemento es el caso comun (muchos eventos).
+        cur = self._hover_highlight_eid
+        if cur is not None:
+            elem = self.project.elements.get(cur)
+            if elem is not None:
+                try:
+                    pts = [(self.project.nodes[n].x, self.project.nodes[n].y)
+                           for n in elem.node_ids[:4]]
+                    if self._point_in_quad(wx, wy, pts):
+                        return
+                except KeyError:
+                    pass
         eid = self._hit_test_element_at(wx, wy)
         if eid == self._hover_highlight_eid:
             return
