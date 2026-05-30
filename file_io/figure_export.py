@@ -46,6 +46,8 @@ from config.settings import (
     CANVAS_CONSTRAINT_COLOR,
     CANVAS_LOAD_COLOR,
     ELEMENT_Q9,
+    PHASE_PRE_COLOR,
+    PHASE_PROC_COLOR,
     PHASE_POST_COLOR,
 )
 
@@ -158,6 +160,117 @@ def _font(size: int):
         return ImageFont.load_default(size=size)
     except Exception:
         return ImageFont.load_default()
+
+
+def _tint(rgb: tuple[int, int, int], t: float) -> tuple[int, int, int]:
+    """Mezcla `rgb` con blanco: t=0 → rgb, t=1 → blanco. Para rellenos suaves."""
+    return tuple(int(round(c + (255 - c) * t)) for c in rgb)
+
+
+# ---------------------------------------------------------------------------
+# Mapa del cálculo — infografía del pipeline MEF (one-pager del educativo)
+# ---------------------------------------------------------------------------
+
+def render_pipeline_map(project):
+    """Infografía horizontal del recorrido MEF: 5 estaciones conectadas por
+    flechas con el dato que viaja entre etapas. Estilo canvas, fondo blanco;
+    coloreada por fase (pre azul · proc naranja · post verde, paleta de
+    config). Reemplaza la intro narrativa del estilo educativo.
+
+    Devuelve PIL.Image o None si Pillow no está disponible.
+    """
+    if not HAS_PIL:
+        return None
+    try:
+        n_nodes = project.num_nodes
+        n_elem = project.num_elements
+        is_q9 = project.element_type == ELEMENT_Q9
+        n_dof = getattr(project, "total_dof", 2 * n_nodes)
+    except Exception:
+        n_nodes = n_elem = n_dof = 0
+        is_q9 = False
+
+    pre = _hex_to_rgb(PHASE_PRE_COLOR)
+    proc = _hex_to_rgb(PHASE_PROC_COLOR)
+    post = _hex_to_rgb(PHASE_POST_COLOR)
+    elem_lbl = "Q9 · 3×3 Gauss" if is_q9 else "Q4 · 2×2 Gauss"
+
+    # (color, título, líneas de cuerpo)
+    stages = [
+        (pre, "PRE-PROCESO",
+         ["Geometría, material,", "cargas y apoyos",
+          f"{n_nodes} nodos · {n_elem} elem"]),
+        (proc, "FORMULACIÓN",
+         ["N → J → B → D", "por elemento", elem_lbl]),
+        (proc, "ENSAMBLAJE",
+         ["Σ ke → K", "Σ fe → F", f"{n_dof} GDL"]),
+        (proc, "BCs + SOLUCIÓN",
+         ["Kff·uf = Ff", "factorización LU", "→ u, R"]),
+        (post, "POST-PROCESO",
+         ["σ = D·B·u", "σ1, σ2, σVM", "contornos"]),
+    ]
+    arrow_lbls = ["malla", "ke", "K, F", "u"]
+
+    n = len(stages)
+    box_w, box_h = 168, 132
+    gap = 32                      # espacio para la flecha entre cajas
+    pad_x = 24
+    top = 54                      # deja lugar a un título arriba
+    W = pad_x * 2 + n * box_w + (n - 1) * gap
+    H = top + box_h + 40
+
+    img = Image.new("RGB", (W, H), _FIG_BG)
+    d = ImageDraw.Draw(img)
+
+    f_title = _font(20)
+    f_box_title = _font(15)
+    f_body = _font(13)
+    f_arrow = _font(12)
+
+    # Título general.
+    d.text((pad_x, 16), "Mapa del cálculo — recorrido del MEF",
+           fill=_AXIS_TEXT, font=f_title)
+
+    def _centered(cx, y, text, font, fill):
+        try:
+            l, t0, r, b = d.textbbox((0, 0), text, font=font)
+            d.text((cx - (r - l) / 2, y), text, fill=fill, font=font)
+        except Exception:
+            d.text((cx, y), text, fill=fill, font=font)
+
+    for i, (color, title, body) in enumerate(stages):
+        x0 = pad_x + i * (box_w + gap)
+        x1 = x0 + box_w
+        y0, y1 = top, top + box_h
+        fill = _tint(color, 0.86)
+        try:
+            d.rounded_rectangle([x0, y0, x1, y1], radius=9, fill=fill,
+                                outline=color, width=2)
+        except Exception:
+            d.rectangle([x0, y0, x1, y1], fill=fill, outline=color, width=2)
+        # Banda de título.
+        try:
+            d.rounded_rectangle([x0, y0, x1, y0 + 26], radius=9, fill=color)
+            d.rectangle([x0, y0 + 14, x1, y0 + 26], fill=color)
+        except Exception:
+            d.rectangle([x0, y0, x1, y0 + 26], fill=color)
+        cx = (x0 + x1) / 2
+        _centered(cx, y0 + 5, title, f_box_title, (255, 255, 255))
+        for j, line in enumerate(body):
+            _centered(cx, y0 + 38 + j * 24, line, f_body, _AXIS_TEXT)
+
+        # Flecha a la siguiente caja + etiqueta del dato.
+        if i < n - 1:
+            ax0 = x1 + 4
+            ax1 = x1 + gap - 4
+            ay = (y0 + y1) / 2
+            d.line([ax0, ay, ax1 - 6, ay], fill=_AXIS_TEXT, width=2)
+            d.polygon([(ax1, ay), (ax1 - 8, ay - 5), (ax1 - 8, ay + 5)],
+                      fill=_AXIS_TEXT)
+            _centered((ax0 + ax1) / 2, ay - 22, arrow_lbls[i], f_arrow,
+                      _hex_to_rgb(PHASE_PROC_COLOR))
+
+    return img
 
 
 # ---------------------------------------------------------------------------

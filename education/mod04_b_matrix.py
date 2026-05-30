@@ -38,10 +38,16 @@ import numpy as np
 import tkinter as tk
 import ttkbootstrap as ttk
 
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+
 from education.overlay_module import CanvasOverlayModule
 from education.components import (
     FormulaValueBlocksToggle, LatexMatrixImage, LatexExpressionImage,
-    ScrollableMatrixImage, GaussCoordReadout, natural_to_physical, element_coords,
+    ScrollableMatrixImage, fit_matrix_widget, natural_to_physical, element_coords,
+)
+from education.components.edu_plot_style import (
+    apply_edu_style_figure, apply_edu_style_2d,
 )
 from education.components.iso_inverse import iso_inverse_map
 from education.components.gauss_glyph import (
@@ -54,12 +60,19 @@ from fem.jacobian import compute_jacobian
 from fem.b_matrix import compute_b_matrix
 from fem.gauss_quadrature import get_gauss_points_for_element
 
-from config.settings import EDU_FREE_POINT_COLOR
+from config.settings import (
+    EDU_FREE_POINT_COLOR, EDU_AXES_BG, EDU_FG, EDU_FG_MUTED, EDU_LABEL_BG,
+    EDU_NATURAL_OUTLINE_COLOR, EDU_NATURAL_AXES_COLOR, OVERLAY_ACCENT_BLUE,
+)
 
 
 # Tag canvas — identifica TODOS los items de M4 para borrarlos en cada
 # redraw sin pisar tags de otros módulos.
 _TAG = "edu_m4"
+# Marcador/PG seleccionado en naranja (halo unificado), PGs no seleccionados
+# en cian canónico — mismo lenguaje cromático que M2.
+_C_MARKER = GAUSS_HALO
+_C_SURFACE_HI = GAUSS_CANONICAL
 
 
 class BMatrixModule(CanvasOverlayModule):
@@ -68,13 +81,21 @@ class BMatrixModule(CanvasOverlayModule):
     TITLE = "④  Matriz B  (ε = B · u)"
     PHASE = "proc"
     OVERLAY_INITIAL_POS = (24, 24)
-    # Width=None → auto-fit. B es "fat" (3×8 en Q4, 3×18 en Q9); un ancho
-    # fijo clipea la matriz Q9. El auto-fit la deja completa, igual que M5.
-    OVERLAY_WIDTH = None
+    # Ancho fijo: el cuadrado natural (matplotlib, compacto, centrado) va
+    # arriba y la B numérica —ANCHA (3×8 ~840 px en Q4, 3×18 en Q9)— debajo
+    # en scroll horizontal. 720 da viewport `_mat_vw=680` para la B y deja la
+    # B simbólica (\dfrac, ~493 px en Q4) entera como label.
+    OVERLAY_WIDTH = 720
     OVERLAY_HEIGHT = None  # auto
 
     SNAP_PX = 24      # radio de snap a punto Gauss (en px de canvas)
     PULSE_PERIOD_MS = 1100   # periodo de pulsación del glow
+    # Tolerancia de snap a PG dentro del cuadrado natural, en coords (ξ,η).
+    _SNAP_NAT = 0.16
+    # Fuente del panel FÓRMULA (relación + B simbólica) — uniforme en tamaño y
+    # color (azul de acento); del panel VALORES (B numérica), reducida.
+    _FS = 14
+    _FS_VAL = 12
 
     def __init__(self, main_window, project, element_id):
         # Punto natural actual (centro inicial). El render decide si es
@@ -87,11 +108,19 @@ class BMatrixModule(CanvasOverlayModule):
         self._pulse_phase = 0.0
         self._pulse_after_id: Optional[str] = None
         # Widgets construidos en build_overlay
+        self._fig: Optional[Figure] = None
+        self._ax_nat = None       # subplot 2D: cuadrado natural (interactivo)
+        self._canvas_mpl: Optional[FigureCanvasTkAgg] = None
         self._toggle: Optional[FormulaValueBlocksToggle] = None
-        self._readout: Optional[GaussCoordReadout] = None
-        self._mat_values: Optional[LatexMatrixImage] = None
-        self._mat_formula: Optional[LatexMatrixImage] = None
-        self._lbl_status: Optional[tk.Label] = None
+        # `fit_matrix_widget` devuelve LatexMatrixImage (entra) o
+        # ScrollableMatrixImage (scroll); ambos exponen set_matrix. La CADENA
+        # numérica de Valores (replicable en Excel, paralelo a M2):
+        # ∂N_ξη (naturales) · J⁻¹ → ∂N_xy (físicas) → B.
+        self._mat_dN_nat: Optional[LatexMatrixImage | ScrollableMatrixImage] = None
+        self._mat_invJ: Optional[LatexMatrixImage | ScrollableMatrixImage] = None
+        self._mat_dN_phys: Optional[LatexMatrixImage | ScrollableMatrixImage] = None
+        self._mat_values: Optional[LatexMatrixImage | ScrollableMatrixImage] = None
+        self._mat_formula: Optional[LatexMatrixImage | ScrollableMatrixImage] = None
         self._lbl_values_title: Optional[tk.Label] = None
         # Narrativa de transformación: estado del último click (snap a PG
         # vs libre físico). Determina color del lbl_values_title.
@@ -118,27 +147,35 @@ class BMatrixModule(CanvasOverlayModule):
         return 9 if self.element_type == ELEMENT_Q9 else 4
 
     # ── Construcción del overlay (compacto UX 2026) ───────────────
-    def build_overlay(self, body):
-        # Sin chip narrativo: el título ("④ Matriz B (ε = B · u)") + el
-        # toggle Fórmula (que muestra B y la relación con J⁻¹·∂N/∂ξ) + el
-        # crossref al pie ya orientan al alumno.
+    def _mat_vw(self) -> int:
+        """Ancho máximo de viewport (del overlay) — tope para matrices anchas."""
+        return max(440, self.OVERLAY_WIDTH - 40)
 
-        # ── Cuadrado natural interactivo — AL TOPE, posición estratégica ──
-        # B se evalúa en (ξ,η). El alumno fija el punto clickeando AQUÍ o
-        # clickeando el elemento físico del canvas: dos espacios, un mismo
-        # punto. El marcador se mueve en ambos a la vez — así queda claro
-        # que B(ξ,η) es función del espacio natural, NO de (x,y).
-        self._readout = GaussCoordReadout(
-            body, order=self._gauss_order(), etype=self.element_type,
-            interactive=True, on_pick=self._on_natural_pick,
-            title="B se evalúa en el cuadrado natural (ξ, η):",
-        )
-        self._readout.pack(fill="x", pady=(0, 4))
+    def build_overlay(self, body):
+        # Sin chip narrativo ni descripción del mapeo: el título ("④ Matriz B
+        # (ε = B · u)") + el cuadrado natural + el toggle + el crossref al pie
+        # ya orientan al alumno. La antigua línea "(ξ,η)=… → mapeo → (x,y)=…"
+        # se eliminó (ruido: el marcador del cuadrado ya muestra ξ,η).
+
+        # ── Cuadrado natural interactivo (matplotlib, CENTRADO) — AL TOPE ──
+        # B se evalúa en (ξ,η). El alumno fija el punto clickeando AQUÍ o sobre
+        # el elemento físico del canvas: dos espacios, un mismo punto; el
+        # marcador se mueve en ambos. Mismo estilo/figura que M2 (sin la
+        # superficie 3D vecina → el cuadrado queda centrado). El subplot 2D
+        # reemplaza al ex `GaussCoordReadout` tk (interacción pobre).
+        plot_frame = ttk.Frame(body)
+        plot_frame.pack(pady=(2, 2))  # sin fill → frame centrado en el body
+        self._fig = Figure(figsize=(3.4, 2.7), dpi=100)
+        apply_edu_style_figure(self._fig)
+        self._ax_nat = self._fig.add_subplot(111)
+        apply_edu_style_2d(self._ax_nat, show_spines=False)
+        self._fig.subplots_adjust(left=0.04, right=0.96, top=0.86, bottom=0.06)
+        self._canvas_mpl = FigureCanvasTkAgg(self._fig, master=plot_frame)
+        self._canvas_mpl.get_tk_widget().pack()
+        self._canvas_mpl.mpl_connect("button_press_event",
+                                     self._on_natural_pick_mpl)
 
         # ── Toggle Fórmula ↔ Valores (frames Tk, no axes compartido) ──
-        # El nuevo toggle deja que cada panel maneje su propio layout con
-        # widgets Tk — la matriz B se muestra como imagen PNG generada en
-        # su propia figura matplotlib (sin solapes con el caption).
         self._toggle = FormulaValueBlocksToggle(
             body,
             build_formula=self._build_formula_panel,
@@ -155,6 +192,7 @@ class BMatrixModule(CanvasOverlayModule):
             wraplength=500,
         )
 
+        self._draw_natural_square(self._ax_nat)
         self._refresh_status()
 
     # ── Capa educativa sobre el canvas ─────────────────────────────
@@ -326,43 +364,105 @@ class BMatrixModule(CanvasOverlayModule):
         self._refresh_all()
         return True
 
-    # ── Pick desde el cuadrado natural interactivo ─────────────────
-    def _match_gauss_index(self, xi: float, eta: float,
-                            tol: float = 1e-3) -> Optional[int]:
-        """Índice del PG del elemento cuyas coords (ξ,η) matchean (xi,eta),
-        o None. Por COORDENADA (robusto al ordering del grid del widget)."""
-        pts_natural, _ = get_gauss_points_for_element(self.element_type)
+    # ── Cuadrado natural (subplot 2D matplotlib, estilo M2) ────────
+    def _draw_natural_square(self, ax) -> None:
+        """Dibuja el cuadrado natural (ξ,η) estilo M2/M1: contorno azul, ejes,
+        ±1, los PUNTOS DE GAUSS del elemento (donde se evalúa B) y el marcador
+        del punto seleccionado con su (ξ,η) pegada. El PG seleccionado se pinta
+        naranja. Reemplaza al ex readout tk."""
+        if ax is None:
+            return
+        ax.clear()
+        apply_edu_style_2d(ax, show_spines=False)
+        ax.set_aspect("equal")
+        sq = np.array([[-1, -1], [1, -1], [1, 1], [-1, 1], [-1, -1]])
+        ax.plot(sq[:, 0], sq[:, 1], color=EDU_NATURAL_OUTLINE_COLOR, lw=1.0)
+        ax.fill(sq[:, 0], sq[:, 1], color=EDU_NATURAL_OUTLINE_COLOR, alpha=0.06)
+        ax.axhline(0, color=EDU_NATURAL_AXES_COLOR, lw=0.8, alpha=0.85)
+        ax.axvline(0, color=EDU_NATURAL_AXES_COLOR, lw=0.8, alpha=0.85)
+        try:
+            pts_natural, _ = get_gauss_points_for_element(self.element_type)
+            for i, (gx, gy) in enumerate(pts_natural):
+                sel = (self._gauss_index == i)
+                ax.scatter([gx], [gy], s=86 if sel else 64,
+                            c=_C_MARKER if sel else _C_SURFACE_HI,
+                            edgecolors="white", linewidths=1.0 if sel else 0.8,
+                            zorder=9 if sel else 7)
+        except Exception:
+            pass
+        ax.text(1.0, -1.2, "+1", color=EDU_FG_MUTED, fontsize=7,
+                 family="monospace", ha="center", va="top")
+        ax.text(-1.0, -1.2, "-1", color=EDU_FG_MUTED, fontsize=7,
+                 family="monospace", ha="center", va="top")
+        ax.text(1.3, 0.02, "ξ", color=EDU_FG_MUTED, fontsize=9,
+                 family="monospace", fontweight="bold", ha="left", va="center")
+        ax.text(0.02, 1.3, "η", color=EDU_FG_MUTED, fontsize=9,
+                 family="monospace", fontweight="bold", ha="left", va="center")
+        ax.set_xlim(-1.45, 1.45); ax.set_ylim(-1.45, 1.45)
+        ax.set_title("B se evalúa en el cuadrado natural  (ξ, η)",
+                      color=EDU_NATURAL_OUTLINE_COLOR, fontsize=9,
+                      fontweight="bold", pad=4)
+        ax.set_xticks([]); ax.set_yticks([])
+        if (self._gauss_index is not None) or self._free_point:
+            mk = (_C_MARKER if self._gauss_index is not None
+                  else EDU_FREE_POINT_COLOR)
+            ax.scatter([self._xi], [self._eta], s=180, facecolors="none",
+                        edgecolors=mk, linewidths=2.0, zorder=10)
+            if self._free_point:
+                ax.scatter([self._xi], [self._eta], s=32, c=mk, zorder=11)
+            to_right = self._xi < 0
+            ax.annotate(
+                f"({self._xi:.3f}, {self._eta:.3f})", (self._xi, self._eta),
+                textcoords="offset points",
+                xytext=(8, 8) if to_right else (-8, 8),
+                ha="left" if to_right else "right", va="bottom",
+                color=mk, fontsize=8, family="monospace",
+                bbox=dict(boxstyle="round,pad=0.2", facecolor=EDU_LABEL_BG,
+                           edgecolor=mk, linewidth=0.7, alpha=0.85),
+            )
+
+    def _on_natural_pick_mpl(self, event) -> None:
+        """Click en el subplot 2D del cuadrado natural: snap al PG más cercano
+        (en coords ξ,η) o punto libre. Bidireccional con el canvas físico."""
+        if getattr(event, "button", None) != 1:
+            return
+        if event.inaxes is not self._ax_nat:
+            return
+        if event.xdata is None or event.ydata is None:
+            return
+        xi = max(-1.0, min(1.0, float(event.xdata)))
+        eta = max(-1.0, min(1.0, float(event.ydata)))
+        try:
+            pts_natural, _ = get_gauss_points_for_element(self.element_type)
+        except Exception:
+            pts_natural = []
+        best_idx, best_d = None, float("inf")
         for idx, (gx, gy) in enumerate(pts_natural):
-            if abs(xi - gx) < tol and abs(eta - gy) < tol:
-                return idx
-        return None
-
-    def _on_natural_pick(self, xi: float, eta: float) -> None:
-        """El alumno clickeó/arrastró DENTRO del cuadrado natural del readout.
-
-        El widget ya aplicó snap PRIORITARIO a PG. Si (xi,eta) coincide con un
-        punto de Gauss del elemento, lo tratamos como selección discreta de
-        ese PG (idéntico a clickear el PG en el canvas físico — bidireccional):
-        B se evalúa exactamente en el PG, con su halo de selección. Si no,
-        es un punto libre continuo. El marcador aparece también sobre el
-        elemento físico del canvas en ambos casos."""
-        self._xi, self._eta = float(xi), float(eta)
-        idx = self._match_gauss_index(xi, eta)
-        self._gauss_index = idx
-        self._free_point = (idx is None)
+            d = math.hypot(xi - gx, eta - gy)
+            if d < best_d:
+                best_d, best_idx = d, idx
+        if best_idx is not None and best_d < self._SNAP_NAT:
+            gx, gy = pts_natural[best_idx]
+            self._xi, self._eta = float(gx), float(gy)
+            self._gauss_index, self._free_point = best_idx, False
+        else:
+            self._xi, self._eta = xi, eta
+            self._gauss_index, self._free_point = None, True
         self._refresh_all()
 
     # ── Refresh del overlay (tras cambio de selección/elemento) ────
     def _refresh_all(self) -> None:
-        # Live-update de la matriz numérica (siempre, aunque esté en modo
-        # fórmula — barato y mantiene el estado coherente al togglear).
-        if self._mat_values is not None:
-            try:
-                B = self._compute_b()
-                if B is not None:
-                    self._mat_values.set_matrix(B)
-            except Exception:
-                pass
+        # Live-update de TODA la cadena numérica (∂N_ξη, J⁻¹, ∂N_xy, B) —
+        # siempre, aunque esté en modo fórmula (barato, mantiene coherencia al
+        # togglear). Un único _compute_b devuelve los cuatro.
+        try:
+            B, dN_nat, invJ, dN_phys = self._compute_b(return_intermediate=True)
+            for w, mat in ((self._mat_dN_nat, dN_nat), (self._mat_invJ, invJ),
+                           (self._mat_dN_phys, dN_phys), (self._mat_values, B)):
+                if w is not None and mat is not None:
+                    w.set_matrix(mat)
+        except Exception:
+            pass
         # La fórmula simbólica solo se reconstruye si cambió el número
         # de nodos (Q4↔Q9) — el contenido depende solo de eso.
         if self._mat_formula is not None:
@@ -370,56 +470,31 @@ class BMatrixModule(CanvasOverlayModule):
                 self._mat_formula.set_matrix(self._formula_cells())
             except Exception:
                 pass
+        # Redibujar el cuadrado natural (mueve el marcador / recolorea el PG).
+        if self._ax_nat is not None and self._canvas_mpl is not None:
+            try:
+                self._draw_natural_square(self._ax_nat)
+                self._canvas_mpl.draw_idle()
+            except Exception:
+                pass
         self._refresh_status()
         self._mesh.redraw()
 
     def _refresh_status(self) -> None:
-        # Físico (x, y) del punto actual — alimenta el readout dual.
-        physical = None
-        try:
-            coords = self._coords_macro()
-            if coords is not None and len(coords) >= self.n_nodes:
-                xy = natural_to_physical(
-                    self._xi, self._eta, coords[: self.n_nodes],
-                    self.element_type,
-                )
-                physical = (float(xy[0]), float(xy[1]))
-        except Exception:
-            physical = None
-
-        if self._readout is not None:
-            self._readout.set_state(
-                order=self._gauss_order(),
-                etype=self.element_type,
-                selected_index=self._gauss_index,
-                xi=self._xi, eta=self._eta,
-                physical=physical,
-            )
-        if self._lbl_status is not None:
-            eid = self.element_id if self.element_id is not None else "—"
-            tag = (f"pg{self._gauss_index + 1}"
-                   if self._gauss_index is not None else "libre")
-            self._lbl_status.configure(
-                text=f"Elemento {eid}   ·   punto: {tag}"
-            )
+        # Título minimalista del panel Valores: SOLO el modo (criterio de M2).
+        # Sin descripción de mapeo, sin "Elemento N", sin "3 × N" — el cuadrado
+        # natural ya muestra (ξ,η) y la propia matriz muestra su tamaño.
         if self._lbl_values_title is not None:
             if self._gauss_index is not None:
                 mode_tag = f"pg{self._gauss_index + 1}"
                 fg = GAUSS_CANONICAL
             elif self._free_point:
-                mode_tag = f"(ξ,η) = ({self._xi:+.3f}, {self._eta:+.3f})"
+                mode_tag = "punto libre"
                 fg = EDU_FREE_POINT_COLOR
             else:
-                mode_tag = f"(ξ,η) = ({self._xi:+.3f}, {self._eta:+.3f})"
-                fg = "#dcdcdc"
-            n_cols = 2 * self.n_nodes
-            self._lbl_values_title.configure(
-                text=f"B  en  {mode_tag}     ·     3 × {n_cols}", fg=fg,
-            )
-
-    def _gauss_order(self) -> int:
-        """Orden de cuadratura asociado al tipo de elemento (Q4→2, Q9→3)."""
-        return 3 if self.n_nodes == 9 else 2
+                mode_tag = "centro del elemento"
+                fg = EDU_FG
+            self._lbl_values_title.configure(text=f"B  en  {mode_tag}", fg=fg)
 
     # ── Pulse loop ──────────────────────────────────────────────────
     def _schedule_pulse(self):
@@ -443,81 +518,125 @@ class BMatrixModule(CanvasOverlayModule):
         # Delega al helper compartido (antes duplicado en M1/M2/M4/M5/M7).
         return element_coords(self.project, self.element)
 
-    def _compute_b(self) -> Optional[np.ndarray]:
+    def _compute_b(self, *, return_intermediate: bool = False):
+        """B(ξ,η) en el punto actual. Con `return_intermediate=True` devuelve
+        la CADENA completa `(B, dN_nat, invJ, dN_phys)` que un alumno replica
+        en Excel: dN_nat (2×n naturales) → invJ (2×2) → dN_phys = invJ·dN_nat
+        (2×n físicas) → B (3×2n). Cero cómputo extra: estos intermedios YA se
+        calculan acá. Default (B sola) preserva los callers existentes."""
         coords = self._coords_macro()
         if coords is None or len(coords) < self.n_nodes:
-            return None
+            return (None, None, None, None) if return_intermediate else None
         _, dN_fn = get_shape_functions(self.element_type)
         dN_nat = dN_fn(self._xi, self._eta)
         _, _, invJ = compute_jacobian(dN_nat, coords[: self.n_nodes])
         dN_phys = invJ @ dN_nat
-        return compute_b_matrix(dN_phys)
+        B = compute_b_matrix(dN_phys)
+        if return_intermediate:
+            return B, dN_nat, invJ, dN_phys
+        return B
 
     # ── Builders de los paneles del toggle (Tk widgets, no axes) ──
     def _formula_cells(self):
-        """Celdas de la matriz B en forma simbólica para `LatexMatrixImage`.
+        """Celdas de la matriz B en forma simbólica con las derivadas como
+        FRACCIONES `\\dfrac` (notación estándar de derivada parcial; reemplaza
+        la notación compacta `N1x` por pedido del usuario — coherente con la
+        ∂N de M2). Q4: las 8 columnas completas; Q9: columnas extremas +
+        elipsis (3×18 completo excede el ancho del overlay)."""
+        def dx(i):
+            return rf"\dfrac{{\partial N_{{{i}}}}}{{\partial x}}"
 
-        Notación compacta: `N1x` ≡ ∂N₁/∂x. Sufijos ASCII en vez de
-        subíndices Unicode tipográficos (la fuente Consolas no cubre
-        todos los U+1D6x y dispara warnings de glifo).
-        """
+        def dy(i):
+            return rf"\dfrac{{\partial N_{{{i}}}}}{{\partial y}}"
+
         n = self.n_nodes
         if n == 4:
-            row1 = ["N1x", "0", "N2x", "0", "N3x", "0", "N4x", "0"]
-            row2 = ["0", "N1y", "0", "N2y", "0", "N3y", "0", "N4y"]
-            row3 = ["N1y", "N1x", "N2y", "N2x",
-                    "N3y", "N3x", "N4y", "N4x"]
-        else:  # Q9 — mostramos columnas extremas + elipsis
-            row1 = ["N1x", "0", "N2x", "0", "…", "N9x", "0"]
-            row2 = ["0", "N1y", "0", "N2y", "…", "0", "N9y"]
-            row3 = ["N1y", "N1x", "N2y", "N2x", "…", "N9y", "N9x"]
+            row1, row2, row3 = [], [], []
+            for i in range(1, 5):
+                row1 += [dx(i), "0"]
+                row2 += ["0", dy(i)]
+                row3 += [dy(i), dx(i)]
+        else:  # Q9 — columnas extremas + elipsis
+            row1 = [dx(1), "0", dx(2), "0", r"\cdots", dx(9), "0"]
+            row2 = ["0", dy(1), "0", dy(2), r"\cdots", "0", dy(9)]
+            row3 = [dy(1), dx(1), dy(2), dx(2), r"\cdots", dy(9), dx(9)]
         return [row1, row2, row3]
 
     def _build_formula_panel(self, frame) -> None:
-        """Construye el panel de la fórmula simbólica de B (UNA SOLA VEZ).
-
-        Layout vertical: matriz (PNG independiente) + caption (mathtext en
-        otra imagen). Tk hace el layout — sin solapes.
-        """
-        self._mat_formula = LatexMatrixImage(
-            frame, matrix=self._formula_cells(),
-            fmt="{}", fontsize=13, prefix=r"\mathbf{B}=",
-            cache_values=True,
-        )
-        self._mat_formula.pack(anchor="center", pady=(4, 6))
+        """Panel FÓRMULA: la relación VECTORIAL que origina cada entrada física
+        de B (puente con M2: el J) + la B simbólica con derivadas en fracciones.
+        Fuente uniforme `_FS` y azul de acento → imágenes homogéneas (M2)."""
+        # Relación MATRICIAL correcta: el VECTOR 2×1 de derivadas físicas sale
+        # del VECTOR 2×1 de derivadas naturales vía J⁻¹ (2×2). La forma escalar
+        # anterior `∂Nᵢ/∂x = J⁻¹·∂Nᵢ/∂ξ` era matricialmente malformada (escalar
+        # = 2×2·escalar, y omitía la componente η). `\substack` apila el vector
+        # columna (mathtext NO soporta `bmatrix`). Verificado bit-a-bit contra
+        # el solver: dN_phys = invJ @ dN_nat (ver fem/jacobian.py).
         LatexExpressionImage(
             frame,
-            expr=(r"N_{ix}=\dfrac{\partial N_i}{\partial x}\;\;\;"
-                  r"\dfrac{\partial N_i}{\partial x} = "
-                  r"\mathbf{J}^{-1}\,\dfrac{\partial N_i}{\partial \xi}"),
-            fontsize=12, color="#90caf9",
-        ).pack(anchor="center", pady=(0, 4))
+            expr=(r"\left[\substack{\dfrac{\partial N_i}{\partial x} \\ "
+                  r"\dfrac{\partial N_i}{\partial y}}\right]"
+                  r"=\mathbf{J}^{-1}\,"
+                  r"\left[\substack{\dfrac{\partial N_i}{\partial \xi} \\ "
+                  r"\dfrac{\partial N_i}{\partial \eta}}\right]"),
+            fontsize=self._FS, color=OVERLAY_ACCENT_BLUE,
+        ).pack(anchor="center", pady=(2, 2))
+        # Matriz B SIMBÓLICA (\dfrac). Entra como label (Q4 ~493, Q9 ~432 px).
+        self._mat_formula = fit_matrix_widget(
+            frame, self._formula_cells(), prefix=r"\mathbf{B}=", fmt="{}",
+            fontsize=self._FS, color=OVERLAY_ACCENT_BLUE,
+            max_width=self._mat_vw(),
+        )
+        self._mat_formula.pack(anchor="center", pady=(0, 2))
+        ttk.Label(
+            frame, text="(∂Nᵢ/∂ξ, ∂Nᵢ/∂η: ver M1)",
+            foreground=EDU_FG_MUTED, font=("Consolas", 8), anchor="center",
+        ).pack(fill="x", pady=(0, 2))
 
     def _build_values_panel(self, frame) -> None:
-        """Construye el panel de valores numéricos de B.
-
-        Tres widgets verticales: matriz B (live-update en `_refresh_all`),
-        título textual (tamaño/PG actual), label de status.
-        """
-        from config.settings import EDU_AXES_BG, EDU_FG_MUTED
+        """Panel VALORES: la CADENA numérica COMPLETA de B, replicable en una
+        hoja de cálculo (pedido del usuario, paralelo a M2):
+            ∂N_ξη (2×n naturales) · J⁻¹ (2×2) → ∂N_xy = J⁻¹·∂N_ξη (2×n físicas)
+            → B (3×2n ensamblada).
+        Título minimalista (solo el modo). ∂N_ξη/∂N_xy son 2×n (en Q9 anchas →
+        `force_scroll`); J⁻¹ es 2×2 (entra como label); B siempre ancha
+        (`force_scroll`). Todo a fuente reducida `_FS_VAL`."""
         self._lbl_values_title = tk.Label(
-            frame, text="", bg=EDU_AXES_BG, fg="#dcdcdc",
+            frame, text="", bg=EDU_AXES_BG, fg=EDU_FG,
             font=("Consolas", 9, "bold"), anchor="center",
         )
-        self._lbl_values_title.pack(fill="x", pady=(2, 2))
-        # B en un viewport con scroll/pan IN-FRAME (sin pop-up). Render a
-        # fontsize pleno y LEGIBLE (shrink=False): Q4 (3×8) entra entero en
-        # el viewport; Q9 (3×18) se explora arrastrando o con la rueda —
-        # antes salía a ~7 pt ilegible. 3 filas → viewport bajo.
-        B = self._compute_b()
-        self._mat_values = ScrollableMatrixImage(
-            frame, matrix=B if B is not None else np.zeros((3, 2 * self.n_nodes)),
-            fmt="{:.3g}", fontsize=15, prefix=r"\mathbf{B}=",
-            viewport=(460, 130),
+        self._lbl_values_title.pack(fill="x", pady=(2, 4))
+
+        B, dN_nat, invJ, dN_phys = self._compute_b(return_intermediate=True)
+        n = self.n_nodes
+        wide = (n >= 9)  # las 2×n de Q9 se ensanchan en los PGs → scroll
+        mvw = self._mat_vw()
+
+        # ① ∂N naturales: la ENTRADA (derivadas en el cuadrado natural).
+        self._mat_dN_nat = fit_matrix_widget(
+            frame, dN_nat if dN_nat is not None else np.zeros((2, n)),
+            prefix=r"\partial\mathbf{N}_{\xi\eta}=", fmt="{:.3g}",
+            fontsize=self._FS_VAL, max_width=mvw, force_scroll=wide,
         )
-        self._mat_values.pack(fill="x", pady=(0, 4))
-        self._lbl_status = tk.Label(
-            frame, text="", bg=EDU_AXES_BG, fg=EDU_FG_MUTED,
-            font=("Consolas", 9), anchor="center",
+        self._mat_dN_nat.pack(pady=(0, 3))
+        # ② J⁻¹: el PUENTE natural→físico (2×2, entra como label).
+        self._mat_invJ = fit_matrix_widget(
+            frame, invJ if invJ is not None else np.zeros((2, 2)),
+            prefix=r"\mathbf{J}^{-1}=", fmt="{:.3g}",
+            fontsize=self._FS_VAL, max_width=mvw,
         )
-        self._lbl_status.pack(fill="x", pady=(0, 2))
+        self._mat_invJ.pack(pady=(0, 3))
+        # ③ ∂N físicas = J⁻¹·∂N_ξη: lo que alimenta directamente a B.
+        self._mat_dN_phys = fit_matrix_widget(
+            frame, dN_phys if dN_phys is not None else np.zeros((2, n)),
+            prefix=r"\partial\mathbf{N}_{xy}=\mathbf{J}^{-1}\partial\mathbf{N}_{\xi\eta}=",
+            fmt="{:.3g}", fontsize=self._FS_VAL, max_width=mvw, force_scroll=wide,
+        )
+        self._mat_dN_phys.pack(pady=(0, 3))
+        # ④ B ensamblada desde ∂N_xy (3×2n, siempre ancha → scroll).
+        self._mat_values = fit_matrix_widget(
+            frame, B if B is not None else np.zeros((3, 2 * n)),
+            prefix=r"\mathbf{B}=", fmt="{:.3g}", fontsize=self._FS_VAL,
+            max_width=mvw, force_scroll=True,
+        )
+        self._mat_values.pack(pady=(0, 4))

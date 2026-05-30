@@ -288,6 +288,81 @@ class TheoryDoc:
             transpose=transpose,
         ))
 
+    # ---------- paleta de fase (compartida por teaser/box/card/header) ----------
+    # HEX espejo de PHASE_PRE/PROC/POST_COLOR de config/settings.py. Mantener
+    # sincronizado (la regla 'cero hex fuera de config' no alcanza al .tex, que
+    # es un documento externo; estos 4 definecolor son la unica copia).
+    _PHASE_COLOR_NAME = {
+        "pre": "edufemPre",
+        "proc": "edufemProc",
+        "post": "edufemPost",
+        "info": "edufemInfo",
+    }
+
+    def ensure_edu_colors(self) -> None:
+        """Define (idempotente) los 4 colores de fase en el preambulo.
+
+        Llamado por educational_box/teaser/chapter_io_card/margin_formula y
+        por cualquier consumidor que pinte por fase (p.ej. la barra de fase
+        del encabezado de la Memoria)."""
+        if getattr(self, "_edu_colors_defined", False):
+            return
+        self.doc.preamble.append(NoEscape(
+            r"\definecolor{edufemPre}{HTML}{0D6EFD}"
+            r"\definecolor{edufemProc}{HTML}{FD7E14}"
+            r"\definecolor{edufemPost}{HTML}{198754}"
+            r"\definecolor{edufemInfo}{HTML}{6c757d}"
+        ))
+        self._edu_colors_defined = True
+
+    def _phase_color(self, phase: str) -> str:
+        return self._PHASE_COLOR_NAME.get(phase, "edufemProc")
+
+    # ---------- tarjeta de capitulo "entra -> formula -> sale" ----------
+    def chapter_io_card(self, entra: str, formula: str, sale: str,
+                        phase: str = "proc") -> None:
+        """Tarjeta de 3 celdas ENTRA -> [formula] -> SALE coloreada por fase.
+
+        Reemplaza el parrafo introductorio de cada capitulo: hace explicito
+        el flujo de datos del pipeline FEM (que consume y que produce ese
+        paso) sin prosa. `entra`/`sale` son LaTeX cortos (math inline OK);
+        `formula` es una expresion matematica (sin `$`).
+        """
+        self.package("tcolorbox", options="most")
+        self.ensure_edu_colors()
+        col = self._phase_color(phase)
+        self.doc.append(NoEscape(
+            rf"\begin{{tcolorbox}}[enhanced, colback={col}!5!white, "
+            rf"colframe={col}!55!black, boxrule=0.5pt, arc=2pt, "
+            rf"left=4pt, right=4pt, top=3pt, bottom=3pt]"
+        ))
+        self.doc.append(NoEscape(r"\centering\small"))
+        self.doc.append(NoEscape(r"\begin{tabular}{c c c}"))
+        self.doc.append(NoEscape(
+            rf"\textbf{{\textcolor{{{col}!60!black}}{{ENTRA}}}} & & "
+            rf"\textbf{{\textcolor{{{col}!60!black}}{{SALE}}}} \\"
+        ))
+        self.doc.append(NoEscape(
+            rf"{entra} & $\;\boldsymbol{{\Rightarrow}}\; {formula} "
+            rf"\;\boldsymbol{{\Rightarrow}}\;$ & {sale} \\"
+        ))
+        self.doc.append(NoEscape(r"\end{tabular}"))
+        self.doc.append(NoEscape(r"\end{tcolorbox}"))
+
+    # ---------- formula al margen ----------
+    def margin_formula(self, latex: str, phase: str = "proc") -> None:
+        """Coloca la formula clave del concepto en el margen (riel hojeable).
+
+        Usa \\marginpar (nativo, sin paquetes extra). Si el margen aprieta,
+        degrada visualmente pero no rompe la compilacion."""
+        self.ensure_edu_colors()
+        col = self._phase_color(phase)
+        # \scriptsize + raggedright para caber en el margen estrecho (2.2cm).
+        self.doc.append(NoEscape(
+            rf"\marginpar{{\scriptsize\raggedright\textcolor{{{col}!70!black}}"
+            rf"{{$\displaystyle {latex}$}}}}"
+        ))
+
     # ---------- bloques pedagogicos (educational_box, educational_teaser) ----------
     def educational_teaser(
         self,
@@ -311,21 +386,8 @@ class TheoryDoc:
             phase: "pre" | "proc" | "post" | "info". Controla el color.
         """
         self.package("tcolorbox", options="most")
-        if not getattr(self, "_edu_colors_defined", False):
-            self.doc.preamble.append(NoEscape(
-                r"\definecolor{edufemPre}{HTML}{0D6EFD}"
-                r"\definecolor{edufemProc}{HTML}{FD7E14}"
-                r"\definecolor{edufemPost}{HTML}{198754}"
-                r"\definecolor{edufemInfo}{HTML}{6c757d}"
-            ))
-            self._edu_colors_defined = True
-        color_map = {
-            "pre": "edufemPre",
-            "proc": "edufemProc",
-            "post": "edufemPost",
-            "info": "edufemInfo",
-        }
-        col = color_map.get(phase, "edufemProc")
+        self.ensure_edu_colors()
+        col = self._phase_color(phase)
         # Caja chica (left bar mas grueso para identidad de fase + padding minimo).
         # Sin titulo: el icono lampara hace de marker visual.
         self.doc.append(NoEscape(
@@ -366,22 +428,8 @@ class TheoryDoc:
             phase: "pre" | "proc" | "post" | "info". Controla el color.
         """
         self.package("tcolorbox", options="most")
-        # Definicion lazy de los colores en el preambulo.
-        if not getattr(self, "_edu_colors_defined", False):
-            self.doc.preamble.append(NoEscape(
-                r"\definecolor{edufemPre}{HTML}{0D6EFD}"
-                r"\definecolor{edufemProc}{HTML}{FD7E14}"
-                r"\definecolor{edufemPost}{HTML}{198754}"
-                r"\definecolor{edufemInfo}{HTML}{6c757d}"
-            ))
-            self._edu_colors_defined = True
-        color_map = {
-            "pre": "edufemPre",
-            "proc": "edufemProc",
-            "post": "edufemPost",
-            "info": "edufemInfo",
-        }
-        col = color_map.get(phase, "edufemProc")
+        self.ensure_edu_colors()
+        col = self._phase_color(phase)
         self.doc.append(NoEscape(
             rf"\begin{{tcolorbox}}[colback={col}!5!white, "
             rf"colframe={col}!75!black, title={{{title}}}, "

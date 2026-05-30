@@ -210,8 +210,8 @@ def test_tex_estructura_educativo() -> bool:
     # no colisionar con la enumeracion del pipeline en la introduccion).
     markers = [
         r"Funciones de forma $N_i(\xi",
-        r"Jacobiano $\mathbf{J}(\xi",
-        r"Matriz de deformación $\mathbf{B}(\xi",
+        r"Jacobiano $\mathbf{J}=\partial\mathbf{N}",
+        r"Matriz de deformación $\mathbf{B}$",
         r"Matriz constitutiva $\mathbf{D}$ del material",
         r"Integrando simbólico $K_{ij}",
         r"Cuadratura de Gauss y matriz",
@@ -252,35 +252,42 @@ def test_tex_estructura_educativo() -> bool:
     return True
 
 
-def test_tex_solver_spsolve_no_cholesky() -> bool:
-    print("test_tex_solver_spsolve_no_cholesky ...")
+def test_tex_solver_lu_sin_internals() -> bool:
+    """El Cap. de solución describe la factorización LU directa en abstracto,
+    SIN nombrar internals del software (spsolve/SuperLU). Ver CLAUDE.md."""
+    print("test_tex_solver_lu_sin_internals ...")
     tex = _tex("educativo")
-    if "Cholesky" in tex:
-        print("  FAIL: la Memoria menciona Cholesky (el solver real es spsolve)")
+    for forbidden in ("Cholesky", "spsolve", "SuperLU", "scipy"):
+        if forbidden in tex:
+            print(f"  FAIL: la Memoria menciona un internal/solver indebido: "
+                  f"{forbidden}")
+            return False
+    if "Método de resolución" not in tex or "factorización LU" not in tex:
+        print("  FAIL: no describe el método de resolución (LU directa)")
         return False
-    if "spsolve" not in tex or "Método de resolución" not in tex:
-        print("  FAIL: no describe spsolve / falta 'Método de resolución'")
+    # La ecuación LU (L y = ... ; U u_f = y) debe estar presente.
+    if r"\mathbf{L}\,\mathbf{y}" not in tex or r"\mathbf{U}\,\mathbf{u}_f" not in tex:
+        print("  FAIL: falta la ecuación de la factorización LU")
         return False
-    if "LU dispersa" not in tex:
-        print("  FAIL: no menciona la factorizacion LU dispersa")
-        return False
-    print("  OK: solver descrito como spsolve / LU dispersa (no Cholesky)")
+    print("  OK: solver descrito como LU directa, sin internals")
     return True
 
 
-def test_tex_indexado_ordinal() -> bool:
-    print("test_tex_indexado_ordinal ...")
+def test_tex_ensamblaje_lm() -> bool:
+    print("test_tex_ensamblaje_lm ...")
     tex = _tex("educativo")
     if "Mapeo de grados de libertad" not in tex or r"\mathbf{LM}" not in tex:
         print("  FAIL: falta el mapeo LM en el ensamblaje")
         return False
-    if "ordinal" not in tex:
-        print("  FAIL: no describe el indexado ordinal (no contiguo)")
-        return False
     if "dispersa" not in tex:
         print("  FAIL: no menciona que K es dispersa")
         return False
-    print("  OK: ensamblaje describe indexado ordinal + K dispersa")
+    # La ecuación de ensamblaje debe emitirse SIEMPRE (no gated tras _prose).
+    tex_dir = _tex("directo")
+    if r"\mathbf{LM}_e" not in tex_dir:
+        print("  FAIL: la ecuación LM no aparece en el estilo directo")
+        return False
+    print("  OK: ensamblaje describe el mapeo LM + K dispersa (ambos estilos)")
     return True
 
 
@@ -295,46 +302,83 @@ def test_tex_sin_cross_refs_circulares() -> bool:
     return True
 
 
-def test_tex_completo_tiene_apendices() -> bool:
-    print("test_tex_completo_tiene_apendices ...")
-    tex = _tex("completo")
-    needed = ["Matrices de rigidez elementales", "Datos completos del análisis",
-              "Glosario de símbolos y términos"]
-    missing = [s for s in needed if s not in tex]
-    if missing:
-        print(f"  FAIL: apendices ausentes en 'completo': {missing}")
+def test_tex_solo_dos_estilos() -> bool:
+    """Solo existen 'educativo' y 'directo'. Un 'completo' legacy cae al
+    default sin romper (fallback de __init__)."""
+    print("test_tex_solo_dos_estilos ...")
+    if MemoriaCalculo.STYLES != ("educativo", "directo"):
+        print(f"  FAIL: STYLES inesperado: {MemoriaCalculo.STYLES}")
         return False
-    print("  OK: 'completo' incluye apendices A/B/C")
+    # 'completo' (eliminado) debe degradar a 'educativo', no reventar.
+    project, solution, es, ns = _solved_example()
+    mem = MemoriaCalculo(project, solution, es, ns, style="completo")
+    if mem._style != "educativo":
+        print(f"  FAIL: 'completo' no cayó al default: {mem._style}")
+        return False
+    print("  OK: dos estilos (educativo/directo) + fallback de 'completo'")
     return True
 
 
-def test_tex_educativo_sin_apendices() -> bool:
-    print("test_tex_educativo_sin_apendices ...")
+def test_tex_educativo_glosario_sin_volcado() -> bool:
+    """El educativo conserva el glosario (valor pedagógico) pero NO los
+    volcados de datos del ex-estilo 'completo'."""
+    print("test_tex_educativo_glosario_sin_volcado ...")
     tex = _tex("educativo")
-    extras = ["Datos completos del análisis", "Glosario de símbolos y términos"]
-    present = [s for s in extras if s in tex]
-    if present:
-        print(f"  FAIL: 'educativo' no deberia tener apendices de volcado: {present}")
+    if "Glosario de símbolos y términos" not in tex:
+        print("  FAIL: 'educativo' debería incluir el glosario final")
         return False
-    print("  OK: 'educativo' es un documento de estudio enfocado (sin volcados)")
+    volcados = ["Datos completos del análisis",
+                "Matrices de rigidez elementales"]
+    present = [s for s in volcados if s in tex]
+    if present:
+        print(f"  FAIL: 'educativo' no debería tener apendices de volcado: "
+              f"{present}")
+        return False
+    print("  OK: 'educativo' con glosario, sin volcados")
     return True
 
 
 def test_tex_directo_sin_narrativa() -> bool:
     print("test_tex_directo_sin_narrativa ...")
     tex = _tex("directo")
-    # El estilo directo no tiene cajas pedagogicas ni la intro narrativa.
+    # El estilo directo no tiene cajas pedagogicas, infografía ni intro.
     if "tcolorbox" in tex:
-        print("  FAIL: 'directo' no deberia tener cajas pedagogicas")
+        print("  FAIL: 'directo' no deberia tener cajas/tarjetas pedagogicas")
         return False
     if "¿Qué resuelve el MEF" in tex:
         print("  FAIL: 'directo' no deberia tener la intro narrativa")
         return False
-    # Debe tener tablas de datos y matrices.
+    if "Glosario de símbolos" in tex:
+        print("  FAIL: 'directo' no deberia tener glosario (solo educativo)")
+        return False
     if "longtable" not in tex or "bmatrix" not in tex:
         print("  FAIL: 'directo' deberia tener tablas y matrices")
         return False
-    print("  OK: 'directo' solo datos/matrices/contornos")
+    print("  OK: 'directo' sin narrativa/infografía/glosario")
+    return True
+
+
+def test_tex_directo_paso_a_paso() -> bool:
+    """El nuevo 'directo' contiene el procedimiento matricial COMPLETO
+    (N→J→B→D→kₑ + ensamblaje + solución), no la versión superficial vieja."""
+    print("test_tex_directo_paso_a_paso ...")
+    tex = _tex("directo")
+    pasos = [
+        r"Jacobiano $\mathbf{J}=\partial\mathbf{N}",
+        r"Matriz de deformación $\mathbf{B}$",
+        r"Cuadratura de Gauss y matriz",
+        r"\mathbf{k}_e",          # la kₑ desarrollada
+        r"\mathbf{K}_{ff}",       # partición de BCs (fórmula, no gated)
+        r"Tensiones en los puntos de Gauss",
+        # Reemplazo matricial (consistencia con módulos M2/M4):
+        r"\mathbf{X}_e",          # la matriz de coordenadas (operando)
+        r"\mathbf{J}^{-1}",       # la inversa en la cadena de B
+    ]
+    missing = [p for p in pasos if p not in tex]
+    if missing:
+        print(f"  FAIL: 'directo' no desarrolla el paso a paso: {missing}")
+        return False
+    print("  OK: 'directo' con paso a paso matricial completo")
     return True
 
 
@@ -387,6 +431,49 @@ def test_contornos_pil_blanco() -> bool:
     return True
 
 
+def test_pipeline_map_es_pil() -> bool:
+    """El mapa del cálculo (infografía del educativo) es una PIL.Image."""
+    print("test_pipeline_map_es_pil ...")
+    try:
+        from PIL import Image
+    except ImportError:
+        print("  SKIP: Pillow no disponible")
+        return True
+    from file_io.figure_export import render_pipeline_map
+    project = load_example_project()
+    img = render_pipeline_map(project)
+    if not isinstance(img, Image.Image):
+        print(f"  FAIL: render_pipeline_map no devolvio PIL.Image: {type(img)}")
+        return False
+    if img.size[0] < 400 or img.size[1] < 100:
+        print(f"  FAIL: mapa demasiado chico: {img.size}")
+        return False
+    print(f"  OK: render_pipeline_map -> PIL.Image {img.size}")
+    return True
+
+
+def test_compila_directo_q4() -> bool:
+    """El estilo 'directo' (paso a paso matricial) compila a PDF."""
+    print("test_compila_directo_q4 ...")
+    if not _has_pdflatex():
+        print("  SKIP: pdflatex no encontrado en PATH")
+        return True
+    project, solution, es, ns = _solved_example()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        out_pdf = os.path.join(tmpdir, "memoria_directo_q4.pdf")
+        result_path = generate_memoria_calculo(
+            project, solution, es, ns, out_pdf, style="directo")
+        if not Path(result_path).exists():
+            print(f"  FAIL: no se genero el PDF directo en {result_path}")
+            return False
+        size = Path(result_path).stat().st_size
+        if size < 5000:
+            print(f"  FAIL: PDF directo demasiado chico ({size} bytes)")
+            return False
+        print(f"  OK: PDF directo generado, {size} bytes")
+        return True
+
+
 # ─── Theory Hub ─────────────────────────────────────────────────────────────
 
 def _build_hub_tex() -> str:
@@ -409,13 +496,19 @@ def test_hub_tiene_m8_post() -> bool:
     return True
 
 
-def test_hub_solver_spsolve() -> bool:
-    print("test_hub_solver_spsolve ...")
+def test_hub_solver_lu_sin_internals() -> bool:
+    """El Hub describe la factorización LU en abstracto, SIN nombrar internals
+    del software (spsolve/scipy). Coherente con CLAUDE.md §Theory Hub."""
+    print("test_hub_solver_lu_sin_internals ...")
     tex = _build_hub_tex()
-    if "spsolve" not in tex or "LU dispersa" not in tex:
-        print("  FAIL: Hub no describe spsolve / LU dispersa")
+    for forbidden in ("spsolve", "scipy", "SuperLU"):
+        if forbidden in tex:
+            print(f"  FAIL: el Hub menciona un internal indebido: {forbidden}")
+            return False
+    if "Factorización LU" not in tex:
+        print("  FAIL: el Hub no describe la factorización LU")
         return False
-    print("  OK: Hub describe el solver real (spsolve / LU dispersa)")
+    print("  OK: Hub describe LU en abstracto, sin internals")
     return True
 
 
@@ -455,7 +548,10 @@ def test_hub_toc_clickeable() -> bool:
 def test_hub_no_tiene_bibliografia() -> bool:
     print("test_hub_no_tiene_bibliografia ...")
     tex = _build_hub_tex()
-    forbidden = ["Bibliografía", "Bathe", "Cook", "Zienkiewicz", "Hughes"]
+    # NOTA: "Cook" se omite de la lista — en el cuerpo aparece como nombre del
+    # benchmark "membrana de Cook" (no como cita bibliográfica). El intento del
+    # test es que NO haya sección de bibliografía ni citas de autor sueltas.
+    forbidden = ["Bibliografía", "Bathe", "Zienkiewicz", "Hughes"]
     found = [f for f in forbidden if f in tex]
     if found:
         print(f"  FAIL: bibliografia presente: {found}")
@@ -472,16 +568,19 @@ if __name__ == "__main__":
         test_factored_matrix_helpers(),
         test_no_plus_en_positivos(),
         test_tex_estructura_educativo(),
-        test_tex_solver_spsolve_no_cholesky(),
-        test_tex_indexado_ordinal(),
+        test_tex_solver_lu_sin_internals(),
+        test_tex_ensamblaje_lm(),
         test_tex_sin_cross_refs_circulares(),
-        test_tex_completo_tiene_apendices(),
-        test_tex_educativo_sin_apendices(),
+        test_tex_solo_dos_estilos(),
+        test_tex_educativo_glosario_sin_volcado(),
         test_tex_directo_sin_narrativa(),
+        test_tex_directo_paso_a_paso(),
         test_mesh_diagram_es_pil(),
         test_contornos_pil_blanco(),
+        test_pipeline_map_es_pil(),
+        test_compila_directo_q4(),
         test_hub_tiene_m8_post(),
-        test_hub_solver_spsolve(),
+        test_hub_solver_lu_sin_internals(),
         test_hub_no_tiene_mohr(),
         test_hub_bcs_solo_eliminacion(),
         test_hub_toc_clickeable(),

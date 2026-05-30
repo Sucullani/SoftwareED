@@ -39,9 +39,15 @@ import tkinter as tk
 import ttkbootstrap as ttk
 import sympy as sp
 
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+
 from education.overlay_module import CanvasOverlayModule
 from education.components import (
-    LatexExpressionImage, natural_to_physical, GaussCoordReadout, element_coords,
+    LatexExpressionImage, natural_to_physical, element_coords,
+)
+from education.components.edu_plot_style import (
+    apply_edu_style_figure, apply_edu_style_2d,
 )
 from education.components.expander import Expander
 from education.components.latex_image import LatexMatrixImage, ScrollableMatrixImage
@@ -59,6 +65,7 @@ from config.settings import (
     ANALYSIS_PLANE_STRESS, ANALYSIS_PLANE_STRAIN,
     ELEMENT_Q4, ELEMENT_Q9,
     EDU_FIG_BG, EDU_AXES_BG, EDU_LABEL_BG, EDU_FG, EDU_FG_MUTED,
+    EDU_NATURAL_OUTLINE_COLOR, EDU_NATURAL_AXES_COLOR,
     HEALTH_WARNING_COLOR, HEALTH_ERROR_COLOR,
 )
 
@@ -153,11 +160,14 @@ class StiffnessElementModule(CanvasOverlayModule):
     TITLE = "⑤  Rigidez K_e  —  de la integral a la suma de Gauss"
     PHASE = "proc"
     OVERLAY_INITIAL_POS = (24, 24)
-    # Width=None → auto-fit al ancho real de la matriz k_e (Q4 8×8 y Q9
-    # 18×18 son "fat"; forzar un ancho clipea el corchete derecho).
-    OVERLAY_WIDTH = None
+    # Ancho fijo (como M2/M4): la k_e —ANCHA (8×8 en Q4, 18×18 en Q9)— va en
+    # scroll dentro de su viewport, sin estirar el overlay. El cuadrado natural
+    # (matplotlib, compacto, centrado) y las fórmulas héroe entran holgadas.
+    OVERLAY_WIDTH = 600
     OVERLAY_HEIGHT = None
     REQUIRES_ELEMENT = False
+    # Tolerancia de snap a PG dentro del cuadrado natural (coords ξ,η).
+    _SNAP_NAT = 0.16
 
     def build_overlay(self, body):
         # ── Estado: integrando simbólico (ex-M5) ──
@@ -166,6 +176,9 @@ class StiffnessElementModule(CanvasOverlayModule):
         self._last_kij_expr = None
         self._last_kij_key = None
         self._full_window: Optional[tk.Toplevel] = None
+        # Handle del refit diferido (cancelable) — evita el callback colgante
+        # si el overlay se cierra dentro de la ventana de 120 ms (espeja M2).
+        self._refit_after_id: Optional[str] = None
         # ── Estado: cuadratura (ex-M5b) ──
         self._order = 2
         self._selected_pgs: set = set()
@@ -183,7 +196,8 @@ class StiffnessElementModule(CanvasOverlayModule):
         hero.pack(fill="x", padx=2, pady=(0, 2))
         LatexExpressionImage(
             hero,
-            expr=(r"k_e = \int\!\!\int B^{T} D\, B\,\left|\det J\right|\, t"
+            expr=(r"\mathbf{k}_e = \int\!\!\int \mathbf{B}^{T} \mathbf{D}\, "
+                  r"\mathbf{B}\,\left|\det\mathbf{J}\right|\, t"
                   r"\;\; d\xi\, d\eta"),
             fontsize=13, color="#ef5350", bg=bg,
         ).pack(fill="x", pady=(0, 1))
@@ -195,8 +209,8 @@ class StiffnessElementModule(CanvasOverlayModule):
         ).pack(fill="x", pady=(1, 1))
         LatexExpressionImage(
             hero,
-            expr=(r"k_e \approx \sum_{p} w_p\, B^{T}(\xi_p,\eta_p)\, D\,"
-                  r"B(\xi_p,\eta_p)\,\left|\det J\right|\, t"),
+            expr=(r"\mathbf{k}_e \approx \sum_{p} w_p\, \mathbf{B}^{T}(\xi_p,\eta_p)\, \mathbf{D}\,"
+                  r"\mathbf{B}(\xi_p,\eta_p)\,\left|\det\mathbf{J}\right|\, t"),
             fontsize=13, color="#ffd54f", bg=bg,
         ).pack(fill="x", pady=(1, 0))
 
@@ -213,7 +227,7 @@ class StiffnessElementModule(CanvasOverlayModule):
         # ── 3) CUADRATURA INTERACTIVA (ex-M5b), acto principal ───────
         tk.Label(
             body,
-            text="Sumá los puntos de Gauss clickeándolos sobre el elemento:",
+            text="Sumá los PGs clickeándolos — en el cuadrado o sobre el elemento:",
             bg=bg, fg=EDU_FG, font=("Segoe UI", 9, "bold"),
             anchor="w",
         ).pack(fill="x", padx=2, pady=(0, 2))
@@ -232,16 +246,26 @@ class StiffnessElementModule(CanvasOverlayModule):
                 command=self._on_order_change,
             ).pack(side="left", padx=1)
 
-        # ── Cuadrado natural: ANCLA el espacio donde se evalúa ───────
-        # (idea 6) M5 evalúa la cuadratura en los PGs del CUADRADO NATURAL
-        # (ξ,η). Sin este inset el alumno solo veía los PGs sobre el canvas
-        # físico y perdía el "dónde se evalúa realmente". El highlight
-        # dorado/ghost espeja exactamente la selección del canvas.
-        self._readout = GaussCoordReadout(
-            body, order=self._order, etype=self._element_type(),
-            title="Se evalúa en los PGs del cuadrado natural (ξ, η):",
-        )
-        self._readout.pack(fill="x", padx=2, pady=(2, 2))
+        # ── Cuadrado natural (matplotlib, CENTRADO) — estilo M2/M4 ─────
+        # M5 evalúa la cuadratura en los PGs del CUADRADO NATURAL (ξ,η). El
+        # cuadrado MIRA la selección: PG sumado → dorado, excluido → ghost
+        # dashed (espeja el canvas). Clickear un PG aquí lo toglea (igual que
+        # sobre el elemento físico — bidireccional). SIN descripción de mapeo
+        # (era ruido; el grid de PGs ya muestra el espacio (ξ,η)).
+        plot_frame = ttk.Frame(body)
+        plot_frame.pack(pady=(2, 2))  # sin fill → frame centrado en el body
+        # Figura COMPACTA (2.6×2.0): el cuadrado solo muestra los PGs (sin
+        # marcador/valor), así que no necesita altura — clave para no estirar
+        # el overlay (la meta de "corregir altura").
+        self._fig = Figure(figsize=(2.6, 2.0), dpi=100)
+        apply_edu_style_figure(self._fig)
+        self._ax_nat = self._fig.add_subplot(111)
+        apply_edu_style_2d(self._ax_nat, show_spines=False)
+        self._fig.subplots_adjust(left=0.05, right=0.95, top=0.82, bottom=0.05)
+        self._canvas_mpl = FigureCanvasTkAgg(self._fig, master=plot_frame)
+        self._canvas_mpl.get_tk_widget().pack()
+        self._canvas_mpl.mpl_connect("button_press_event",
+                                     self._on_natural_pick_mpl)
 
         # Warning hourglass / sobre-integración (vacío salvo casos límite).
         self._lbl_warning = tk.Label(
@@ -250,9 +274,11 @@ class StiffnessElementModule(CanvasOverlayModule):
         )
         self._lbl_warning.pack(fill="x", padx=2, pady=(2, 0))
 
-        # Matriz k_e que crece con los PGs sumados.
+        # Matriz k_e que crece con los PGs sumados. `fill="x"` (no expand): el
+        # overlay shrink-wrappea (OVERLAY_HEIGHT=None) → no hay alto sobrante
+        # que distribuir, y la altura está ACOTADA por el viewport de k_e.
         self._k_frame = ttk.Frame(body)
-        self._k_frame.pack(fill="both", expand=True, pady=(2, 2))
+        self._k_frame.pack(fill="x", pady=(2, 2))
         self._k_placeholder = tk.Label(
             self._k_frame,
             text="◎  Clickeá un elemento\ny luego los PGs del canvas",
@@ -260,11 +286,10 @@ class StiffnessElementModule(CanvasOverlayModule):
             justify="center",
         )
         self._k_placeholder.pack(expand=True)
-        self._mat_k: Optional[LatexMatrixImage] = None
-        self._lbl_k_title = tk.Label(
-            self._k_frame, text="", bg=EDU_AXES_BG, fg=EDU_FG,
-            font=("Consolas", 9, "bold"), anchor="center",
-        )
+        # k_e ya se rotula con su prefijo `\mathbf{k}_e=` en la matriz; el ex
+        # `_lbl_k_title` ("k_e · n/n pg") era redundante → eliminado. El conteo
+        # n/total vive solo en el status.
+        self._mat_k: Optional[ScrollableMatrixImage] = None
 
         # Status (Σ n/total pg + último sumado).
         self._lbl_status = tk.Label(
@@ -315,12 +340,15 @@ class StiffnessElementModule(CanvasOverlayModule):
                   ).pack(side="left", padx=(0, 4))
         n_dofs_init = 2 * (self.element.num_nodes if self.element else 4)
         self._var_i = tk.StringVar(value=str(self._i))
-        ttk.Spinbox(sel, from_=1, to=n_dofs_init, width=4,
-                    textvariable=self._var_i, command=self._on_ij_change,
-                    ).pack(side="left", padx=1)
+        # Refs guardadas para reconfigurar `to` al cambiar de elemento (Q4↔Q9):
+        # sin esto, las flechas del spinner topaban en el GDL del elemento
+        # INICIAL aunque k_e creciera a 18×18.
+        self._spin_i = ttk.Spinbox(sel, from_=1, to=n_dofs_init, width=4,
+                    textvariable=self._var_i, command=self._on_ij_change)
+        self._spin_i.pack(side="left", padx=1)
         self._var_j = tk.StringVar(value=str(self._j))
-        ttk.Spinbox(sel, from_=1, to=n_dofs_init, width=4,
-                    textvariable=self._var_j, command=self._on_ij_change,
+        self._spin_j = ttk.Spinbox(sel, from_=1, to=n_dofs_init, width=4,
+                    textvariable=self._var_j, command=self._on_ij_change)
                     ).pack(side="left", padx=1)
         ttk.Separator(sel, orient="vertical").pack(side="left",
                                                     fill="y", padx=8)
@@ -351,6 +379,14 @@ class StiffnessElementModule(CanvasOverlayModule):
             self._mesh.remove_click_consumer(self._click_consumer)
         except Exception:
             pass
+        # Cancelar el refit diferido pendiente (si lo hay) para no disparar
+        # refit_overlay() sobre el Toplevel ya withdrawn.
+        if getattr(self, "_refit_after_id", None) is not None:
+            try:
+                self._mesh.after_cancel(self._refit_after_id)
+            except Exception:
+                pass
+            self._refit_after_id = None
         # Cerrar la ventana de la expresión completa si quedó abierta.
         if self._full_window is not None:
             try:
@@ -358,6 +394,25 @@ class StiffnessElementModule(CanvasOverlayModule):
             except Exception:
                 pass
             self._full_window = None
+
+    def _schedule_refit(self) -> None:
+        """Re-ajusta el overlay ahora + difiere un segundo refit (captura el
+        swap async de imágenes pdflatex). El handle diferido es cancelable en
+        on_closed para no colgar un callback sobre un overlay ya cerrado."""
+        self.refit_overlay()
+        if getattr(self, "_refit_after_id", None) is not None:
+            try:
+                self._mesh.after_cancel(self._refit_after_id)
+            except Exception:
+                pass
+        try:
+            self._refit_after_id = self._mesh.after(120, self._do_deferred_refit)
+        except Exception:
+            self._refit_after_id = None
+
+    def _do_deferred_refit(self) -> None:
+        self._refit_after_id = None
+        self.refit_overlay()
 
     def on_element_selected(self, elem_id):
         if elem_id == self.element_id:
@@ -380,11 +435,7 @@ class StiffnessElementModule(CanvasOverlayModule):
         async a pdflatex de la imagen del integrando)."""
         if self._exp is not None and self._exp.is_expanded:
             self._refresh_integrand()
-        self.refit_overlay()
-        try:
-            self._mesh.after(120, self.refit_overlay)
-        except Exception:
-            pass
+        self._schedule_refit()
 
     # ── Callbacks de la cuadratura ─────────────────────────────────
     def _on_order_change(self):
@@ -541,29 +592,91 @@ class StiffnessElementModule(CanvasOverlayModule):
             self._refresh_integrand()
         self._refresh_warning()
         self._refresh_k_heatmap()
-        self._refresh_readout()
+        self._refresh_natural_square()
         self._refresh_status()
         try:
             self._mesh.redraw()
         except Exception:
             pass
 
-    def _refresh_readout(self):
-        """Sincroniza el cuadrado natural con la cuadratura: actualiza el
-        orden (grid de PGs) y resalta en dorado los PGs sumados (ghost los
-        excluidos) — espeja la selección del canvas físico."""
-        if getattr(self, "_readout", None) is None:
+    # ── Cuadrado natural (subplot 2D matplotlib, estilo M2/M4) ─────
+    def _draw_natural_square(self, ax) -> None:
+        """Dibuja el cuadrado natural (ξ,η) con los PGs del orden activo:
+        sumado → dorado (`GAUSS_ACTIVE`), excluido → ghost dashed. Espeja la
+        selección del canvas físico. Sin marcador único (M5 es multi-PG)."""
+        if ax is None:
             return
-        self._readout.set_state(order=self._order, etype=self._element_type())
-        if not self._contributions:
-            self._readout.set_pg_highlight(None)
+        ax.clear()
+        apply_edu_style_2d(ax, show_spines=False)
+        ax.set_aspect("equal")
+        sq = np.array([[-1, -1], [1, -1], [1, 1], [-1, 1], [-1, -1]])
+        ax.plot(sq[:, 0], sq[:, 1], color=EDU_NATURAL_OUTLINE_COLOR, lw=1.0)
+        ax.fill(sq[:, 0], sq[:, 1], color=EDU_NATURAL_OUTLINE_COLOR, alpha=0.06)
+        ax.axhline(0, color=EDU_NATURAL_AXES_COLOR, lw=0.8, alpha=0.85)
+        ax.axvline(0, color=EDU_NATURAL_AXES_COLOR, lw=0.8, alpha=0.85)
+        try:
+            pts, _ = get_gauss_points_2d(self._order)
+        except Exception:
+            pts = []
+        for idx, (gx, gy) in enumerate(pts):
+            if idx in self._selected_pgs:
+                ax.scatter([gx], [gy], s=82, c=GAUSS_ACTIVE,
+                            edgecolors="white", linewidths=0.9, zorder=8)
+            else:
+                ax.scatter([gx], [gy], s=64, facecolors="none",
+                            edgecolors=EDU_FG_MUTED, linewidths=1.1,
+                            linestyle=(0, (2, 2)), zorder=6)
+        ax.text(1.0, -1.2, "+1", color=EDU_FG_MUTED, fontsize=7,
+                 family="monospace", ha="center", va="top")
+        ax.text(-1.0, -1.2, "-1", color=EDU_FG_MUTED, fontsize=7,
+                 family="monospace", ha="center", va="top")
+        ax.text(1.3, 0.02, "ξ", color=EDU_FG_MUTED, fontsize=9,
+                 family="monospace", fontweight="bold", ha="left", va="center")
+        ax.text(0.02, 1.3, "η", color=EDU_FG_MUTED, fontsize=9,
+                 family="monospace", fontweight="bold", ha="left", va="center")
+        ax.set_xlim(-1.45, 1.45); ax.set_ylim(-1.45, 1.45)
+        ax.set_title("Cuadratura en el cuadrado natural  (ξ, η)",
+                      color=EDU_NATURAL_OUTLINE_COLOR, fontsize=9,
+                      fontweight="bold", pad=4)
+        ax.set_xticks([]); ax.set_yticks([])
+
+    def _on_natural_pick_mpl(self, event) -> None:
+        """Click en un PG del cuadrado natural → toglea su contribución a k_e
+        (idéntico a clickearlo sobre el elemento físico — bidireccional)."""
+        if getattr(event, "button", None) != 1:
             return
-        selected_coords = [
-            (self._contributions[i]["xi"], self._contributions[i]["eta"])
-            for i in self._selected_pgs
-            if 0 <= i < len(self._contributions)
-        ]
-        self._readout.set_pg_highlight(selected_coords)
+        if event.inaxes is not self._ax_nat:
+            return
+        if event.xdata is None or event.ydata is None:
+            return
+        xi, eta = float(event.xdata), float(event.ydata)
+        try:
+            pts, _ = get_gauss_points_2d(self._order)
+        except Exception:
+            return
+        best_idx, best_d = None, float("inf")
+        for idx, (gx, gy) in enumerate(pts):
+            d = math.hypot(xi - gx, eta - gy)
+            if d < best_d:
+                best_d, best_idx = d, idx
+        if best_idx is None or best_d > self._SNAP_NAT:
+            return
+        if best_idx in self._selected_pgs:
+            self._selected_pgs.discard(best_idx)
+        else:
+            self._selected_pgs.add(best_idx)
+        self._refresh_all()
+
+    def _refresh_natural_square(self):
+        """Redibuja el cuadrado natural (orden de cuadratura + selección)."""
+        if (getattr(self, "_ax_nat", None) is None
+                or getattr(self, "_canvas_mpl", None) is None):
+            return
+        try:
+            self._draw_natural_square(self._ax_nat)
+            self._canvas_mpl.draw_idle()
+        except Exception:
+            pass
 
     # ── Render del integrando simbólico (ex-M5) ────────────────────
     def _is_q9(self) -> bool:
@@ -826,24 +939,22 @@ class StiffnessElementModule(CanvasOverlayModule):
                     text="ⓘ 3×3 sobre-integra Q4 (no daña, computa de más)",
                     fg=HEALTH_WARNING_COLOR,
                 )
-            elif n_sel == 0:
-                self._lbl_warning.configure(
-                    text="◎ Clickeá los PGs sobre el elemento para sumarlos",
-                    fg=EDU_FG_MUTED,
-                )
             else:
+                # n_sel == 0 NO usa el warning: la instrucción fija de arriba
+                # + el placeholder "k_e = 0" ya comunican el estado vacío (se
+                # evita el triple mensaje redundante). El warning queda solo
+                # para hourglass / sobre-integración.
                 self._lbl_warning.configure(text="")
         except tk.TclError:
             pass
 
     def _refresh_k_heatmap(self):
-        n_pg = len(self._contributions)
         n_sel = len(self._selected_pgs)
         if self.element is None or not self._contributions or n_sel == 0:
             placeholder_text = (
                 "◎  Clickeá un elemento\ny luego los PGs del canvas"
                 if (self.element is None or not self._contributions)
-                else "k_e = 0\nClickeá PGs sobre el elemento"
+                else "k_e = 0"  # estado de la matriz; la acción ya está arriba
             )
             self._show_k_placeholder(placeholder_text)
             return
@@ -853,8 +964,7 @@ class StiffnessElementModule(CanvasOverlayModule):
             return
         prefix = r"\mathbf{k}_e = "
         fs_base = 14 if K.shape[0] <= 12 else 11
-        title = f"k_e  ·  {n_sel}/{n_pg} pg"
-        self._show_k_matrix(K, prefix=prefix, fs=fs_base, title=title)
+        self._show_k_matrix(K, prefix=prefix, fs=fs_base)
 
     def _show_k_placeholder(self, text: str) -> None:
         if self._mat_k is not None:
@@ -863,18 +973,13 @@ class StiffnessElementModule(CanvasOverlayModule):
             except tk.TclError:
                 pass
         try:
-            self._lbl_k_title.pack_forget()
-        except tk.TclError:
-            pass
-        try:
             self._k_placeholder.configure(text=text)
             if not self._k_placeholder.winfo_ismapped():
                 self._k_placeholder.pack(expand=True)
         except tk.TclError:
             pass
 
-    def _show_k_matrix(self, Kn: np.ndarray, *, prefix: str,
-                       fs: int, title: str) -> None:
+    def _show_k_matrix(self, Kn: np.ndarray, *, prefix: str, fs: int) -> None:
         try:
             self._k_placeholder.pack_forget()
         except tk.TclError:
@@ -883,30 +988,25 @@ class StiffnessElementModule(CanvasOverlayModule):
             # k_e en viewport con scroll/pan IN-FRAME (sin pop-up). Render a
             # fontsize legible (shrink=False): Q4 (8×8) entra; Q9 (18×18) se
             # explora arrastrando o con la rueda, en vez de salir a ~6 pt.
+            # Viewport ALTO ACOTADO (200) para que la 18×18 de Q9 NO estire el
+            # overlay a pantalla completa — scrollea en vertical (antes 300 lo
+            # hacía gigante). Ancho ceñido al overlay (600−60).
             self._mat_k = ScrollableMatrixImage(
                 self._k_frame, matrix=Kn,
                 fmt="{:.0f}", fontsize=fs, prefix=prefix,
-                viewport=(460, 300),
+                viewport=(self.OVERLAY_WIDTH - 60, 200),
             )
         else:
             self._mat_k.set_style(fontsize=fs)
             self._mat_k.set_matrix(Kn, prefix=prefix)
         try:
-            if not self._lbl_k_title.winfo_ismapped():
-                self._lbl_k_title.pack(fill="x", pady=(2, 0))
-            self._lbl_k_title.configure(text=title)
             newly_shown = not self._mat_k.winfo_ismapped()
             if newly_shown:
                 self._mat_k.pack(fill="x", pady=(4, 4))
-                # k_e (viewport 460×300) aparece DESPUÉS de show() — re-ajustar
-                # el overlay una vez para que el viewport entre completo (antes
-                # se recortaba). Idempotente; no se redispara por click de PG
-                # (el widget ya queda mapeado).
-                self.refit_overlay()
-                try:
-                    self._mesh.after(120, self.refit_overlay)
-                except Exception:
-                    pass
+                # k_e aparece DESPUÉS de show() — re-ajustar el overlay una vez
+                # para que el viewport entre completo. Idempotente; no se
+                # redispara por click de PG (el widget ya queda mapeado).
+                self._schedule_refit()
         except tk.TclError:
             pass
 

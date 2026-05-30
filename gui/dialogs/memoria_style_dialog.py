@@ -4,14 +4,16 @@ MemoriaStyleDialog: diálogo modal previo a la exportación del PDF.
 Permite al usuario elegir el estilo de la Memoria de Cálculo antes de
 seleccionar el archivo de destino.
 
-Estilos disponibles:
-  'directo'   — Tablas, matrices y contornos. Sin explicaciones.
-  'educativo' — Procedimiento completo y autocontenido, con figuras y notas.
-  'completo'  — El documento educativo + apéndices (todas las kₑ, datos
-                completos por punto de Gauss, glosario).
+Estilos disponibles (DOS):
+  'educativo' — Mismo procedimiento, con infografía del recorrido MEF,
+                tarjetas "entra → fórmula → sale", una idea clave por
+                concepto y glosario final.
+  'directo'   — El paso a paso matricial completo (N → J → B → D → kₑ,
+                ensamblaje, solución, tensiones) pero SECO: fórmulas,
+                matrices y resultados, sin explicaciones.
 
 Filosofía minimalista (ver CLAUDE.md): sin Labelframes, sin subtítulo
-descriptivo, sin banner explicativo. Solo los 3 radios + descripción muted
+descriptivo, sin banner explicativo. Solo los 2 radios + descripción muted
 + footer.
 
 Constructor: MemoriaStyleDialog(parent)
@@ -27,19 +29,14 @@ from config.settings import FONT_UI, FONT_UI_BOLD, TEXT_MUTED_FG
 
 _ESTILOS = [
     (
-        "directo",
-        "⚡  Directo",
-        "Tablas, matrices y contornos. Sin explicaciones.",
-    ),
-    (
         "educativo",
         "🎓  Educativo",
-        "Procedimiento completo y autocontenido, con figuras y notas.",
+        "Infografía del recorrido, una idea clave por concepto, glosario.",
     ),
     (
-        "completo",
-        "📖  Completo",
-        "Educativo + apéndices: todas las kₑ, datos completos y glosario.",
+        "directo",
+        "⚡  Directo",
+        "Paso a paso matricial (N→J→B→D→kₑ, K, u, σ). Sin explicaciones.",
     ),
 ]
 
@@ -52,7 +49,7 @@ class MemoriaStyleDialog:
 
         self._top = ttk.Toplevel(parent)
         self._top.title("Estilo de Memoria de Cálculo")
-        self._top.geometry("460x260")
+        self._top.geometry("460x210")
         self._top.transient(parent)
         self._top.grab_set()
         self._top.resizable(False, False)

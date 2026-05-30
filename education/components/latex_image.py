@@ -524,6 +524,10 @@ class LatexMatrixImage(ttk.Label):
         bg: Optional[str] = None,
         dpi: int = 140,
         cache_values: bool = False,
+        shrink: bool = True,  # True = auto-encoge la fuente en matrices anchas
+                              # (default histórico). False = fuente plena (el
+                              # caller garantiza que entra; el label se auto-
+                              # dimensiona a la imagen → nunca se recorta).
         zoomable: bool = False,  # DEPRECADO: el pop-up MatrixZoom se eliminó
                                  # (era ruido). Aceptado y IGNORADO por compat;
                                  # para matrices anchas usar ScrollableMatrixImage.
@@ -541,9 +545,10 @@ class LatexMatrixImage(ttk.Label):
         self._bg = bg
         self._dpi = dpi
         self._cache_values = cache_values
+        self._shrink = shrink
         photo = (render_matrix_image(matrix, fmt=fmt, fontsize=fontsize,
                                      color=color, prefix=prefix, bg=bg, dpi=dpi,
-                                     cache=cache_values)
+                                     cache=cache_values, shrink=shrink)
                  if matrix is not None else None)
         super().__init__(parent, image=photo, background=bg, **label_kwargs)
         self._photo_ref = photo  # anti-GC
@@ -556,7 +561,7 @@ class LatexMatrixImage(ttk.Label):
         photo = render_matrix_image(
             matrix, fmt=self._fmt, fontsize=self._fontsize, color=self._color,
             prefix=self._prefix, bg=self._bg, dpi=self._dpi,
-            cache=self._cache_values,
+            cache=self._cache_values, shrink=self._shrink,
         )
         self.configure(image=photo)
         self._photo_ref = photo
@@ -632,11 +637,15 @@ class ScrollableMatrixImage(ttk.Frame):
         self._dpi = dpi
         self._vw, self._vh = int(viewport[0]), int(viewport[1])
         self._photo = None  # anti-GC
+        self._overflow_y = True  # eje de desborde (lo fija set_matrix)
 
         import tkinter as _tk
+        # Cursor NORMAL por defecto: solo pasa a "fleur" (arrastrable) cuando
+        # el contenido desborda (lo decide set_matrix). Antes era "fleur"
+        # incondicional → señalaba "arrastrame" sobre valores estáticos.
         self._canvas = _tk.Canvas(
             self, width=self._vw, height=self._vh,
-            bg=bg, highlightthickness=0, bd=0, cursor="fleur",
+            bg=bg, highlightthickness=0, bd=0, cursor="",
         )
         self._canvas.pack(fill="both", expand=True)
 
@@ -649,6 +658,17 @@ class ScrollableMatrixImage(ttk.Frame):
         # restaurar el break en <Leave>.
         self._canvas.bind("<Enter>", self._enable_wheel)
         self._canvas.bind("<Leave>", self._disable_wheel)
+
+        # Tooltip on-hover EN VEZ del texto fijo "⤡ arrastrá / rueda" en la
+        # esquina (que se solapaba con los valores = ruido). Informa solo al
+        # pasar el mouse y SOLO cuando la matriz desborda (set_matrix actualiza
+        # su texto). Aparece debajo del widget → no tapa los números.
+        self._tooltip = None
+        try:
+            from gui.widgets.tooltip import ToolTip
+            self._tooltip = ToolTip(self._canvas, text="", wraplength=210)
+        except Exception:
+            self._tooltip = None
 
         if matrix is not None:
             self.set_matrix(matrix)
@@ -665,7 +685,14 @@ class ScrollableMatrixImage(ttk.Frame):
         self._canvas.bind("<Shift-MouseWheel>", lambda _ev: "break")
 
     def _on_wheel(self, e):
-        self._canvas.yview_scroll(int(-1 * (e.delta / 120)), "units")
+        # Si el contenido entra en alto (desborda SOLO en ancho, p.ej. ∂N 2×9),
+        # la rueda simple cae a scroll HORIZONTAL — así "usá la rueda" del
+        # tooltip es cierto para matrices anchas. Shift+rueda sigue siendo el
+        # horizontal explícito; el drag paneа en ambos ejes.
+        if getattr(self, "_overflow_y", True):
+            self._canvas.yview_scroll(int(-1 * (e.delta / 120)), "units")
+        else:
+            self._canvas.xview_scroll(int(-1 * (e.delta / 120)), "units")
         return "break"
 
     def _on_wheel_h(self, e):
@@ -693,11 +720,21 @@ class ScrollableMatrixImage(ttk.Frame):
         c.create_image(ox, oy, image=photo, anchor="nw")
         c.configure(scrollregion=(0, 0, max(iw + 8, self._vw),
                                   max(ih + 8, self._vh)))
-        # Hint de arrastre solo si el contenido excede el viewport.
-        if iw > self._vw or ih > self._vh:
-            c.create_text(
-                self._vw - 6, self._vh - 6, anchor="se",
-                text="⤡ arrastrá / rueda", fill=EDU_FG, font=("Segoe UI", 7),
+        # Afordancia de scroll SOLO si el contenido desborda el viewport: el
+        # cursor pasa a "fleur" (arrastrable) y el tooltip on-hover informa.
+        # Sin texto fijo en la esquina (ensuciaba los valores). Si entra, todo
+        # queda limpio (cursor normal, sin tooltip).
+        overflow = (iw > self._vw or ih > self._vh)
+        # Eje en que desborda → gobierna el destino de la rueda simple.
+        self._overflow_y = (ih > self._vh)
+        try:
+            c.configure(cursor="fleur" if overflow else "")
+        except Exception:
+            pass
+        if self._tooltip is not None:
+            self._tooltip.set_text(
+                "Arrastrá o usá la rueda para ver toda la matriz"
+                if overflow else ""
             )
 
     def set_style(self, *, fontsize: Optional[int] = None,
@@ -714,10 +751,63 @@ class ScrollableMatrixImage(ttk.Frame):
                 pass
 
     def cleanup(self) -> None:
-        """No-op: este widget NO abre Toplevels (a diferencia del ex-pop-up).
-        Presente por simetría de API con LatexMatrixImage y para el walk de
-        `CanvasOverlayModule._cleanup_child_widgets`."""
-        pass
+        """Oculta y desagenda el tooltip on-hover (que abre un Toplevel
+        transitorio vía `after()`). El overlay se cierra con `withdraw()` — NO
+        `destroy()` —, así que sin esto un tooltip ya mostrado, o un `after`
+        pendiente, sobreviviría como Toplevel huérfano sobre el escritorio (p.
+        ej. al cerrar M2 con Ctrl+N sin sacar el cursor de la matriz). Invocado
+        por `CanvasOverlayModule._cleanup_child_widgets`."""
+        tip = getattr(self, "_tooltip", None)
+        if tip is not None:
+            try:
+                tip._unschedule()
+                tip._hide()
+            except Exception:
+                pass
+
+
+def fit_matrix_widget(
+    parent,
+    matrix: MatrixLike,
+    *,
+    prefix: str = "",
+    fmt: str = "{:.3g}",
+    fontsize: int = 14,
+    color: Optional[str] = None,
+    max_width: int = 700,
+    force_scroll: bool = False,
+):
+    """Devuelve el widget de matriz ADECUADO según si ENTRA en `max_width`,
+    a fuente plena (`shrink=False`). Helper compartido por M2 y M4 (antes
+    duplicado como `_fit_matrix` en cada uno).
+
+    - **Entra** (`render.width ≤ max_width` y `not force_scroll`) →
+      `LatexMatrixImage`, un `ttk.Label` que se AUTO-DIMENSIONA a la imagen:
+      Tk lo ubica a su tamaño natural → es IMPOSIBLE que se recorte (a
+      diferencia del canvas de ancho fijo de `ScrollableMatrixImage`, que bajo
+      ciertas geometrías quedaba más angosto que la imagen y cortaba columnas).
+    - **No entra** (o `force_scroll`) → `ScrollableMatrixImage` con viewport
+      tope `max_width`: full-font + scroll/pan horizontal, sin encoger.
+
+    `force_scroll` es para matrices LIVE cuyo ancho VARÍA con (ξ,η) (la ∂N de
+    Q9 mide ~518 px en el centro pero ~920 px en los PGs; la B numérica es
+    siempre ancha): decidir el widget por el render inicial daría un label que
+    se desborda al moverse el punto. El caller hace `.pack(...)`.
+    """
+    kw = {} if color is None else {"color": color}
+    try:
+        ph = render_matrix_image(matrix, fmt=fmt, fontsize=fontsize,
+                                 prefix=prefix, cache=False, shrink=False, **kw)
+        iw, ih = ph.width(), ph.height()
+    except Exception:
+        iw, ih = max_width + 1, 60  # ante fallo, asumir overflow → scrollable
+    if iw <= max_width and not force_scroll:
+        return LatexMatrixImage(parent, matrix=matrix, fmt=fmt,
+                                fontsize=fontsize, prefix=prefix, shrink=False,
+                                cache_values=False, **kw)
+    return ScrollableMatrixImage(parent, matrix=matrix, fmt=fmt,
+                                 fontsize=fontsize, prefix=prefix,
+                                 viewport=(max_width, ih + 10), **kw)
 
 
 class LatexExpressionImage(ttk.Label):

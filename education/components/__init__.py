@@ -12,7 +12,7 @@ vivos son `LatexExpressionImage`/`LatexMatrixImage`/`ScrollableMatrixImage`
 
 from .latex_image import (
     LatexMatrixImage, LatexExpressionImage, ScrollableMatrixImage,
-    render_matrix_image, render_expression_image,
+    render_matrix_image, render_expression_image, fit_matrix_widget,
 )
 from .theory_builder import TheoryDoc
 from .theory_viewer import TheoryViewer
@@ -28,6 +28,7 @@ __all__ = [
     "ScrollableMatrixImage",
     "render_matrix_image",
     "render_expression_image",
+    "fit_matrix_widget",
     "TheoryDoc",
     "TheoryViewer",
     "FormulaValueBlocksToggle",
