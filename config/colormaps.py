@@ -102,11 +102,23 @@ def value_to_hex(value, vmin, vmax, lut) -> str:
     return t_to_hex(normalized_t(value, vmin, vmax), lut)
 
 
-def is_diverging_range(vmin, vmax, tol=1e-12) -> bool:
-    """True si el rango cruza el cero (justifica un mapa divergente centrado)."""
+def is_diverging_range(vmin, vmax, rel=1e-6) -> bool:
+    """True si el rango cruza el cero de forma significativa (justifica un mapa
+    divergente centrado).
+
+    Umbral RELATIVO a la magnitud del rango (`rel`): un campo no negativo con
+    ruido numerico minusculo del lado negativo (p.ej. von Mises extrapolada =
+    -1e-9) NO se clasifica como divergente — seguiria en viridis secuencial.
+    Solo cuando ambos lados son una fraccion real del rango se considera con
+    signo (sigma_x/sigma_y/tau_xy, Ux/Uy).
+    """
     if vmin is None or vmax is None:
         return False
-    return vmin < -tol and vmax > tol
+    m = max(abs(vmin), abs(vmax))
+    if m <= 0.0:
+        return False
+    thr = rel * m
+    return vmin < -thr and vmax > thr
 
 
 def symmetric_bounds(vmin, vmax) -> tuple:

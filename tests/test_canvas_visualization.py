@@ -158,6 +158,10 @@ def test_colormaps():
     # diverging detection + symmetric bounds.
     check("diverging detecta signo", cm.is_diverging_range(-2, 5))
     check("no diverging positivo", not cm.is_diverging_range(1, 5))
+    # Ruido numerico: VM con -1e-9 NO debe clasificarse divergente (umbral
+    # relativo) -> sigue en viridis.
+    check("no diverging por ruido", not cm.is_diverging_range(-1e-9, 100.0))
+    check("diverging real con rango grande", cm.is_diverging_range(-30.0, 100.0))
     lo, hi = cm.symmetric_bounds(-2, 5)
     check("symmetric centra cero", lo == -5 and hi == 5)
     # value_to_hex formato.

@@ -1,7 +1,7 @@
 """
 MeshCanvas: Canvas interactivo compartido para visualizar la malla FEM.
 Soporta zoom, pan, nodos, elementos, cargas, restricciones,
-visualizacion de resultados con gradiente suave (jet) e isolineas.
+visualizacion de resultados con gradiente suave (viridis/coolwarm) e isolineas.
 """
 
 import math
@@ -1217,7 +1217,7 @@ class MeshCanvas(ttk.Frame):
 
         Desempaqueta las tuples `(sx, sy, val)` y pasa los floats por
         separado (Numba no acepta tuples Python nativas como argumentos).
-        El kernel JIT hace todo el trabajo: barycentricas + jet inline
+        El kernel JIT hace todo el trabajo: barycentricas + LUT de color
         + escritura de pixeles, sin allocations intermedias.
         """
         sx0, sy0, v0 = p0
@@ -1382,16 +1382,21 @@ class MeshCanvas(ttk.Frame):
         """
         w = self.canvas.winfo_width()
         h = self.canvas.winfo_height()
-        margin = max(w, h) * _CULL_MARGIN_FRAC
+        # Canvas aun no realizado (winfo=1): no cullear (margen infinito) para
+        # no dejar la primera pasada en blanco antes del <Configure>.
+        margin = (float("inf") if (w <= 1 or h <= 1)
+                  else max(w, h) * _CULL_MARGIN_FRAC)
         n_elems = len(self.project.elements)
 
         # Silueta del dominio: solo cuando vale la pena (malla no trivial y no
-        # en modo fantasma). En 'far' es la unica geometria que se dibuja.
+        # en modo fantasma). En 'far' es la unica geometria que se dibuja, asi
+        # que ahi tambien se computa (salvo que el usuario apague las aristas).
         boundary = set()
         want_boundary = (self.boundary_emphasis and self.show_mesh_edges
                          and not self.ghost_geometry
                          and n_elems >= CANVAS_BOUNDARY_MIN_ELEMENTS)
-        if want_boundary or lod == "far":
+        if (want_boundary or lod == "far") and self.show_mesh_edges \
+                and not self.ghost_geometry:
             boundary = boundary_edges(self.project)
 
         # 1) Silueta de contorno PRIMERO (debajo de los outlines de elemento):
@@ -1510,7 +1515,8 @@ class MeshCanvas(ttk.Frame):
             orphan_status = classify_orphan_status(self.project)
         w = self.canvas.winfo_width()
         h = self.canvas.winfo_height()
-        margin = max(w, h) * _CULL_MARGIN_FRAC
+        margin = (float("inf") if (w <= 1 or h <= 1)
+                  else max(w, h) * _CULL_MARGIN_FRAC)
 
         for nid, node in self.project.nodes.items():
             sx, sy = self._get_node_screen_pos(nid)
