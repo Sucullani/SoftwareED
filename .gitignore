@@ -72,3 +72,7 @@ docs/Example.*
 # User config / runtime
 ~/.edufem/
 *.edufem.bak
+
+# Claude Code harness runtime state (lock efimero de tareas programadas)
+.claude/scheduled_tasks.lock
+.claude/*.lock
