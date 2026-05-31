@@ -13,11 +13,10 @@ Diferencias vs el tooltip text-only:
     rotar el plano confundia mas que enseñaba en M8 legacy).
 
 Eliminacion de M8: este panel absorbe el contenido pedagogico del modulo
-educativo M8 (legacy). Las cruces principales σ1/σ2 viven aparte como
-capa overlay del canvas (`PrincipalCrossLayer`), activable por toggle.
-La separacion natural:
-  - Mohr = respuesta PUNTUAL → vive donde se consulta el punto.
-  - Cruces = propiedad del CAMPO → viven como capa del canvas.
+educativo M8 (legacy). El circulo de Mohr describe el estado tensional en
+UN PUNTO material, por eso vive aqui, donde se consulta el punto del probe.
+Las cruces principales σ1/σ2 (capa overlay del canvas) fueron eliminadas en
+2026-05: el contorno + este Mohr ya cubren el estado principal.
 """
 
 from __future__ import annotations

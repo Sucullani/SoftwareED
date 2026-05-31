@@ -59,6 +59,15 @@ CANVAS_NODE_RADIUS = 4
 CANVAS_NODE_MID_COLOR    = "#6fb8ff"   # Azul claro — medios de arista (N5..N8)
 CANVAS_NODE_CENTER_COLOR = "#b86fff"   # Violeta — centroide (N9)
 CANVAS_NODE_MID_RADIUS   = 3
+# Nucleos oscuros de los nodos (efecto "anillo": oval exterior del color del
+# rol + oval interior oscuro). Movidos desde mesh_canvas.py (eran hex literales
+# inline que violaban la paleta congelada). El nucleo da profundidad al marcador
+# sin cambiar su color de rol.
+CANVAS_NODE_INNER_CORNER = "#0a2a44"   # Azul oscuro — vertices (corner)
+CANVAS_NODE_INNER_MID    = "#18354a"   # Azul oscuro — medios de arista Q9
+CANVAS_NODE_INNER_CENTER = "#301a44"   # Violeta oscuro — centroide N9
+CANVAS_NODE_INNER_ORPHAN = "#2a2a32"   # Gris — nucleo de nodo huerfano
+CANVAS_NODE_OUTLINE      = "#0a1a2a"   # Contorno fino del marcador de nodo
 # Nodo huerfano preservado (sin elemento, con cargas/BCs/surface refs).
 # Naranja desaturado (warning visual): se diferencia claramente del gris
 # tenue `AUTO_NODE_FG` usado para los nodos Q9 medios/centro (read-only).
@@ -103,10 +112,36 @@ CANVAS_FONT_SIZE = 9
 # seleccion para no confundirse con ella.
 CANVAS_SELECTED_HALO_COLOR = "#fff59d"   # amarillo palido: glow bajo la seleccion
 CANVAS_HOVER_COLOR         = "#8be9fd"   # cian claro: item bajo el cursor (pre-seleccion)
+# Relleno suave de la seleccion (rediseno 2026-05, pedido del usuario "color
+# suave de relleno transparente que no cubra datos"). tk.Canvas NO soporta alpha
+# vectorial, asi que se simula con un poligono `stipple="gray12"` (patron de
+# puntos disperso que deja asomar la malla/datos debajo) RELLENO con este color.
+# Es CANVAS_SELECTED_COLOR mezclado ~85% hacia el bg #1e1e2e (precalculado) ->
+# amarillo apagado que llena area sin tapar. Acompaña (no reemplaza) al halo,
+# que se afina pero se conserva (hallazgo I1: la seleccion se perdia en mallas
+# grandes sin un realce de area).
+CANVAS_SELECTED_FILL_COLOR = "#54521f"
 # Silueta del dominio: las aristas del contorno exterior (las que pertenecen
 # a un solo elemento) se realzan sobre las internas. Verde claro, misma
 # familia que CANVAS_ELEMENT_COLOR — emfatiza el borde sin romper la paleta.
 CANVAS_BOUNDARY_COLOR      = "#a5d6a7"
+# Rellenos suaves de los simbolos de restriccion (oval/triangulo con interior
+# tenue para que el simbolo se distinga del fondo oscuro sin saturar). Movidos
+# desde mesh_canvas.py (eran hex literales inline).
+CANVAS_CONSTRAINT_FIXED_FILL  = "#3a2a10"   # Marron oscuro — empotramiento
+CANVAS_CONSTRAINT_ROLLER_FILL = "#1a3a4a"   # Azul oscuro — rodillos
+
+# ─── Reescalado de decoraciones con el zoom (proporcional acotado) ─────────
+# Pedido del usuario 2026-05: que los objetos (nodos, flechas, simbolos) se
+# reescalen al hacer zoom. La geometria (elementos en coords mundo) ya escala;
+# estas constantes hacen que las DECORACIONES tambien crezcan/encojan, pero
+# CLAMPED para no explotar al acercar ni desaparecer al alejar (modelo
+# "proporcional acotado", estilo GiD). El multiplicador es scale/reference_scale
+# (reference_scale se fija en cada fit_view). Se clampa el FACTOR (no el px
+# absoluto) para que sea uniforme entre glifos de distinta base: nodo r=4,
+# flecha 44, restriccion 12. Ver mesh_canvas._decoration_factor.
+DECORATION_SCALE_MIN_FACTOR = 0.6   # piso del multiplicador (al alejar)
+DECORATION_SCALE_MAX_FACTOR = 2.5   # techo del multiplicador (al acercar)
 
 # ─── Niveles de detalle (LOD) por zoom ────────────────────────────────────
 # El canvas decide cuanto detalle dibujar segun los pixeles-por-arista-media
@@ -153,13 +188,12 @@ PROBE_PIN_DELETE_PX    = 10          # tolerancia para Ctrl+click sobre pin
 PROBE_NODE_SNAP_COLOR  = "#5fa8ff"   # azul cyan -- snap a nodo activo
 PROBE_NODE_RING_PX     = 8           # anillo de snap visible cuando enganchado
 
-# ─── Post / analisis avanzado (Mohr inset + cruces principales + 3D) ─────
+# ─── Post / analisis avanzado (Mohr inset del probe + 3D) ────────────────
 # Constantes usadas por:
 #   - gui/postprocessing/details_panel.py    (Mohr inset del clic derecho)
-#   - gui/postprocessing/principal_cross_layer.py  (capa de cruces sigma1/sigma2)
 #   - gui/postprocessing/surface_3d_viewer.py      (vista 3D del campo)
 #
-# Convencion cromatica:
+# Convencion cromatica del estado principal (σ1/σ2) sobre el Mohr:
 #   - σ1 traccion: azul (familia de "estable / positivo")
 #   - σ2 compresion: rojo (familia de "alerta / negativo")
 #   - Circulo de Mohr: azul claro coherente con paleta info
@@ -170,8 +204,6 @@ MOHR_POINT_COLOR             = "#ffd54f"   # punto (σx, τxy) sobre el circulo
 MOHR_AXIS_COLOR              = "#bdbdbd"   # ejes σ / τ del Mohr
 MOHR_BG                      = "#2c2c2c"   # fondo del axes Mohr (= EDU_AXES_BG, neutro)
 MOHR_FG                      = "#dfdfdf"   # texto / ticks del Mohr
-PRINCIPAL_CROSS_WIDTH_PX     = 2           # grosor base de brazos σ1/σ2
-PRINCIPAL_CROSS_SIZE_FRAC    = 0.06        # tamaño de brazo / span del modelo
 SURFACE_3D_DEFAULT_GRID      = 8           # sub-grid por elemento en plot_surface
 SURFACE_3D_DISC_THRESHOLD    = 0.10        # >10% del rango => arista discontinua
 

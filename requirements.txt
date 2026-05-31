@@ -1,16 +1,18 @@
-numpy>=1.24.0,<2.0
+numpy>=1.24.0,<3.0
 scipy>=1.10.0,<2.0
 sympy>=1.12
 matplotlib>=3.7.0,<4.0
 ttkbootstrap>=1.10.0,<2
-reportlab>=4.0.0,<5
 pylatex>=1.4.2,<2
 PyMuPDF>=1.24.0,<2
 Pillow>=10.0.0
 ezdxf>=1.0,<2
-# Optimizacion: @njit en hot paths (FEM core + rasterizado del campo).
-# Opcional — fem/_numba_compat.py provee un fallback que convierte @njit
-# en no-op si numba no esta instalado. El codigo sigue funcionando, solo
-# mas lento. Pesa ~30 MB (incluye LLVM); para bundles PyInstaller mas
-# livianos se puede excluir y aceptar el camino Python puro.
-numba>=0.58,<0.66
+# ─── Opcional: JIT con numba (perf) ────────────────────────────────────────
+# @njit acelera los hot paths (FEM core + rasterizado del campo). fem/_numba_compat.py
+# provee un fallback que convierte @njit en no-op si numba NO esta instalado: el
+# codigo corre igual, solo mas lento. numba se desfasa respecto de numpy (las
+# versiones recientes tardan en soportar el ultimo numpy), por eso NO se fija como
+# dependencia dura — instalalo aparte si queres el JIT, con una version compatible
+# con tu numpy instalado:
+#     pip install "numba>=0.60"
+# Pesa ~30 MB (incluye LLVM); excluirlo del bundle PyInstaller lo aliviana.

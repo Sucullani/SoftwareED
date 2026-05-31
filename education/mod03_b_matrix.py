@@ -1,5 +1,5 @@
 """
-Módulo 4 — Matriz B (relación deformación-desplazamiento)
+Módulo 3 — Matriz B (relación deformación-desplazamiento)
 
     ε = B · u
 
@@ -68,7 +68,7 @@ from config.settings import (
 
 # Tag canvas — identifica TODOS los items de M4 para borrarlos en cada
 # redraw sin pisar tags de otros módulos.
-_TAG = "edu_m4"
+_TAG = "edu_m3"
 # Marcador/PG seleccionado en naranja (halo unificado), PGs no seleccionados
 # en cian canónico — mismo lenguaje cromático que M2.
 _C_MARKER = GAUSS_HALO
@@ -78,7 +78,7 @@ _C_SURFACE_HI = GAUSS_CANONICAL
 class BMatrixModule(CanvasOverlayModule):
     """M4 en modo Overlay: matriz B con toggle Fórmula/Valores y glow Gauss."""
 
-    TITLE = "④  Matriz B  (ε = B · u)"
+    TITLE = "③  Matriz B  (ε = B · u)"
     PHASE = "proc"
     OVERLAY_INITIAL_POS = (24, 24)
     # Ancho fijo: el cuadrado natural (matplotlib, compacto, centrado) va
@@ -152,7 +152,7 @@ class BMatrixModule(CanvasOverlayModule):
         return max(440, self.OVERLAY_WIDTH - 40)
 
     def build_overlay(self, body):
-        # Sin chip narrativo ni descripción del mapeo: el título ("④ Matriz B
+        # Sin chip narrativo ni descripción del mapeo: el título ("③ Matriz B
         # (ε = B · u)") + el cuadrado natural + el toggle + el crossref al pie
         # ya orientan al alumno. La antigua línea "(ξ,η)=… → mapeo → (x,y)=…"
         # se eliminó (ruido: el marcador del cuadrado ya muestra ξ,η).
@@ -184,11 +184,11 @@ class BMatrixModule(CanvasOverlayModule):
         )
         self._toggle.pack(fill="both", expand=True, pady=(2, 0))
 
-        # Cross-reference clickeable: B + D forman el integrando de k_e.
+        # Cross-reference clickeable: B se combina con D (④) en el integrando.
         self._pack_crossref(
-            body, "mod05",
-            "👉 B + D (③) construyen el integrando de k_e — "
-            "ver ⑤ Rigidez K_e + Gauss.",
+            body, "mod04",
+            "👉 B se combina con la matriz constitutiva D (④) en el "
+            "integrando BᵀDB de k_e — ver ⑤ Rigidez K_e + Gauss.",
             wraplength=500,
         )
 

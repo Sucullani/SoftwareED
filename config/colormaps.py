@@ -11,10 +11,20 @@ pero construidos en numpy puro desde puntos de anclaje hardcodeados — SIN
 depender de matplotlib (el instalador PyInstaller y los tests headless no
 siempre lo tienen disponible en el hot path del canvas).
 
-Convencion de uso en el canvas:
-  - viridis  -> magnitudes NO negativas (von Mises, |desplazamiento|).
+Convencion de uso en el canvas (unificada en TODOS los renders de resultado:
+canvas 2D, Vista 3D, mini-paneles M9, Memoria de Calculo):
+  - jet      -> magnitudes NO negativas (von Mises, |desplazamiento|). Arcoiris
+    clasico de los software FEM (ANSYS / SAP2000): azul -> cyan -> verde ->
+    amarillo -> rojo. El usuario lo pidio explicitamente (2026-05-31) por el look
+    reconocible de ingenieria estructural, sobrescribiendo la regla "no jet" de
+    la paleta congelada (jet no es perceptualmente uniforme, pero el usuario
+    prioriza el look clasico). Reemplazo a turbo, que habia reemplazado a viridis.
   - coolwarm -> magnitudes con SIGNO (sigma_x, sigma_y, tau_xy); el caller
-    centra vmin/vmax simetricamente para que el cero fisico caiga en 0.5.
+    centra vmin/vmax simetricamente para que el cero fisico caiga en 0.5. El
+    azul/rojo separa compresion de traccion (el cero queda neutro = blanco).
+  - turbo / viridis -> conservados (turbo arcoiris perceptual, viridis para
+    superficies pedagogicas de modulos educativos); ya NO son la paleta de los
+    campos de resultado.
 
 Los LUT son ndarray (256, 3) uint8 — indexables directo por `int(t*255)` en
 el kernel Numba (mas rapido que el branching de JET) y convertibles a hex
@@ -50,6 +60,55 @@ _COOLWARM_ANCHORS = [
     (1.00, (0.705700, 0.015600, 0.150200)),
 ]
 
+# Turbo (Google AI, Mikhailov 2019): arcoiris PERCEPTUALMENTE UNIFORME. Es el
+# reemplazo correcto de Jet — conserva el "look arcoiris" clasico de los
+# software FEM (azul -> cyan -> verde -> amarillo -> naranja -> rojo) pero SIN
+# los falsos contornos de Jet (la luminosidad crece monotona). Reemplaza a
+# viridis para magnitudes no negativas (von Mises, |u|) en TODOS los renders de
+# resultado del proyecto (canvas, Vista 3D, mini-paneles M9, Memoria de
+# Calculo). coolwarm se mantiene para campos con signo. Muestreado de la tabla
+# srgb oficial de Turbo.
+_TURBO_ANCHORS = [
+    (0.00, (0.18995, 0.07176, 0.23217)),
+    (0.08, (0.27100, 0.24300, 0.62400)),
+    (0.16, (0.25500, 0.43500, 0.87500)),
+    (0.24, (0.18000, 0.62000, 0.97300)),
+    (0.32, (0.09800, 0.77600, 0.87500)),
+    (0.40, (0.09400, 0.90200, 0.67800)),
+    (0.48, (0.21600, 0.96500, 0.44300)),
+    (0.56, (0.45900, 0.98400, 0.22700)),
+    (0.64, (0.71000, 0.95300, 0.20000)),
+    (0.72, (0.89400, 0.83500, 0.22700)),
+    (0.80, (0.98000, 0.67800, 0.16900)),
+    (0.88, (0.96900, 0.45500, 0.09000)),
+    (0.96, (0.87100, 0.22700, 0.04700)),
+    (1.00, (0.47800, 0.01600, 0.01200)),
+]
+
+# Jet (arcoiris clasico de los software FEM — ANSYS / SAP2000). El usuario lo
+# pidio explicitamente ("jet/arcoiris similar a Ansys o sap2000", 2026-05-31)
+# como paleta de los campos de resultado no negativos: es el look reconocible
+# azul -> cyan -> verde -> amarillo -> rojo. Reemplaza a turbo (que reemplazo a
+# viridis) para los resultados. NOTA: jet NO es perceptualmente uniforme (la
+# regla #3 de la paleta congelada lo desaconsejaba), pero el usuario sobrescribe
+# esa regla a favor del look clasico de ingenieria estructural. Definicion
+# clasica de matplotlib jet.
+_JET_ANCHORS = [
+    (0.0000, (0.0,    0.0,   0.5)),
+    (0.0833, (0.0,    0.0,   0.878)),
+    (0.1667, (0.0,    0.165, 1.0)),
+    (0.2500, (0.0,    0.5,   1.0)),
+    (0.3333, (0.0,    0.833, 1.0)),
+    (0.4167, (0.215,  1.0,   0.753)),
+    (0.5000, (0.484,  1.0,   0.484)),
+    (0.5833, (0.753,  1.0,   0.215)),
+    (0.6667, (1.0,    0.901, 0.0)),
+    (0.7500, (1.0,    0.593, 0.0)),
+    (0.8333, (1.0,    0.284, 0.0)),
+    (0.9167, (0.879,  0.0,   0.0)),
+    (1.0000, (0.5,    0.0,   0.0)),
+]
+
 
 def _build_lut(anchors) -> np.ndarray:
     """Construye un LUT (256, 3) uint8 interpolando linealmente los anclajes."""
@@ -66,6 +125,8 @@ def _build_lut(anchors) -> np.ndarray:
 # LUT cacheados a nivel de modulo (se construyen una sola vez al importar).
 VIRIDIS_LUT = _build_lut(_VIRIDIS_ANCHORS)
 COOLWARM_LUT = _build_lut(_COOLWARM_ANCHORS)
+TURBO_LUT = _build_lut(_TURBO_ANCHORS)
+JET_LUT = _build_lut(_JET_ANCHORS)
 
 
 def normalized_t(value, vmin, vmax) -> float:

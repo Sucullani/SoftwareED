@@ -6,8 +6,9 @@ accesible via boton "🧊 Vista 3D" en la toolbar. Sincronizado con el
 result_type del post: cambiar de VM a σx repinta automaticamente.
 
 Diseno visual (rediseno 2026-05):
-  - **Estilo coherente con el canvas del Post**: colormap JET identico
-    al de MeshCanvas (no viridis/coolwarm de matplotlib). Esto unifica
+  - **Estilo coherente con el canvas del Post**: mismo colormap que el
+    MeshCanvas (jet/arcoiris para campos no negativos, coolwarm para los con
+    signo; LUTs de config/colormaps, no los de matplotlib). Esto unifica
     cromaticamente la vista 2D del contorno y la vista 3D de la superficie
     -- el alumno reconoce los mismos colores.
   - **Ejes sin ruido visual**: sin ticks, sin numeros, sin paneles de
@@ -74,11 +75,11 @@ _DISPLACEMENT_LABEL = {
 
 # ── Colormap perceptual coherente con MeshCanvas ──────────────────────────
 # Construimos ListedColormaps de 256 colores a partir de los MISMOS LUT que
-# usa el canvas del Post (config/colormaps): viridis para campos no negativos,
-# coolwarm para campos con signo (centrados en 0). Auditoria UX 2026-05:
-# antes era JET; ahora unifica la paleta perceptual entre 2D y 3D.
+# usa el canvas del Post (config/colormaps): jet (arcoiris clasico ANSYS/SAP)
+# para campos no negativos, coolwarm para campos con signo (centrados en 0).
+# Unifica la paleta entre 2D y 3D (jet por pedido del usuario, 2026-05-31).
 from config.colormaps import (
-    VIRIDIS_LUT, COOLWARM_LUT, is_diverging_range, symmetric_bounds,
+    JET_LUT, is_diverging_range, symmetric_bounds,
 )
 
 
@@ -91,17 +92,16 @@ def _build_lut_cmap(lut):
     return ListedColormap(rgba)
 
 
-_VIRIDIS_CMAP = None   # inicializados en primera apertura del visor
-_COOLWARM_CMAP = None
+_JET_CMAP = None       # inicializado en primera apertura del visor
 
 
 def _cmap_for_range(vmin, vmax):
-    """(cmap, vmin, vmax) coherente con el canvas: coolwarm centrado en 0 si
-    el rango cruza el cero, viridis secuencial si no."""
+    """(cmap, vmin, vmax) coherente con el canvas: JET para todo (ANSYS/SAP).
+    Los campos con signo se centran simetricamente en 0."""
     if is_diverging_range(vmin, vmax):
         lo, hi = symmetric_bounds(vmin, vmax)
-        return _COOLWARM_CMAP, lo, hi
-    return _VIRIDIS_CMAP, vmin, vmax
+        return _JET_CMAP, lo, hi
+    return _JET_CMAP, vmin, vmax
 
 
 class Surface3DViewer(tk.Toplevel):
@@ -166,12 +166,11 @@ class Surface3DViewer(tk.Toplevel):
         self._info_label.pack(side=tk.RIGHT)
 
         # Body: matplotlib Figure 3D (import diferido: solo al abrir el visor)
-        global _VIRIDIS_CMAP, _COOLWARM_CMAP
+        global _JET_CMAP
         from matplotlib.figure import Figure
         from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-        if _VIRIDIS_CMAP is None:
-            _VIRIDIS_CMAP = _build_lut_cmap(VIRIDIS_LUT)
-            _COOLWARM_CMAP = _build_lut_cmap(COOLWARM_LUT)
+        if _JET_CMAP is None:
+            _JET_CMAP = _build_lut_cmap(JET_LUT)
 
         body = ttk.Frame(self, padding=(8, 4))
         body.pack(fill=tk.BOTH, expand=True)

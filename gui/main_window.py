@@ -456,7 +456,7 @@ class MainWindow:
         )
         # No pack inicial — se gestiona desde _update_ortho_indicator.
 
-        # Breadcrumb del pipeline FEM. Mini-tira de chips Ⓜ ① ② ③ ④ ⑤ ⑤' ⑥ ⑦ ⑨
+        # Breadcrumb del pipeline FEM. Mini-tira de chips Ⓜ ① ② ③ ④ ⑤ ⑥ ⑦
         # que se ilumina cuando hay un módulo overlay activo. Click en chip
         # abre ese módulo manteniendo el elemento actual. Comparte conjunto
         # de visitados con la sesión (no se persiste). Se autoinicializa
@@ -473,7 +473,6 @@ class MainWindow:
             ("mod05",  "⑤"),
             ("mod06",  "⑥"),
             ("mod07",  "⑦"),
-            ("mod09",  "⑨"),
         ):
             chip = tk.Label(
                 self._breadcrumb_frame, text=label,
@@ -783,7 +782,7 @@ class MainWindow:
         self.project.reset()
         self.undo_stack.clear()
         self.mesh_canvas.project = self.project
-        self.mesh_canvas.clear_results()
+        self.mesh_canvas.clear_results_overlay()
         self._update_all_project_refs()
         self._refresh_all_tabs()
         self._update_status_info()
@@ -905,7 +904,7 @@ class MainWindow:
         self.undo_stack.set_project(self.project)
 
         self._update_all_project_refs()
-        self.mesh_canvas.clear_results()
+        self.mesh_canvas.clear_results_overlay()
         self._refresh_all_tabs()
         self._update_status_info()
         self.root.after(100, self.mesh_canvas.fit_view)
@@ -1492,8 +1491,8 @@ class MainWindow:
             "Educación\n"
             "  Ctrl+1           M1 · Mapeo iso + funciones N\n"
             "  Ctrl+2           M2 · Jacobiano det J\n"
-            "  Ctrl+3           M3 · Matriz Constitutiva D\n"
-            "  Ctrl+4           M4 · Matriz B\n"
+            "  Ctrl+3           M3 · Matriz B\n"
+            "  Ctrl+4           M4 · Matriz Constitutiva D\n"
             "  Ctrl+5           M5 · Rigidez K_e + Cuadratura de Gauss\n"
             "  Ctrl+6           M6 · Fuerzas Equivalentes\n"
             "  Ctrl+7           M7 · Ensamblaje K, F + BCs\n\n"
@@ -1537,12 +1536,12 @@ class MainWindow:
         if tab_index == 0:
             # Volver a Pre-Proceso: el canvas debe mostrar solo geometria,
             # no la deformada / mapa de colores / isolineas que dejo Post.
-            # Tambien desactivar el probe overlay y las vistas avanzadas
-            # (cruces principales + 3D) cuyos bindings/vistas no tienen
-            # sentido fuera de Post.
+            # Tambien desactivar el probe overlay y la vista 3D cuyos
+            # bindings/vistas no tienen sentido fuera de Post.
             self.post_tab.deactivate_probe_overlay()
             self.post_tab.deactivate_advanced_views()
             self.mesh_canvas.clear_results_overlay()
+            self.mesh_canvas.set_phase("pre")
             self.pre_tab.refresh()
         elif tab_index == 1:
             # Modo dibujo no tiene sentido fuera de Pre-Proceso.
@@ -1551,13 +1550,19 @@ class MainWindow:
             self.post_tab.deactivate_probe_overlay()
             self.post_tab.deactivate_advanced_views()
             self.mesh_canvas.clear_results_overlay()
+            self.mesh_canvas.set_phase("proc")
             self.proc_tab.refresh()
         elif tab_index == 2:
             if self.mesh_canvas.is_draw_mode_active():
                 self.mesh_canvas.disable_draw_mode()
+            # Limpiar cualquier seleccion arrastrada desde Pre/Proc: en Post no
+            # hay seleccion de elementos y su relleno taparia el contorno
+            # (interferencia reportada por el usuario 2026-05-31).
+            self.mesh_canvas.clear_highlights()
             self.post_tab.auto_solve()
             # Reactivar probe si el usuario lo dejo ON en una visita previa
             self.post_tab.maybe_reactivate_probe_overlay()
+            self.mesh_canvas.set_phase("post")
 
         self.mesh_canvas.redraw()
         self._refresh_menu_state()

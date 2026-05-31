@@ -255,14 +255,19 @@ from config.settings import (
     CANVAS_SELECTED_COLOR, CANVAS_NODE_RADIUS, CANVAS_FONT_SIZE,
     CANVAS_NODE_MID_COLOR, CANVAS_NODE_CENTER_COLOR, CANVAS_NODE_MID_RADIUS,
     CANVAS_NODE_ORPHAN_COLOR, CANVAS_GHOST_COLOR,
-    CANVAS_SELECTED_HALO_COLOR, CANVAS_HOVER_COLOR, CANVAS_BOUNDARY_COLOR,
+    CANVAS_NODE_INNER_CORNER, CANVAS_NODE_INNER_MID, CANVAS_NODE_INNER_CENTER,
+    CANVAS_NODE_INNER_ORPHAN, CANVAS_NODE_OUTLINE,
+    CANVAS_CONSTRAINT_FIXED_FILL, CANVAS_CONSTRAINT_ROLLER_FILL,
+    CANVAS_SELECTED_HALO_COLOR, CANVAS_SELECTED_FILL_COLOR,
+    CANVAS_HOVER_COLOR, CANVAS_BOUNDARY_COLOR,
     CANVAS_BOUNDARY_MIN_ELEMENTS, CANVAS_FOCUS_MIN_ELEMENTS,
+    DECORATION_SCALE_MIN_FACTOR, DECORATION_SCALE_MAX_FACTOR,
     DECIMALS_LENGTH, DECIMALS_FORCE, DECIMALS_STRESS, fmt,
     SHADOW_LOAD, SHADOW_SURFACE, SHADOW_CONSTRAINT, LABEL_BG, LABEL_FG,
-    FONT_MONO_SMALL,
+    FONT_MONO_SMALL, TEXT_MUTED_FG,
 )
 from config.colormaps import (
-    VIRIDIS_LUT, COOLWARM_LUT, t_to_hex, value_to_hex,
+    JET_LUT, t_to_hex, value_to_hex,
     is_diverging_range, symmetric_bounds,
 )
 from models.mesh_utils import (
@@ -290,6 +295,12 @@ class MeshCanvas(ttk.Frame):
         self.scale = 1.0
         self.offset_x = 0
         self.offset_y = 0
+        # Escala de referencia para el reescalado de decoraciones con el zoom
+        # (proporcional acotado). Se fija en cada fit_view: con scale ==
+        # _reference_scale el factor es 1.0 (decoraciones a tamano base). None
+        # hasta el primer fit_view -> factor 1.0 por defecto. Ver
+        # _decoration_factor.
+        self._reference_scale = None
         # ─── Highlights "single" (compat) ──────────────────────────────
         # Estos atributos mantienen el "ultimo seleccionado individual"
         # para retrocompat con codigo que asume single-select. Su valor
@@ -343,6 +354,7 @@ class MeshCanvas(ttk.Frame):
         # Estado de resultados
         self.result_values = None
         self.result_label = ""
+        self.result_unit = ""        # unidad del resultado activo (colorbar)
         self.result_vmin = 0.0
         self.result_vmax = 1.0
 
@@ -351,10 +363,14 @@ class MeshCanvas(ttk.Frame):
         self.deform_scale = 0.0
         self.displacements = None
 
-        # Opciones de dibujo
+        # Opciones de dibujo (capas toggleables desde el menu del titulo).
         self.show_loads = True
         self.show_constraints = True
         self.show_mesh_edges = True
+        self.show_nodes = True
+        self.show_grid = True
+        # Snapshot de capas previo a "Vista limpia" (para restaurar al toggle).
+        self._clean_view_prev = None
         # ─── Visualizacion progresiva (auditoria UX 2026-05) ───────────────
         # Numeracion bajo demanda: modo por categoria (reemplaza a los ex
         # flags booleanos show_node_labels/show_elem_labels). "auto" = visible
@@ -372,8 +388,8 @@ class MeshCanvas(ttk.Frame):
         # Estado del realce de hover (id del elemento bajo el cursor con su
         # outline dibujado en la capa "hover"). None = sin hover activo.
         self._hover_highlight_eid = None
-        # ─── Colormap activo (viridis no-negativo / coolwarm con signo) ────
-        self._active_lut = VIRIDIS_LUT
+        # ─── Colormap activo (jet no-negativo / coolwarm con signo) ────────
+        self._active_lut = JET_LUT
         self.result_diverging = False
         # Geometria "fantasma": cuando un modulo overlay lo activa (M0), la
         # malla base se dibuja atenuada (gris tenue, sin etiquetas) para que la
@@ -479,26 +495,30 @@ class MeshCanvas(ttk.Frame):
         toolbar = ttk.Frame(self)
         toolbar.pack(fill=X, padx=2, pady=(2, 0))
 
-        ttk.Label(
-            toolbar, text="  Modelo MEF",
-            font=("Segoe UI", 10, "bold")
-        ).pack(side=LEFT, padx=3)
+        # Titulo del viewport = menu de visualizacion (patron Rhino: el titulo
+        # del viewport ES el menu). Ocupa el espacio prime-izquierdo, muestra el
+        # glifo de la fase activa (set_phase lo actualiza: 📐 Pre / ⚙ Proc /
+        # 📊 Post) y al clickearse abre los overrides de display. Reemplaza al
+        # ex-label "Modelo MEF" + ex-menubutton "Vista" (dos controles -> uno;
+        # ademas elimina el "Vista" duplicado que chocaba con "Ajustar Vista").
+        # Estado de capas (visibilidad). show_loads / show_constraints ya
+        # existian y condicionaban el redraw; sumamos nodos y cuadricula.
+        # 'Elementos' NO es toggleable a proposito (ocultar la malla deja
+        # nodos/cargas flotando — confuso). El menu del titulo los expone.
+        self._phase = "pre"
+        self._title_mb = ttk.Menubutton(
+            toolbar, text="📐  Modelo MEF", bootstyle="secondary-outline",
+        )
+        self._title_mb.pack(side=LEFT, padx=3)
+        self._build_view_menu(self._title_mb)
 
-        self._build_view_menu(toolbar)
-
-        ttk.Button(
-            toolbar, text="Ajustar Vista", bootstyle="secondary-outline",
-            command=self.fit_view, width=13
-        ).pack(side=RIGHT, padx=2)
-
-        ttk.Button(
-            toolbar, text="Limpiar Resultados", bootstyle="warning-outline",
-            command=self.clear_results, width=16
-        ).pack(side=RIGHT, padx=2)
-
+        # Barra minimalista: titulo-menu (izq) + readout de coords (der).
+        # 'Ajustar' vive DENTRO del menu (no como boton). 'Limpiar Resultados'
+        # se elimino — volver a Pre/Proc ya llama clear_results_overlay() (ver
+        # MainWindow._on_tab_changed), asi que era redundante con la navegacion.
         self.coord_label = ttk.Label(
             toolbar, text="x: --  y: --",
-            font=("Consolas", 8), foreground="#888"
+            font=("Consolas", 8), foreground=TEXT_MUTED_FG,
         )
         self.coord_label.pack(side=RIGHT, padx=10)
 
@@ -568,11 +588,10 @@ class MeshCanvas(ttk.Frame):
     # COLORES — LUT perceptual (viridis / coolwarm)
     # ═════════════════════════════════════════════════════════════════════
     #
-    # Auditoria UX 2026-05: se reemplazo JET por LUTs perceptualmente
-    # uniformes (config/colormaps.py). El LUT activo (`self._active_lut`) lo
-    # eligen set_result_values / set_element_result_grid: viridis para
-    # magnitudes no negativas (VM, |u|), coolwarm para magnitudes con signo
-    # (sigma_x/sigma_y/tau_xy, con vmin/vmax centrados en 0).
+    # El LUT activo (`self._active_lut`) es JET para TODO (pedido del usuario
+    # 2026-05-31: "cambia todo a JET", look ANSYS/SAP2000). Magnitudes no
+    # negativas (VM, |u|) y campos con signo (sigma_x/sigma_y/tau_xy) usan jet;
+    # los con signo se centran simetricamente en 0 (azul=compresion, rojo=traccion).
 
     def _t_to_color(self, t):
         """t en [0,1] -> hex via el LUT activo."""
@@ -584,23 +603,47 @@ class MeshCanvas(ttk.Frame):
         return value_to_hex(value, self.result_vmin, self.result_vmax,
                             self._active_lut)
 
+    def _decoration_factor(self):
+        """Multiplicador de tamano de las decoraciones (nodos, flechas,
+        simbolos) segun el zoom — reescalado proporcional ACOTADO.
+
+        Pedido del usuario 2026-05: que los objetos se reescalen al hacer zoom.
+        La geometria (coords mundo) ya escala; este factor hace que las
+        decoraciones (dibujadas en px-pantalla) tambien crezcan/encojan, pero
+        clamped entre [MIN, MAX] para no explotar al acercar ni desaparecer al
+        alejar. Se clampa el FACTOR (no el px absoluto) -> uniforme entre
+        glifos de distinta base (nodo 4, flecha 44, restriccion 12).
+
+        Devuelve 1.0 si aun no hay escala de referencia (antes del primer
+        fit_view): las decoraciones quedan a su tamano base.
+        """
+        if not self._reference_scale:
+            return 1.0
+        f = self.scale / self._reference_scale
+        if f < DECORATION_SCALE_MIN_FACTOR:
+            return DECORATION_SCALE_MIN_FACTOR
+        if f > DECORATION_SCALE_MAX_FACTOR:
+            return DECORATION_SCALE_MAX_FACTOR
+        return f
+
     def _select_colormap(self):
         """Elige el LUT segun el rango del resultado actual.
 
-        - Rango con signo (cruza el cero): coolwarm divergente, con vmin/vmax
-          re-centrados simetricamente para que el cero fisico caiga en 0.5
-          (sigma_x/sigma_y/tau_xy). Es la representacion correcta de un campo
-          con signo — el azul/rojo separa compresion de traccion.
-        - Rango no negativo (VM, |u|): viridis secuencial.
+        **JET para TODO** (pedido del usuario 2026-05-31: "cambia todo a JET",
+        look arcoiris clasico ANSYS/SAP2000). Tanto magnitudes no negativas
+        (VM, |u|) como campos con signo (sigma_x/sigma_y/tau_xy/Ux/Uy) usan jet.
+        Para campos con signo se re-centra vmin/vmax simetricamente para que el
+        cero fisico caiga en el medio del arcoiris (verde) — azul = compresion,
+        rojo = traccion. Unificado con la Vista 3D, los mini-paneles M9 y la
+        Memoria de Calculo.
         """
+        self._active_lut = JET_LUT
         if is_diverging_range(self.result_vmin, self.result_vmax):
             self.result_diverging = True
-            self._active_lut = COOLWARM_LUT
             self.result_vmin, self.result_vmax = symmetric_bounds(
                 self.result_vmin, self.result_vmax)
         else:
             self.result_diverging = False
-            self._active_lut = VIRIDIS_LUT
 
     # ═════════════════════════════════════════════════════════════════════
     # VISUALIZACION PROGRESIVA — LOD por zoom + focus (auditoria UX 2026-05)
@@ -664,57 +707,128 @@ class MeshCanvas(ttk.Frame):
         self.boundary_emphasis = bool(enabled)
         self.redraw()
 
-    def _build_view_menu(self, toolbar):
-        """Menubutton 'Vista' con los controles de visualizacion progresiva:
-        numeracion (auto/siempre/nunca), atenuacion de contexto y silueta.
+    _PHASE_GLYPH = {"pre": "📐", "proc": "⚙", "post": "📊"}
 
-        Es la unica via manual para forzar la numeracion — por defecto todo
-        es 'auto' (el LOD por zoom + la malla chica deciden). Coherente con la
-        filosofia minimalista: un solo control compacto, sin toolbar extra.
+    def _build_view_menu(self, menubutton):
+        """Puebla el menu de CAPAS colgado del titulo del viewport
+        (`self._title_mb`): prende/apaga la visibilidad de cada objeto del
+        canvas + un atajo 'Vista limpia' (aisla la malla en un click) +
+        'Ajustar vista'. Vive en el titulo del viewport (patron Rhino).
+
+        Diseno (auditoria UX 2026-05): 'Numeros' va primero porque el texto es
+        lo que mas satura en mallas densas. Los glifos de color (🔵🟧🔺) son
+        pistas-leyenda del simbolo correspondiente en el canvas. 'Elementos' NO
+        es toggleable a proposito (ocultar la malla deja nodos/cargas flotando).
+        La atenuacion de contexto y la silueta del borde se quitaron del menu
+        (solo gatillan en mallas grandes >=60 / >=12 elementos — invisibles en
+        modelos didacticos; quedan en automatico interno).
         """
-        mb = ttk.Menubutton(toolbar, text="Vista", bootstyle="secondary-outline",
-                            width=7)
-        mb.pack(side=LEFT, padx=2)
-        menu = tk.Menu(mb, tearoff=False)
-        mb["menu"] = menu
+        menu = tk.Menu(menubutton, tearoff=False)
+        menubutton["menu"] = menu
 
-        # Vars persistentes (refs en self para evitar GC del recolector Tcl).
-        self._var_node_labels = tk.StringVar(value=self.node_label_mode)
-        self._var_elem_labels = tk.StringVar(value=self.elem_label_mode)
-        self._var_focus = tk.StringVar(value=self.focus_mode)
-        self._var_boundary = tk.BooleanVar(value=self.boundary_emphasis)
+        # Vars de capas (refs en self -> evitan GC del recolector Tcl).
+        self._var_clean = tk.BooleanVar(value=False)
+        self._var_labels = tk.BooleanVar(value=self.node_label_mode != "never")
+        self._var_nodes = tk.BooleanVar(value=self.show_nodes)
+        self._var_loads = tk.BooleanVar(value=self.show_loads)
+        self._var_constraints = tk.BooleanVar(value=self.show_constraints)
+        self._var_grid = tk.BooleanVar(value=self.show_grid)
 
-        _modes = [("Automática", "auto"), ("Siempre", "always"),
-                  ("Nunca", "never")]
-
-        node_menu = tk.Menu(menu, tearoff=False)
-        for label, val in _modes:
-            node_menu.add_radiobutton(
-                label=label, value=val, variable=self._var_node_labels,
-                command=lambda: self.set_node_label_mode(self._var_node_labels.get()))
-        menu.add_cascade(label="Numeración de nodos", menu=node_menu)
-
-        elem_menu = tk.Menu(menu, tearoff=False)
-        for label, val in _modes:
-            elem_menu.add_radiobutton(
-                label=label, value=val, variable=self._var_elem_labels,
-                command=lambda: self.set_elem_label_mode(self._var_elem_labels.get()))
-        menu.add_cascade(label="Numeración de elementos", menu=elem_menu)
-
+        # Power-move: aislar la malla en un click (ideal para una captura).
+        menu.add_checkbutton(
+            label="🧹  Vista limpia (solo malla)", variable=self._var_clean,
+            command=self._toggle_clean_view)
         menu.add_separator()
 
-        focus_menu = tk.Menu(menu, tearoff=False)
-        for label, val in [("Automático", "auto"), ("Siempre", "on"),
-                           ("Nunca", "off")]:
-            focus_menu.add_radiobutton(
-                label=label, value=val, variable=self._var_focus,
-                command=lambda: self.set_focus_mode(self._var_focus.get()))
-        menu.add_cascade(label="Atenuar contexto al seleccionar",
-                         menu=focus_menu)
-
         menu.add_checkbutton(
-            label="Resaltar silueta del borde", variable=self._var_boundary,
-            command=lambda: self.set_boundary_emphasis(self._var_boundary.get()))
+            label="Números (nodos y elementos)", variable=self._var_labels,
+            command=lambda: self._set_labels_visible(self._var_labels.get()))
+        menu.add_checkbutton(
+            label="🔵  Nodos", variable=self._var_nodes,
+            command=lambda: self._set_layer("show_nodes",
+                                            self._var_nodes.get()))
+        menu.add_checkbutton(
+            label="🟧  Cargas", variable=self._var_loads,
+            command=lambda: self._set_layer("show_loads",
+                                            self._var_loads.get()))
+        menu.add_checkbutton(
+            label="🔺  Restricciones", variable=self._var_constraints,
+            command=lambda: self._set_layer("show_constraints",
+                                            self._var_constraints.get()))
+        menu.add_checkbutton(
+            label="Cuadrícula", variable=self._var_grid,
+            command=lambda: self._set_layer("show_grid",
+                                            self._var_grid.get()))
+
+        menu.add_separator()
+        menu.add_command(label="Ajustar vista", accelerator="F",
+                         command=self.fit_view)
+
+    def _set_layer(self, attr, value):
+        """Prende/apaga una capa (show_nodes/show_loads/show_constraints/
+        show_grid) y redibuja. Tocar una capa a mano sale del indicador
+        'Vista limpia' (que es un preset momentaneo, no un estado pegajoso)."""
+        setattr(self, attr, bool(value))
+        self._var_clean.set(False)
+        self._clean_view_prev = None
+        self.redraw()
+
+    def _set_labels_visible(self, visible):
+        """Numeros (nodos + elementos): marcado -> 'auto' (visible en mallas
+        chicas, oculto al alejar en densas); desmarcado -> 'never'. Tocar sale
+        de 'Vista limpia'."""
+        mode = "auto" if visible else "never"
+        self.node_label_mode = mode
+        self.elem_label_mode = mode
+        self._var_clean.set(False)
+        self._clean_view_prev = None
+        self.redraw()
+
+    def _toggle_clean_view(self):
+        """🧹 Vista limpia: un click esconde numeros, cargas, restricciones y
+        cuadricula (deja malla + nodos) para una captura limpia; al desactivar
+        restaura el estado previo de cada capa."""
+        if self._var_clean.get():
+            self._clean_view_prev = {
+                "labels": self.node_label_mode != "never",
+                "loads": self.show_loads,
+                "constraints": self.show_constraints,
+                "grid": self.show_grid,
+            }
+            self.node_label_mode = "never"
+            self.elem_label_mode = "never"
+            self.show_loads = False
+            self.show_constraints = False
+            self.show_grid = False
+        else:
+            prev = self._clean_view_prev or {}
+            lbl_mode = "auto" if prev.get("labels", True) else "never"
+            self.node_label_mode = lbl_mode
+            self.elem_label_mode = lbl_mode
+            self.show_loads = prev.get("loads", True)
+            self.show_constraints = prev.get("constraints", True)
+            self.show_grid = prev.get("grid", True)
+            self._clean_view_prev = None
+        self._sync_layer_vars()
+        self.redraw()
+
+    def _sync_layer_vars(self):
+        """Refleja el estado real de las capas en los checkbuttons del menu."""
+        self._var_labels.set(self.node_label_mode != "never")
+        self._var_nodes.set(self.show_nodes)
+        self._var_loads.set(self.show_loads)
+        self._var_constraints.set(self.show_constraints)
+        self._var_grid.set(self.show_grid)
+
+    def set_phase(self, phase):
+        """Actualiza el glifo del titulo del viewport segun la fase activa
+        (📐 Pre / ⚙ Proc / 📊 Post): el titulo del canvas pasa a ser un
+        indicador de fase ademas del menu de display. Invocado desde
+        MainWindow._on_tab_changed en cada cambio de pestana.
+        """
+        self._phase = phase if phase in self._PHASE_GLYPH else "pre"
+        self._title_mb.configure(
+            text=f"{self._PHASE_GLYPH[self._phase]}  Modelo MEF")
 
     # ═════════════════════════════════════════════════════════════════════
     # TRANSFORMACION DE COORDENADAS
@@ -780,7 +894,8 @@ class MeshCanvas(ttk.Frame):
         # El redraw completo borro la capa 'hover'; resetear su estado para
         # que el proximo <Motion> la regenere sobre el elemento bajo cursor.
         self._hover_highlight_eid = None
-        self._draw_grid()
+        if self.show_grid:
+            self._draw_grid()
 
         if self.show_deformed and self.displacements is not None:
             self._draw_original_mesh_ghost()
@@ -810,8 +925,9 @@ class MeshCanvas(ttk.Frame):
         keep_elems, keep_nodes = self._focus_keep()
 
         self._draw_elements(lod=lod, keep_elems=keep_elems)
-        self._draw_nodes(roles=roles, orphan_status=orphan_status,
-                         lod=lod, keep_nodes=keep_nodes)
+        if self.show_nodes:
+            self._draw_nodes(roles=roles, orphan_status=orphan_status,
+                             lod=lod, keep_nodes=keep_nodes)
 
         if self.show_loads:
             self._draw_loads(orphan_status=orphan_status)
@@ -1461,15 +1577,21 @@ class MeshCanvas(ttk.Frame):
                 outline_color = CANVAS_ELEMENT_COLOR
 
             edge_color = outline_color if self.show_mesh_edges else ""
-            line_w = (2.5 if is_elem_selected
+            line_w = (2.0 if is_elem_selected
                       else (1 if (self.ghost_geometry or is_dim) else 1.5))
 
-            # Halo del elemento seleccionado: poligono mas ancho DEBAJO en
-            # color claro -> glow que lo hace saltar incluso en mallas grandes.
-            if is_elem_selected and self.show_mesh_edges:
+            # Realce de seleccion (rediseno 2026-05, pedido del usuario): SOLO
+            # un relleno punteado suave (stipple gray12) que llena el area pero
+            # deja asomar la malla/los datos debajo — senal primaria, estilo
+            # Abaqus/ANSYS (tk.Canvas no tiene alpha vectorial, se simula con el
+            # patron de puntos). Va DEBAJO del outline. El HALO grueso fue
+            # eliminado (pedido del usuario: "el borde grueso molesta"); el
+            # relleno cubre area suficiente para no perderse en mallas grandes
+            # (hallazgo I1) + el outline en color de seleccion lo remata.
+            if is_elem_selected:
                 self.canvas.create_polygon(
-                    *coords, outline=CANVAS_SELECTED_HALO_COLOR, fill="",
-                    width=line_w + 4, tags=("world", "elements"),
+                    *coords, fill=CANVAS_SELECTED_FILL_COLOR, outline="",
+                    stipple="gray12", tags=("world", "elements"),
                 )
 
             self.canvas.create_polygon(
@@ -1517,6 +1639,7 @@ class MeshCanvas(ttk.Frame):
         h = self.canvas.winfo_height()
         margin = (float("inf") if (w <= 1 or h <= 1)
                   else max(w, h) * _CULL_MARGIN_FRAC)
+        f = self._decoration_factor()   # reescalado de decoraciones con el zoom
 
         for nid, node in self.project.nodes.items():
             sx, sy = self._get_node_screen_pos(nid)
@@ -1538,16 +1661,16 @@ class MeshCanvas(ttk.Frame):
 
             if role == "mid":
                 base_color = CANVAS_NODE_MID_COLOR
-                r = CANVAS_NODE_MID_RADIUS
-                inner_color = "#18354a"
+                r = CANVAS_NODE_MID_RADIUS * f
+                inner_color = CANVAS_NODE_INNER_MID
             elif role == "center":
                 base_color = CANVAS_NODE_CENTER_COLOR
-                r = CANVAS_NODE_MID_RADIUS
-                inner_color = "#301a44"
+                r = CANVAS_NODE_MID_RADIUS * f
+                inner_color = CANVAS_NODE_INNER_CENTER
             else:
                 base_color = CANVAS_NODE_COLOR
-                r = CANVAS_NODE_RADIUS
-                inner_color = "#0a2a44"
+                r = CANVAS_NODE_RADIUS * f
+                inner_color = CANVAS_NODE_INNER_CORNER
 
             # Override por huerfano: gris tenue desaturado, sobreescribe el
             # color del rol pero mantiene el radio para no perder informacion
@@ -1555,7 +1678,7 @@ class MeshCanvas(ttk.Frame):
             # corner huerfano).
             if is_orphan:
                 base_color = CANVAS_NODE_ORPHAN_COLOR
-                inner_color = "#2a2a32"
+                inner_color = CANVAS_NODE_INNER_ORPHAN
 
             # Atenuacion: modo fantasma (M0) o focus (nodo fuera del conjunto
             # a mantener). El seleccionado nunca se atenua.
@@ -1570,10 +1693,10 @@ class MeshCanvas(ttk.Frame):
             # Halo del nodo seleccionado: anillo claro mas grande DEBAJO ->
             # destaca a cualquier escala (auditoria UX 2026-05).
             if is_selected:
-                hr = r + 4
+                hr = r + 4 * f
                 self.canvas.create_oval(
                     sx - hr, sy - hr, sx + hr, sy + hr,
-                    fill="", outline=CANVAS_SELECTED_HALO_COLOR, width=2,
+                    fill="", outline=CANVAS_SELECTED_HALO_COLOR, width=1.5,
                     tags=("world", "nodes"),
                 )
 
@@ -1583,14 +1706,14 @@ class MeshCanvas(ttk.Frame):
 
             self.canvas.create_oval(
                 sx - r, sy - r, sx + r, sy + r,
-                fill=color, outline="#0a1a2a", width=1,
+                fill=color, outline=CANVAS_NODE_OUTLINE, width=1,
                 tags=("world", "nodes"),
             )
             if not simple_dot:
-                # Nucleo oscuro -> efecto "anillo"; o amarillo solido si
-                # esta seleccionado (disco identico al bg de la fila
-                # resaltada del spreadsheet).
-                ri = max(1, r - 2)
+                # Nucleo oscuro -> efecto "anillo" (rim mas fino que crece con
+                # el zoom); o amarillo solido si esta seleccionado (disco
+                # identico al bg de la fila resaltada del spreadsheet).
+                ri = max(1.0, r - 1.4 * f)
                 self.canvas.create_oval(
                     sx - ri, sy - ri, sx + ri, sy + ri,
                     fill=CANVAS_SELECTED_COLOR if is_selected else inner_color,
@@ -1617,7 +1740,13 @@ class MeshCanvas(ttk.Frame):
                 )
 
     def _draw_loads(self, orphan_status=None):
-        arrow_len = 44
+        f = self._decoration_factor()        # reescalado con el zoom
+        arrow_len = 44 * f
+        # Cabeza de flecha profesional (proporcion ~1:1.4, mas afilada que la
+        # anterior (14,16,7)); escala con el zoom. La sombra/glow es un poco
+        # mayor para asomar detras de la flecha real.
+        head = (10 * f, 14 * f, 5 * f)
+        head_shadow = (12 * f, 16 * f, 6 * f)
         ghost = self.ghost_geometry          # malla base atenuada (M0)
         shadow_col = "" if ghost else SHADOW_LOAD
         if orphan_status is None:
@@ -1640,6 +1769,8 @@ class MeshCanvas(ttk.Frame):
             else:
                 color = CANVAS_LOAD_COLOR
             width = 3 if highlighted else 2
+            lw = width * f                   # grosor del trazo, escala con zoom
+            lw_shadow = lw + 3 * f
 
             if abs(load.fx) > 1e-10:
                 d = 1 if load.fx > 0 else -1
@@ -1647,15 +1778,15 @@ class MeshCanvas(ttk.Frame):
                 # Sombra/glow detras de la flecha
                 self.canvas.create_line(
                     x_start, sy, sx, sy,
-                    fill=shadow_col, width=width + 3, arrow=tk.LAST,
-                    arrowshape=(14, 16, 7),
+                    fill=shadow_col, width=lw_shadow, arrow=tk.LAST,
+                    arrowshape=head_shadow,
                     tags=("world", "loads"),
                 )
                 # Flecha real encima
                 self.canvas.create_line(
                     x_start, sy, sx, sy,
-                    fill=color, width=width, arrow=tk.LAST,
-                    arrowshape=(11, 13, 5),
+                    fill=color, width=lw, arrow=tk.LAST,
+                    arrowshape=head,
                     tags=("world", "loads"),
                 )
                 if not ghost:
@@ -1670,14 +1801,14 @@ class MeshCanvas(ttk.Frame):
                 y_start = sy - d * arrow_len
                 self.canvas.create_line(
                     sx, y_start, sx, sy,
-                    fill=shadow_col, width=width + 3, arrow=tk.LAST,
-                    arrowshape=(14, 16, 7),
+                    fill=shadow_col, width=lw_shadow, arrow=tk.LAST,
+                    arrowshape=head_shadow,
                     tags=("world", "loads"),
                 )
                 self.canvas.create_line(
                     sx, y_start, sx, sy,
-                    fill=color, width=width, arrow=tk.LAST,
-                    arrowshape=(11, 13, 5),
+                    fill=color, width=lw, arrow=tk.LAST,
+                    arrowshape=head,
                     tags=("world", "loads"),
                 )
                 if not ghost:
@@ -1727,7 +1858,9 @@ class MeshCanvas(ttk.Frame):
         Estetica: relleno suave (no hueco) para que el simbolo se distinga
         del fondo oscuro; outline en color de fase; hatching mas espaciado.
         """
-        size = 12
+        f = self._decoration_factor()        # reescalado con el zoom
+        size = 14 * f                        # base 14 (era 12 fijo)
+        roller_r = 0.36 * size               # radio del rodillo (~5 a f=1)
         if orphan_status is None:
             orphan_status = classify_orphan_status(self.project)
         for bc in self.project.boundary_conditions.values():
@@ -1752,8 +1885,8 @@ class MeshCanvas(ttk.Frame):
             width = 3 if highlighted else 2
             # Relleno suave para mejorar visibilidad sin saturar (hueco en
             # modo fantasma para que el simbolo quede como silueta tenue).
-            fill_fixed  = "" if self.ghost_geometry else "#3a2a10"
-            fill_roller = "" if self.ghost_geometry else "#1a3a4a"
+            fill_fixed  = "" if self.ghost_geometry else CANVAS_CONSTRAINT_FIXED_FILL
+            fill_roller = "" if self.ghost_geometry else CANVAS_CONSTRAINT_ROLLER_FILL
 
             if bc.is_fixed:
                 # Triangulo (vertice arriba en el nodo)
@@ -1768,7 +1901,7 @@ class MeshCanvas(ttk.Frame):
                 self.canvas.create_line(
                     sx - size - 4, sy + size * 2,
                     sx + size + 4, sy + size * 2,
-                    fill=color, width=max(2, width),
+                    fill=color, width=max(2.5, width),
                     tags=("world", "constraints"),
                 )
                 # Hatching mas espaciado (3 lineas, no 4 amontonadas)
@@ -1800,8 +1933,8 @@ class MeshCanvas(ttk.Frame):
                 # Rodillo (circulo) entre triangulo y la "pared"
                 roller_cx = tri_top_x - 4
                 self.canvas.create_oval(
-                    roller_cx - 4, sy - 4,
-                    roller_cx + 4, sy + 4,
+                    roller_cx - roller_r, sy - roller_r,
+                    roller_cx + roller_r, sy + roller_r,
                     outline=color, fill=fill_roller, width=max(1, width - 1),
                     tags=("world", "constraints"),
                 )
@@ -1839,8 +1972,8 @@ class MeshCanvas(ttk.Frame):
                 # Rodillo (circulo) entre triangulo y superficie
                 roller_cy = tri_base_y + 5
                 self.canvas.create_oval(
-                    sx - 4, roller_cy - 4,
-                    sx + 4, roller_cy + 4,
+                    sx - roller_r, roller_cy - roller_r,
+                    sx + roller_r, roller_cy + roller_r,
                     outline=color, fill=fill_roller, width=max(1, width - 1),
                     tags=("world", "constraints"),
                 )
@@ -1870,6 +2003,7 @@ class MeshCanvas(ttk.Frame):
         # _draw_* respectivos con color + halo; ver auditoria UX 2026-05.)
         if not self.selected_edges:
             return
+        f = self._decoration_factor()        # reescalado con el zoom
         for edge in self.selected_edges:
             try:
                 n1, n2 = tuple(edge)
@@ -1881,13 +2015,14 @@ class MeshCanvas(ttk.Frame):
                 self.project.nodes[n1].x, self.project.nodes[n1].y)
             x2, y2 = self.world_to_screen(
                 self.project.nodes[n2].x, self.project.nodes[n2].y)
-            # Halo claro mas ancho debajo + linea de seleccion encima.
+            # Halo claro mas ancho debajo + linea de seleccion encima (afinados:
+            # antes 8/4, ahora 6/2.5 — menos "fuerte", pedido del usuario).
             self.canvas.create_line(
-                x1, y1, x2, y2, fill=CANVAS_SELECTED_HALO_COLOR, width=8,
+                x1, y1, x2, y2, fill=CANVAS_SELECTED_HALO_COLOR, width=6 * f,
                 capstyle=tk.ROUND, tags=("world", "highlight"),
             )
             self.canvas.create_line(
-                x1, y1, x2, y2, fill=CANVAS_SELECTED_COLOR, width=4,
+                x1, y1, x2, y2, fill=CANVAS_SELECTED_COLOR, width=2.5 * f,
                 capstyle=tk.ROUND, tags=("world", "highlight"),
             )
 
@@ -1907,6 +2042,7 @@ class MeshCanvas(ttk.Frame):
         """
         if not self.project.surface_loads:
             return
+        f = self._decoration_factor()        # reescalado con el zoom
         ghost = self.ghost_geometry          # malla base atenuada (M0)
         shadow_col = "" if ghost else SHADOW_SURFACE
         qmax = 0.0
@@ -1914,7 +2050,10 @@ class MeshCanvas(ttk.Frame):
             qmax = max(qmax, abs(sl.q_start), abs(sl.q_end))
         if qmax < 1e-12:
             qmax = 1.0
-        arrow_max = 60   # px maximo de flecha
+        arrow_max = 60 * f   # px maximo de flecha (escala con el zoom)
+        # Cabeza unificada con las cargas nodales (proporcion ~1:1.3).
+        head = (10 * f, 13 * f, 5 * f)
+        head_shadow = (12 * f, 15 * f, 6 * f)
         n_arrows = 8     # cantidad de flechitas distribuidas
         if orphan_status is None:
             orphan_status = classify_orphan_status(self.project)
@@ -1959,7 +2098,7 @@ class MeshCanvas(ttk.Frame):
                 col = CANVAS_GHOST_COLOR
             else:
                 col = CANVAS_LOAD_COLOR
-            wid = 3 if is_h else 2
+            wid = (3 if is_h else 2) * f     # grosor del trazo, escala con zoom
 
             # Longitudes proporcionales en pantalla
             sa = 1 if sl.q_start >= 0 else -1
@@ -1995,14 +2134,14 @@ class MeshCanvas(ttk.Frame):
                 ey = py + rdy * L_loc * slsign
                 # Sombra detras
                 self.canvas.create_line(
-                    ex, ey, px, py, fill=shadow_col, width=wid + 2,
-                    arrow=tk.LAST, arrowshape=(11, 13, 5),
+                    ex, ey, px, py, fill=shadow_col, width=wid + 2 * f,
+                    arrow=tk.LAST, arrowshape=head_shadow,
                     tags=("world", "surfaces"),
                 )
                 # Flecha principal
                 self.canvas.create_line(
                     ex, ey, px, py, fill=col, width=wid,
-                    arrow=tk.LAST, arrowshape=(8, 10, 4),
+                    arrow=tk.LAST, arrowshape=head,
                     tags=("world", "surfaces"),
                 )
 
@@ -2065,16 +2204,32 @@ class MeshCanvas(ttk.Frame):
             val = self.result_vmin + t * (self.result_vmax - self.result_vmin)
             yy = y0 + i * bar_h / n_labels
             self.canvas.create_text(
-                x0 - 5, yy, text=f"{val:.2f}",
+                x0 - 5, yy, text=self._fmt_colorbar_value(val),
                 fill="white", font=("Consolas", 7), anchor=tk.E,
                 tags=("screen", "colorbar"),
             )
 
+        # Titulo: resultado + unidad del sistema activo entre corchetes
+        # (estilo profesional). El alumno lee la escala con su unidad real.
+        title = self.result_label
+        if self.result_unit:
+            title = f"{title} [{self.result_unit}]"
         self.canvas.create_text(
-            x0 + bar_w / 2, y0 - 12, text=self.result_label,
+            x0 + bar_w / 2, y0 - 12, text=title,
             fill="white", font=("Segoe UI", 8, "bold"), anchor=tk.S,
             tags=("screen", "colorbar"),
         )
+
+    @staticmethod
+    def _fmt_colorbar_value(val):
+        """Formatea un valor de la colorbar de forma profesional: notacion
+        cientifica para magnitudes grandes/chicas (un esfuerzo de 25 MPa en Pa
+        es 2.5e7, ilegible como '25000000.00'), decimal compacto en el medio.
+        """
+        a = abs(val)
+        if a != 0.0 and (a >= 1e5 or a < 1e-3):
+            return f"{val:.2e}"
+        return f"{val:.4g}"
 
     # ═════════════════════════════════════════════════════════════════════
     # EVENTOS — control de interaccion (pan/zoom/resize)
@@ -2302,6 +2457,7 @@ class MeshCanvas(ttk.Frame):
         mallas enormes (> 3000 elem) para no pagar el hit-test por pixel.
         """
         if (self.draw_mode_active or self.probe_mode_active
+                or self._phase == "post"      # Post no resalta elementos
                 or self.ghost_geometry or self._overlay_layers
                 or self._interacting or self._panning):
             return False
@@ -2480,11 +2636,13 @@ class MeshCanvas(ttk.Frame):
             self._on_draw_click(event)
             return
 
-        # Modo consulta interactiva del Post: el ProbeOverlay tiene su
-        # propio handler bindeado con add="+" que ejecuta primero (pinea
-        # la probe). Aqui solo evitamos crear selecciones que serian
-        # ruidosas para el caso de uso.
-        if self.probe_mode_active:
+        # Post-Proceso: NO hay seleccion de elementos. La inspeccion del campo
+        # es por probe (puntual — su propio handler add="+" pinea) y contorno,
+        # nunca por seleccion de elemento — que ademas taparia el contorno con
+        # su relleno. Decision 2026-05-31 (pedido del usuario: la seleccion en
+        # Post "no cambiaba" e interferia). Vale para todo el Post, este o no
+        # el probe activo.
+        if self._phase == "post":
             return
 
         # Click consumers (modulos educativos: snap a Gauss, drag de
@@ -2924,8 +3082,8 @@ class MeshCanvas(ttk.Frame):
     # ═════════════════════════════════════════════════════════════════════
     #
     # Los modulos educativos en modo overlay (M0/M2/M3/M6) y vistas del
-    # Post (probe_overlay, principal_cross_layer) usan estos hooks para
-    # pintar capas SOBRE la malla sin abrir ventana.
+    # Post (probe_overlay) usan estos hooks para pintar capas SOBRE la
+    # malla sin abrir ventana.
     # Reglas:
     #   - Cada modulo registra UN solo layer al activarse y lo quita al
     #     cerrar el overlay. El layer es un callable(canvas) que dibuja
@@ -3264,15 +3422,17 @@ class MeshCanvas(ttk.Frame):
         self.offset_y = h / 2 + cy * self.scale
         self.redraw()
 
-    def set_result_values(self, values, label="Resultado"):
+    def set_result_values(self, values, label="Resultado", unit=""):
         """Modo SUAVIZADO (nodal): valores promediados por nodo.
 
         Apaga el modo crudo si estaba activo: ambos modos son mutuamente
-        excluyentes en el render.
+        excluyentes en el render. `unit` es la unidad del sistema activo
+        (esfuerzo o longitud segun el resultado) que se muestra en la colorbar.
         """
         self.result_values = values
         self.element_result_grid = None  # apagar modo crudo
         self.result_label = label
+        self.result_unit = unit
         vals = list(values.values())
         self.result_vmin = min(vals) if vals else 0
         self.result_vmax = max(vals) if vals else 1
@@ -3281,7 +3441,7 @@ class MeshCanvas(ttk.Frame):
         self._select_colormap()
         self.redraw()
 
-    def set_element_result_grid(self, element_grids, label="Resultado"):
+    def set_element_result_grid(self, element_grids, label="Resultado", unit=""):
         """Modo CRUDO: grillas pre-computadas por elemento.
 
         element_grids: dict {elem_id: ndarray(n+1, n+1)} donde grid[i, j]
@@ -3298,6 +3458,7 @@ class MeshCanvas(ttk.Frame):
         self.element_result_grid = element_grids
         self.result_values = None  # apagar modo suavizado
         self.result_label = label
+        self.result_unit = unit
         all_vals = np.concatenate(
             [np.asarray(g).flatten() for g in element_grids.values()]
         ) if element_grids else np.array([0.0, 1.0])
@@ -3336,10 +3497,6 @@ class MeshCanvas(ttk.Frame):
         self.isoline_count = count
         self.redraw()
 
-    def clear_results(self):
-        self.clear_results_overlay()
-        self.main_window.set_status("Resultados limpiados.")
-
     def clear_results_overlay(self):
         """Resetea el overlay de resultados (deformada, mapa de color,
         isolineas) sin tocar el status bar. Llamar al volver de Post a
@@ -3347,6 +3504,7 @@ class MeshCanvas(ttk.Frame):
         self.result_values = None
         self.element_result_grid = None
         self.result_label = ""
+        self.result_unit = ""
         self.show_deformed = False
         self.displacements = None
         self.deform_scale = 0
@@ -3362,6 +3520,7 @@ class MeshCanvas(ttk.Frame):
     def fit_view(self):
         if not self.project.nodes:
             self.scale = 1.0
+            self._reference_scale = self.scale
             w = self.canvas.winfo_width()
             h = self.canvas.winfo_height()
             self.offset_x = w / 2
@@ -3388,6 +3547,8 @@ class MeshCanvas(ttk.Frame):
         scale_x = w / range_x
         scale_y = h / range_y
         self.scale = min(scale_x, scale_y)
+        # Esta vista encuadrada es la referencia: decoraciones a tamano base.
+        self._reference_scale = self.scale
 
         center_x = (min_x + max_x) / 2
         center_y = (min_y + max_y) / 2

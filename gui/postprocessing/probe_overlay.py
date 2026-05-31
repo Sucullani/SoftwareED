@@ -265,9 +265,11 @@ class ProbeOverlay:
         (1) Intenta primero el `_last_hit_elem_id` (cache O(1) tipico).
         (2) Itera linealmente sobre todos los elementos (~1 ms para N<=1000).
 
-        Las coords del elemento se toman SIEMPRE originales (sin
-        deformacion) -- formulacion Lagrangiana total: el punto material
-        no se desplaza en el espacio material.
+        El inverse-map usa las coords ACTUALES (deformadas si la malla
+        deformada esta activa, originales si no) — `x,y` es la posicion del
+        cursor en la malla que el usuario ve (ver `_elem_coords_current`). El
+        (xi,eta) resultante identifica el punto material; el valor se computa
+        en config de referencia.
         """
         proj = self.project
         if not proj.elements:
@@ -277,7 +279,7 @@ class ProbeOverlay:
             elem = proj.elements.get(eid)
             if elem is None:
                 return None
-            coords = self._elem_coords(elem)
+            coords = self._elem_coords_current(elem)
             sol = inverse_iso_map_NR(x, y, coords, proj.element_type)
             if sol is None:
                 return None
@@ -305,13 +307,28 @@ class ProbeOverlay:
             dtype=float,
         )
 
+    def _elem_coords_current(self, elem):
+        """Coords del elemento siguiendo la deformada si esta activa. Usado por
+        el inverse-map del hover libre: `screen_to_world(cursor)` da la posicion
+        en la MALLA DEFORMADA (que el usuario ve), asi que el inverse-map debe
+        correr sobre las coords deformadas para devolver el (xi,eta) del punto
+        material correcto. El VALOR luego se computa en config de referencia
+        (compute_raw/smooth no cambian); solo cambia DONDE se localiza."""
+        mc = self.mesh_canvas
+        if mc.show_deformed and mc.displacements is not None:
+            return np.array(
+                [mc._get_node_world_deformed(nid) for nid in elem.node_ids],
+                dtype=float,
+            )
+        return self._elem_coords(elem)
+
     def _hit_test_pin(self, sx: int, sy: int) -> bool:
         """Devuelve True si (sx, sy) cae sobre la probe pinneada."""
         if self.pinned is None:
             return False
-        psx, psy = self.mesh_canvas.world_to_screen(
-            self.pinned.world_x, self.pinned.world_y
-        )
+        p = self.pinned
+        psx, psy = self._natural_screen(p.elem_id, p.xi, p.eta,
+                                        p.world_x, p.world_y)
         return math.hypot(psx - sx, psy - sy) <= PROBE_PIN_DELETE_PX
 
     def _hit_test_gauss(self, sx: int, sy: int) -> Optional[dict]:
@@ -321,7 +338,8 @@ class ProbeOverlay:
         best = None
         best_d = PROBE_GAUSS_SNAP_PX + 1
         for gp in self._all_gauss:
-            gsx, gsy = self.mesh_canvas.world_to_screen(gp["x"], gp["y"])
+            gsx, gsy = self._natural_screen(
+                gp["elem_id"], gp["xi"], gp["eta"], gp["x"], gp["y"])
             d = math.hypot(gsx - sx, gsy - sy)
             if d <= PROBE_GAUSS_SNAP_PX and d < best_d:
                 best_d = d
@@ -342,10 +360,9 @@ class ProbeOverlay:
         best_id = None
         best_d = PROBE_NODE_SNAP_PX + 1
         for nid in self.project.nodes:
-            # Coords ORIGINALES del nodo (sin deformacion) -- coherente
-            # con el resto del probe (Lagrangiano total).
-            node = self.project.nodes[nid]
-            nsx, nsy = self.mesh_canvas.world_to_screen(node.x, node.y)
+            # Posicion en pantalla siguiendo la deformada si esta activa
+            # (asi el snap engancha al nodo que el usuario ve, no al sin deformar).
+            nsx, nsy = self._node_screen(nid)
             d = math.hypot(nsx - sx, nsy - sy)
             if d <= PROBE_NODE_SNAP_PX and d < best_d:
                 best_d = d
@@ -370,10 +387,10 @@ class ProbeOverlay:
         gp = self._hit_test_gauss(event.x, event.y)
         nid = self._hit_test_node(event.x, event.y)
         if gp is not None and nid is not None:
-            # Comparar distancias
-            gsx, gsy = self.mesh_canvas.world_to_screen(gp["x"], gp["y"])
-            node = self.project.nodes[nid]
-            nsx, nsy = self.mesh_canvas.world_to_screen(node.x, node.y)
+            # Comparar distancias (en pantalla, siguiendo la deformada)
+            gsx, gsy = self._natural_screen(
+                gp["elem_id"], gp["xi"], gp["eta"], gp["x"], gp["y"])
+            nsx, nsy = self._node_screen(nid)
             d_g = math.hypot(gsx - event.x, gsy - event.y)
             d_n = math.hypot(nsx - event.x, nsy - event.y)
             if d_g < d_n:
@@ -533,10 +550,16 @@ class ProbeOverlay:
                         lines.append(f"Ux = {fmt(ux, 'displacement')}")
                         lines.append(f"Uy = {fmt(uy, 'displacement')}")
             else:
-                # Esfuerzo en suavizado: valor nodal promediado
+                # Esfuerzo en suavizado: valor nodal. Solo es un "promedio" si
+                # el nodo es compartido por >1 elemento; si pertenece a un unico
+                # elemento, el valor nodal NO se promedia (es el valor directo de
+                # ese elemento) — no rotular "(promedio)" (pedido del usuario).
                 ns = (self.nodal_stresses or {}).get(nid)
                 if ns is not None and key in ns:
-                    lines.append(f"{label_short} = {fmt(ns[key], kind)}  (promedio)")
+                    n_elems = sum(1 for e in self.project.elements.values()
+                                  if nid in e.node_ids)
+                    suffix = "  (promedio)" if n_elems > 1 else ""
+                    lines.append(f"{label_short} = {fmt(ns[key], kind)}{suffix}")
         else:
             # Modo crudo + esfuerzo: N valores discontinuos
             crude = crude_values_at_node(self.project, self.solution, nid)
@@ -887,6 +910,40 @@ class ProbeOverlay:
             float(N @ coords[:len(N), 1]),
         )
 
+    # ─── Posicion en pantalla SIGUIENDO la deformada ──────────────────────
+    # Cuando la malla deformada esta activa (show_deformed), los marcadores del
+    # probe (puntos Gauss, anillo de snap, pin) deben moverse CON la malla que
+    # el usuario ve; si no, quedan flotando sobre la geometria sin deformar
+    # (pedido del usuario 2026-05-31). Los VALORES no cambian — el esfuerzo se
+    # reporta en el punto material; solo cambia DONDE se dibuja el marcador.
+
+    def _node_screen(self, nid):
+        """Screen pos del nodo, siguiendo la deformada si esta activa (el canvas
+        ya aplica deform_scale * desplazamiento en `_get_node_screen_pos`)."""
+        return self.mesh_canvas._get_node_screen_pos(nid)
+
+    def _natural_screen(self, elem_id, xi, eta, ux=None, uy=None):
+        """Screen pos de un punto natural (xi,eta) de un elemento. Si la malla
+        deformada esta activa, interpola las coords DEFORMADAS de los nodos del
+        elemento via N(xi,eta) (el marcador sigue la malla visible); si no, usa
+        las coords fisicas (`ux,uy` precalculadas si se pasan, o las interpola)."""
+        mc = self.mesh_canvas
+        if mc.show_deformed and mc.displacements is not None:
+            elem = self.project.elements.get(elem_id)
+            if elem is not None:
+                N_func, _ = get_shape_functions(self.project.element_type)
+                N = N_func(xi, eta)
+                coords = np.array(
+                    [mc._get_node_world_deformed(nid) for nid in elem.node_ids],
+                    dtype=float,
+                )
+                wx = float(N @ coords[:len(N), 0])
+                wy = float(N @ coords[:len(N), 1])
+                return mc.world_to_screen(wx, wy)
+        if ux is None or uy is None:
+            ux, uy = self._natural_to_physical(elem_id, xi, eta)
+        return mc.world_to_screen(ux, uy)
+
     # ─── Computo del valor (crudo o suavizado) ────────────────────────────
 
     def _compute_values(self, elem_id, xi, eta):
@@ -954,8 +1011,7 @@ class ProbeOverlay:
         nid = self._snapped_node_id
         if nid not in self.project.nodes:
             return
-        node = self.project.nodes[nid]
-        sx, sy = self.mesh_canvas.world_to_screen(node.x, node.y)
+        sx, sy = self._node_screen(nid)   # sigue la deformada si esta activa
         r = PROBE_NODE_RING_PX
         canvas.create_oval(
             sx - r, sy - r, sx + r, sy + r,
@@ -966,7 +1022,8 @@ class ProbeOverlay:
     def _draw_gauss_markers(self, canvas):
         s = GAUSS_MARKER_SIZE_PX
         for gp in self._all_gauss:
-            sx, sy = self.mesh_canvas.world_to_screen(gp["x"], gp["y"])
+            sx, sy = self._natural_screen(
+                gp["elem_id"], gp["xi"], gp["eta"], gp["x"], gp["y"])
             canvas.create_rectangle(
                 sx - s, sy - s, sx + s, sy + s,
                 outline=GAUSS_MARKER_COLOR, fill="",
@@ -982,7 +1039,8 @@ class ProbeOverlay:
         """
         r = PROBE_PIN_RADIUS_PX
         p = self.pinned
-        sx, sy = self.mesh_canvas.world_to_screen(p.world_x, p.world_y)
+        sx, sy = self._natural_screen(p.elem_id, p.xi, p.eta,
+                                      p.world_x, p.world_y)  # sigue la deformada
         # Cuerpo: circulo solido naranja
         canvas.create_oval(
             sx - r, sy - r, sx + r, sy + r,

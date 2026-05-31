@@ -211,10 +211,10 @@ class JacobianModule(CanvasOverlayModule):
         )
         self._toggle.pack(fill="x", pady=(2, 0))
 
-        # Cross-reference clickeable a M4 (la matriz B).
+        # Cross-reference clickeable a M3 (la matriz B).
         self._pack_crossref(
-            body, "mod04",
-            "👉 det J > 0 garantiza que la matriz B (④) sea computable "
+            body, "mod03",
+            "👉 det J > 0 garantiza que la matriz B (③) sea computable "
             "en este elemento.",
             wraplength=500,
         )

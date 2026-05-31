@@ -139,11 +139,25 @@ def test_colormaps():
     print("test_colormaps")
     check("viridis LUT shape", cm.VIRIDIS_LUT.shape == (256, 3))
     check("coolwarm LUT shape", cm.COOLWARM_LUT.shape == (256, 3))
+    check("turbo LUT shape", cm.TURBO_LUT.shape == (256, 3))
+    check("jet LUT shape", cm.JET_LUT.shape == (256, 3))
+    # Jet (paleta de resultados desde 2026-05-31, look ANSYS/SAP): arcoiris
+    # azul -> rojo. Bajo = azul, alto = rojo.
+    jr0, jg0, jb0 = cm.t_to_rgb(0.0, cm.JET_LUT)
+    jr1, jg1, jb1 = cm.t_to_rgb(1.0, cm.JET_LUT)
+    check("jet low = azul", jb0 > jr0 and jb0 > 100)
+    check("jet high = rojo", jr1 > jb1 and jr1 > 100)
     # Extremos viridis: morado oscuro -> amarillo.
     r0, g0, b0 = cm.t_to_rgb(0.0, cm.VIRIDIS_LUT)
     r1, g1, b1 = cm.t_to_rgb(1.0, cm.VIRIDIS_LUT)
     check("viridis low = morado", b0 > r0 and b0 > 60)
     check("viridis high = amarillo", r1 > 200 and g1 > 200 and b1 < 100)
+    # Turbo (paleta de resultados desde 2026-05): arcoiris azul -> rojo, con
+    # luminosidad creciente y monotona (no es Jet). Bajo = azul, alto = rojo.
+    tr0, tg0, tb0 = cm.t_to_rgb(0.0, cm.TURBO_LUT)
+    tr1, tg1, tb1 = cm.t_to_rgb(1.0, cm.TURBO_LUT)
+    check("turbo low = azul", tb0 > tr0)
+    check("turbo high = rojo", tr1 > tb1 and tr1 > 100)
     # Coolwarm centro ~ gris claro; t=0 azul, t=1 rojo.
     rc, gc, bc = cm.t_to_rgb(0.5, cm.COOLWARM_LUT)
     check("coolwarm centro gris", abs(rc - gc) < 20 and abs(gc - bc) < 20 and rc > 180)

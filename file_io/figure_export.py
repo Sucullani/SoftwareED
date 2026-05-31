@@ -2,8 +2,8 @@
 Render de figuras de campo para la Memoria de Cálculo — Pillow puro.
 
 Reformulado (2026-05): se eliminó la dependencia de matplotlib. Las figuras
-de campo (contornos de tensión, deformada, cruces principales, diagrama del
-modelo) se dibujan con Pillow replicando el ESTILO del MeshCanvas del
+de campo (contornos de tensión, deformada, diagrama del modelo) se dibujan
+con Pillow replicando el ESTILO del MeshCanvas del
 Post-Proceso — gradiente bilineal Gouraud por elemento + wireframe + colorbar
 lateral — pero con FONDO BLANCO (el PDF se imprime en papel).
 
@@ -15,17 +15,16 @@ colores y la misma "lectura" del campo que ve en pantalla.
 Paleta:
   - Acentos (nodos por rol Q9, restricciones, cargas) → paleta semántica de
     `config.settings` (mismos códigos visuales que el canvas de la GUI).
-  - Mapas de campo → colormaps científicos perceptualmente uniformes:
-    `coolwarm` (divergente, cero con significado) para σx, σy, τxy;
-    `viridis` (secuencial) para σVM, que es no negativo. Implementados como
-    LUTs internas — NO se usa `jet` (perceptualmente desigual; ver CLAUDE.md).
+  - Mapas de campo: `jet` (arcoiris clasico ANSYS/SAP2000) para TODOS los
+    componentes (σx, σy, τxy, σVM) — pedido del usuario "cambia todo a JET".
+    Implementado como LUT interna; look reconocible de ingenieria estructural
+    (ver CLAUDE.md). `coolwarm` queda sin uso en los resultados.
 
 Funciones expuestas (todas retornan `PIL.Image.Image` o None si Pillow no
 está disponible / el modelo no tiene datos suficientes):
   - render_mesh_diagram(project)
   - render_contour(project, solution, nodal_stresses, component, *, deformed)
   - render_deformed(project, solution, scale=None)
-  - render_principal_crosses(project, nodal_stresses)
   - render_K_sparsity(K)  — patrón de no-nulos de K (reemplaza al heatmap).
 """
 
@@ -57,8 +56,6 @@ _WIREFRAME = (90, 90, 96)          # gris oscuro para aristas sobre blanco
 _AXIS_TEXT = (40, 40, 50)          # texto de títulos / labels
 _ELEMENT_FACE = (221, 233, 247)    # relleno suave de elementos (mesh diagram)
 _ELEMENT_EDGE = (58, 111, 181)
-_PRINCIPAL_TENSILE = (21, 101, 192)   # σ > 0 tracción (azul)
-_PRINCIPAL_COMPRESS = (198, 40, 40)   # σ < 0 compresión (rojo)
 
 
 def _hex_to_rgb(h: str) -> tuple[int, int, int]:
@@ -96,6 +93,17 @@ _COOLWARM_ANCHORS = np.array([
     (180, 4, 38),
 ], dtype=float)
 
+# Jet (arcoiris clasico de los software FEM — ANSYS / SAP2000). Reemplaza a
+# viridis/turbo para los campos no negativos (von Mises) — unifica la Memoria
+# con el canvas/Vista 3D/M9, que usan el mismo jet (config/colormaps). Pedido
+# del usuario (2026-05-31). Definicion clasica de matplotlib jet.
+_JET_ANCHORS = np.array([
+    (0, 0, 128), (0, 0, 224), (0, 42, 255), (0, 128, 255),
+    (0, 212, 255), (55, 255, 192), (123, 255, 123), (192, 255, 55),
+    (255, 230, 0), (255, 151, 0), (255, 72, 0), (224, 0, 0),
+    (128, 0, 0),
+], dtype=float)
+
 _LUT_CACHE: dict[str, np.ndarray] = {}
 
 
@@ -104,7 +112,12 @@ def _colormap_lut(name: str) -> np.ndarray:
     cached = _LUT_CACHE.get(name)
     if cached is not None:
         return cached
-    anchors = _COOLWARM_ANCHORS if name == "coolwarm" else _VIRIDIS_ANCHORS
+    if name == "coolwarm":
+        anchors = _COOLWARM_ANCHORS
+    elif name == "jet":
+        anchors = _JET_ANCHORS
+    else:
+        anchors = _VIRIDIS_ANCHORS
     n_a = anchors.shape[0]
     t_anchors = np.linspace(0.0, 1.0, n_a)
     t_lut = np.linspace(0.0, 1.0, 256)
@@ -118,8 +131,9 @@ def _colormap_lut(name: str) -> np.ndarray:
 
 
 def _cmap_for(component: str) -> str:
-    """coolwarm para componentes con signo (cero físico), viridis para VM."""
-    return "viridis" if component == "von_mises" else "coolwarm"
+    """jet (arcoiris clasico ANSYS/SAP) para TODOS los componentes — pedido del
+    usuario "cambia todo a JET" (2026-05-31). Unificado con el canvas/Vista 3D/M9."""
+    return "jet"
 
 
 # ---------------------------------------------------------------------------
@@ -720,72 +734,6 @@ def render_deformed(project, solution, scale=None, *, width=900, height=680):
         draw.ellipse([sx - 3, sy - 3, sx + 3, sy + 3], fill=_RGB_NODE_CORNER,
                      outline=(0, 0, 0))
     _title(draw, f"Configuracion deformada  (escala x{sc:.3g})", width)
-    return img
-
-
-# ---------------------------------------------------------------------------
-# Cruces principales σ1 ⊥ σ2 por elemento
-# ---------------------------------------------------------------------------
-
-def render_principal_crosses(project, nodal_stresses, *, width=900, height=680):
-    """Cruces principales σ1/σ2 sobre la malla. Azul = tracción, rojo =
-    compresión. Una cruz por centroide de elemento. PIL.Image."""
-    if not HAS_PIL or not project.elements or not nodal_stresses:
-        return None
-    xs = [n.x for n in project.nodes.values()]
-    ys = [n.y for n in project.nodes.values()]
-    if not xs:
-        return None
-    view = _View(xs, ys, width, height,
-                 pad_left=36, pad_right=36, pad_top=48, pad_bottom=36)
-
-    img = Image.new("RGB", (width, height), _FIG_BG)
-    draw = ImageDraw.Draw(img)
-    _draw_wireframe(draw, project, view, color=(190, 190, 196), width=1)
-
-    centroids, crosses = [], []
-    max_mag = 1e-12
-    for elem in project.elements.values():
-        nids = [n for n in list(elem.node_ids)[:4] if n in project.nodes]
-        if len(nids) < 3:
-            continue
-        sx_n = [nodal_stresses.get(n, {}).get("sigma_x", 0.0) for n in nids]
-        sy_n = [nodal_stresses.get(n, {}).get("sigma_y", 0.0) for n in nids]
-        txy_n = [nodal_stresses.get(n, {}).get("tau_xy", 0.0) for n in nids]
-        sx = float(np.mean(sx_n))
-        sy = float(np.mean(sy_n))
-        txy = float(np.mean(txy_n))
-        cx = float(np.mean([project.nodes[n].x for n in nids]))
-        cy = float(np.mean([project.nodes[n].y for n in nids]))
-        avg = 0.5 * (sx + sy)
-        R = float(np.sqrt(((sx - sy) / 2.0) ** 2 + txy ** 2))
-        s1 = avg + R
-        s2 = avg - R
-        th = 0.5 * np.arctan2(2.0 * txy, (sx - sy) + 1e-30)
-        centroids.append((cx, cy))
-        crosses.append((s1, s2, th))
-        max_mag = max(max_mag, abs(s1), abs(s2))
-
-    extent = max(max(xs) - min(xs), max(ys) - min(ys), 1e-9)
-    L_max_px = 0.18 * extent * view.scale
-
-    for (cx, cy), (s1, s2, th) in zip(centroids, crosses):
-        scx, scy = view.w2s(cx, cy)
-        # Brazo σ1 (dirección θ). Y de pantalla invertido → -sin.
-        L1 = L_max_px * (abs(s1) / max_mag)
-        dx1, dy1 = L1 * np.cos(th), -L1 * np.sin(th)
-        c1 = _PRINCIPAL_TENSILE if s1 >= 0 else _PRINCIPAL_COMPRESS
-        draw.line([(scx - dx1, scy - dy1), (scx + dx1, scy + dy1)],
-                  fill=c1, width=3)
-        # Brazo σ2 (perpendicular).
-        L2 = L_max_px * (abs(s2) / max_mag)
-        dx2, dy2 = L2 * np.cos(th + np.pi / 2), -L2 * np.sin(th + np.pi / 2)
-        c2 = _PRINCIPAL_TENSILE if s2 >= 0 else _PRINCIPAL_COMPRESS
-        draw.line([(scx - dx2, scy - dy2), (scx + dx2, scy + dy2)],
-                  fill=c2, width=3)
-
-    _title(draw, "Direcciones principales por elemento (sigma1 perp sigma2)",
-           width)
     return img
 
 

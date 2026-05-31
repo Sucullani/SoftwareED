@@ -289,6 +289,14 @@ class ElementTypeDialog:
                 self.main_window.set_status(
                     f"Tipo de elemento: {self.project.element_type}{extra}"
                 )
+                # Si el usuario esta en Post-Proceso, re-resolver y repintar los
+                # resultados con la malla nueva (Q4<->Q9 cambia K, u, sigma). Sin
+                # esto el Post quedaba en blanco hasta navegar a otra pestaña y
+                # volver. Pedido del usuario 2026-05-31. auto_solve re-resuelve
+                # porque is_solved acaba de ponerse en False.
+                nb = getattr(self.main_window, "notebook", None)
+                if nb is not None and nb.index(nb.select()) == 2:
+                    self.main_window.post_tab.auto_solve()
             except Exception:
                 pass
 

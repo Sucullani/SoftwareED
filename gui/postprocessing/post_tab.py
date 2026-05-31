@@ -17,7 +17,6 @@ from config.settings import (
     CANVAS_SELECTED_COLOR,
 )
 from gui.widgets.phase_banner import build_phase_banner
-from gui.widgets.module_launcher_panel import render_module_buttons
 from models.model_health import validate_project
 
 
@@ -37,7 +36,6 @@ class PostProcessTab:
 
         # Vistas avanzadas (lazy, dependen de is_solved)
         self.surface_3d_viewer = None      # Toplevel 3D del campo
-        self.principal_cross_layer = None  # capa de cruces σ1/σ2 (toggle)
 
         # Cache de las grillas crudas D·B·uₑ por elemento (TODOS los campos
         # σx/σy/τxy/σ1/σ2/VM evaluados en la grilla). Se computa una vez tras
@@ -77,74 +75,11 @@ class PostProcessTab:
         self.notebook.add(self.results_frame, text="  Resultados  ")
         self._build_results_tab()
 
-        # Sub-tab 3: Modulos educativos (M9 convergencia Q4 vs Q9)
-        self.education_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.education_frame, text="  🎓 Educacion  ")
-        self._build_education_tab()
-
-    def _build_education_tab(self):
-        """Modulos educativos del POST-PROCESO."""
-        from education.module_launcher import (
-            list_modules_for_phase, open_module, GLOBAL_MODULES,
-        )
-
-        def _on_open(mod_key):
-            ok = open_module(
-                parent_tk=self.frame.winfo_toplevel(),
-                project=self.project,
-                mod_key=mod_key,
-                mesh_canvas=self.main_window.mesh_canvas,
-            )
-            if ok:
-                self.main_window.set_status(f"Modulo educativo abierto: {mod_key}")
-            return ok  # el panel marca ✓ solo si realmente abrio
-
-        self._edu_panel = render_module_buttons(
-            self.education_frame,
-            modules=list_modules_for_phase("post"),
-            on_open=_on_open,
-            bootstyle=f"{PHASE_POST_BOOTSTYLE}-outline",
-            header_text="Modulos Educativos · Post-Proceso",
-            header_color=PHASE_POST_COLOR,
-            subtitle=("Comparacion Q4 vs Q9 y convergencia h-refinement.\n"
-                      "Las vistas 3D, cruces principales y circulo de Mohr\n"
-                      "estan integradas en la toolbar y en el clic derecho\n"
-                      "del probe. Requiere modelo resuelto (F5)."),
-            global_modules=GLOBAL_MODULES,
-        )
-
-    def wire_canvas(self):
-        """Conecta el panel educativo al canvas para iluminacion reactiva.
-
-        El post solo tiene M9 (sandbox global, no requiere elemento) por
-        ahora — el wiring es defensivo por si en el futuro se agrega un
-        modulo por-elemento al post."""
-        canvas = getattr(self.main_window, "mesh_canvas", None)
-        if canvas is None or getattr(self, "_edu_panel", None) is None:
-            return
-        prev = canvas.on_selection_changed
-        if prev is not None and getattr(prev, "_post_edu_chain", False):
-            return  # ya cableado
-
-        def _chained(sel: dict, _prev=prev):
-            if _prev is not None:
-                try:
-                    _prev(sel)
-                except Exception:
-                    pass
-            try:
-                elems = sel.get("elements", set()) if sel else set()
-                eid = next(iter(elems)) if len(elems) == 1 else None
-                self._edu_panel.update_selection(eid)
-            except Exception:
-                pass
-
-        _chained._post_edu_chain = True
-        canvas.on_selection_changed = _chained
-        try:
-            self._edu_panel.update_selection(None)
-        except Exception:
-            pass
+        # Post sin sub-pestaña educativa: el ex-M9 (comparacion Q4 vs Q9)
+        # fue eliminado en 2026-05. El analisis de resultados se hace con
+        # las herramientas nativas del Post (contorno, probe, circulo de
+        # Mohr del clic derecho, 🧊 Vista 3D). No hay panel educativo aqui
+        # ni `wire_canvas` (pre/proc lo conservan para sus modulos).
 
     # ═════════════════════════════════════════════════════════════════════
     # SUB-TAB: VISUALIZACION
@@ -289,16 +224,6 @@ class PostProcessTab:
             probe_frame, text="Mostrar puntos Gauss",
             variable=self.probe_show_gauss_var, bootstyle="info-round-toggle",
             command=self._on_probe_gauss_toggled,
-        ).pack(anchor=W, padx=15, pady=(0, 8))
-
-        # Toggle Cruces principales σ1/σ2 (capa overlay sobre el canvas).
-        # Una cruz por elemento en su centroide: σ1 azul (tracción) / σ2 rojo
-        # (compresión). Consolida la funcionalidad del ex-módulo M8.
-        self.principal_crosses_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(
-            probe_frame, text="Cruces principales σ₁/σ₂",
-            variable=self.principal_crosses_var, bootstyle="info-round-toggle",
-            command=self._on_toggle_principal_crosses,
         ).pack(anchor=W, padx=15, pady=(0, 8))
 
     # ═════════════════════════════════════════════════════════════════════
@@ -587,15 +512,6 @@ class PostProcessTab:
                 )
             except Exception:
                 pass
-        # Refrescar la capa de cruces principales si esta activa (re-solve).
-        if (self.principal_cross_layer is not None
-                and self.principal_cross_layer.is_active()):
-            try:
-                self.principal_cross_layer.update_data(
-                    self.project, self.nodal_stresses,
-                )
-            except Exception:
-                pass
 
     # ═════════════════════════════════════════════════════════════════════
     # VISUALIZACION AVANZADA (Vista 3D)
@@ -630,41 +546,11 @@ class PostProcessTab:
             self, self.main_window,
         )
 
-    def _on_toggle_principal_crosses(self):
-        """Activa/desactiva la capa de cruces principales σ1/σ2 sobre el
-        canvas. La capa solo dibuja (no intercepta eventos), asi que coexiste
-        con el probe overlay sin conflicto."""
-        want = self.principal_crosses_var.get()
-        if want:
-            if not self.solution or not self.nodal_stresses:
-                # Sin solucion: revertir el toggle y avisar.
-                self.principal_crosses_var.set(False)
-                self.main_window.set_status(
-                    "Resolvé el modelo (F5) antes de mostrar las cruces principales"
-                )
-                return
-            if self.principal_cross_layer is None:
-                from gui.postprocessing.principal_cross_layer import (
-                    PrincipalCrossLayer,
-                )
-                self.principal_cross_layer = PrincipalCrossLayer(
-                    self.main_window.mesh_canvas, self.project,
-                    self.nodal_stresses,
-                )
-            else:
-                self.principal_cross_layer.update_data(
-                    self.project, self.nodal_stresses,
-                )
-            self.principal_cross_layer.activate()
-        else:
-            if self.principal_cross_layer is not None:
-                self.principal_cross_layer.deactivate()
-
     def deactivate_advanced_views(self):
         """Llamado desde MainWindow._on_tab_changed al salir de Post.
 
-        Cierra el Toplevel 3D y desactiva la capa de cruces principales. La
-        consulta del probe se gestiona aparte via `deactivate_probe_overlay`.
+        Cierra el Toplevel 3D. La consulta del probe se gestiona aparte
+        via `deactivate_probe_overlay`.
         """
         if (self.surface_3d_viewer is not None
                 and self.surface_3d_viewer.winfo_exists()):
@@ -673,17 +559,6 @@ class PostProcessTab:
             except Exception:
                 pass
             self.surface_3d_viewer = None
-
-        # Capa de cruces principales: desactivar y resetear el toggle.
-        if self.principal_cross_layer is not None:
-            try:
-                self.principal_cross_layer.deactivate()
-            except Exception:
-                pass
-        try:
-            self.principal_crosses_var.set(False)
-        except Exception:
-            pass
 
     # ═════════════════════════════════════════════════════════════════════
     # VISUALIZACION REACTIVA (auto-update al cambiar radio buttons)
@@ -717,6 +592,10 @@ class PostProcessTab:
         }
         label = labels.get(result_type, result_type)
         is_stress = result_type in ("Sx", "Sy", "Txy", "S1", "S2", "VM")
+        # Unidad del sistema activo para la colorbar: esfuerzo para tensiones,
+        # longitud para desplazamientos.
+        units = self._get_units()
+        unit = units["esfuerzo"] if is_stress else units["longitud"]
         raw_mode = (
             hasattr(self, "probe_smooth_var")
             and self.probe_smooth_var.get() == "raw"
@@ -755,7 +634,7 @@ class PostProcessTab:
         if is_stress and raw_mode and self.element_stresses:
             element_grids = self._compute_raw_grid(result_type, n=6)
             if element_grids:
-                canvas.set_element_result_grid(element_grids, label)
+                canvas.set_element_result_grid(element_grids, label, unit)
                 self.main_window.set_status(
                     f"Visualizando: {label} (crudo, D·B·uₑ por punto)"
                 )
@@ -785,7 +664,7 @@ class PostProcessTab:
                 else:
                     node_values[nid] = 0.0
 
-        canvas.set_result_values(node_values, label)
+        canvas.set_result_values(node_values, label, unit)
         suffix = (
             " (suavizado, Σ Nᵢ·σᵢ̄)" if (is_stress and not raw_mode) else ""
         )
@@ -1105,14 +984,3 @@ class PostProcessTab:
                 except Exception:
                     pass
                 self.surface_3d_viewer = None
-            # Cruces principales: misma logica -- la geometria cambio, los
-            # esfuerzos ya no son validos. Desactivar capa + resetear toggle.
-            if self.principal_cross_layer is not None:
-                try:
-                    self.principal_cross_layer.deactivate()
-                except Exception:
-                    pass
-            try:
-                self.principal_crosses_var.set(False)
-            except Exception:
-                pass

@@ -18,21 +18,23 @@ Modulos organizados por fase del flujo FEM:
 - proc : M1..M7 — orden canonico del calculo FEM
     M1 Mapeo iso + funciones de forma N (xy↔ξη)
     M2 Jacobiano det J (Overlay, surface 3D + toggle F/V)
-    M3 Matriz constitutiva D (por material)
-    M4 Matriz B (Overlay, snap a Gauss)
+    M3 Matriz B (Overlay, snap a Gauss)
+    M4 Matriz constitutiva D (por material)
     M5 Rigidez K + integracion Gauss (fusion: integral imposible)
     M6 Fuerzas equivalentes nodales
     M7 Ensamblaje K, F + BCs (sparsity + vuelo Bezier)
-- post : M9 (convergencia Q4 vs Q9)
+- post : (sin modulos — el analisis vive en las herramientas nativas
+          del Post: contorno, probe, Mohr, Vista 3D)
 
-Nota: el ex-M7 (discontinuidad / vista 3D) y ex-M8 (cruces principales +
-Mohr) fueron consolidados en el flujo nativo del Post-Proceso:
+Nota: el ex-M7 (discontinuidad / vista 3D) y ex-M8 (estado tensional
+puntual) fueron consolidados en el flujo nativo del Post-Proceso:
   - 3D del campo + slider Crudo↔Suavizado -> boton "🧊 Vista 3D" en
     toolbar Post (gui/postprocessing/surface_3d_viewer.py).
-  - Cruces σ1/σ2 sobre la malla -> toggle "Cruces principales" en
-    toolbar Post (gui/postprocessing/principal_cross_layer.py).
   - Circulo de Mohr -> panel "Detalles" del probe (clic derecho).
     (gui/postprocessing/details_panel.py).
+Las cruces principales σ1/σ2 (toggle sobre la malla) fueron eliminadas
+en 2026-05: el contorno + el circulo de Mohr del probe ya cubren el
+estado principal sin la capa extra.
 Esta consolidacion eliminada la fragmentacion pedagogica: las vistas
 viven donde se usan, no como modulos aislados.
 """
@@ -45,23 +47,22 @@ MODULE_MAP = {
     "mod00":  ("education.mod00_mesh_quality",        "MeshQualityModule"),
     "mod01":  ("education.mod01_iso_mapping",         "IsoMappingModule"),
     "mod02":  ("education.mod02_jacobian",            "JacobianModule"),
-    "mod03":  ("education.mod03_constitutive",        "ConstitutiveModule"),
-    "mod04":  ("education.mod04_b_matrix",            "BMatrixModule"),
+    "mod03":  ("education.mod03_b_matrix",            "BMatrixModule"),
+    "mod04":  ("education.mod04_constitutive",        "ConstitutiveModule"),
     # M5 fusionado (ex-M5 + ex-M5b): la rigidez analítica (integral
     # imposible, colapsable) Y la solución numérica (cuadratura de Gauss
     # interactiva) viven en UN solo overlay con la narrativa ∫ → Σ.
     "mod05":  ("education.mod05_stiffness",           "StiffnessElementModule"),
     "mod06":  ("education.mod06_equivalent_forces",   "EquivalentForcesModule"),
     "mod07":  ("education.mod07_assembly",            "AssemblyModule"),
-    "mod09":  ("education.mod09_q4_vs_q9_comparison", "Q4vsQ9ComparisonModule"),
 }
 
 # Agrupacion pedagogica por fase del flujo FEM, alineada con el ORDEN
 # CANONICO del calculo FEM:
 #   1. Mapeo iso + funciones de forma  (M1)
 #   2. Jacobiano (det J, distorsion local)  (M2)
-#   3. Matriz constitutiva D (E, nu, TP/DP)  (M3)
-#   4. Matriz B (gradiente, J^-1)  (M4)
+#   3. Matriz B (gradiente, J^-1)  (M3)
+#   4. Matriz constitutiva D (E, nu, TP/DP)  (M4)
 #   5. Rigidez K_e + cuadratura de Gauss (integral imposible → suma)  (M5)
 #   6. Fuerzas equivalentes nodales  (M6)
 #   7. Ensamblaje K, F + BCs (vuelo Bezier + sparsity)  (M7)
@@ -76,7 +77,12 @@ MODULE_PHASE = {
     "pre":  ["mod00"],
     "proc": ["mod01", "mod02", "mod03", "mod04",
               "mod05", "mod06", "mod07"],
-    "post": ["mod09"],
+    # Post sin modulos educativos: el analisis de resultados vive en las
+    # herramientas nativas del Post (contorno, probe, circulo de Mohr del
+    # clic derecho, 🧊 Vista 3D). El ex-M9 (comparacion Q4 vs Q9) fue
+    # eliminado en 2026-05 (lento: re-resolvia mallas refinadas en vivo;
+    # la convergencia/shear-locking ya esta en docs/vyv/ y la Memoria).
+    "post": [],
 }
 
 # Etiquetas y descripciones para el launcher_panel (UI homogenea entre fases)
@@ -87,24 +93,22 @@ MODULE_META = {
                "Coordenadas naturales (ξ,η) ↔ (x,y)"),
     "mod02":  ("② Jacobiano  det J(ξ,η)",
                "Distorsion local, superficie 3D"),
-    "mod03":  ("③ Matriz constitutiva D",
-               "D(E,ν, caso) por material del elemento"),
-    "mod04":  ("④ Matriz B (Deformacion)",
+    "mod03":  ("③ Matriz B (Deformacion)",
                "∂N/∂x con J⁻¹, snap a Gauss"),
+    "mod04":  ("④ Matriz constitutiva D",
+               "D(E,ν, caso) por material del elemento"),
     "mod05":  ("⑤ Rigidez K_e + Gauss",
                "Integral imposible → suma en PGs (cuadratura interactiva)"),
     "mod06":  ("⑥ Fuerzas equivalentes",
                "Carga arista / peso propio"),
     "mod07":  ("⑦ Ensamblaje K, F + BCs",
                "Vuelo Bezier · sparsity pattern"),
-    "mod09":  ("⑨ Comparacion Q4 vs Q9",
-               "Sandbox: h/p-refinement · convergencia"),
 }
 
 # Modulos que NO requieren un elemento especifico (operan sobre toda la malla)
 # Publico: consumido por los paneles educativos para no desactivar visualmente
 # los botones de modulos globales cuando no hay seleccion.
-GLOBAL_MODULES = {"mod00", "mod09"}
+GLOBAL_MODULES = {"mod00"}
 _GLOBAL_MODULES = GLOBAL_MODULES  # alias retrocompat interno
 
 

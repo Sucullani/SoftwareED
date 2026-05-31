@@ -1,5 +1,5 @@
 """
-Módulo 3 — Matriz constitutiva D (TP / DP)
+Módulo 4 — Matriz constitutiva D (TP / DP)
 
     σ = D · ε     con D = D(E, ν, caso plano)
 
@@ -7,8 +7,9 @@ Modo Overlay sobre el MeshCanvas compartido.
 
 Override explícito del usuario respecto a la propuesta UX original:
 
-    "M3 utiliza también un overlay que no esté embebido en el panel
-     lateral; no compares TP/DP ya que esto está en el menú principal."
+    "M4 (matriz D) utiliza también un overlay que no esté embebido en
+     el panel lateral; no compares TP/DP ya que esto está en el menú
+     principal."
 
 Diseño actual ("Espectro de Poisson", rediseño 2026-05):
     1. NO abre Toplevel ni vive embebido en proc_tab. Activa un overlay
@@ -62,8 +63,8 @@ from config.settings import (
 _DEMO_E = 210e9
 _DEMO_NU = 0.30
 
-# Tag del MeshCanvas para los dibujos M3 (highlight del elem seleccionado).
-_TAG = "edu_m3"
+# Tag del MeshCanvas para los dibujos M4 (highlight del elem seleccionado).
+_TAG = "edu_m4"
 
 # Colores del espectro (mismo lenguaje cromático que el resto del overlay).
 # TODO(hex): _TRACK_COLOR/_TRACK_FILL/_KNOB_COLOR/_HOME_COLOR siguen como
@@ -77,12 +78,12 @@ _HOME_COLOR  = "#ffd54f"   # marcador del ν del material real ("tu material")
 
 
 class ConstitutiveModule(CanvasOverlayModule):
-    """M3 en modo Overlay: matriz D con toggle Fórmula/Valores + espectro ν.
+    """M4 en modo Overlay: matriz D con toggle Fórmula/Valores + espectro ν.
 
     NO contiene comparación TP/DP — el caso plano viene del project.
     """
 
-    TITLE = "③  Matriz constitutiva D  (σ = D · ε)"
+    TITLE = "④  Matriz constitutiva D  (σ = D · ε)"
     PHASE = "proc"
     OVERLAY_INITIAL_POS = (24, 24)
     OVERLAY_WIDTH = 480
@@ -245,10 +246,11 @@ class ConstitutiveModule(CanvasOverlayModule):
         )
         self._toggle.pack(fill="both", expand=True)
 
-        # Cross-reference clickeable: D entra en el integrando de k_e.
+        # Cross-reference clickeable: D + B (③) forman el integrando de k_e.
         self._pack_crossref(
             body, "mod05",
-            "👉 Esta D entra en  k_e = ∫ BᵀDB |det J| t  (ver ⑤ Matriz K_e).",
+            "👉 Esta D + la matriz B (③) forman  k_e = ∫ BᵀDB |det J| t  "
+            "(ver ⑤ Rigidez K_e).",
             wraplength=440,
         )
 

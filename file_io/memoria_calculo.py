@@ -198,9 +198,19 @@ def generate_memoria_calculo(
     try:
         memoria.compile(filepath_no_ext, keep_tex=keep_tex)
     except FileNotFoundError as e:
+        import platform
+        _os = platform.system()
+        if _os == "Windows":
+            _hint = "Instalá MiKTeX desde https://miktex.org (incluye pdflatex)"
+        elif _os == "Darwin":
+            _hint = "Instalá MacTeX desde https://tug.org/mactex/"
+        else:
+            _hint = ("Instalá TeX Live (en Debian/Ubuntu: "
+                     "sudo apt install texlive-latex-base texlive-latex-extra)")
         raise MemoriaCalculoError(
-            "No se encontró pdflatex en el PATH. "
-            "Instalá MiKTeX (https://miktex.org) o TeX Live y reiniciá EduFEM. "
+            "No se encontró pdflatex en el PATH — la Memoria de Cálculo se "
+            "compila con LaTeX.\n"
+            f"{_hint}, luego reiniciá EduFEM.\n"
             f"Detalle: {e}"
         ) from e
     except Exception as e:
@@ -1952,24 +1962,6 @@ class MemoriaCalculo:
             )
         for component in ("sigma_x", "sigma_y", "tau_xy", "von_mises"):
             self._insertar_contorno(component)
-
-        # Cruces principales (PIL)
-        if self._nodal_stresses:
-            td.subsection_numbered("Direcciones principales sobre la malla")
-            try:
-                from file_io.figure_export import render_principal_crosses
-                img = render_principal_crosses(proj, self._nodal_stresses)
-                path = self._save_figure(img, "principal_crosses")
-                if path is not None:
-                    td.figure(
-                        path,
-                        caption=("Cruces principales por elemento: brazo largo "
-                                 "= $\\sigma_1$, brazo corto perpendicular = "
-                                 "$\\sigma_2$. Azul = tracción, rojo = "
-                                 "compresión."),
-                        label="fig:principal_crosses", width=r"0.8\textwidth")
-            except Exception:
-                pass
 
     def _tabla_nodal_stresses(self) -> None:
         rows = []
