@@ -7,10 +7,13 @@ seleccionar el archivo de destino.
 Estilos disponibles (DOS):
   'educativo' — Mismo procedimiento, con infografía del recorrido MEF,
                 tarjetas "entra → fórmula → sale", una idea clave por
-                concepto y glosario final.
-  'directo'   — El paso a paso matricial completo (N → J → B → D → kₑ,
-                ensamblaje, solución, tensiones) pero SECO: fórmulas,
-                matrices y resultados, sin explicaciones.
+                concepto, diagnóstico comentado, interpretación de
+                resultados y glosario final.
+  'directo'   — El paso a paso matricial completo de inicio a fin
+                (N → u=Na → J → B → D → kₑ, ensamblaje, solución,
+                recuperación ε→σ, extrapolación, diagnóstico y resumen)
+                pero SECO: fórmulas, matrices y resultados, sin
+                explicaciones.
 
 Filosofía minimalista (ver CLAUDE.md): sin Labelframes, sin subtítulo
 descriptivo, sin banner explicativo. Solo los 2 radios + descripción muted
@@ -31,12 +34,12 @@ _ESTILOS = [
     (
         "educativo",
         "🎓  Educativo",
-        "Infografía del recorrido, una idea clave por concepto, glosario.",
+        "Paso a paso comentado + infografía, diagnóstico, interpretación, glosario.",
     ),
     (
         "directo",
         "⚡  Directo",
-        "Paso a paso matricial (N→J→B→D→kₑ, K, u, σ). Sin explicaciones.",
+        "Procedimiento matricial seco + diagnóstico y resumen. Sin explicaciones.",
     ),
 ]
 
