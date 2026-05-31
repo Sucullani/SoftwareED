@@ -349,7 +349,7 @@ class StiffnessElementModule(CanvasOverlayModule):
         self._var_j = tk.StringVar(value=str(self._j))
         self._spin_j = ttk.Spinbox(sel, from_=1, to=n_dofs_init, width=4,
                     textvariable=self._var_j, command=self._on_ij_change)
-                    ).pack(side="left", padx=1)
+        self._spin_j.pack(side="left", padx=1)
         ttk.Separator(sel, orient="vertical").pack(side="left",
                                                     fill="y", padx=8)
         self._lbl_dim = ttk.Label(sel, text="", font=("Segoe UI", 9),
@@ -422,6 +422,15 @@ class StiffnessElementModule(CanvasOverlayModule):
         # Invalida cache simbólico (coords cambiaron) y recontruye PGs.
         self._last_kij_expr = None
         self._last_kij_key = None
+        # Reconfigurar el tope de los spinbox K_(i,j) al GDL del NUEVO elemento
+        # (Q4→8, Q9→18): sin esto las flechas topaban en el GDL del inicial.
+        n_dofs = 2 * (self.element.num_nodes if self.element else 4)
+        for spin in (getattr(self, "_spin_i", None), getattr(self, "_spin_j", None)):
+            if spin is not None:
+                try:
+                    spin.configure(to=n_dofs)
+                except tk.TclError:
+                    pass
         self._rebuild_contributions()
         self._selected_pgs = set(range(len(self._contributions)))
         self._refresh_all()
