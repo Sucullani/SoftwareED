@@ -1,7 +1,7 @@
 """
 MeshCanvas: Canvas interactivo compartido para visualizar la malla FEM.
 Soporta zoom, pan, nodos, elementos, cargas, restricciones,
-visualizacion de resultados con gradiente suave (jet) e isolineas.
+visualizacion de resultados con gradiente suave (viridis/coolwarm) e isolineas.
 """
 
 import math
@@ -180,8 +180,8 @@ def _rasterize_triangle_njit(img, W, H,
                               sx0, sy0, v0,
                               sx1, sy1, v1,
                               sx2, sy2, v2,
-                              vmin, vmax):
-    """Rasteriza un triangulo con interpolacion baricentrica + jet inline.
+                              vmin, vmax, lut):
+    """Rasteriza un triangulo con interpolacion baricentrica + LUT de color.
 
     Implementacion JIT (Numba): loops explicitos pixel-a-pixel SIN crear
     arrays intermedios (lam0/lam1/lam2, mascaras booleanas, indexing).
@@ -189,6 +189,10 @@ def _rasterize_triangle_njit(img, W, H,
     y el masking; aqui Numba compila a maquina y opera sobre los pixeles
     directamente en cache L1. Speedup: 15-30x vs version NumPy en triangulos
     chicos (lo tipico para el campo de tensiones, ~20-50 px de lado).
+
+    `lut`: ndarray (256, 3) uint8 (viridis o coolwarm, ver config/colormaps).
+    Indexar el LUT por `int(t*255)` es mas rapido que el branching de JET y,
+    a diferencia de JET, es perceptualmente uniforme (auditoria UX 2026-05).
 
     `fastmath=True`: permitido aqui porque solo afecta visualizacion (el
     pipeline FEM en `fem/` NO usa fastmath para preservar bit-reproducibilidad
@@ -232,28 +236,17 @@ def _rasterize_triangle_njit(img, W, H,
             elif t > 1.0:
                 t = 1.0
 
-            # Jet colormap inline. Branchless seria mas rapido pero los
-            # if/elif son legibles y Numba los compila a switch eficiente.
-            if t < 0.25:
-                r = 0.0
-                g = t * 4.0
-                b = 1.0
-            elif t < 0.5:
-                r = 0.0
-                g = 1.0
-                b = 1.0 - (t - 0.25) * 4.0
-            elif t < 0.75:
-                r = (t - 0.5) * 4.0
-                g = 1.0
-                b = 0.0
-            else:
-                r = 1.0
-                g = 1.0 - (t - 0.75) * 4.0
-                b = 0.0
-
-            img[iy, ix, 0] = np.uint8(r * 255.0)
-            img[iy, ix, 1] = np.uint8(g * 255.0)
-            img[iy, ix, 2] = np.uint8(b * 255.0)
+            # Color via LUT perceptual (viridis/coolwarm). Indexar es mas
+            # rapido que el branching de JET anterior y no produce las
+            # bandas falsas de JET.
+            idx = int(t * 255.0)
+            if idx < 0:
+                idx = 0
+            elif idx > 255:
+                idx = 255
+            img[iy, ix, 0] = lut[idx, 0]
+            img[iy, ix, 1] = lut[idx, 1]
+            img[iy, ix, 2] = lut[idx, 2]
             img[iy, ix, 3] = 255
 
 from config.settings import (
@@ -262,13 +255,27 @@ from config.settings import (
     CANVAS_SELECTED_COLOR, CANVAS_NODE_RADIUS, CANVAS_FONT_SIZE,
     CANVAS_NODE_MID_COLOR, CANVAS_NODE_CENTER_COLOR, CANVAS_NODE_MID_RADIUS,
     CANVAS_NODE_ORPHAN_COLOR, CANVAS_GHOST_COLOR,
+    CANVAS_SELECTED_HALO_COLOR, CANVAS_HOVER_COLOR, CANVAS_BOUNDARY_COLOR,
+    CANVAS_BOUNDARY_MIN_ELEMENTS, CANVAS_FOCUS_MIN_ELEMENTS,
     DECIMALS_LENGTH, DECIMALS_FORCE, DECIMALS_STRESS, fmt,
     SHADOW_LOAD, SHADOW_SURFACE, SHADOW_CONSTRAINT, LABEL_BG, LABEL_FG,
     FONT_MONO_SMALL,
 )
+from config.colormaps import (
+    VIRIDIS_LUT, COOLWARM_LUT, t_to_hex, value_to_hex,
+    is_diverging_range, symmetric_bounds,
+)
 from models.mesh_utils import (
     classify_nodes, classify_orphan_status, auto_expand_if_q9,
+    median_edge_length, boundary_edges, focus_keep_sets,
 )
+from gui.preprocessing.canvas_logic import (
+    lod_level, bbox_visible, point_visible, label_visible_for_item,
+    label_globally_visible,
+)
+# Margen de culling = padding del raster del gradient (coherencia: el area
+# que NO se rasteriza coincide con la que no se dibuja en vectores).
+_CULL_MARGIN_FRAC = _GRADIENT_PAD_FRAC
 
 
 class MeshCanvas(ttk.Frame):
@@ -345,11 +352,29 @@ class MeshCanvas(ttk.Frame):
         self.displacements = None
 
         # Opciones de dibujo
-        self.show_node_labels = True
-        self.show_elem_labels = True
         self.show_loads = True
         self.show_constraints = True
         self.show_mesh_edges = True
+        # ─── Visualizacion progresiva (auditoria UX 2026-05) ───────────────
+        # Numeracion bajo demanda: modo por categoria (reemplaza a los ex
+        # flags booleanos show_node_labels/show_elem_labels). "auto" = visible
+        # solo en zoom cercano (LOD near) + siempre en el item seleccionado;
+        # "always" = siempre; "never" = nunca. Default "auto": las mallas
+        # chicas (<= LOD_MIN_ELEMENTS_FOR_GATING) se ven como antes (todo
+        # numerado) y solo las densas se descongestionan hasta hacer zoom.
+        self.node_label_mode = "auto"
+        self.elem_label_mode = "auto"
+        # Atenuacion de contexto al seleccionar (focus-and-context): "auto" =
+        # se activa solo en mallas grandes con seleccion; "on"/"off" fuerzan.
+        self.focus_mode = "auto"
+        # Realce de la silueta del dominio (aristas de contorno mas marcadas).
+        self.boundary_emphasis = True
+        # Estado del realce de hover (id del elemento bajo el cursor con su
+        # outline dibujado en la capa "hover"). None = sin hover activo.
+        self._hover_highlight_eid = None
+        # ─── Colormap activo (viridis no-negativo / coolwarm con signo) ────
+        self._active_lut = VIRIDIS_LUT
+        self.result_diverging = False
         # Geometria "fantasma": cuando un modulo overlay lo activa (M0), la
         # malla base se dibuja atenuada (gris tenue, sin etiquetas) para que la
         # capa del modulo sea la protagonista. El modulo lo resetea al cerrar.
@@ -459,6 +484,8 @@ class MeshCanvas(ttk.Frame):
             font=("Segoe UI", 10, "bold")
         ).pack(side=LEFT, padx=3)
 
+        self._build_view_menu(toolbar)
+
         ttk.Button(
             toolbar, text="Ajustar Vista", bootstyle="secondary-outline",
             command=self.fit_view, width=13
@@ -501,6 +528,8 @@ class MeshCanvas(ttk.Frame):
         # Delete/BackSpace funcionen sin click previo. Funciona en
         # Windows/Linux; en macOS BackSpace es la tecla "Delete" estandar.
         self.canvas.bind("<Enter>", lambda _e: self.canvas.focus_set())
+        # Al salir del canvas, limpiar el realce de hover (pre-seleccion).
+        self.canvas.bind("<Leave>", self._on_canvas_leave)
         self.canvas.bind("<KeyPress-Delete>", self._on_delete_key)
         self.canvas.bind("<KeyPress-BackSpace>", self._on_delete_key)
         # Escape cancela el elemento parcial cuando el modo dibujo esta
@@ -536,27 +565,156 @@ class MeshCanvas(ttk.Frame):
         self.on_ortho_changed = None        # callable(active: bool)
 
     # ═════════════════════════════════════════════════════════════════════
-    # COLORES JET
+    # COLORES — LUT perceptual (viridis / coolwarm)
     # ═════════════════════════════════════════════════════════════════════
+    #
+    # Auditoria UX 2026-05: se reemplazo JET por LUTs perceptualmente
+    # uniformes (config/colormaps.py). El LUT activo (`self._active_lut`) lo
+    # eligen set_result_values / set_element_result_grid: viridis para
+    # magnitudes no negativas (VM, |u|), coolwarm para magnitudes con signo
+    # (sigma_x/sigma_y/tau_xy, con vmin/vmax centrados en 0).
 
-    def _jet_color(self, t):
-        t = max(0.0, min(1.0, t))
-        if t < 0.25:
-            r, g, b = 0, t / 0.25, 1.0
-        elif t < 0.5:
-            r, g, b = 0, 1.0, 1.0 - (t - 0.25) / 0.25
-        elif t < 0.75:
-            r, g, b = (t - 0.5) / 0.25, 1.0, 0
-        else:
-            r, g, b = 1.0, 1.0 - (t - 0.75) / 0.25, 0
-        return f"#{int(r*255):02x}{int(g*255):02x}{int(b*255):02x}"
+    def _t_to_color(self, t):
+        """t en [0,1] -> hex via el LUT activo."""
+        return t_to_hex(max(0.0, min(1.0, t)), self._active_lut)
 
     def _value_to_color(self, value):
         if self.result_vmax == self.result_vmin:
-            t = 0.5
+            return self._t_to_color(0.5)
+        return value_to_hex(value, self.result_vmin, self.result_vmax,
+                            self._active_lut)
+
+    def _select_colormap(self):
+        """Elige el LUT segun el rango del resultado actual.
+
+        - Rango con signo (cruza el cero): coolwarm divergente, con vmin/vmax
+          re-centrados simetricamente para que el cero fisico caiga en 0.5
+          (sigma_x/sigma_y/tau_xy). Es la representacion correcta de un campo
+          con signo — el azul/rojo separa compresion de traccion.
+        - Rango no negativo (VM, |u|): viridis secuencial.
+        """
+        if is_diverging_range(self.result_vmin, self.result_vmax):
+            self.result_diverging = True
+            self._active_lut = COOLWARM_LUT
+            self.result_vmin, self.result_vmax = symmetric_bounds(
+                self.result_vmin, self.result_vmax)
         else:
-            t = (value - self.result_vmin) / (self.result_vmax - self.result_vmin)
-        return self._jet_color(t)
+            self.result_diverging = False
+            self._active_lut = VIRIDIS_LUT
+
+    # ═════════════════════════════════════════════════════════════════════
+    # VISUALIZACION PROGRESIVA — LOD por zoom + focus (auditoria UX 2026-05)
+    # ═════════════════════════════════════════════════════════════════════
+
+    def _median_edge_px(self):
+        """Pixeles-por-arista-media: mediana de longitud de arista (mundo) por
+        el `scale` actual. Base del LOD. None si no hay geometria."""
+        med = median_edge_length(self.project)
+        if med is None:
+            return None
+        return med * self.scale
+
+    def _lod_level(self):
+        """Nivel de detalle actual: 'far' | 'mid' | 'near'."""
+        return lod_level(self._median_edge_px(), len(self.project.elements))
+
+    def _focus_active(self):
+        """True si la atenuacion de contexto debe aplicarse ahora.
+
+        Requiere: modo distinto de 'off', alguna seleccion de nodo/elemento,
+        y (en modo 'auto') una malla lo bastante grande como para que la
+        atenuacion ayude. En 'on' se aplica con cualquier malla.
+        """
+        if self.focus_mode == "off":
+            return False
+        if self.ghost_geometry:
+            return False
+        if not (self.selected_nodes or self.selected_elements):
+            return False
+        if self.focus_mode == "on":
+            return True
+        return len(self.project.elements) >= CANVAS_FOCUS_MIN_ELEMENTS
+
+    def _focus_keep(self):
+        """(keep_elems, keep_nodes) para el modo focus, o (None, None) si no
+        esta activo."""
+        if not self._focus_active():
+            return None, None
+        return focus_keep_sets(self.project, self.selected_nodes,
+                               self.selected_elements)
+
+    # ─── Setters publicos de la barra de Vista ──────────────────────────
+
+    def set_node_label_mode(self, mode):
+        if mode in ("auto", "always", "never"):
+            self.node_label_mode = mode
+            self.redraw()
+
+    def set_elem_label_mode(self, mode):
+        if mode in ("auto", "always", "never"):
+            self.elem_label_mode = mode
+            self.redraw()
+
+    def set_focus_mode(self, mode):
+        if mode in ("auto", "on", "off"):
+            self.focus_mode = mode
+            self.redraw()
+
+    def set_boundary_emphasis(self, enabled):
+        self.boundary_emphasis = bool(enabled)
+        self.redraw()
+
+    def _build_view_menu(self, toolbar):
+        """Menubutton 'Vista' con los controles de visualizacion progresiva:
+        numeracion (auto/siempre/nunca), atenuacion de contexto y silueta.
+
+        Es la unica via manual para forzar la numeracion — por defecto todo
+        es 'auto' (el LOD por zoom + la malla chica deciden). Coherente con la
+        filosofia minimalista: un solo control compacto, sin toolbar extra.
+        """
+        mb = ttk.Menubutton(toolbar, text="Vista", bootstyle="secondary-outline",
+                            width=7)
+        mb.pack(side=LEFT, padx=2)
+        menu = tk.Menu(mb, tearoff=False)
+        mb["menu"] = menu
+
+        # Vars persistentes (refs en self para evitar GC del recolector Tcl).
+        self._var_node_labels = tk.StringVar(value=self.node_label_mode)
+        self._var_elem_labels = tk.StringVar(value=self.elem_label_mode)
+        self._var_focus = tk.StringVar(value=self.focus_mode)
+        self._var_boundary = tk.BooleanVar(value=self.boundary_emphasis)
+
+        _modes = [("Automática", "auto"), ("Siempre", "always"),
+                  ("Nunca", "never")]
+
+        node_menu = tk.Menu(menu, tearoff=False)
+        for label, val in _modes:
+            node_menu.add_radiobutton(
+                label=label, value=val, variable=self._var_node_labels,
+                command=lambda: self.set_node_label_mode(self._var_node_labels.get()))
+        menu.add_cascade(label="Numeración de nodos", menu=node_menu)
+
+        elem_menu = tk.Menu(menu, tearoff=False)
+        for label, val in _modes:
+            elem_menu.add_radiobutton(
+                label=label, value=val, variable=self._var_elem_labels,
+                command=lambda: self.set_elem_label_mode(self._var_elem_labels.get()))
+        menu.add_cascade(label="Numeración de elementos", menu=elem_menu)
+
+        menu.add_separator()
+
+        focus_menu = tk.Menu(menu, tearoff=False)
+        for label, val in [("Automático", "auto"), ("Siempre", "on"),
+                           ("Nunca", "off")]:
+            focus_menu.add_radiobutton(
+                label=label, value=val, variable=self._var_focus,
+                command=lambda: self.set_focus_mode(self._var_focus.get()))
+        menu.add_cascade(label="Atenuar contexto al seleccionar",
+                         menu=focus_menu)
+
+        menu.add_checkbutton(
+            label="Resaltar silueta del borde", variable=self._var_boundary,
+            command=lambda: self.set_boundary_emphasis(self._var_boundary.get()))
 
     # ═════════════════════════════════════════════════════════════════════
     # TRANSFORMACION DE COORDENADAS
@@ -619,6 +777,9 @@ class MeshCanvas(ttk.Frame):
         resolucion exacta.
         """
         self.canvas.delete("all")
+        # El redraw completo borro la capa 'hover'; resetear su estado para
+        # que el proximo <Motion> la regenere sobre el elemento bajo cursor.
+        self._hover_highlight_eid = None
         self._draw_grid()
 
         if self.show_deformed and self.displacements is not None:
@@ -642,8 +803,15 @@ class MeshCanvas(ttk.Frame):
         roles = classify_nodes(self.project)
         orphan_status = classify_orphan_status(self.project)
 
-        self._draw_elements()
-        self._draw_nodes(roles=roles, orphan_status=orphan_status)
+        # Contexto de visualizacion progresiva (auditoria UX 2026-05):
+        # nivel de detalle por zoom + conjuntos a mantener nitidos en focus.
+        # Se computan UNA vez y se pasan a las capas.
+        lod = self._lod_level()
+        keep_elems, keep_nodes = self._focus_keep()
+
+        self._draw_elements(lod=lod, keep_elems=keep_elems)
+        self._draw_nodes(roles=roles, orphan_status=orphan_status,
+                         lod=lod, keep_nodes=keep_nodes)
 
         if self.show_loads:
             self._draw_loads(orphan_status=orphan_status)
@@ -783,22 +951,6 @@ class MeshCanvas(ttk.Frame):
     # ═════════════════════════════════════════════════════════════════════
     # GRADIENTE SUAVE (PIL pixel-perfect con mapeo bilineal inverso)
     # ═════════════════════════════════════════════════════════════════════
-
-    def _jet_rgb_vectorized(self, t):
-        """Jet colormap vectorizado para numpy arrays."""
-        t = np.clip(t, 0, 1)
-        r = np.zeros_like(t)
-        g = np.zeros_like(t)
-        b = np.zeros_like(t)
-        m1 = t < 0.25
-        m2 = (t >= 0.25) & (t < 0.5)
-        m3 = (t >= 0.5) & (t < 0.75)
-        m4 = t >= 0.75
-        g[m1] = t[m1] / 0.25; b[m1] = 1.0
-        g[m2] = 1.0; b[m2] = 1.0 - (t[m2] - 0.25) / 0.25
-        r[m3] = (t[m3] - 0.5) / 0.25; g[m3] = 1.0
-        r[m4] = 1.0; g[m4] = 1.0 - (t[m4] - 0.75) / 0.25
-        return r, g, b
 
     def _get_grid_values(self, elem, n):
         """Devuelve una grilla (n+1, n+1) de valores en (xi, eta) para el
@@ -1065,7 +1217,7 @@ class MeshCanvas(ttk.Frame):
 
         Desempaqueta las tuples `(sx, sy, val)` y pasa los floats por
         separado (Numba no acepta tuples Python nativas como argumentos).
-        El kernel JIT hace todo el trabajo: barycentricas + jet inline
+        El kernel JIT hace todo el trabajo: barycentricas + LUT de color
         + escritura de pixeles, sin allocations intermedias.
         """
         sx0, sy0, v0 = p0
@@ -1076,7 +1228,7 @@ class MeshCanvas(ttk.Frame):
             sx0, sy0, v0,
             sx1, sy1, v1,
             sx2, sy2, v2,
-            self.result_vmin, self.result_vmax,
+            self.result_vmin, self.result_vmax, self._active_lut,
         )
 
     def _draw_gradient_polygons(self):
@@ -1214,46 +1366,127 @@ class MeshCanvas(ttk.Frame):
     # ELEMENTOS, NODOS, CARGAS, RESTRICCIONES
     # ═════════════════════════════════════════════════════════════════════
 
-    def _draw_elements(self):
-        """Dibuja aristas y etiquetas de elementos."""
+    def _draw_elements(self, *, lod="near", keep_elems=None):
+        """Dibuja aristas y etiquetas de elementos con visualizacion
+        progresiva (auditoria UX 2026-05):
+
+        - LOD: en zoom lejano ('far') solo se dibuja la silueta del dominio
+          (aristas de contorno) + los elementos seleccionados, sin etiquetas
+          ni aristas internas — declutter + recorte del arbol Tk.
+        - Silueta: las aristas de contorno se realzan sobre las internas.
+        - Halo: el elemento seleccionado lleva un anillo claro debajo para
+          destacar a cualquier escala.
+        - Focus: si `keep_elems` no es None, los elementos fuera del conjunto
+          se atenuan (gris fantasma) para que la seleccion gane por contraste.
+        - Culling: los elementos fuera del viewport (+ margen) no se crean.
+        """
+        w = self.canvas.winfo_width()
+        h = self.canvas.winfo_height()
+        # Canvas aun no realizado (winfo=1): no cullear (margen infinito) para
+        # no dejar la primera pasada en blanco antes del <Configure>.
+        margin = (float("inf") if (w <= 1 or h <= 1)
+                  else max(w, h) * _CULL_MARGIN_FRAC)
+        n_elems = len(self.project.elements)
+
+        # Silueta del dominio: solo cuando vale la pena (malla no trivial y no
+        # en modo fantasma). En 'far' es la unica geometria que se dibuja, asi
+        # que ahi tambien se computa (salvo que el usuario apague las aristas).
+        boundary = set()
+        want_boundary = (self.boundary_emphasis and self.show_mesh_edges
+                         and not self.ghost_geometry
+                         and n_elems >= CANVAS_BOUNDARY_MIN_ELEMENTS)
+        if (want_boundary or lod == "far") and self.show_mesh_edges \
+                and not self.ghost_geometry:
+            boundary = boundary_edges(self.project)
+
+        # 1) Silueta de contorno PRIMERO (debajo de los outlines de elemento):
+        #    una linea mas ancha y clara por arista de contorno -> el borde
+        #    exterior se lee con claridad sobre las aristas internas.
+        if boundary and not self.ghost_geometry:
+            for edge in boundary:
+                try:
+                    n1, n2 = tuple(edge)
+                except ValueError:
+                    continue
+                if n1 not in self.project.nodes or n2 not in self.project.nodes:
+                    continue
+                x1, y1 = self._get_node_screen_pos(n1)
+                x2, y2 = self._get_node_screen_pos(n2)
+                if not bbox_visible(min(x1, x2), min(y1, y2),
+                                    max(x1, x2), max(y1, y2), w, h, margin):
+                    continue
+                self.canvas.create_line(
+                    x1, y1, x2, y2, fill=CANVAS_BOUNDARY_COLOR,
+                    width=2.5, capstyle=tk.ROUND,
+                    tags=("world", "elements"),
+                )
+
+        elem_labels_global = label_globally_visible(
+            self.elem_label_mode, lod, ghost=self.ghost_geometry)
+
         for elem in self.project.elements.values():
             coords = []
             valid = True
+            min_sx = min_sy = float("inf")
+            max_sx = max_sy = float("-inf")
             for nid in elem.node_ids[:4]:
                 if nid not in self.project.nodes:
                     valid = False
                     break
                 sx, sy = self._get_node_screen_pos(nid)
                 coords.extend([sx, sy])
+                min_sx, min_sy = min(min_sx, sx), min(min_sy, sy)
+                max_sx, max_sy = max(max_sx, sx), max(max_sy, sy)
             if not valid or len(coords) < 8:
                 continue
-
-            # Sin relleno — el gradiente maneja el color
-            fill_color = ""
+            # Culling por viewport.
+            if not bbox_visible(min_sx, min_sy, max_sx, max_sy, w, h, margin):
+                continue
 
             is_elem_selected = elem.id in self.selected_elements
+            is_dim = (keep_elems is not None
+                      and not is_elem_selected
+                      and elem.id not in keep_elems)
+
+            # En 'far' solo dibujamos el outline del elemento SELECCIONADO
+            # (la silueta ya cubre el resto). Ahorra miles de poligonos.
+            if lod == "far" and not is_elem_selected:
+                continue
+
             if is_elem_selected:
                 outline_color = CANVAS_SELECTED_COLOR
-            elif self.ghost_geometry:
-                outline_color = CANVAS_GHOST_COLOR  # malla base atenuada
+            elif self.ghost_geometry or is_dim:
+                outline_color = CANVAS_GHOST_COLOR  # atenuado (ghost o focus)
             else:
                 outline_color = CANVAS_ELEMENT_COLOR
 
             edge_color = outline_color if self.show_mesh_edges else ""
-            line_w = (2 if is_elem_selected
-                      else (1 if self.ghost_geometry else 1.5))
+            line_w = (2.5 if is_elem_selected
+                      else (1 if (self.ghost_geometry or is_dim) else 1.5))
+
+            # Halo del elemento seleccionado: poligono mas ancho DEBAJO en
+            # color claro -> glow que lo hace saltar incluso en mallas grandes.
+            if is_elem_selected and self.show_mesh_edges:
+                self.canvas.create_polygon(
+                    *coords, outline=CANVAS_SELECTED_HALO_COLOR, fill="",
+                    width=line_w + 4, tags=("world", "elements"),
+                )
 
             self.canvas.create_polygon(
                 *coords,
                 outline=edge_color,
-                fill=fill_color,
+                fill="",
                 width=line_w,
                 tags=("world", "elements"),
             )
 
-            # En modo fantasma se omiten las etiquetas de elemento (ruido sobre
-            # el X-ray del modulo).
-            if self.show_elem_labels and not self.ghost_geometry:
+            # Etiqueta: politica de numeracion + realce por seleccion. Los
+            # elementos atenuados (focus) no muestran numero salvo seleccion.
+            show_label = (not self.ghost_geometry and not is_dim
+                          and (elem_labels_global
+                               or (is_elem_selected
+                                   and self.elem_label_mode != "never")))
+            if show_label:
                 cx = sum(coords[::2]) / 4
                 cy = sum(coords[1::2]) / 4
                 text_color = "#222" if self.result_values else "#aaaaaa"
@@ -1271,17 +1504,37 @@ class MeshCanvas(ttk.Frame):
         """
         return classify_nodes(self.project)
 
-    def _draw_nodes(self, roles=None, orphan_status=None):
+    def _draw_nodes(self, roles=None, orphan_status=None,
+                    lod="near", keep_nodes=None):
         # roles / orphan_status: clasificaciones puras opcionalmente
         # precomputadas por redraw() (evita recomputarlas 4-5x por frame).
+        # lod / keep_nodes: visualizacion progresiva (auditoria UX 2026-05).
         if roles is None:
             roles = self._classify_nodes()
         if orphan_status is None:
             orphan_status = classify_orphan_status(self.project)
+        w = self.canvas.winfo_width()
+        h = self.canvas.winfo_height()
+        margin = (float("inf") if (w <= 1 or h <= 1)
+                  else max(w, h) * _CULL_MARGIN_FRAC)
+
         for nid, node in self.project.nodes.items():
             sx, sy = self._get_node_screen_pos(nid)
             role = roles.get(nid, "corner")
             is_orphan = orphan_status.get(nid) == "orphan"
+            is_selected = nid in self.selected_nodes
+            is_corner = (role == "corner")
+
+            # LOD: en 'far' solo se dibujan corners (los mid/center Q9 son
+            # andamiaje auto-generado, puro ruido a esa escala) salvo que
+            # esten seleccionados. En 'mid' los mid/center se dibujan pero
+            # como punto simple (sin nucleo). El seleccionado SIEMPRE se ve.
+            if lod == "far" and not is_corner and not is_selected:
+                continue
+            # Culling por viewport (el nodo seleccionado igual se omite si
+            # esta fuera de pantalla — no aporta nada invisible).
+            if not point_visible(sx, sy, w, h, margin):
+                continue
 
             if role == "mid":
                 base_color = CANVAS_NODE_MID_COLOR
@@ -1304,36 +1557,53 @@ class MeshCanvas(ttk.Frame):
                 base_color = CANVAS_NODE_ORPHAN_COLOR
                 inner_color = "#2a2a32"
 
-            is_selected = nid in self.selected_nodes
-            # Modo fantasma: nodos no seleccionados atenuados a gris tenue (el
-            # punto de agarre real durante un drag es el vertice distorsionado
-            # del X-ray del modulo, no el nodo en su posicion original).
-            if self.ghost_geometry and not is_selected:
+            # Atenuacion: modo fantasma (M0) o focus (nodo fuera del conjunto
+            # a mantener). El seleccionado nunca se atenua.
+            is_dim = ((self.ghost_geometry
+                       or (keep_nodes is not None and nid not in keep_nodes))
+                      and not is_selected)
+            if is_dim:
                 base_color = CANVAS_GHOST_COLOR
                 inner_color = CANVAS_GHOST_COLOR
             color = CANVAS_SELECTED_COLOR if is_selected else base_color
+
+            # Halo del nodo seleccionado: anillo claro mas grande DEBAJO ->
+            # destaca a cualquier escala (auditoria UX 2026-05).
+            if is_selected:
+                hr = r + 4
+                self.canvas.create_oval(
+                    sx - hr, sy - hr, sx + hr, sy + hr,
+                    fill="", outline=CANVAS_SELECTED_HALO_COLOR, width=2,
+                    tags=("world", "nodes"),
+                )
+
+            # En 'mid'/'far' los mid/center no seleccionados van como punto
+            # simple (1 oval, sin nucleo) — menos items, menos ruido.
+            simple_dot = (lod != "near" and not is_corner and not is_selected)
 
             self.canvas.create_oval(
                 sx - r, sy - r, sx + r, sy + r,
                 fill=color, outline="#0a1a2a", width=1,
                 tags=("world", "nodes"),
             )
-            # Cuando el nodo NO esta seleccionado, el nucleo oscuro le da
-            # profundidad (efecto "anillo" sutil). Cuando SI esta seleccionado,
-            # se pinta del MISMO amarillo brillante que el outer ring para
-            # que el nodo aparezca como un disco solido de color identico al
-            # bg de la fila resaltada en el spreadsheet (CANVAS_SELECTED_ROW_BG
-            # comparte hex con CANVAS_SELECTED_COLOR). Sin esto, el nucleo
-            # oliva oscuro domina visualmente y se percibian dos amarillos.
-            ri = max(1, r - 2)
-            self.canvas.create_oval(
-                sx - ri, sy - ri, sx + ri, sy + ri,
-                fill=CANVAS_SELECTED_COLOR if is_selected else inner_color,
-                outline="",
-                tags=("world", "nodes"),
-            )
+            if not simple_dot:
+                # Nucleo oscuro -> efecto "anillo"; o amarillo solido si
+                # esta seleccionado (disco identico al bg de la fila
+                # resaltada del spreadsheet).
+                ri = max(1, r - 2)
+                self.canvas.create_oval(
+                    sx - ri, sy - ri, sx + ri, sy + ri,
+                    fill=CANVAS_SELECTED_COLOR if is_selected else inner_color,
+                    outline="",
+                    tags=("world", "nodes"),
+                )
 
-            if self.show_node_labels and not self.ghost_geometry:
+            # Etiqueta: politica de numeracion + realce por seleccion. Los
+            # nodos atenuados (focus/ghost) no muestran numero salvo seleccion.
+            show_label = (not is_dim and label_visible_for_item(
+                self.node_label_mode, lod,
+                ghost=self.ghost_geometry, selected=is_selected))
+            if show_label:
                 if self.result_values and nid in self.result_values:
                     label = f"{nid}: {fmt(self.result_values[nid], 'stress')}"
                 else:
@@ -1593,13 +1863,11 @@ class MeshCanvas(ttk.Frame):
                     )
 
     def _draw_highlight(self):
-        # El cambio de color del nodo/elem/load/etc en _draw_nodes/elements
-        # ya marca la seleccion. NO se dibuja halo extra para mantener
-        # consistencia con el resto de propiedades.
-        # Pero las aristas potenciales SI se dibujan aqui (no tienen un
-        # render propio fuera de las aristas del elemento contenedor): se
-        # superpone una linea amarilla gruesa sobre la arista para
-        # marcar que esta seleccionada para meter SurfaceLoad.
+        # Las aristas potenciales (para SurfaceLoad) no tienen render propio
+        # fuera de las aristas del elemento contenedor: se superpone una linea
+        # amarilla con HALO sobre la arista seleccionada.
+        # (Nota: el realce de nodos/elementos/loads/etc se hace en sus
+        # _draw_* respectivos con color + halo; ver auditoria UX 2026-05.)
         if not self.selected_edges:
             return
         for edge in self.selected_edges:
@@ -1613,10 +1881,14 @@ class MeshCanvas(ttk.Frame):
                 self.project.nodes[n1].x, self.project.nodes[n1].y)
             x2, y2 = self.world_to_screen(
                 self.project.nodes[n2].x, self.project.nodes[n2].y)
+            # Halo claro mas ancho debajo + linea de seleccion encima.
+            self.canvas.create_line(
+                x1, y1, x2, y2, fill=CANVAS_SELECTED_HALO_COLOR, width=8,
+                capstyle=tk.ROUND, tags=("world", "highlight"),
+            )
             self.canvas.create_line(
                 x1, y1, x2, y2, fill=CANVAS_SELECTED_COLOR, width=4,
-                capstyle=tk.ROUND,
-                tags=("world", "highlight"),
+                capstyle=tk.ROUND, tags=("world", "highlight"),
             )
 
     def _draw_surface_loads(self, orphan_status=None):
@@ -1773,7 +2045,7 @@ class MeshCanvas(ttk.Frame):
 
         for i in range(n_steps):
             t = 1.0 - i / n_steps
-            color = self._jet_color(t)
+            color = self._t_to_color(t)
             yy = y0 + i * bar_h / n_steps
             self.canvas.create_rectangle(
                 x0, yy, x0 + bar_w, yy + bar_h / n_steps + 1,
@@ -1996,6 +2268,11 @@ class MeshCanvas(ttk.Frame):
                     self.on_hover_element(elem_under, event.x, event.y)
                 except Exception:
                     pass
+
+        # Realce de hover (pre-seleccion): outline del elemento bajo el cursor
+        # en cian + su numero, aunque la numeracion global este apagada
+        # (patron "query" de Abaqus/ANSYS). Auditoria UX 2026-05.
+        self._update_hover_highlight(wx, wy)
         # Modo dibujo: detectar snap a corner existente y refrescar
         # preview. Throttling: solo redraw si cambia el snap candidate o
         # hay puntos pendientes (linea preview al cursor).
@@ -2014,6 +2291,83 @@ class MeshCanvas(ttk.Frame):
                     or (state_changed and self.draw_pending)):
                 self.draw_hover_snap = new_snap
                 self.redraw()
+
+    def _hover_enabled(self):
+        """True si el realce de hover debe operar en el estado actual.
+
+        Se inhibe durante modos que tienen su propia semantica de cursor o
+        que no quieren ruido amarillo/cian sobre la malla: modo dibujo,
+        consulta del Post (probe), overlays educativos (M0..M9), modo
+        fantasma, y mientras el viewport esta en movimiento. Tambien en
+        mallas enormes (> 3000 elem) para no pagar el hit-test por pixel.
+        """
+        if (self.draw_mode_active or self.probe_mode_active
+                or self.ghost_geometry or self._overlay_layers
+                or self._interacting or self._panning):
+            return False
+        return len(self.project.elements) <= 3000
+
+    def _update_hover_highlight(self, wx, wy):
+        """Dibuja/actualiza el outline del elemento bajo el cursor (capa
+        'hover'). Solo redibuja la capa cuando el elemento cambia — cero
+        costo de redraw global por pixel."""
+        if not self._hover_enabled():
+            if self._hover_highlight_eid is not None:
+                self.canvas.delete("hover")
+                self._hover_highlight_eid = None
+            return
+        # Fast-path: si el cursor sigue dentro del elemento ya resaltado, no
+        # rehacer el hit-test global (O(n)) — un solo point-in-quad basta.
+        # Hovering DENTRO de un elemento es el caso comun (muchos eventos).
+        cur = self._hover_highlight_eid
+        if cur is not None:
+            elem = self.project.elements.get(cur)
+            if elem is not None:
+                try:
+                    pts = [(self.project.nodes[n].x, self.project.nodes[n].y)
+                           for n in elem.node_ids[:4]]
+                    if self._point_in_quad(wx, wy, pts):
+                        return
+                except KeyError:
+                    pass
+        eid = self._hit_test_element_at(wx, wy)
+        if eid == self._hover_highlight_eid:
+            return
+        self._hover_highlight_eid = eid
+        self.canvas.delete("hover")
+        if eid is None:
+            return
+        elem = self.project.elements.get(eid)
+        if elem is None:
+            return
+        # No realzar el que ya esta seleccionado (su amarillo ya domina).
+        if eid in self.selected_elements:
+            return
+        coords = []
+        for nid in elem.node_ids[:4]:
+            if nid not in self.project.nodes:
+                return
+            sx, sy = self._get_node_screen_pos(nid)
+            coords.extend([sx, sy])
+        self.canvas.create_polygon(
+            *coords, outline=CANVAS_HOVER_COLOR, fill="", width=2,
+            tags=("world", "hover"),
+        )
+        # Numero del elemento bajo el cursor (query), aunque la numeracion
+        # global este apagada.
+        cx = sum(coords[::2]) / 4
+        cy = sum(coords[1::2]) / 4
+        self.canvas.create_text(
+            cx, cy, text=str(eid), fill=CANVAS_HOVER_COLOR,
+            font=("Segoe UI", CANVAS_FONT_SIZE, "bold"), anchor=tk.CENTER,
+            tags=("world", "hover"),
+        )
+
+    def _on_canvas_leave(self, _event):
+        """Limpia el realce de hover al salir el cursor del canvas."""
+        if self._hover_highlight_eid is not None:
+            self.canvas.delete("hover")
+            self._hover_highlight_eid = None
 
     # ─── Hit-tests para cargas / restricciones / surface ────────────────
 
@@ -2924,6 +3278,7 @@ class MeshCanvas(ttk.Frame):
         self.result_vmax = max(vals) if vals else 1
         if self.result_vmin == self.result_vmax:
             self.result_vmax = self.result_vmin + 1
+        self._select_colormap()
         self.redraw()
 
     def set_element_result_grid(self, element_grids, label="Resultado"):
@@ -2950,6 +3305,7 @@ class MeshCanvas(ttk.Frame):
         self.result_vmax = float(all_vals.max())
         if self.result_vmin == self.result_vmax:
             self.result_vmax = self.result_vmin + 1
+        self._select_colormap()
         self.redraw()
 
     def set_deformed(self, displacements, scale=1.0):

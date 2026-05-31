@@ -94,6 +94,41 @@ CANVAS_SELECTED_ROW_BG   = "#555555"
 CANVAS_SELECTED_ROW_FG   = "#ffffff"
 CANVAS_FONT_SIZE = 9
 
+# ─── Realce de seleccion + hover (sistema de seleccion profesional) ───────
+# Auditoria UX 2026-05 (docs/auditoria_canvas_ux.md): la seleccion por
+# simple color-swap se perdia en mallas grandes. Se agrega un HALO (anillo
+# claro mas ancho dibujado DEBAJO del item, tecnica del glow ya usada en
+# cargas) para que el item seleccionado destaque de inmediato a cualquier
+# escala. El hover (pre-seleccion) usa un cian distinto del amarillo de
+# seleccion para no confundirse con ella.
+CANVAS_SELECTED_HALO_COLOR = "#fff59d"   # amarillo palido: glow bajo la seleccion
+CANVAS_HOVER_COLOR         = "#8be9fd"   # cian claro: item bajo el cursor (pre-seleccion)
+# Silueta del dominio: las aristas del contorno exterior (las que pertenecen
+# a un solo elemento) se realzan sobre las internas. Verde claro, misma
+# familia que CANVAS_ELEMENT_COLOR — emfatiza el borde sin romper la paleta.
+CANVAS_BOUNDARY_COLOR      = "#a5d6a7"
+
+# ─── Niveles de detalle (LOD) por zoom ────────────────────────────────────
+# El canvas decide cuanto detalle dibujar segun los pixeles-por-arista-media
+# (mediana de longitud de arista en mundo * scale). Reduce el ruido visual Y
+# el arbol de items Tk en mallas grandes (la principal palanca de
+# rendimiento — ver docs/auditoria_canvas_ux.md seccion E).
+#   far  (< LOD_EDGE_PX_FAR):  solo silueta + corners como puntos, sin labels.
+#   mid  (< LOD_EDGE_PX_NEAR): aristas + corners, mid/center atenuados, labels
+#                              solo en el item seleccionado.
+#   near (>=):                 todo + numeracion automatica.
+LOD_EDGE_PX_FAR  = 14.0
+LOD_EDGE_PX_NEAR = 55.0
+# Mallas pequeñas (<= este umbral de elementos) NUNCA aplican gating: siempre
+# se ven en modo "near" con toda la numeracion. Preserva la experiencia
+# didactica del ejemplo canonico (4 elementos) — el LOD solo entra cuando la
+# malla es lo bastante densa como para volverse ruidosa.
+LOD_MIN_ELEMENTS_FOR_GATING = 12
+# La silueta del borde (boundary overlay) y la atenuacion de contexto (focus)
+# tampoco se activan por debajo de estos umbrales de elementos.
+CANVAS_BOUNDARY_MIN_ELEMENTS = 12
+CANVAS_FOCUS_MIN_ELEMENTS    = 60
+
 # ─── Post / probes (consulta interactiva de resultados) ───────────────────
 # Probes pinneadas: marcador 📍 con etiqueta P1, P2, ... sobre el canvas
 # en la fase Post. Hover sobre la malla muestra tooltip flotante con

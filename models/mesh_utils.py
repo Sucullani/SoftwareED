@@ -622,3 +622,104 @@ def find_edge_midnode(elem, node_start, node_end):
         if (node_start == a and node_end == b) or (node_start == b and node_end == a):
             return mid
     return None
+
+
+# ─── Helpers de visualizacion (auditoria UX 2026-05) ───────────────────────
+# Funciones puras consumidas por el MeshCanvas para la visualizacion
+# progresiva (LOD por zoom), la silueta del dominio y la atenuacion de
+# contexto al seleccionar. Viven aqui (no en el widget Tk) para ser
+# testeables headless. Ver docs/auditoria_canvas_ux.md.
+
+def median_edge_length(project, *, sample=64):
+    """Mediana de la longitud de arista (corner-a-corner) del modelo.
+
+    Usada para derivar el nivel de detalle (LOD) del canvas: `edge_px =
+    median_edge_length * scale`. Muestrea hasta `sample` elementos (la
+    primera arista de cada uno) para acotar el costo en mallas grandes — es
+    un umbral heuristico, no necesita exactitud. Devuelve None si no hay
+    elementos con geometria valida.
+    """
+    nodes = project.nodes
+    lengths = []
+    for i, elem in enumerate(project.elements.values()):
+        if i >= sample:
+            break
+        ids = elem.node_ids[:4]
+        if len(ids) < 2:
+            continue
+        a = nodes.get(ids[0])
+        b = nodes.get(ids[1])
+        if a is None or b is None:
+            continue
+        lengths.append(((a.x - b.x) ** 2 + (a.y - b.y) ** 2) ** 0.5)
+    if not lengths:
+        return None
+    lengths.sort()
+    n = len(lengths)
+    mid = n // 2
+    if n % 2 == 1:
+        return lengths[mid]
+    return 0.5 * (lengths[mid - 1] + lengths[mid])
+
+
+def boundary_edges(project):
+    """Conjunto de aristas del CONTORNO exterior del dominio.
+
+    Una arista (par de corner-node-ids) es de contorno si pertenece a
+    EXACTAMENTE un elemento. Las internas son compartidas por dos. Se usa
+    para realzar la silueta del modelo (patron estandar en CAE: el borde
+    exterior debe leerse claramente sobre las aristas internas).
+
+    Retorna: set[frozenset({n1, n2})] con las aristas de contorno.
+    """
+    counts = {}
+    for elem in project.elements.values():
+        ids = elem.node_ids[:4]
+        if len(ids) < 4:
+            continue
+        for k in range(4):
+            edge = frozenset((ids[k], ids[(k + 1) % 4]))
+            if len(edge) != 2:
+                continue  # arista degenerada (nodo repetido)
+            counts[edge] = counts.get(edge, 0) + 1
+    return {edge for edge, c in counts.items() if c == 1}
+
+
+def focus_keep_sets(project, selected_nodes, selected_elements):
+    """Calcula los conjuntos a MANTENER nitidos en modo focus (atenuacion de
+    contexto): los items seleccionados + su anillo de vecinos inmediatos.
+
+    El resto de la malla se dibuja atenuada (gris fantasma) para que la
+    seleccion destaque por contraste con el fondo — la tecnica decisiva del
+    sistema de seleccion profesional (ver docs/auditoria_canvas_ux.md, C.3).
+
+    Retorna (keep_elem_ids: set, keep_node_ids: set).
+    """
+    sel_nodes = set(selected_nodes or ())
+    sel_elems = set(selected_elements or ())
+
+    # Base: elementos seleccionados + elementos que contienen un nodo
+    # seleccionado.
+    base_elems = set(sel_elems)
+    for elem in project.elements.values():
+        if elem.id in base_elems:
+            continue
+        if any(nid in sel_nodes for nid in elem.node_ids):
+            base_elems.add(elem.id)
+
+    # Nodos base: los seleccionados + todos los nodos de los elementos base.
+    base_nodes = set(sel_nodes)
+    for elem in project.elements.values():
+        if elem.id in base_elems:
+            base_nodes.update(elem.node_ids)
+
+    # Anillo de vecinos: elementos que comparten cualquier nodo con base_nodes.
+    keep_elems = set(base_elems)
+    keep_nodes = set(base_nodes)
+    for elem in project.elements.values():
+        if elem.id in keep_elems:
+            continue
+        if any(nid in base_nodes for nid in elem.node_ids):
+            keep_elems.add(elem.id)
+            keep_nodes.update(elem.node_ids)
+    return keep_elems, keep_nodes

@@ -69,6 +69,7 @@ python -m tests.test_node_cascade         # cascade simetrico de borrado de nodo
 python -m tests.test_draw_mode            # modo dibujo: shoelace + snap + commit + auto-CCW
 python -m tests.test_pick_ghost           # filas fantasma + filtros + commits con defaults
 python -m tests.test_selection_integration # smoke: seleccion multi end-to-end (Tk withdrawn)
+python -m tests.test_canvas_visualization # headless: LOD, culling, label policy, silueta, focus, colormaps
 python -m tests.generate_example_dxf      # regenera ejemplo DXF
 pip install -r requirements.txt
 ```
@@ -583,7 +584,7 @@ Reformulado 2026-05: **figure_export NO importa matplotlib**. Las figuras de cam
 
 Funciones (todas devuelven `PIL.Image` o `None`): `render_mesh_diagram` (geometría + nodos por rol Q9 + símbolos de restricción + flechas de carga), `render_contour` (Gouraud + wireframe + colorbar), `render_deformed` (malla gris + deformada verde), `render_principal_crosses` (cruces σ₁/σ₂ azul/rojo), `render_K_sparsity` (patrón de no-nulos, reemplaza al ex-heatmap matplotlib), `render_pipeline_map(project)` (**infografía "Mapa del cálculo"** del estilo educativo: 5 estaciones coloreadas por fase + flechas con el dato que viaja; **sin subíndices unicode** — `σ1`/`ke` planos, no `σ₁`/`kₑ`, que el font del sistema rinde como cajas).
 
-**Colormaps**: LUTs internas de `viridis` (secuencial → σVM, no negativo) y `coolwarm` (divergente → σx/σy/τxy, cero físico). **No `jet`** (a diferencia del canvas interactivo, que usa jet; en la memoria mantenemos los científicos perceptualmente uniformes por coherencia con CLAUDE.md y con el resto de los plots educativos). Acentos (nodos, restricciones, cargas, principales) desde la paleta semántica de `config/settings.py` (mismos códigos visuales que el canvas).
+**Colormaps**: LUTs internas de `viridis` (secuencial → σVM, no negativo) y `coolwarm` (divergente → σx/σy/τxy, cero físico). **No `jet`** — los mismos LUTs perceptualmente uniformes los usa ahora el canvas interactivo (`config/colormaps.py`, auditoría UX 2026-05); toda la familia de renders de resultado (canvas 2D, vista 3D, mini-paneles M9, memoria PDF) comparte la paleta perceptual. Acentos (nodos, restricciones, cargas, principales) desde la paleta semántica de `config/settings.py` (mismos códigos visuales que el canvas).
 
 **matplotlib sigue siendo dependencia del proyecto** (lo usan los módulos educativos en `education/` y las vistas avanzadas del Post) — pero `file_io/figure_export.py` ya no lo importa. Las funciones de diagrama esquemático matplotlib (ex `render_fem_pipeline`, `render_lm_mapping`, `render_extrapolation_diagram`, `render_averaging_diagram`, `render_mohr_circle`, `render_K_heatmap`) fueron **eliminadas** — eran ilustraciones genéricas de libro o redundantes con el Hub/los módulos interactivos; el contenido se conserva en fórmulas y tablas. **No reintroducir** figuras matplotlib en `figure_export.py`.
 
@@ -760,7 +761,16 @@ Tags estándar en `_configure_row_tags`:
 
 ### Render del canvas
 
-**Highlight uniforme** (decisión): cambio de color a `CANVAS_SELECTED_COLOR` sobre la geometría real, **NO** halos extra. Aplica a nodos, elementos, cargas, restricciones, surface loads. `_draw_highlight()` está intencionalmente vacío.
+**Visualización progresiva (LOD por zoom) + numeración bajo demanda** (auditoría UX 2026-05, [docs/auditoria_canvas_ux.md](docs/auditoria_canvas_ux.md)). La política de visibilidad ya NO es "todo encendido, siempre" — el canvas decide *cuánto* dibujar según la escala y la selección. Lógica pura testeable headless en [gui/preprocessing/canvas_logic.py](gui/preprocessing/canvas_logic.py) (`lod_level`, `bbox_visible`, `label_visible_for_item`) + helpers de modelo en `models/mesh_utils.py` (`median_edge_length`, `boundary_edges`, `focus_keep_sets`). Tests: [tests/test_canvas_visualization.py](tests/test_canvas_visualization.py).
+
+- **LOD por `edge_px`** (= `median_edge_length(project) * scale`, ver `_lod_level`): `far` (< `LOD_EDGE_PX_FAR`=14) dibuja **solo la silueta** del dominio + el item seleccionado, sin nodos mid/center ni labels; `mid` (< `LOD_EDGE_PX_NEAR`=55) aristas + corners + mid/center como punto simple, labels solo en el seleccionado; `near` todo + numeración automática. **Mallas ≤ `LOD_MIN_ELEMENTS_FOR_GATING`=12 elementos quedan SIEMPRE en `near`** (preserva la experiencia del ejemplo canónico — el gating solo entra cuando la malla es densa). **No reintroducir** la numeración global incondicional ni los flags `show_node_labels`/`show_elem_labels` (eliminados; reemplazados por `node_label_mode`/`elem_label_mode` ∈ `{"auto","always","never"}`).
+- **Numeración bajo demanda**: modo por categoría (`set_node_label_mode`/`set_elem_label_mode`, default `"auto"`) + **realce por selección** (el item seleccionado muestra su id a cualquier zoom — patrón "query" de Abaqus) + **hover** (el elemento bajo el cursor muestra su outline cian `CANVAS_HOVER_COLOR` + número aunque la numeración global esté apagada). Control manual en el **menubutton "Vista"** de la toolbar del canvas (`_build_view_menu`).
+- **Halo de selección** (reemplaza la ex decisión "highlight uniforme, sin halo"): nodos/elementos/aristas seleccionados llevan un **anillo claro más ancho dibujado DEBAJO** (`CANVAS_SELECTED_HALO_COLOR`, técnica del glow apilado de las cargas) para destacar a cualquier escala. `_draw_highlight()` dibuja las aristas potenciales con halo. **No reintroducir** la versión sin halo (se perdía en mallas grandes — hallazgo I1 de la auditoría).
+- **Focus-and-context** (`focus_mode` ∈ `{"auto","on","off"}`, `_focus_active`/`_focus_keep`): al seleccionar en mallas grandes (≥ `CANVAS_FOCUS_MIN_ELEMENTS`=60, o forzado con `"on"`), el contexto NO seleccionado se **atenúa** a `CANVAS_GHOST_COLOR` (reusa la maquinaria `ghost_geometry`) — la selección + su anillo de vecinos quedan nítidos y destacan por contraste. En `"auto"` no afecta mallas chicas.
+- **Silueta del dominio** (`boundary_emphasis`, default on): las aristas de contorno (`boundary_edges`, las que pertenecen a un solo elemento) se realzan en `CANVAS_BOUNDARY_COLOR` sobre las internas. Solo desde `CANVAS_BOUNDARY_MIN_ELEMENTS`=12.
+- **Culling por viewport**: los items cuyo bbox cae fuera del viewport + margen (`_CULL_MARGIN_FRAC` = padding del gradient) no se crean — recorta el árbol Tk en mallas grandes (la principal palanca de rendimiento). Deshabilitado si el canvas aún no tiene tamaño (`winfo<=1`).
+
+**Colormap perceptual** (auditoría UX 2026-05, hallazgo R1): el canvas migró de **JET a viridis/coolwarm** (`config/colormaps.py`, LUTs en numpy puro sin matplotlib). `set_result_values`/`set_element_result_grid` eligen el LUT via `_select_colormap`: **viridis** para magnitudes no negativas (VM, |u|), **coolwarm** para campos con signo (σx/σy/τxy/Ux/Uy), re-centrando `vmin/vmax` simétricamente para que el cero físico caiga en el medio (`is_diverging_range` usa umbral **relativo** — VM con ruido numérico negativo NO pasa a coolwarm). El kernel `_rasterize_triangle_njit` indexa el LUT (más rápido que el branching de JET). **El renderer de M9** ([gui/postprocessing/result_image_renderer.py](gui/postprocessing/result_image_renderer.py)) **y la vista 3D del Post** ([gui/postprocessing/surface_3d_viewer.py](gui/postprocessing/surface_3d_viewer.py)) siguen al canvas con el MISMO LUT — coherencia cromática 2D↔3D↔mini-paneles. **No reintroducir** JET en ningún render de resultados (ahora cumple la regla #3 de la paleta congelada).
 
 **Símbolos de restricción** (notación estándar, `_draw_constraints`):
 - `is_fixed`: triángulo + línea base + 3 hachuras (empotramiento).
@@ -813,9 +823,9 @@ Todos los colores viven en [config/settings.py](config/settings.py). Familias:
 **Reglas no negociables**:
 1. **Cero hex literales fuera de `config/settings.py`**. Nuevos colores → constante nombrada → import.
 2. Naming `<DOMINIO>_<USO>_COLOR`. Agregar en sección comentada existente, no al final.
-3. Mapas matplotlib: `viridis` o `coolwarm`. **No** `jet`/`hsv` — perceptualmente desiguales.
+3. Mapas de color para resultados: `viridis` (secuencial) o `coolwarm` (divergente). **No** `jet`/`hsv` — perceptualmente desiguales. Aplica a TODO render de campo: matplotlib (educación), canvas interactivo (`config/colormaps.py`, LUTs numpy), vista 3D y mini-paneles M9. **No reintroducir** JET en ninguno.
 4. Estados de validación: verde = `PHASE_POST_COLOR` o `HEALTH_OK_COLOR`, naranja = warning, rojo = error.
-5. Highlight: `CANVAS_SELECTED_COLOR` amarillo es el único — no reemplazar por color de propiedad.
+5. Highlight: `CANVAS_SELECTED_COLOR` amarillo es el único color de selección — no reemplazar por color de propiedad. Lo **acompañan** (no reemplazan) `CANVAS_SELECTED_HALO_COLOR` (anillo glow bajo el item seleccionado) y `CANVAS_HOVER_COLOR` (cian, pre-selección bajo el cursor) — ver "Render del canvas".
 6. Bootstyles dentro de pestañas de fase: heredar `PHASE_*_BOOTSTYLE`.
 7. **Auditoría pre-merge**: `Grep` `#[0-9a-fA-F]{3,8}` sobre `gui/**` + `education/**` (excluir `config/`). Esperado: 0 hits.
 
