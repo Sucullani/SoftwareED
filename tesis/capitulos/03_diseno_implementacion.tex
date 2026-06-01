@@ -1,14 +1,14 @@
 \chapter{Diseño e implementación del modelo a desarrollar}
 \label{cap:diseno}
 
-Este capítulo describe el diseño y la implementación de EduFEM, la aplicación educativa de elementos finitos que materializa los fundamentos expuestos en el \autoref{cap:marco_teorico}. La exposición avanza desde los requisitos que motivaron las decisiones de arquitectura hasta el detalle de cada capa del programa: el stack tecnológico, la organización por capas en torno a un modelo de proyecto mutable, el motor numérico, el pre-proceso interactivo, los módulos educativos, el post-proceso y la generación de documentación. El énfasis está puesto en \emph{cómo} se construyó cada componente, no en la teoría que lo respalda, que ya quedó establecida.
+Este capítulo describe el diseño y la implementación de EduFEM, el software educativo de elementos finitos que materializa los fundamentos expuestos en el \autoref{cap:marco_teorico}. La exposición avanza desde los requisitos que motivaron las decisiones de arquitectura hasta el detalle de cada capa del programa: el stack tecnológico, la organización por capas en torno a un modelo de proyecto mutable, el motor numérico, el pre-proceso interactivo, los módulos educativos, el post-proceso y la generación de documentación. El énfasis está puesto en \emph{cómo} se construyó cada componente, no en la teoría que lo respalda, que ya quedó establecida.
 
 \section{Requisitos y decisiones de diseño}
 \label{sec:requisitos}
 
 El objetivo central de EduFEM es servir como herramienta de enseñanza del MEF para estudiantes de ingeniería hispanohablantes. De ese objetivo se derivan cuatro requisitos rectores que condicionaron todas las decisiones posteriores. El primero es la \emph{orientación educativa}: cada operación del método —mapeo isoparamétrico, integración numérica, ensamblaje— debe poder inspeccionarse de forma visual e interactiva, y no quedar oculta tras una caja negra. El software educativo interactivo demuestra eficacia para consolidar conceptos abstractos del análisis estructural \autocite{lee2015interactive,bishay2020teaching,perezsantiago2023fem}, y esa evidencia orientó el diseño hacia la manipulación directa antes que hacia la mera lectura de resultados.
 
-El segundo requisito es el \emph{idioma}: la totalidad de la interfaz, los mensajes de validación y la documentación generada se redactan en español, empleando la terminología canónica de la disciplina (GDL en lugar de DOF, MEF en lugar de FEM, restricción en lugar de condición de contorno). El tercero es la \emph{primacía de lo visual}: el modelo se construye y se consulta sobre un lienzo gráfico, con sincronización inmediata entre la representación tabular y la geométrica. El cuarto es la \emph{independencia tecnológica}: la aplicación se apoya exclusivamente en software libre o de código propio, sin licencias comerciales, de modo que pueda distribuirse y ejecutarse en cualquier equipo de un laboratorio docente.
+El segundo requisito es el \emph{idioma}: la totalidad de la interfaz, los mensajes de validación y la documentación generada se redactan en español, empleando la terminología canónica de la disciplina (GDL en lugar de DOF, MEF en lugar de FEM, restricción en lugar de condición de contorno). El tercero es la \emph{primacía de lo visual}: el modelo se construye y se consulta sobre un lienzo gráfico, con sincronización inmediata entre la representación tabular y la geométrica. El cuarto es la \emph{independencia tecnológica}: la aplicación se apoya exclusivamente en software libre o de código propio, sin licencias comerciales, de modo que pueda distribuirse y ejecutarse en cualquier equipo de un laboratorio docente. Para facilitar su adopción en el aula, EduFEM se distribuye como un ejecutable autocontenido para Windows —empaquetado con \texttt{PyInstaller}, que incorpora el intérprete de Python y todas las dependencias—, de modo que el alumno lo ejecute sin instalar Python ni bibliotecas, mientras que el código fuente permanece público para su inspección o extensión.
 
 \section{Stack tecnológico}
 \label{sec:stack}
@@ -28,13 +28,14 @@ Cálculo numérico      & NumPy, SciPy                              & Álgebra, 
 Generación de PDF     & \texttt{pylatex} + \texttt{pdflatex}      & Memoria de cálculo paso a paso \\
 Lectura de PDF        & \texttt{PyMuPDF} (\texttt{fitz})          & Visualización del documento en la aplicación \\
 Importación CAD       & \texttt{ezdxf}                            & Lectura de geometría desde archivos DXF \\
-Imagen y figuras      & \texttt{Pillow}                           & Render de contornos y figuras de la memoria \\
+Imagen y figuras      & \texttt{Pillow}                           & Renderizado de contornos y figuras de la memoria \\
 Animación educativa   & \texttt{manim}                            & Generación de videos didácticos en WebP \\
+Distribución          & \texttt{PyInstaller}                      & Ejecutable \texttt{.exe} autocontenido (Windows) \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-La generación de la memoria de cálculo se delega en \texttt{pylatex}, que compone el documento \LaTeX{} compilado luego por \texttt{pdflatex}, mientras que \texttt{PyMuPDF} lo presenta dentro de la propia aplicación. La importación de geometría desde formatos CAD recae en \texttt{ezdxf}, el render de figuras del PDF y de los contornos en \texttt{Pillow}, y la producción de los videos didácticos en \texttt{manim}. Se evitó deliberadamente toda dependencia de bibliotecas multimedia pesadas: los videos se reproducen como WebP animado decodificado por \texttt{Pillow}, lo que reduce el tamaño del instalador distribuible.
+La generación de la memoria de cálculo se delega en \texttt{pylatex}, que compone el documento \LaTeX{} compilado luego por \texttt{pdflatex}, mientras que \texttt{PyMuPDF} lo presenta dentro de la propia aplicación. La importación de geometría desde formatos CAD recae en \texttt{ezdxf}, el renderizado de figuras del PDF y de los contornos en \texttt{Pillow}, y la producción de los videos didácticos en \texttt{manim}. Se evitó deliberadamente toda dependencia de bibliotecas multimedia pesadas: los videos se reproducen como WebP animado decodificado por \texttt{Pillow}, lo que reduce el tamaño del instalador distribuible.
 
 \section{Arquitectura por capas en torno al modelo de proyecto}
 \label{sec:arquitectura}
@@ -112,7 +113,7 @@ La geometría puede importarse también desde archivos DXF. La convención adopt
 \section{Módulos educativos}
 \label{sec:educacion}
 
-El componente pedagógico de EduFEM consiste en ocho módulos, numerados de M0 a M7, que recorren el canal de cálculo del MEF en su orden canónico. Cada módulo se presenta como una \emph{capa superpuesta} interactiva: un panel flotante y arrastrable, acompañado de una iluminación que se dibuja directamente sobre la malla real del proyecto, sin abrir una representación auxiliar desconectada. La \autoref{tab:modulos} asocia cada módulo con la etapa del método que ilustra, y la \autoref{fig:modulo-overlay} muestra el aspecto general de una de estas capas.
+El componente pedagógico de EduFEM consiste en ocho módulos, numerados de M0 a M7, que recorren el canal de cálculo del MEF en su orden canónico. Cada módulo se presenta como una \emph{capa superpuesta} interactiva: un panel flotante y arrastrable, acompañado de una iluminación que se dibuja directamente sobre la malla real del proyecto, sin abrir una representación auxiliar desconectada. La \autoref{tab:modulos} asocia cada módulo con la etapa del método que ilustra, y la \autoref{fig:modulo-capa} muestra el aspecto general de una de estas capas.
 
 \begin{table}[H]
 \centering
@@ -138,7 +139,7 @@ M7 & Ensamblaje              & Construcción de $\bm{K}$ y $\bm{F}$ globales \\
 \centering
 \figpend{Capa educativa superpuesta sobre el lienzo: panel flotante con la fórmula y los valores de la matriz B, y los puntos de Gauss iluminados sobre el elemento seleccionado en la malla real.}
 \caption{Módulo educativo como capa interactiva sobre el lienzo.}
-\label{fig:modulo-overlay}
+\label{fig:modulo-capa}
 \end{figure}
 
 El diseño de estos módulos sigue una filosofía minimalista coherente con la evidencia sobre interactividad como motor del aprendizaje en ingeniería \autocite{lee2015interactive,bishay2020teaching}. La selección del elemento bajo estudio se realiza con un solo clic sobre el lienzo, sin controles redundantes dentro del panel; la iluminación —resplandor sobre los puntos de Gauss, arcos de medición, coloreado por calidad— se aplica a la geometría real para preservar el contexto; y la información matemática se concentra en el panel flotante mediante un conmutador entre la fórmula simbólica y su evaluación numérica en el punto elegido. M0 colorea cada elemento según su calidad y permite distorsionar un vértice para ver el efecto en vivo sin alterar el modelo; M5 contrapone la integral analítica, irresoluble a mano, con su aproximación por cuadratura, dejando agregar o quitar puntos de Gauss y observar el crecimiento de $\bm{k}_e$; M7 resalta de manera causal las filas y columnas de $\bm{K}$ que recibe cada elemento al ensamblarse. Solo una capa educativa permanece activa a la vez, de modo que abrir un módulo cierra el anterior y la atención del alumno no se dispersa entre visualizaciones simultáneas.

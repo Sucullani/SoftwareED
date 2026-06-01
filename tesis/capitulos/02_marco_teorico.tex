@@ -242,7 +242,7 @@ que preserva la simetría del bloque libre. Un modelo bien restringido —al men
 \section{Resolución del sistema y recuperación de tensiones}
 \label{sec:resolucion-tensiones}
 
-El sistema reducido de \autoref{eq:dirichlet-no-homogeneo} se resuelve por factorización LU directa sobre la matriz dispersa \autocite{virtanen2020scipy}. Opcionalmente se aplica una reordenación de tipo Reverse Cuthill-McKee antes de factorizar para reducir el llenado (\emph{fill-in}) en mallas estructuradas. Conocido el vector $\mathbf{u}$, las reacciones en los GDL restringidos se recuperan como $\mathbf{R} = \mathbf{K}_{r}\,\mathbf{u} - \mathbf{F}_r$.
+El sistema reducido de \autoref{eq:dirichlet-no-homogeneo} se resuelve por factorización LU directa sobre la matriz dispersa \autocite{virtanen2020scipy}. Opcionalmente se aplica una reordenación de tipo Cuthill-McKee inverso antes de factorizar para reducir el llenado (\emph{fill-in}) en mallas estructuradas. Conocido el vector $\mathbf{u}$, las reacciones en los GDL restringidos se recuperan como $\mathbf{R} = \mathbf{K}_{r}\,\mathbf{u} - \mathbf{F}_r$.
 
 Las tensiones se calculan primero en los puntos de Gauss, evaluando $\boldsymbol{\sigma}_p = \mathbf{D}\,\mathbf{B}_p\,\mathbf{u}_e$. A partir de las componentes cartesianas se obtienen las tensiones principales y la equivalente de von Mises:
 
@@ -252,7 +252,42 @@ Las tensiones se calculan primero en los puntos de Gauss, evaluando $\boldsymbol
 \label{eq:principales-vm}
 \end{align}
 
-Los puntos de Gauss son además los \emph{puntos de Barlow}, ubicaciones donde las tensiones convergen con un orden superior al del resto del elemento (superconvergencia) \autocite{cook2002concepts,zienkiewicz2013fem}. Por ello las tensiones nodales se obtienen extrapolando desde los puntos de Gauss mediante una matriz precalculada, $\boldsymbol{\sigma}_{\text{nodos}} = \mathbf{E}\,\boldsymbol{\sigma}_{\text{Gauss}}$, en lugar de evaluar $\mathbf{B}$ directamente en los nodos. Finalmente, como un nodo compartido recibe valores distintos desde cada elemento adyacente, se aplica un \emph{promediado nodal}
+Los puntos de Gauss son además los \emph{puntos de Barlow}, ubicaciones donde las tensiones convergen con un orden superior al del resto del elemento (superconvergencia) \autocite{cook2002concepts,zienkiewicz2013fem}. Por ello las tensiones nodales se obtienen extrapolando desde los puntos de Gauss mediante una matriz precalculada, $\boldsymbol{\sigma}_{\text{nodos}} = \mathbf{E}\,\boldsymbol{\sigma}_{\text{Gauss}}$, en lugar de evaluar $\mathbf{B}$ directamente en los nodos.
+
+La matriz de extrapolación $\mathbf{E}$ se deduce de la propia interpolación isoparamétrica. Dentro del elemento, el campo de tensiones se aproxima con las mismas funciones de forma que la geometría, de modo que el valor en un punto de Gauss es la interpolación de los valores nodales,
+
+\begin{equation}
+\boldsymbol{\sigma}(\xi_g,\eta_g) = \sum_{i=1}^{n} N_i(\xi_g,\eta_g)\,\boldsymbol{\sigma}_{\text{nodo},i}.
+\label{eq:interp-tension}
+\end{equation}
+
+Evaluando \autoref{eq:interp-tension} en los puntos de Gauss del elemento se obtiene el sistema $\boldsymbol{\sigma}_{\text{Gauss}} = \mathbf{M}\,\boldsymbol{\sigma}_{\text{nodos}}$, donde $M_{ji} = N_i(\xi_j^{G},\eta_j^{G})$ reúne las funciones de forma evaluadas en cada punto de Gauss. Cuando el número de puntos de Gauss iguala al de nodos del elemento —cuadratura $2\times2$ para Q4 y $3\times3$ para Q9—, la matriz $\mathbf{M}$ es cuadrada e invertible, y la extrapolación es su inversa,
+
+\begin{equation}
+\boldsymbol{\sigma}_{\text{nodos}} = \mathbf{M}^{-1}\,\boldsymbol{\sigma}_{\text{Gauss}} = \mathbf{E}\,\boldsymbol{\sigma}_{\text{Gauss}}.
+\label{eq:extrap-inversa}
+\end{equation}
+
+Para el elemento Q4 esta inversa admite forma cerrada. Como los cuatro puntos de Gauss se ubican en $(\pm 1/\sqrt{3},\,\pm 1/\sqrt{3})$ y los nodos en $(\pm 1,\,\pm 1)$, extrapolar equivale a evaluar la interpolación bilineal en coordenadas escaladas por $\sqrt{3}$, con entradas de la forma $\tfrac{1}{4}(1\pm\sqrt{3})(1\pm\sqrt{3})$:
+
+\begin{equation}
+\mathbf{E}_{\text{Q4}} =
+\begin{bmatrix}
+a & b & c & b \\
+b & a & b & c \\
+c & b & a & b \\
+b & c & b & a
+\end{bmatrix},
+\qquad
+a = 1+\frac{\sqrt{3}}{2},\quad
+b = -\frac{1}{2},\quad
+c = 1-\frac{\sqrt{3}}{2},
+\label{eq:extrap-q4}
+\end{equation}
+
+con $a \approx 1{,}866$ y $c \approx 0{,}134$; el orden exacto de las entradas depende de la convención de numeración de puntos de Gauss y nodos. Para el Q9, $\mathbf{M}$ es de $9\times9$ y su inversa se obtiene numéricamente. La extrapolación se aplica a las componentes cartesianas $(\sigma_x,\sigma_y,\tau_{xy})$; las tensiones principales y la de von Mises, al ser funciones no lineales de ellas, se recalculan a partir de las componentes ya extrapoladas en lugar de extrapolarse de forma directa \autocite{cook2002concepts}.
+
+Finalmente, como un nodo compartido recibe valores distintos desde cada elemento adyacente, se aplica un \emph{promediado nodal}
 
 \begin{equation}
 \boldsymbol{\sigma}_{\text{nodo}} = \frac{1}{n_e}\sum_{e=1}^{n_e} \boldsymbol{\sigma}_{\text{nodo}}^{(e)},

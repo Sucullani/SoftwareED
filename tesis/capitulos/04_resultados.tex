@@ -34,7 +34,7 @@ $N$ & GDL & error $L^2$ & tasa $L^2$ & error $H^1$ & tasa $H^1$ \\
 16 & 578  & $4{,}699\times10^{-3}$ & 1,99 & $1{,}783\times10^{-1}$  & 1,01 \\
 32 & 2178 & $1{,}177\times10^{-3}$ & 2,00 & $8{,}906\times10^{-2}$  & 1,00 \\
 \hline
-\multicolumn{6}{l}{\textbf{Q9 (biquadrático, $p=2$)}} \\
+\multicolumn{6}{l}{\textbf{Q9 (bicuadrático, $p=2$)}} \\
 2  & 50   & $2{,}172\times10^{-2}$ & ---  & $2{,}911\times10^{-1}$  & ---  \\
 4  & 162  & $2{,}776\times10^{-3}$ & 2,97 & $7{,}263\times10^{-2}$  & 2,00 \\
 8  & 578  & $3{,}479\times10^{-4}$ & 3,00 & $1{,}809\times10^{-2}$  & 2,01 \\
@@ -59,7 +59,7 @@ El análisis de los resultados es concluyente. El elemento Q4 alcanza asintótic
 
 Más allá de la corrección numérica del solucionador, se verificó la robustez de las operaciones de gestión del modelo que distinguen a EduFEM como herramienta interactiva. Dos pruebas de regresión resultan especialmente relevantes.
 
-La primera es el ciclo de transformación $\text{Q4}\rightarrow\text{Q9}\rightarrow\text{Q4}$. Al expandir un elemento bilineal a biquadrático se generan automáticamente cinco nodos adicionales (cuatro nodos medios de arista y el centroide); al reducir de nuevo a Q4 esos nodos auxiliares deben eliminarse sin contaminar el resultado. La prueba comprueba que el campo de desplazamientos calculado sobre la malla Q4 reducida es idéntico al de la malla Q4 original dentro de la tolerancia numérica, con $\max|u_{\text{Q4,inicial}} - u_{\text{Q4,reducido}}| < 10^{-9}$. Esto confirma que las rutinas de expansión y reducción de malla no introducen deriva (\emph{drift}) numérica acumulada.
+La primera es el ciclo de transformación $\text{Q4}\rightarrow\text{Q9}\rightarrow\text{Q4}$. Al expandir un elemento bilineal a bicuadrático se generan automáticamente cinco nodos adicionales (cuatro nodos medios de arista y el centroide); al reducir de nuevo a Q4 esos nodos auxiliares deben eliminarse sin contaminar el resultado. La prueba comprueba que el campo de desplazamientos calculado sobre la malla Q4 reducida es idéntico al de la malla Q4 original dentro de la tolerancia numérica, con $\max|u_{\text{Q4,inicial}} - u_{\text{Q4,reducido}}| < 10^{-9}$. Esto confirma que las rutinas de expansión y reducción de malla no introducen deriva (\emph{drift}) numérica acumulada.
 
 La segunda prueba aborda la separación entre identidad e índice de grado de libertad. Los identificadores de nodo son identidad pública y pueden presentar huecos tras operaciones de borrado, mientras que el índice de fila o columna en las matrices del sistema es ordinal y contiguo. La prueba resuelve un mismo problema con identificadores no contiguos $\{1,5,50,99\}$ y verifica equivalencia numérica inferior a $10^{-9}$ respecto del mismo problema con identificadores contiguos $\{1,2,3,4\}$. Este resultado valida el patrón de indexación de grados de libertad adoptado, equivalente al de los paquetes profesionales, y descarta la clase de fallos por indexación directa que se manifestaban cuando el usuario eliminaba nodos.
 
@@ -157,7 +157,7 @@ La \autoref{tab:resumen-q4q9} sintetiza la comparación global entre ambos eleme
 \label{tab:resumen-q4q9}
 \begin{tabular}{l c c}
 \hline
-Aspecto & Q4 (bilineal) & Q9 (biquadrático) \\
+Aspecto & Q4 (bilineal) & Q9 (bicuadrático) \\
 \hline
 Tasa $L^2$ (MMS)              & $\mathcal{O}(h^{2{,}00})$ & $\mathcal{O}(h^{3{,}00})$ \\
 Tasa $H^1$ (MMS)              & $\mathcal{O}(h^{1{,}00})$ & $\mathcal{O}(h^{2{,}00})$ \\
@@ -171,7 +171,7 @@ Comportamiento bajo distorsión & bloqueo parcial & sin bloqueo apreciable \\
 
 \section{Resultados del software y cobertura del canal de cálculo del MEF}
 
-Más allá de la corrección numérica, EduFEM se propuso cubrir de extremo a extremo el procedimiento del MEF mediante ocho módulos educativos (M0 a M7) que materializan, en orden pedagógico, cada eslabón de la cadena de cálculo. Cada módulo es un \emph{overlay} interactivo que ilumina sobre la malla real el punto donde ocurre el cálculo, evitando la abstracción de una ventana desconectada del modelo \autocite{lee2015interactive,bishay2020teaching}.
+Más allá de la corrección numérica, EduFEM se propuso cubrir de extremo a extremo el procedimiento del MEF mediante ocho módulos educativos (M0 a M7) que materializan, en orden pedagógico, cada eslabón de la cadena de cálculo. Cada módulo es una \emph{capa superpuesta} interactiva que ilumina sobre la malla real el punto donde ocurre el cálculo, evitando la abstracción de una ventana desconectada del modelo \autocite{lee2015interactive,bishay2020teaching}.
 
 La cobertura del canal de cálculo es completa. El módulo M0 atiende la calidad de malla en el pre-proceso, evaluando el Jacobiano escalado y la compacidad (\emph{stretch}) con los umbrales bibliográficos de Verdict \autocite{stimpson2007verdict}. Los módulos M1 a M7 desarrollan la fase de proceso siguiendo el flujo canónico del MEF: el mapeo isoparamétrico y las funciones de forma (M1), el Jacobiano y su determinante (M2), la matriz de deformación $\mathbf{B}$ que vincula $\boldsymbol{\varepsilon} = \mathbf{B}\,\mathbf{u}$ (M3), la matriz constitutiva $\mathbf{D}$ que relaciona $\boldsymbol{\sigma} = \mathbf{D}\,\boldsymbol{\varepsilon}$ (M4), la rigidez elemental integrada por cuadratura de Gauss (M5), las fuerzas nodales equivalentes (M6) y el ensamblaje del sistema global con sus restricciones (M7). El orden refleja la dependencia lógica entre conceptos: la cadena cinemática $\mathbf{N}\rightarrow\mathbf{J}\rightarrow\mathbf{B}$ precede a la constitutiva, y la deformación $\boldsymbol{\varepsilon} = \mathbf{B}\,\mathbf{u}$ antecede a la tensión $\boldsymbol{\sigma} = \mathbf{D}\,\boldsymbol{\varepsilon}$, en consonancia con la presentación clásica de la literatura \autocite{bathe2014fem,cook2002concepts}.
 
@@ -183,7 +183,7 @@ La fase de post-proceso ofrece la inspección del campo de resultados mediante c
 
 \subsection{Alcances}
 
-La triple batería de V\&V respalda la fiabilidad del núcleo numérico. La verificación por MMS demuestra que el código reproduce sin desviación las tasas de convergencia teóricas, lo que descarta errores de orden en el ensamblaje, la integración y la recuperación de tensiones. Las dos validaciones independientes confirman la exactitud del software frente a referencias de naturaleza distinta: una solución analítica cerrada en el caso de Timoshenko, con errores inferiores al $0{,}05\,\%$ en tensiones, y un benchmark histórico sensible al bloqueo en el caso de Cook, donde la herramienta reproduce tanto la patología del Q4 como la convergencia del Q9. La concordancia con SAP2000 del mismo orden que la de un paquete comercial consolidado sitúa a EduFEM en un nivel de exactitud apto no solo para la enseñanza sino también para verificaciones de ingeniería de complejidad moderada.
+La triple batería de V\&V respalda la fiabilidad del núcleo numérico. La verificación por MMS demuestra que el código reproduce sin desviación las tasas de convergencia teóricas, lo que descarta errores de orden en el ensamblaje, la integración y la recuperación de tensiones. Las dos validaciones independientes confirman la exactitud del software frente a referencias de naturaleza distinta: una solución analítica cerrada en el caso de Timoshenko, con errores inferiores al $0{,}05\,\%$ en tensiones, y una referencia histórica sensible al bloqueo en el caso de Cook, donde la herramienta reproduce tanto la patología del Q4 como la convergencia del Q9. La concordancia con SAP2000 del mismo orden que la de un paquete comercial consolidado sitúa a EduFEM en un nivel de exactitud apto no solo para la enseñanza sino también para verificaciones de ingeniería de complejidad moderada.
 
 \subsection{Comparación cualitativa con herramientas existentes}
 
@@ -195,6 +195,6 @@ El alcance del software está acotado de manera deliberada. EduFEM se restringe 
 
 Desde el punto de vista numérico, el elemento Q4 arrastra el bloqueo por cortante documentado en la \autoref{tab:cook}, que aunque se aprovecha como recurso pedagógico, exige al usuario refinar la malla o recurrir al Q9 para obtener resultados precisos en problemas dominados por flexión. No se implementaron técnicas de mitigación como la integración reducida selectiva o la formulación $\bar{\mathbf{B}}$, que se reservan como línea de extensión futura. En la formulación de deformación plana, además, la matriz constitutiva degenera hacia la incompresibilidad cuando el coeficiente de Poisson se aproxima a $0{,}5$, régimen en el que aparece el bloqueo volumétrico; el software lo señala visualmente pero no lo resuelve.
 
-En cuanto a la escalabilidad, el solucionador directo y el ensamblaje en su variante legible resultan adecuados para las mallas de tamaño didáctico empleadas en las pruebas --hasta varios miles de grados de libertad-- pero no están optimizados para problemas de gran porte. La hoja de ruta del motor contempla el almacenamiento disperso de la matriz de rigidez, factorizaciones para sistemas definidos positivos y reordenamientos para reducir el llenado, mejoras que permitirían abordar mallas mayores sin sacrificar la versión pedagógica del código. Finalmente, la validación presentada se apoya en tres casos cuidadosamente seleccionados por su valor canónico; una batería más amplia de benchmarks reforzaría la confianza en el comportamiento del software ante geometrías y condiciones de carga más diversas.
+En cuanto a la escalabilidad, el solucionador directo y el ensamblaje en su variante legible resultan adecuados para las mallas de tamaño didáctico empleadas en las pruebas --hasta varios miles de grados de libertad-- pero no están optimizados para problemas de gran porte. La hoja de ruta del motor contempla el almacenamiento disperso de la matriz de rigidez, factorizaciones para sistemas definidos positivos y reordenamientos para reducir el llenado, mejoras que permitirían abordar mallas mayores sin sacrificar la versión pedagógica del código. Finalmente, la validación presentada se apoya en tres casos cuidadosamente seleccionados por su valor canónico; una batería más amplia de casos de referencia reforzaría la confianza en el comportamiento del software ante geometrías y condiciones de carga más diversas.
 
 % DATO PENDIENTE: si se dispone de tiempos de ejecucion o consumo de memoria medidos para las mallas mayores, incorporarlos como evidencia cuantitativa de la escalabilidad en esta subseccion.

@@ -6,9 +6,41 @@
 \chapter{Manual de instalación}
 \label{anexo:instalacion}
 
-% PENDIENTE: detallar requisitos (Python, dependencias de requirements.txt,
-% MiKTeX/TeX Live para la memoria de cálculo) y pasos de instalación.
-\pendiente{Requisitos del sistema, instalación del entorno y dependencias.}
+EduFEM se distribuye por dos vías: un ejecutable autocontenido para uso inmediato y la instalación desde el código fuente para su inspección o extensión. El código está disponible en el repositorio público del proyecto\footnote{\url{https://github.com/Sucullani/SoftwareED}}.
+
+\section{Ejecutable autocontenido (Windows)}
+
+Es la vía recomendada para el alumno. Se descarga el ejecutable \texttt{.exe} publicado en el repositorio y se ejecuta directamente: no requiere instalar Python ni dependencias, ya que el empaquetado con \texttt{PyInstaller} incluye el intérprete y todas las bibliotecas. Requisito: Windows 10 u 11 de 64 bits. La generación de la memoria de cálculo en PDF necesita, además, una distribución \LaTeX{} instalada (MiKTeX o \TeX{} Live); sin ella la aplicación funciona igual y las fórmulas se rinden mediante un mecanismo alternativo.
+
+\section{Instalación desde el código fuente}
+
+Para docentes o desarrolladores que deseen inspeccionar o modificar el programa:
+
+\begin{enumerate}
+    \item Instalar \textbf{Python 3.10 o superior} (el desarrollo se realizó con la versión 3.13).
+    \item Clonar el repositorio y ubicarse en su carpeta:
+\begin{verbatim}
+git clone https://github.com/Sucullani/SoftwareED.git
+cd SoftwareED
+\end{verbatim}
+    \item Crear y activar un entorno virtual (recomendado):
+\begin{verbatim}
+python -m venv .venv
+.venv\Scripts\activate
+\end{verbatim}
+    \item Instalar las dependencias:
+\begin{verbatim}
+pip install -r requirements.txt
+\end{verbatim}
+    \item Ejecutar la aplicación:
+\begin{verbatim}
+python main.py
+\end{verbatim}
+\end{enumerate}
+
+\section{Dependencias}
+
+El núcleo numérico y la interfaz se apoyan en bibliotecas de código abierto: NumPy y SciPy (cálculo), \texttt{ttkbootstrap} (interfaz), \texttt{pylatex} (memoria de cálculo), \texttt{PyMuPDF} (visualización del PDF), \texttt{Pillow} (figuras) y \texttt{ezdxf} (importación DXF), además de \texttt{matplotlib} y \texttt{sympy} (módulos educativos). Dos componentes son opcionales: una distribución \LaTeX{} (\texttt{pdflatex}) para la memoria de cálculo y el compilador JIT \texttt{numba} para acelerar el cálculo en mallas grandes; sin ninguno de los dos la aplicación funciona, con menor rendimiento o sin el PDF de alta calidad.
 
 
 \chapter{Manual de uso}
