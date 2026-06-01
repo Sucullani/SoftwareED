@@ -54,6 +54,11 @@ htmlcov/
 *.out
 *.synctex.gz
 *.toc
+*.lof
+*.lot
+*.idx
+*.ind
+*.ilg
 *.bbl
 *.blg
 *.nav
