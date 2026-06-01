@@ -61,7 +61,7 @@ El análisis de los resultados es concluyente. El elemento Q4 alcanza asintótic
   \includegraphics[width=\linewidth]{mms_convergence_h1.png}\\[2pt]
   {\small (b) Seminorma $H^1$ del desplazamiento.}
 \end{minipage}
-\caption{Convergencia bajo refinamiento $h$ medida por MMS. Las pendientes de las rectas reproducen las tasas teóricas $\mathcal{O}(h^{p+1})$ en $L^2$ y $\mathcal{O}(h^{p})$ en $H^1$; las líneas discontinuas marcan las pendientes de referencia.}
+\caption[Convergencia bajo refinamiento $h$ medida por MMS.]{Convergencia bajo refinamiento $h$ medida por MMS. Las pendientes de las rectas reproducen las tasas teóricas $\mathcal{O}(h^{p+1})$ en $L^2$ y $\mathcal{O}(h^{p})$ en $H^1$; las líneas discontinuas marcan las pendientes de referencia.}
 \label{fig:convergencia}
 \end{figure}
 
@@ -118,7 +118,7 @@ El error en deflexión es del $0{,}2633\,\%$ frente a la solución analítica qu
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{fig_timoshenko_contorno}
-\caption{Post-proceso de EduFEM: campo de tensión normal $\sigma_x$ sobre la configuración deformada de la viga de Timoshenko ($56\times8$ Q9). La gradación lineal de $\sigma_x$ en el peralte --tracción (rojo) en la fibra inferior, compresión (azul) en la superior y eje neutro (verde)-- coincide con la predicción de la teoría de vigas.}
+\caption[Campo de $\sigma_x$ sobre la viga de Timoshenko deformada ($56\times8$ Q9).]{Post-proceso de EduFEM: campo de tensión normal $\sigma_x$ sobre la configuración deformada de la viga de Timoshenko ($56\times8$ Q9). La gradación lineal de $\sigma_x$ en el peralte --tracción (rojo) en la fibra inferior, compresión (azul) en la superior y eje neutro (verde)-- coincide con la predicción de la teoría de vigas.}
 \label{fig:timoshenko-contorno}
 \end{figure}
 
@@ -209,7 +209,7 @@ En cuanto a la escalabilidad, conviene precisar el estado real del motor numéri
 
 \begin{table}[htbp]
 \centering
-\caption{Tiempo de ensamblaje y de solución del sistema disperso, y memoria de la matriz de rigidez en formato denso frente a disperso (CSR), para la membrana de Cook Q9 a refinamientos crecientes. Medido en un equipo de escritorio con procesador Intel (microarquitectura Ivy Bridge, circa 2012) bajo Windows 10, Python 3.13, con el núcleo numérico apoyado en NumPy y SciPy. El programa admite, de forma opcional, acelerar los núcleos numéricos mediante compilación JIT con \texttt{numba}, que no es una dependencia obligatoria. Reproducible con \texttt{tests/bench\_timing.py}.}
+\caption[Tiempos de ensamblaje y solución, y memoria de la matriz de rigidez (Cook Q9).]{Tiempo de ensamblaje y de solución del sistema disperso, y memoria de la matriz de rigidez en formato denso frente a disperso (CSR), para la membrana de Cook Q9 a refinamientos crecientes. Medido en un equipo de escritorio con procesador Intel (microarquitectura Ivy Bridge, circa 2012) bajo Windows 10, Python 3.13, con el núcleo numérico apoyado en NumPy y SciPy. El programa admite, de forma opcional, acelerar los núcleos numéricos mediante compilación JIT con \texttt{numba}, que no es una dependencia obligatoria. Reproducible con \texttt{tests/bench\_timing.py}.}
 % TODO: el autor debe confirmar si el equipo de medición tenía numba instalado (es decir, si los tiempos reportados corresponden a los kernels JIT activos o a NumPy/SciPy en Python puro).
 \label{tab:tiempos}
 \begin{tabular}{r r r r r}

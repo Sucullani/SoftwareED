@@ -104,3 +104,9 @@ CSV & Valores separados por comas (\emph{comma-separated values}) \\
 PDF & Formato de documento portátil (\emph{portable document format}) \\
 \end{longtable}
 \renewcommand{\arraystretch}{1.0}
+
+% Las dos longtable anteriores no llevan \caption, pero igualmente incrementan
+% el contador `table`. Se reinicia para que la numeracion de tablas del cuerpo
+% no quede desplazada (p. ej. que la primera tabla de la Introduccion no salga
+% como "Tabla 3").
+\setcounter{table}{0}

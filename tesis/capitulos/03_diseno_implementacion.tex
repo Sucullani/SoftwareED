@@ -89,7 +89,7 @@ El paquete \texttt{fem/} concentra el motor numérico y observa una regla de pur
 donde $t$ es el espesor del elemento. Las aportaciones elementales se acumulan en la matriz global, que se almacena en formato disperso para contener el consumo de memoria en mallas densas, y el sistema reducido tras imponer las restricciones se resuelve con el solucionador disperso de SciPy. La formulación teórica detallada de cada una de estas operaciones —funciones de forma de los elementos Q4 y Q9, regla de la cadena para $\bm{B}$, expresiones de $\bm{D}$ en tensión y deformación plana, y la cuadratura de Gauss-Legendre— se desarrolló en el \autoref{cap:marco_teorico}; aquí interesa subrayar que la implementación reproduce esas expresiones con las mismas funciones que consumen los módulos educativos y la memoria de cálculo, lo que garantiza coherencia numérica entre lo que el alumno ve explicado y lo que el programa resuelve.
 
 \section{Pre-proceso interactivo}
-\label{sec:preproceso}
+\label{sec:pre-proceso}
 
 El pre-proceso permite construir el modelo combinando una entrada tabular y una entrada gráfica, ambas operando sobre el mismo proyecto. La entrada tabular se organiza como una hoja de cinco tablas —nodos, elementos, cargas, restricciones y cargas superficiales— con edición por doble clic, copiado y pegado en formato TSV compatible con planillas de cálculo, y filas de marcador de posición para agregar registros con valores por omisión. Los encabezados muestran las unidades activas y se actualizan al cambiar el sistema de unidades.
 
@@ -145,15 +145,15 @@ M7 & Ensamblaje              & Construcción de $\bm{K}$ y $\bm{F}$ globales \\
 El diseño de estos módulos sigue una filosofía minimalista coherente con la evidencia sobre interactividad como motor del aprendizaje en ingeniería \autocite{lee2015interactive,bishay2020teaching}. La selección del elemento bajo estudio se realiza con un solo clic sobre el lienzo, sin controles redundantes dentro del panel; la iluminación —resplandor sobre los puntos de Gauss, arcos de medición, coloreado por calidad— se aplica a la geometría real para preservar el contexto; y la información matemática se concentra en el panel flotante mediante un conmutador entre la fórmula simbólica y su evaluación numérica en el punto elegido. M0 colorea cada elemento según su calidad y permite distorsionar un vértice para ver el efecto en vivo sin alterar el modelo; M5 contrapone la integral analítica, irresoluble a mano, con su aproximación por cuadratura, dejando agregar o quitar puntos de Gauss y observar el crecimiento de $\bm{k}_e$; M7 resalta de manera causal las filas y columnas de $\bm{K}$ que recibe cada elemento al ensamblarse. Solo una capa educativa permanece activa a la vez, de modo que abrir un módulo cierra el anterior y la atención del alumno no se dispersa entre visualizaciones simultáneas.
 
 \section{Post-proceso}
-\label{sec:postproceso}
+\label{sec:post-proceso}
 
-Resuelto el sistema, el post-proceso presenta los resultados sobre el mismo lienzo compartido. El campo de tensiones o desplazamientos se dibuja como contorno con interpolación de Gouraud: cada elemento se rasteriza por triángulos baricéntricos a partir de los valores nodales, lo que produce un degradado continuo de color. Sobre ese campo puede superponerse la malla deformada, dibujada en estilo alámbrico con un factor de escala configurable y la geometría original atenuada como referencia. La \autoref{fig:postproceso} reúne estas vistas.
+Resuelto el sistema, el post-proceso presenta los resultados sobre el mismo lienzo compartido. El campo de tensiones o desplazamientos se dibuja como contorno con interpolación de Gouraud: cada elemento se rasteriza por triángulos baricéntricos a partir de los valores nodales, lo que produce un degradado continuo de color. Sobre ese campo puede superponerse la malla deformada, dibujada en estilo alámbrico con un factor de escala configurable y la geometría original atenuada como referencia. La \autoref{fig:post-proceso} reúne estas vistas.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=\linewidth]{fig_postproceso}
 \caption{Visualización de resultados en el post-proceso.}
-\label{fig:postproceso}
+\label{fig:post-proceso}
 \end{figure}
 
 La inspección detallada se realiza con una sonda puntual: al consultar un punto cualquiera del dominio, el programa lo localiza dentro de su elemento mediante un mapeo inverso y abre un panel con los valores numéricos del estado tensional —componentes cartesianas, tensiones principales y von Mises— acompañados de un círculo de Mohr animado que sitúa el punto consultado en el plano tensional. De manera complementaria, una vista tridimensional representa el campo como superficie sobre el dominio, permitiendo alternar entre la versión cruda, discontinua entre elementos, y la versión suavizada por promediado nodal. Todas las representaciones de campo emplean la paleta de color \emph{jet}, el arcoíris clásico de los programas comerciales de análisis estructural \autocite{csi2017sap2000}, elegida por su inmediato reconocimiento en el ámbito de la ingeniería.
