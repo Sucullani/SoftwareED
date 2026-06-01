@@ -19,13 +19,13 @@ API:
     apply_edu_style_figure(fig)
     apply_edu_style_2d(ax, *, show_spines=False, grid=False)
     apply_edu_style_3d(ax)
-    apply_edu_style_polar(ax)
 """
 
 from __future__ import annotations
 
 from config.settings import (
     OVERLAY_BG, EDU_AXES_BG, EDU_FIG_BG, EDU_GRID, EDU_FG, HEALTH_INFO_COLOR,
+    EDU_PLOT_TICK_COLOR, EDU_PLOT_LABEL_COLOR, EDU_PLOT_AXIS_COLOR,
 )
 
 
@@ -49,10 +49,7 @@ def _theme_colors() -> dict:
 
 # Paleta neutra para el chrome de los plots edu. Los colores de los
 # DATOS los elige cada módulo (semantica) — esto es solo el marco.
-EDU_PLOT_TICK_COLOR  = "#7a7e88"   # ticks: gris medio
-EDU_PLOT_LABEL_COLOR = "#a8acb4"   # labels de ejes: gris claro
-EDU_PLOT_AXIS_COLOR  = "#3a3d44"   # spines / grid / panes 3D
-EDU_PLOT_TITLE_COLOR = "#cfd2d8"   # títulos: gris muy claro
+# (Los hex viven en config/settings.py; se importan arriba.)
 
 EDU_PLOT_TICK_LABELSIZE = 7
 EDU_PLOT_AXIS_LABELSIZE = 9
@@ -140,36 +137,5 @@ def apply_edu_style_3d(ax) -> None:
             })
         except Exception:
             pass
-    except Exception:
-        pass
-
-
-def apply_edu_style_polar(ax) -> None:
-    """Estilo edu para axes polar (radar charts en M0)."""
-    try:
-        ax.set_facecolor(OVERLAY_BG)
-        ax.tick_params(
-            colors=EDU_PLOT_TICK_COLOR,
-            labelsize=EDU_PLOT_TICK_LABELSIZE,
-        )
-        ax.grid(True, color=EDU_PLOT_AXIS_COLOR,
-                linewidth=0.4, alpha=0.6)
-        # Spines polar (frame circular).
-        for spine in ax.spines.values():
-            try:
-                spine.set_color(EDU_PLOT_AXIS_COLOR)
-                spine.set_linewidth(0.5)
-            except Exception:
-                pass
-    except Exception:
-        pass
-
-
-def style_title(ax, text: str, *, fontsize: int = EDU_PLOT_TITLE_FONTSIZE,
-                pad: int = 6) -> None:
-    """Setter de título con paleta edu (color título muted)."""
-    try:
-        ax.set_title(text, color=EDU_PLOT_TITLE_COLOR,
-                     fontsize=fontsize, pad=pad)
     except Exception:
         pass

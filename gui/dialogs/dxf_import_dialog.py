@@ -26,6 +26,11 @@ from ttkbootstrap.constants import *
 from tkinter import messagebox
 
 from config.units import UNIT_SYSTEMS
+from config.settings import (
+    DXF_PREVIEW_BG_COLOR, EDU_NATURAL_OUTLINE_COLOR, DXF_PREVIEW_ELEM_FILL_COLOR,
+    CANVAS_NODE_COLOR, DIALOG_MUTED_FG_COLOR, HEALTH_ERROR_LIGHT_COLOR,
+    FONT_UI, FONT_UI_LARGE,
+)
 from file_io.dxf_io import (
     import_dxf, list_dxf_layers, _extract_polyline_vertices,
 )
@@ -33,10 +38,10 @@ from models.mesh_utils import auto_expand_if_q9
 
 
 # Colores del canvas principal (coherencia visual)
-_PREVIEW_BG = "#222233"
-_PREVIEW_ELEM_OUTLINE = "#4fa3ff"
-_PREVIEW_ELEM_FILL = "#2c3e5c"
-_PREVIEW_NODE_COLOR = "#4fc3f7"
+_PREVIEW_BG = DXF_PREVIEW_BG_COLOR
+_PREVIEW_ELEM_OUTLINE = EDU_NATURAL_OUTLINE_COLOR
+_PREVIEW_ELEM_FILL = DXF_PREVIEW_ELEM_FILL_COLOR
+_PREVIEW_NODE_COLOR = CANVAS_NODE_COLOR
 _PREVIEW_NODE_RADIUS = 3
 _PREVIEW_MARGIN = 20
 
@@ -93,6 +98,7 @@ def _project_length_unit(project):
     return lu or None
 
 
+from gui.dialogs._dialog_helpers import center_dialog
 class DxfImportDialog:
     """Dialogo modal para importar un DXF al proyecto actual."""
 
@@ -141,7 +147,7 @@ class DxfImportDialog:
                   ).pack(side=LEFT)
         ttk.Label(header,
                   text=f"  ·  {os.path.basename(self._filepath)}",
-                  foreground="#aaa", font=("Segoe UI", 9),
+                  foreground=DIALOG_MUTED_FG_COLOR, font=FONT_UI,
                   ).pack(side=LEFT)
 
         body = ttk.Frame(outer)
@@ -185,7 +191,7 @@ class DxfImportDialog:
             "<Configure>", lambda e: self._refresh_preview()
         )
         self._preview_info = ttk.Label(
-            right, text="", foreground="#aaa", font=("Segoe UI", 8)
+            right, text="", foreground=DIALOG_MUTED_FG_COLOR, font=("Segoe UI", 8)
         )
         self._preview_info.pack(anchor=W, pady=(4, 0))
 
@@ -278,7 +284,7 @@ class DxfImportDialog:
                 w / 2, h / 2,
                 text=f"(no hay polilineas cerradas de 4 vertices\n"
                      f"en la capa '{self._layer_var.get()}')",
-                fill="#ef9a9a", font=("Segoe UI", 10),
+                fill=HEALTH_ERROR_LIGHT_COLOR, font=FONT_UI_LARGE,
                 justify=tk.CENTER,
             )
             self._preview_info.configure(text="0 elementos detectados")
@@ -448,9 +454,4 @@ class DxfImportDialog:
         self.dialog.destroy()
 
     def _center(self):
-        self.dialog.update_idletasks()
-        w = self.dialog.winfo_width()
-        h = self.dialog.winfo_height()
-        x = self.parent.winfo_x() + (self.parent.winfo_width() - w) // 2
-        y = self.parent.winfo_y() + (self.parent.winfo_height() - h) // 2
-        self.dialog.geometry(f"+{max(x, 0)}+{max(y, 0)}")
+        center_dialog(self.dialog, self.parent)

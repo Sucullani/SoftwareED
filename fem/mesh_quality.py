@@ -238,10 +238,6 @@ def edge_aspect_ratio(corner_coords):
     return max(lengths) / min(lengths)
 
 
-# Alias deprecado para backwards-compat con llamadores antiguos.
-robinson_stretch = edge_aspect_ratio
-
-
 def stretch_metric(corner_coords):
     """Stretch de Verdict para cuadrilateros:  Q = sqrt(2) * L_min / D_max.
 

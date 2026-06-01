@@ -35,19 +35,20 @@ import tkinter as tk
 
 from config.settings import (
     HEALTH_OK_COLOR, HEALTH_WARNING_COLOR, HEALTH_ERROR_COLOR,
-    EDU_FG_MUTED, OVERLAY_BG,
+    EDU_FG_MUTED, OVERLAY_BG, EDU_MARKER_OUTLINE_COLOR,
+    QUALITY_BAR_NEUTRAL_COLOR, QUALITY_BAR_INK_COLOR,
 )
 
 
 # Gris neutro para el modo bipolar (la "frontera" en 0 del Jacobiano).
 # No competimos con el amarillo del modo unipolar para que el alumno lea
 # inmediatamente "esto no es bueno ni malo, es la frontera".
-_NEUTRAL_GRAY = "#5a5e66"
-_BADGE_BG = "#ffffff"
-_BADGE_FG = "#1a1c20"
-_MARKER_LINE = "#ffffff"
-_MARKER_TRI_OUTLINE = "#1a1c20"
-_TICK_LINE = "#1a1c20"
+_NEUTRAL_GRAY = QUALITY_BAR_NEUTRAL_COLOR
+_BADGE_BG = EDU_MARKER_OUTLINE_COLOR
+_BADGE_FG = QUALITY_BAR_INK_COLOR
+_MARKER_LINE = EDU_MARKER_OUTLINE_COLOR
+_MARKER_TRI_OUTLINE = QUALITY_BAR_INK_COLOR
+_TICK_LINE = QUALITY_BAR_INK_COLOR
 
 
 def fmt_es(value: float, digits: int = 2) -> str:

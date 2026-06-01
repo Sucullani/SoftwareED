@@ -1,0 +1,63 @@
+% =====================================================================
+%  main.tex  --  Tesis EduFEM
+%  Compilar (MiKTeX/Windows), desde la carpeta tesis/:
+%     pdflatex main
+%     biber    main
+%     pdflatex main
+%     pdflatex main
+%  (o usar latexmk -pdf main.tex)
+% =====================================================================
+\documentclass[12pt,a4paper,oneside]{report}
+
+% ---------------------------------------------------------------------
+%  Metadatos de portada  --  COMPLETAR estos placeholders
+% ---------------------------------------------------------------------
+\newcommand{\universidad}{Universidad [NOMBRE DE LA UNIVERSIDAD]}
+\newcommand{\facultad}{Facultad de [FACULTAD]}
+\newcommand{\carrera}{[Carrera]}
+\newcommand{\gradoTesis}{[Titulo a obtener, p.\,ej. Ingeniero/a]}
+\newcommand{\tituloTesis}{EduFEM: aplicación educativa de elementos finitos 2D para la enseñanza del Método de Elementos Finitos}
+\newcommand{\autorTesis}{[Nombre y apellido del autor]}
+\newcommand{\directorTesis}{[Nombre del director/tutor]}
+\newcommand{\anioTesis}{2026}
+\newcommand{\ciudadTesis}{[Ciudad, Pais]}
+
+\input{preambulo}
+
+\begin{document}
+
+% ----- Portada -----
+\input{portada/portada}
+
+% ----- Material preliminar (numeracion romana) -----
+\cleardoublepage
+\pagenumbering{roman}
+
+\input{capitulos/00_resumen}
+
+\cleardoublepage
+\tableofcontents
+\cleardoublepage
+\listoffigures
+\cleardoublepage
+\listoftables
+
+% ----- Cuerpo (numeracion arabiga) -----
+\cleardoublepage
+\pagenumbering{arabic}
+
+\input{capitulos/01_introduccion}
+\input{capitulos/02_marco_teorico}
+\input{capitulos/03_diseno_implementacion}
+\input{capitulos/04_resultados}
+\input{capitulos/05_conclusiones}
+
+% ----- Bibliografia (estilo Vancouver) -----
+\cleardoublepage
+\printbibliography[title={Bibliografía},heading=bibintoc]
+
+% ----- Anexos -----
+\appendix
+\input{capitulos/06_anexos}
+
+\end{document}

@@ -224,14 +224,7 @@ def main():
                      os.path.join(figs_dir, "cook_convergence.png"))
 
     # Figura deformada para N=8 Q9 si disponible
-    target_results = {
-        (r["N"], "q9") for r in results["q9"]
-    }
-    pick = None
-    for r in results["q9"]:
-        if r["N"] == 8:
-            pick = r
-            break
+    pick = next((r for r in results["q9"] if r["N"] == 8), None)
     if pick is not None:
         # Escala ~malla/(2*uy_max) para visualizar
         scale = 1.0
@@ -240,6 +233,34 @@ def main():
                       scale=scale)
 
     print(f"\nOutputs en {out_dir}")
+
+    # ─── Verificacion automatica de regresion (tolerancias del docstring) ──
+    q4_8 = next((r for r in results["q4"] if r["N"] == 8), None)
+    q9_8 = next((r for r in results["q9"] if r["N"] == 8), None)
+    checks = []
+    if q9_8 is not None:
+        err_q9 = abs(100 * (q9_8["uy"] - U_Y_REF) / U_Y_REF)
+        checks.append((f"Cook Q9 N=8 converge a {U_Y_REF} "
+                       f"(err={err_q9:.2f}% < 1.5%)", err_q9 < 1.5))
+    if q4_8 is not None and q9_8 is not None:
+        # Shear-locking: Q4 subestima la flecha respecto de Q9.
+        checks.append((f"Cook Q4 N=8 muestra shear-locking "
+                       f"(uy_q4={q4_8['uy']:.3f} < uy_q9={q9_8['uy']:.3f})",
+                       q4_8["uy"] < q9_8["uy"]))
+    _report_and_exit(checks)
+
+
+def _report_and_exit(checks):
+    """Imprime el resumen de verificacion y sale con 1 si algo falla."""
+    if not checks:
+        print("\n[ADVERTENCIA] no se evaluo ninguna verificacion automatica.")
+        return
+    failed = [n for n, ok in checks if not ok]
+    print("\n--- Verificacion ---")
+    for name, ok in checks:
+        print(f"  [{'OK' if ok else 'FAIL'}] {name}")
+    if failed:
+        sys.exit(1)
 
 
 if __name__ == "__main__":

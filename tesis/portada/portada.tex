@@ -1,0 +1,52 @@
+% =====================================================================
+%  portada/portada.tex  --  Portada de la tesis
+%  Usa los \newcommand definidos en main.tex (\universidad, \autorTesis, ...).
+%  Ajustar al formato exacto de tu facultad si corresponde.
+% =====================================================================
+\begin{titlepage}
+\centering
+
+% --- Logo institucional (opcional) ---
+% \includegraphics[width=3.5cm]{figuras/logo_universidad.png}\\[1cm]
+
+{\scshape\large \universidad\par}
+\vspace{0.3cm}
+{\scshape \facultad\par}
+\vspace{0.2cm}
+{\scshape \carrera\par}
+
+\vfill
+
+\rule{\linewidth}{0.4pt}\\[0.5cm]
+{\huge\bfseries \tituloTesis \par}
+\vspace{0.5cm}
+\rule{\linewidth}{0.4pt}
+
+\vfill
+
+{\large Tesis presentada para optar al titulo de\par}
+\vspace{0.2cm}
+{\large\bfseries \gradoTesis \par}
+
+\vfill
+
+\begin{minipage}{0.45\textwidth}
+  \begin{flushleft}\large
+    \textit{Autor/a:}\\
+    \autorTesis
+  \end{flushleft}
+\end{minipage}
+\hfill
+\begin{minipage}{0.45\textwidth}
+  \begin{flushright}\large
+    \textit{Director/a:}\\
+    \directorTesis
+  \end{flushright}
+\end{minipage}
+
+\vfill
+
+{\large \ciudadTesis \par}
+{\large \anioTesis \par}
+
+\end{titlepage}

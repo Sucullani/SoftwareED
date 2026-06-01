@@ -30,7 +30,10 @@ from tkinter import TclError
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 
-from config.settings import FONT_UI, TEXT_MUTED_FG
+from config.settings import (
+    FONT_UI, TEXT_MUTED_FG,
+    MODULE_HEADER_FG_COLOR, MODULE_DESC_FG_COLOR, MODULE_EMPTY_FG_COLOR,
+)
 
 
 _BUTTON_WIDTH_CHARS = 30
@@ -160,13 +163,13 @@ def render_module_buttons(parent, modules, on_open, *, bootstyle="info-outline",
         ttk.Label(
             parent, text=header_text,
             font=("Segoe UI", 11, "bold"),
-            foreground=header_color or "#dddddd",
+            foreground=header_color or MODULE_HEADER_FG_COLOR,
         ).pack(anchor=W, padx=10, pady=(10, 3))
 
     if subtitle:
         ttk.Label(
             parent, text=subtitle,
-            font=FONT_UI, foreground="#888", wraplength=380,
+            font=FONT_UI, foreground=MODULE_DESC_FG_COLOR, wraplength=380,
         ).pack(anchor=W, padx=15, pady=(0, 10))
 
     panel = ModuleButtonsPanel(
@@ -177,7 +180,7 @@ def render_module_buttons(parent, modules, on_open, *, bootstyle="info-outline",
         ttk.Label(
             parent,
             text="(sin modulos disponibles para esta fase)",
-            font=FONT_UI, foreground="#666",
+            font=FONT_UI, foreground=MODULE_EMPTY_FG_COLOR,
         ).pack(anchor=W, padx=15, pady=20)
         return panel
 
@@ -208,7 +211,7 @@ def render_module_buttons(parent, modules, on_open, *, bootstyle="info-outline",
 
         desc_label = ttk.Label(
             row, text=desc, font=("Segoe UI", 8),
-            foreground="#888", anchor=W, justify=LEFT,
+            foreground=MODULE_DESC_FG_COLOR, anchor=W, justify=LEFT,
         )
         desc_label.pack(side=LEFT, fill=X, expand=YES, padx=5)
 

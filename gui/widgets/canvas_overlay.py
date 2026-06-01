@@ -41,6 +41,7 @@ import ttkbootstrap as ttk
 from config.settings import (
     PHASE_PRE_COLOR, PHASE_PROC_COLOR, PHASE_POST_COLOR,
     OVERLAY_BG, OVERLAY_BORDER, OVERLAY_TITLE_FG,
+    OVERLAY_CLOSE_HOVER_COLOR,
 )
 
 
@@ -175,7 +176,7 @@ class CanvasOverlay(tk.Toplevel):
             close_btn.bind("<ButtonRelease-1>",
                             lambda _e: self._request_close())
             close_btn.bind("<Enter>",
-                           lambda _e: close_btn.configure(bg="#c0392b"))
+                           lambda _e: close_btn.configure(bg=OVERLAY_CLOSE_HOVER_COLOR))
             close_btn.bind("<Leave>",
                            lambda _e: close_btn.configure(bg=bar_color))
 

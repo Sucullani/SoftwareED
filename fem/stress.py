@@ -156,7 +156,6 @@ def compute_element_stresses(node_coords, u_elem, E, nu, thickness,
 # Evita reconstruirlas en cada llamada (24000 veces por run Q4).
 
 _STRESS_KEYS = ["sigma_x", "sigma_y", "tau_xy", "sigma_1", "sigma_2", "von_mises"]
-_N_STRESS = len(_STRESS_KEYS)
 
 def _build_q4_extrap():
     s = np.sqrt(3.0)
@@ -280,7 +279,8 @@ def compute_all_stresses(project, solution):
     # por cada elemento cuando el mismo material está asignado a muchos.
     D_cache: dict = {}
 
-    stress_keys = ["sigma_x", "sigma_y", "tau_xy", "sigma_1", "sigma_2", "von_mises"]
+    # Fuente única de las claves/orden de columnas: la constante de módulo.
+    stress_keys = _STRESS_KEYS
     n_stress_keys = len(stress_keys)
 
     # Acumuladores nodales como arrays: cada nodo mapea a una fila en

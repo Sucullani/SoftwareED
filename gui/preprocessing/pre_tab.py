@@ -36,6 +36,8 @@ from config.settings import (
     ORPHAN_NODE_FG, ORPHAN_NODE_BG,
     PICK_GHOST_FG, PICK_GHOST_BG,
     CANVAS_SELECTED_ROW_BG, CANVAS_SELECTED_ROW_FG,
+    TREE_ROW_BG_COLOR, TREE_PLACEHOLDER_BG, TREE_PLACEHOLDER_FG,
+    AUTO_NODE_FG,
 )
 from config.units import get_unit_labels
 from gui.preprocessing._table_helpers import (
@@ -62,12 +64,10 @@ GLYPH_DROPDOWN = " \u25be"  # ▾  indicador visual de combobox en celda
 # retirado: con `canvas_selected` (amarillo), `orphan_node` (naranja),
 # `pending_pick` (azul) y `placeholder` (gris) ya hay 4 estados
 # semanticos; el zebra agregaba ruido cromatico que competia con ellos.
-ROW_BG = "#1c1e22"
-PLACEHOLDER_BG = "#15161a"
-PLACEHOLDER_FG = "#6a6d75"
-TREE_FIELD_BG = "#1c1e22"
-TREE_BORDER_COLOR = "#3a3d42"
-AUTO_NODE_FG = "#7a7d85"  # mid/center Q9: filas no editables, atenuadas
+ROW_BG = TREE_ROW_BG_COLOR
+PLACEHOLDER_BG = TREE_PLACEHOLDER_BG
+PLACEHOLDER_FG = TREE_PLACEHOLDER_FG
+TREE_FIELD_BG = TREE_ROW_BG_COLOR
 
 
 def _parse_bool(text):
@@ -285,42 +285,14 @@ class PreProcessTab:
         self.refresh()
 
     def _wire_canvas_callbacks(self):
-        """Registra los handlers `on_*_select` en el MeshCanvas compartido.
+        """Registra los handlers reactivos en el MeshCanvas compartido.
 
-        Al clickear una propiedad en el canvas, esto:
-        1) cambia a la sub-pestana correspondiente del spreadsheet,
-        2) selecciona la fila asociada,
-        3) hace scroll a la fila visible.
+        El canvas notifica al pre_tab ante borrados, cambios del modo dibujo
+        y cambios de seleccion para mantener sincronizadas las tablas.
         """
         canvas = getattr(self.main_window, "mesh_canvas", None)
         if canvas is None:
             return
-
-        def _select_in_tree(notebook_tab, tree, iid):
-            try:
-                self.data_notebook.select(notebook_tab)
-                if iid in tree.get_children():
-                    tree.selection_set(iid)
-                    tree.focus(iid)
-                    tree.see(iid)
-            except tk.TclError:
-                pass
-
-        canvas.on_load_select = (
-            lambda nid: _select_in_tree(self.loads_frame,
-                                        self.loads_tree, str(nid)))
-        canvas.on_constraint_select = (
-            lambda nid: _select_in_tree(self.constraints_frame,
-                                        self.constraints_tree, str(nid)))
-        canvas.on_surface_select = (
-            lambda idx: _select_in_tree(self.surface_frame,
-                                        self.surface_tree, str(idx)))
-        canvas.on_node_select = (
-            lambda nid: _select_in_tree(self.nodes_frame,
-                                        self.nodes_tree, str(nid)))
-        canvas.on_element_select = (
-            lambda eid: _select_in_tree(self.elements_frame,
-                                        self.elements_tree, str(eid)))
 
         def _on_canvas_delete(kind, _target_id):
             """Tras un borrado iniciado desde el canvas (Supr/BackSpace),
@@ -1393,44 +1365,9 @@ class PreProcessTab:
                 pass
 
     def _preview_element_cleanup(self, elem_id):
-        """Calcula sin mutar nada que pasaria si se elimina `elem_id` con
-        el auto-cleanup: cuantos nodos quedarian huerfanos sin referencias
-        (auto-eliminables) vs con referencias (preservados).
-        Espejo del helper homonimo en `mesh_canvas.py` — replicado aqui
-        para poder construir el modal de confirmacion sin acoplar pre_tab
-        a canvas. Si en el futuro ProjectModel expone una version, ambos
-        callers deberian migrarse.
-        """
-        elem = self.project.elements.get(elem_id)
-        if elem is None:
-            return {"nodes_to_delete": [], "nodes_to_preserve": []}
-        nodes_in_elem = set(elem.node_ids)
-        to_delete = []
-        to_preserve = []
-        for nid in nodes_in_elem:
-            if nid not in self.project.nodes:
-                continue
-            in_other = any(
-                nid in e.node_ids
-                for e in self.project.elements.values()
-                if e.id != elem_id
-            )
-            if in_other:
-                continue
-            has_data = (
-                nid in self.project.nodal_loads
-                or nid in self.project.boundary_conditions
-                or any(sl.node_start == nid or sl.node_end == nid
-                       for sl in self.project.surface_loads)
-            )
-            if has_data:
-                to_preserve.append(nid)
-            else:
-                to_delete.append(nid)
-        return {
-            "nodes_to_delete": sorted(to_delete),
-            "nodes_to_preserve": sorted(to_preserve),
-        }
+        """Delega en `ProjectModel.preview_element_cleanup` (fuente única,
+        antes duplicada verbatim aquí y en mesh_canvas)."""
+        return self.project.preview_element_cleanup(elem_id)
 
     # ─── Acciones de menu contextual: Elementos ─────────────────────────
 
@@ -1608,11 +1545,6 @@ class PreProcessTab:
     # ═════════════════════════════════════════════════════════════════════
     # RESTRICCIONES — handlers
     # ═════════════════════════════════════════════════════════════════════
-
-    def _on_constraint_click(self, _event=None):
-        """No-op preservado por compat. El toggle por single-click fue
-        eliminado: ahora todas las ediciones pasan por doble-click."""
-        return
 
     def _on_constraint_double_click(self, event):
         """Doble-click en cualquier celda de una restriccion:
@@ -2784,22 +2716,6 @@ class PreProcessTab:
                 tree.see(first)
         except tk.TclError:
             pass
-
-    def _safe_highlight_node(self, node_id):
-        canvas = getattr(self.main_window, "mesh_canvas", None)
-        if canvas is not None and hasattr(canvas, "highlight_node"):
-            try:
-                canvas.highlight_node(node_id)
-            except Exception:
-                pass
-
-    def _safe_highlight_element(self, elem_id):
-        canvas = getattr(self.main_window, "mesh_canvas", None)
-        if canvas is not None and hasattr(canvas, "highlight_element"):
-            try:
-                canvas.highlight_element(elem_id)
-            except Exception:
-                pass
 
     def _update_status_info(self):
         if hasattr(self.main_window, "_update_status_info"):

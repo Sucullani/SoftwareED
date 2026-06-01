@@ -1,0 +1,57 @@
+\chapter*{Introducción}
+\addcontentsline{toc}{chapter}{Introducción}
+
+El Método de los Elementos Finitos (MEF) constituye una de las herramientas centrales del análisis estructural y de la ingeniería computacional, y su enseñanza forma parte del núcleo curricular de las carreras de ingeniería civil y mecánica \autocite{zienkiewicz2013fem,cook2002concepts}. Su comprensión exige articular tres planos que suelen presentarse de forma fragmentada al estudiante: la formulación matemática continua (elasticidad lineal, ecuaciones de equilibrio), su discretización mediante elementos isoparamétricos y cuadratura numérica, y la interpretación física de los resultados (campos de desplazamiento, deformación y tensión). EduFEM se propone como una aplicación educativa de escritorio que integra estos tres planos en un único entorno interactivo, orientado a problemas bidimensionales de elasticidad lineal estática con elementos cuadriláteros Q4 y Q9.
+
+\section*{Planteamiento del problema}
+
+La enseñanza del MEF enfrenta una tensión recurrente entre el rigor formal y la intuición operativa. Por un lado, los textos clásicos desarrollan la teoría con un grado de abstracción considerable, donde las funciones de forma, la matriz Jacobiana, la matriz de deformación-desplazamiento y la integración de Gauss aparecen como pasos de una cadena algebraica cuya conexión con la geometría concreta de un elemento no siempre resulta evidente para quien recién se inicia \autocite{bathe2014fem,reddy2006introduction}. Por otro lado, el software comercial de análisis por elementos finitos opera, desde la perspectiva del estudiante, como una caja negra: el usuario define geometría, material y cargas, y obtiene resultados, pero el procesamiento intermedio que transforma esas entradas en tensiones permanece oculto \autocite{perezsantiago2023fem}.
+
+Esta opacidad tiene consecuencias pedagógicas concretas. El estudiante puede aprender a operar una herramienta profesional sin comprender qué ocurre internamente, lo que dificulta diagnosticar resultados anómalos, evaluar la calidad de una malla o reconocer fenómenos numéricos como el bloqueo por cortante (shear locking) o los modos espurios (hourglass). A esto se suma que las herramientas comerciales suelen ser costosas, estar disponibles solo en inglés y no estar diseñadas con un propósito didáctico explícito, lo que limita su utilidad como recurso de aprendizaje en el aula. La brecha, en consecuencia, es doble: existe una dificultad de aprendizaje genuina vinculada a la naturaleza abstracta del método, y una insuficiencia de herramientas que la atiendan exponiendo el proceso de cálculo de manera transparente y guiada.
+
+La pregunta que orienta este trabajo puede formularse así: ¿cómo apoyar la comprensión de los fundamentos del MEF mediante una herramienta de software que exponga, sobre un modelo concreto y de manera interactiva, cada etapa del procedimiento de cálculo, desde la construcción de la malla hasta la recuperación de tensiones?
+
+\section*{Justificación}
+
+El desarrollo de EduFEM se justifica en varios planos complementarios. En el plano académico, la herramienta busca cerrar la distancia entre la formulación teórica del MEF y su comportamiento numérico, haciendo visibles los pasos intermedios que el software profesional encapsula. La literatura sobre enseñanza del método coincide en que la simulación interactiva y la manipulación directa de los objetos matemáticos del MEF favorecen un aprendizaje más profundo que la mera exposición teórica o el uso de herramientas opacas \autocite{lee2015interactive,lee2015eigenmodes,bishay2020teaching}. Exponer el mapeo isoparamétrico, el Jacobiano, la matriz de deformación y la cuadratura de Gauss sobre el elemento real que el estudiante construyó permite anclar conceptos abstractos en una geometría tangible.
+g
+
+En el plano práctico, EduFEM está concebido como recurso de apoyo a la cátedra: es gratuito, está íntegramente en español y organiza su interfaz según las tres fases canónicas del análisis (pre-proceso, proceso y post-proceso), lo que reproduce el flujo de trabajo profesional al tiempo que lo hace pedagógicamente legible. La generación automática de una memoria de cálculo documenta el procedimiento completo con los valores del modelo del usuario, ofreciendo un puente entre la exploración interactiva y el cálculo verificable paso a paso.
+
+En el plano metodológico, la decisión de construir un software propio en lugar de adoptar uno existente responde a la necesidad de controlar la transparencia del motor de cálculo y de alinear cada componente de la interfaz con un objetivo didáctico. Un motor desarrollado con bibliotecas numéricas de código abierto \autocite{harris2020numpy,virtanen2020scipy} permite exhibir las matrices y operaciones intermedias sin las restricciones de un producto cerrado, y verificar su precisión frente a referencias reconocidas.
+
+\section*{Objetivos}
+
+El objetivo general de este trabajo es desarrollar EduFEM, una aplicación educativa de escritorio para el análisis por el Método de Elementos Finitos (MEF) de problemas bidimensionales de elasticidad lineal (tensión y deformación plana) con elementos cuadriláteros isoparamétricos Q4 y Q9, que integre la formulación matemática, la construcción y visualización interactiva del modelo y la verificación numérica, como apoyo a la enseñanza y el aprendizaje del MEF.
+
+Los objetivos específicos que concretan este propósito son los siguientes:
+
+\begin{enumerate}
+    \item Implementar un motor de cálculo MEF 2D con elementos isoparamétricos Q4 y Q9 (funciones de forma, Jacobiano, matriz B, matriz constitutiva D, rigidez por cuadratura de Gauss, ensamblaje, restricciones y recuperación de tensiones), verificado numéricamente.
+    \item Diseñar una interfaz gráfica interactiva organizada en pre-proceso, proceso y post-proceso, con un único lienzo compartido para construir, resolver y visualizar el modelo.
+    \item Desarrollar módulos educativos que expongan, paso a paso y sobre el modelo real, cada etapa del canal de cálculo del MEF.
+    \item Verificar y validar el software mediante el método de soluciones manufacturadas (MMS) y benchmarks clásicos (viga de Timoshenko, membrana de Cook), contrastando contra soluciones analíticas y un software comercial (SAP2000).
+    \item Generar documentación de cálculo automática (memoria de cálculo en PDF) y soportar interoperabilidad de datos (DXF, CSV).
+\end{enumerate}
+
+\section*{Hipótesis o preguntas de investigación}
+
+Por tratarse de un trabajo de desarrollo tecnológico antes que de un estudio experimental, este trabajo no plantea una hipótesis estadística formal, sino una hipótesis de trabajo y un conjunto de preguntas de investigación que orientan el diseño y la evaluación de la herramienta. La hipótesis de trabajo sostiene que una aplicación que expone de manera interactiva y sobre un modelo concreto los pasos intermedios del MEF puede apoyar la comprensión de sus fundamentos de forma más efectiva que la presentación teórica aislada o el uso de software que oculta el procesamiento interno.
+
+De esta hipótesis se desprenden las siguientes preguntas de investigación que el trabajo procura responder:
+
+\begin{itemize}
+    \item ¿Es posible construir un motor de cálculo MEF 2D con elementos Q4 y Q9 cuya precisión numérica sea verificable y comparable con soluciones analíticas y con software comercial de referencia?
+    \item ¿Qué organización de la interfaz y de los módulos educativos permite exponer la cadena de cálculo del MEF (del mapeo isoparamétrico a la recuperación de tensiones) de manera transparente y coherente con el flujo de trabajo profesional?
+    \item ¿De qué modo la herramienta permite evidenciar fenómenos numéricos relevantes, como el bloqueo por cortante en elementos Q4 frente a la convergencia de los Q9?
+\end{itemize}
+
+\section*{Alcance y limitaciones}
+
+El alcance de EduFEM está delimitado de manera explícita para garantizar profundidad sobre un dominio acotado. La herramienta resuelve problemas \emph{bidimensionales} de \emph{elasticidad lineal estática}, en las dos idealizaciones clásicas de la mecánica de sólidos: \emph{tensión plana} (apropiada para cuerpos delgados cargados en su plano) y \emph{deformación plana} (apropiada para cuerpos prismáticos largos con sección y carga invariantes a lo largo del eje longitudinal) \autocite{timoshenko1970elasticity}. La discretización se realiza con \emph{elementos cuadriláteros isoparamétricos} de cuatro nodos (Q4) y de nueve nodos (Q9), que cubren respectivamente la interpolación bilineal y la cuadrática completa, y permiten ilustrar de manera contrastada los efectos del orden de interpolación sobre la precisión \autocite{hughes2000fem,onate2009structural}. El producto es un \emph{software de escritorio} de carácter \emph{educativo}, desarrollado íntegramente en \emph{español}, con una interfaz diseñada bajo criterios de minimalismo y claridad pedagógica.
+
+Las limitaciones del trabajo se reconocen de manera complementaria. El software no aborda análisis tridimensional, comportamiento no lineal (material o geométrico), efectos dinámicos ni dependientes del tiempo, ni otros tipos de elementos (triangulares, de orden superior a Q9, o elementos especiales). El catálogo de materiales se restringe a comportamiento elástico, isótropo y lineal, definido por el módulo de elasticidad y el coeficiente de Poisson. La validación numérica se apoya en casos con solución analítica conocida y benchmarks reconocidos de la literatura, mientras que la evaluación de la dimensión educativa con usuarios queda condicionada por el alcance temporal del trabajo y el tamaño de la muestra disponible. Estas fronteras responden a una decisión deliberada: privilegiar la transparencia y la solidez de un núcleo conceptual bien acotado por sobre la cobertura amplia de funcionalidades, coherente con el propósito didáctico de la herramienta.
+
+\section*{Estructura del documento}
+
+El presente documento se organiza en tres capítulos, además de esta introducción y de un capítulo final de conclusiones. El \autoref{cap:marco_teorico} desarrolla el marco teórico, abarcando los antecedentes y el estado del arte en software educativo para la enseñanza del MEF, los fundamentos del método aplicados a la elasticidad lineal bidimensional (funciones de forma, mapeo isoparamétrico, matriz Jacobiana, matriz de deformación, matriz constitutiva, cuadratura de Gauss, ensamblaje y recuperación de tensiones), las bases del diseño de software educativo y las tecnologías de desarrollo empleadas. El \autoref{cap:diseno} detalla el diseño y la implementación de la herramienta: la metodología de desarrollo, la especificación de requisitos, la arquitectura del sistema, el diseño del motor de cálculo, de la interfaz interactiva y de los módulos educativos. El \autoref{cap:resultados} presenta el producto final desarrollado y expone los resultados de la verificación y validación numérica, contrastando los resultados de EduFEM frente a soluciones analíticas y software comercial, junto con el análisis y la discusión de los hallazgos. Finalmente, el capítulo de conclusiones responde a los objetivos planteados, discute el cumplimiento de la hipótesis de trabajo y señala las líneas de continuación del proyecto.

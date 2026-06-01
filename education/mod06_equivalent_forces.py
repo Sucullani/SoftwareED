@@ -36,13 +36,17 @@ from fem.equivalent_forces import (
     surface_load_to_nodal_forces_q9,
 )
 from models.mesh_utils import find_edge_midnode
-from config.settings import ELEMENT_Q9, EDU_LABEL_BG, EDU_FG_MUTED
+from config.settings import (
+    ELEMENT_Q9, EDU_LABEL_BG, EDU_FG_MUTED,
+    EDU_M6_EDGE_COLOR, OVERLAY_ACCENT_BLUE, HEALTH_ERROR_COLOR,
+    OVERLAY_ACCENT_AMBER, EDU_MATRIX_TEXT_COLOR, EDU_STATUS_FG_COLOR,
+)
 
 
 _TAG = "edu_m6"
-_C_EDGE_SEL = "#ff9f43"     # arista de la carga seleccionada — naranja
-_C_DIST_ARROW = "#90caf9"   # flechitas distribuidas
-_C_NODAL_BLOB = "#ef5350"   # bolitas nodales (resultado integrado)
+_C_EDGE_SEL = EDU_M6_EDGE_COLOR     # arista de la carga seleccionada — naranja
+_C_DIST_ARROW = OVERLAY_ACCENT_BLUE   # flechitas distribuidas
+_C_NODAL_BLOB = HEALTH_ERROR_COLOR   # bolitas nodales (resultado integrado)
 
 
 # Tween animación: las flechitas decaen y las bolitas crecen en este lapso.
@@ -87,7 +91,7 @@ class EquivalentForcesModule(CanvasOverlayModule):
                 body,
                 text=("👉 Definí una carga superficial en el Pre-Proceso "
                       "(sub-pestaña Carg. Superf.) y reabrí este módulo."),
-                font=("Segoe UI", 9), foreground="#ffd54f",
+                font=("Segoe UI", 9), foreground=OVERLAY_ACCENT_AMBER,
                 wraplength=320, justify="left",
             ).pack(fill="x", padx=4, pady=(2, 0))
             return
@@ -95,7 +99,7 @@ class EquivalentForcesModule(CanvasOverlayModule):
         # Lista de chips: una por carga. Click selecciona.
         ttk.Label(
             body, text="Cargas superficiales del proyecto:",
-            font=("Segoe UI", 9, "bold"), foreground="#dcdcdc",
+            font=("Segoe UI", 9, "bold"), foreground=EDU_MATRIX_TEXT_COLOR,
         ).pack(anchor="w", pady=(0, 2))
 
         self._chips_frame = ttk.Frame(body)
@@ -105,7 +109,7 @@ class EquivalentForcesModule(CanvasOverlayModule):
         # Status (qué carga está activa + nodos + magnitudes)
         self._lbl_status = ttk.Label(
             body, text="", font=("Consolas", 9),
-            foreground="#cfd2d8", wraplength=320, justify="left",
+            foreground=EDU_STATUS_FG_COLOR, wraplength=320, justify="left",
         )
         self._lbl_status.pack(anchor="w", pady=(2, 0))
 

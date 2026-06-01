@@ -81,12 +81,6 @@ _RGB_DEFORMED = _hex_to_rgb(PHASE_POST_COLOR)
 # Anchors muestreados de los colormaps de matplotlib. Se interpolan
 # linealmente a una LUT de 256 entradas al primer uso (cache de módulo).
 
-_VIRIDIS_ANCHORS = np.array([
-    (68, 1, 84), (72, 40, 120), (62, 74, 137), (49, 104, 142),
-    (38, 130, 142), (31, 158, 137), (53, 183, 121), (110, 206, 88),
-    (181, 222, 43), (253, 231, 37),
-], dtype=float)
-
 _COOLWARM_ANCHORS = np.array([
     (59, 76, 192), (98, 130, 234), (141, 176, 254), (184, 208, 249),
     (221, 221, 221), (245, 196, 173), (244, 154, 123), (222, 96, 77),
@@ -114,10 +108,8 @@ def _colormap_lut(name: str) -> np.ndarray:
         return cached
     if name == "coolwarm":
         anchors = _COOLWARM_ANCHORS
-    elif name == "jet":
-        anchors = _JET_ANCHORS
     else:
-        anchors = _VIRIDIS_ANCHORS
+        anchors = _JET_ANCHORS
     n_a = anchors.shape[0]
     t_anchors = np.linspace(0.0, 1.0, n_a)
     t_lut = np.linspace(0.0, 1.0, 256)
@@ -294,8 +286,8 @@ def render_pipeline_map(project):
 def _rasterize_triangle(img_arr, w, h, p0, p1, p2, vmin, v_range, lut):
     """Rasteriza un triángulo con interpolación baricéntrica + LUT colormap.
 
-    Cada p es (sx, sy, valor). Misma lógica que MeshCanvas._rasterize_triangle
-    pero con lookup en una LUT (viridis/coolwarm) en vez de jet inline.
+    Cada p es (sx, sy, valor). Misma lógica que MeshCanvas._rasterize_triangle,
+    con lookup en una LUT JET precomputada (la misma paleta que el canvas).
     """
     sx0, sy0, v0 = p0
     sx1, sy1, v1 = p1

@@ -24,9 +24,8 @@ Estructura del overlay (problema → solución, sin scroll forzado):
      de hourglass (1 PG) / sobre-integración (3×3 en Q4).
   4. Cross-ref a ⑦ Ensamblaje.
 
-`SymbolicIntegrandQ4` vive en este archivo. Importada por
-`file_io.memoria_calculo` para el PDF de memoria — **no mover sin
-actualizar también ese import**.
+`SymbolicIntegrandQ4` vive en `fem/symbolic_integrand.py` (SymPy puro). Tanto
+este módulo como `file_io.memoria_calculo` la importan desde ahí.
 """
 
 from __future__ import annotations
@@ -37,7 +36,6 @@ from typing import Optional
 import numpy as np
 import tkinter as tk
 import ttkbootstrap as ttk
-import sympy as sp
 
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -60,6 +58,7 @@ from fem.jacobian import compute_jacobian, compute_dN_physical
 from fem.b_matrix import compute_b_matrix
 from fem.constitutive import constitutive_matrix
 from fem.gauss_quadrature import get_gauss_points_2d
+from fem.symbolic_integrand import SymbolicIntegrandQ4
 
 from config.settings import (
     ANALYSIS_PLANE_STRESS, ANALYSIS_PLANE_STRAIN,
@@ -67,6 +66,7 @@ from config.settings import (
     EDU_FIG_BG, EDU_AXES_BG, EDU_LABEL_BG, EDU_FG, EDU_FG_MUTED,
     EDU_NATURAL_OUTLINE_COLOR, EDU_NATURAL_AXES_COLOR,
     HEALTH_WARNING_COLOR, HEALTH_ERROR_COLOR,
+    OVERLAY_ACCENT_AMBER, EDU_INTEGRAND_TEXT_COLOR,
 )
 
 
@@ -76,77 +76,10 @@ _TAG = "edu_m5_pg"
 _SNAP_PX = 14
 
 
-# ────────────── CAPA SIMBÓLICA ──────────────
-
-
-class SymbolicIntegrandQ4:
-    """Construcción simbólica de [B^T D B |det J| t] para Q4."""
-
-    def __init__(self, E=225000.0, nu=0.2, t=0.8, coords=None):
-        self.E = E
-        self.nu = nu
-        self.t = t
-        self.coords = coords if coords is not None else [
-            [0, 0], [5, 0], [7, 4], [2, 3]
-        ]
-        self.xi, self.eta = sp.symbols(r"\xi \eta", real=True)
-
-    def _shape_functions(self):
-        xi, eta = self.xi, self.eta
-        return [
-            sp.Rational(1, 4) * (1 - xi) * (1 - eta),
-            sp.Rational(1, 4) * (1 + xi) * (1 - eta),
-            sp.Rational(1, 4) * (1 + xi) * (1 + eta),
-            sp.Rational(1, 4) * (1 - xi) * (1 + eta),
-        ]
-
-    def _jacobian(self, dN_dxi, dN_deta):
-        c = self.coords
-        dx_dxi  = sum(dN_dxi[i]  * c[i][0] for i in range(4))
-        dy_dxi  = sum(dN_dxi[i]  * c[i][1] for i in range(4))
-        dx_deta = sum(dN_deta[i] * c[i][0] for i in range(4))
-        dy_deta = sum(dN_deta[i] * c[i][1] for i in range(4))
-        return sp.Matrix([[dx_dxi, dy_dxi], [dx_deta, dy_deta]])
-
-    def _b(self, dN_dxi, dN_deta, J):
-        detJ = J.det()
-        i11 =  J[1, 1] / detJ
-        i12 = -J[0, 1] / detJ
-        i21 = -J[1, 0] / detJ
-        i22 =  J[0, 0] / detJ
-        B_parts = []
-        for i in range(4):
-            dNx = i11 * dN_dxi[i] + i12 * dN_deta[i]
-            dNy = i21 * dN_dxi[i] + i22 * dN_deta[i]
-            B_parts.append(sp.Matrix([[dNx, 0], [0, dNy], [dNy, dNx]]))
-        return sp.Matrix.hstack(*B_parts), detJ
-
-    def _d(self, analysis):
-        E = sp.Rational(self.E).limit_denominator(1_000_000)
-        nu = sp.Rational(self.nu).limit_denominator(1000)
-        if analysis == ANALYSIS_PLANE_STRESS:
-            f = E / (1 - nu ** 2)
-            return f * sp.Matrix([
-                [1,  nu, 0],
-                [nu, 1,  0],
-                [0,  0,  (1 - nu) / 2],
-            ])
-        f = E / ((1 + nu) * (1 - 2 * nu))
-        return f * sp.Matrix([
-            [1 - nu, nu,    0],
-            [nu,     1 - nu, 0],
-            [0,      0,      (1 - 2 * nu) / 2],
-        ])
-
-    def integrand_entry(self, i, j, analysis):
-        Ns = self._shape_functions()
-        dN_dxi  = [sp.diff(N, self.xi)  for N in Ns]
-        dN_deta = [sp.diff(N, self.eta) for N in Ns]
-        J = self._jacobian(dN_dxi, dN_deta)
-        B, detJ = self._b(dN_dxi, dN_deta, J)
-        D = self._d(analysis)
-        K = (B.T * D * B) * sp.Abs(detJ) * sp.Rational(self.t).limit_denominator(1000)
-        return sp.simplify(K[i, j])
+# La capa simbólica `SymbolicIntegrandQ4` vive ahora en
+# `fem/symbolic_integrand.py` (SymPy puro) — se importa arriba. Se movió en
+# 2026-05 para que la memoria PDF (file_io) no arrastre el stack Tk de este
+# overlay solo para usarla.
 
 
 # ══════════════ MÓDULO M5 OVERLAY (fusión K_e + Gauss) ══════════════
@@ -199,7 +132,7 @@ class StiffnessElementModule(CanvasOverlayModule):
             expr=(r"\mathbf{k}_e = \int\!\!\int \mathbf{B}^{T} \mathbf{D}\, "
                   r"\mathbf{B}\,\left|\det\mathbf{J}\right|\, t"
                   r"\;\; d\xi\, d\eta"),
-            fontsize=13, color="#ef5350", bg=bg,
+            fontsize=13, color=HEALTH_ERROR_COLOR, bg=bg,
         ).pack(fill="x", pady=(0, 1))
         tk.Label(
             hero,
@@ -211,7 +144,7 @@ class StiffnessElementModule(CanvasOverlayModule):
             hero,
             expr=(r"\mathbf{k}_e \approx \sum_{p} w_p\, \mathbf{B}^{T}(\xi_p,\eta_p)\, \mathbf{D}\,"
                   r"\mathbf{B}(\xi_p,\eta_p)\,\left|\det\mathbf{J}\right|\, t"),
-            fontsize=13, color="#ffd54f", bg=bg,
+            fontsize=13, color=OVERLAY_ACCENT_AMBER, bg=bg,
         ).pack(fill="x", pady=(1, 0))
 
         # ── 2) EXPANDER: el "monstruo" simbólico (ex-M5), colapsado ──
@@ -293,7 +226,7 @@ class StiffnessElementModule(CanvasOverlayModule):
 
         # Status (Σ n/total pg + último sumado).
         self._lbl_status = tk.Label(
-            body, text="", bg=bg, fg="#ffd54f",
+            body, text="", bg=bg, fg=OVERLAY_ACCENT_AMBER,
             font=("Consolas", 9, "bold"), anchor="w",
         )
         self._lbl_status.pack(fill="x", padx=2)
@@ -324,7 +257,7 @@ class StiffnessElementModule(CanvasOverlayModule):
         # completa, scrollable). Convierte "imposible" en evidencia.
         self._lbl_complexity = ttk.Label(
             parent, text="", font=("Consolas", 9, "bold"),
-            foreground="#ffd54f", wraplength=520, justify="left",
+            foreground=OVERLAY_ACCENT_AMBER, wraplength=520, justify="left",
             cursor="hand2",
         )
         self._lbl_complexity.pack(fill="x", pady=(2, 2))
@@ -722,7 +655,8 @@ class StiffnessElementModule(CanvasOverlayModule):
                 self._last_kij_key = cache_key
             except Exception as exc:
                 self._show_placeholder(
-                    f"Error K_(i={self._i},j={self._j}):\n{exc}", fg="#ef5350")
+                    f"Error K_(i={self._i},j={self._j}):\n{exc}",
+                    fg=HEALTH_ERROR_COLOR)
                 self._set_complexity("")
                 return
         try:
@@ -803,7 +737,7 @@ class StiffnessElementModule(CanvasOverlayModule):
             header,
             text=(f"K_({self._i},{self._j})(ξ, η)  ·  {n_terms} términos  ·  "
                   f"{n_chars:,} chars LaTeX").replace(",", "."),
-            bg=EDU_AXES_BG, fg="#ffd54f",
+            bg=EDU_AXES_BG, fg=OVERLAY_ACCENT_AMBER,
             font=("Consolas", 12, "bold"), anchor="w",
         ).pack(fill="x")
         tk.Label(
@@ -818,8 +752,8 @@ class StiffnessElementModule(CanvasOverlayModule):
         body_frame = tk.Frame(top, bg=EDU_AXES_BG)
         body_frame.pack(fill="both", expand=True, padx=10, pady=(4, 10))
         text = tk.Text(
-            body_frame, wrap="none", bg=EDU_LABEL_BG, fg="#dcdcdc",
-            font=("Consolas", 9), insertbackground="#dcdcdc",
+            body_frame, wrap="none", bg=EDU_LABEL_BG, fg=EDU_INTEGRAND_TEXT_COLOR,
+            font=("Consolas", 9), insertbackground=EDU_INTEGRAND_TEXT_COLOR,
             relief="flat", borderwidth=0,
         )
         vscroll = ttk.Scrollbar(body_frame, orient="vertical",
@@ -883,7 +817,7 @@ class StiffnessElementModule(CanvasOverlayModule):
                       "Q9: B es 3×18 → la expansión simbólica de K_(i,j)\n"
                       "excede el parser de mathtext.\n"
                       "La conclusión es la misma: imposible analíticamente."),
-                fg="#dcdcdc",
+                fg=EDU_INTEGRAND_TEXT_COLOR,
             )
             if not self._integrand_placeholder.winfo_ismapped():
                 self._integrand_placeholder.pack(expand=True, fill="both",
@@ -900,7 +834,7 @@ class StiffnessElementModule(CanvasOverlayModule):
         if self._integrand_widget is None:
             self._integrand_widget = LatexExpressionImage(
                 self._integrand_container, expr=expr,
-                fontsize=13, color="#dcdcdc", bg=EDU_LABEL_BG, cache=True,
+                fontsize=13, color=EDU_INTEGRAND_TEXT_COLOR, bg=EDU_LABEL_BG, cache=True,
             )
             self._integrand_widget.pack(expand=True, padx=8, pady=8)
         else:

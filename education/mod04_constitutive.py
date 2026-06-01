@@ -56,6 +56,10 @@ from config.settings import (
     ANALYSIS_PLANE_STRESS, ANALYSIS_PLANE_STRAIN,
     HEALTH_OK_COLOR, HEALTH_WARNING_COLOR, HEALTH_ERROR_COLOR,
     EDU_AXES_BG, EDU_FG, EDU_FG_MUTED, CANVAS_NODE_COLOR,
+    OVERLAY_BORDER, PHASE_PRE_COLOR, OVERLAY_ACCENT_AMBER,
+    OVERLAY_ACCENT_BLUE, GAUSS_CANONICAL_COLOR, CANVAS_BOUNDARY_COLOR,
+    EDU_MARKER_OUTLINE_COLOR,
+    EDU_MAT_ALUMINUM_COLOR, EDU_MAT_POLYMER_COLOR, EDU_MAT_RUBBER_COLOR,
 )
 
 
@@ -66,15 +70,12 @@ _DEMO_NU = 0.30
 # Tag del MeshCanvas para los dibujos M4 (highlight del elem seleccionado).
 _TAG = "edu_m4"
 
-# Colores del espectro (mismo lenguaje cromático que el resto del overlay).
-# TODO(hex): _TRACK_COLOR/_TRACK_FILL/_KNOB_COLOR/_HOME_COLOR siguen como
-# literales del espectro (identidad visual aprobada). Migrar a config en un
-# pase dedicado — _TRACK_FILL == PHASE_PRE_COLOR. Los text-colors del probe y
-# del espectro ya usan EDU_FG / EDU_FG_MUTED de config.
-_TRACK_COLOR = "#3a3a55"   # track base (sin llenar)
-_TRACK_FILL  = "#0d6efd"   # porción 0..ν (estado OK)
-_KNOB_COLOR  = "#ffd54f"   # perilla (amarillo highlight)
-_HOME_COLOR  = "#ffd54f"   # marcador del ν del material real ("tu material")
+# Colores del espectro (mismo lenguaje cromático que el resto del overlay,
+# importados de config/settings.py — sin hex literales).
+_TRACK_COLOR = OVERLAY_BORDER        # track base (sin llenar)
+_TRACK_FILL  = PHASE_PRE_COLOR       # porción 0..ν (estado OK)
+_KNOB_COLOR  = OVERLAY_ACCENT_AMBER  # perilla (amarillo highlight)
+_HOME_COLOR  = OVERLAY_ACCENT_AMBER  # marcador del ν del material real ("tu material")
 
 
 class ConstitutiveModule(CanvasOverlayModule):
@@ -106,12 +107,12 @@ class ConstitutiveModule(CanvasOverlayModule):
     # / "caucho (cuasi-inc.)" en la regla vieja. El detalle de incompresible
     # se muestra solo en la lectura bajo la perilla, no en el ancla.
     _MAT_REFS = (
-        (0.00, "corcho",   "#80deea"),
-        (0.20, "hormigón", "#90caf9"),
-        (0.30, "acero",    "#a5d6a7"),
-        (0.35, "aluminio", "#fff176"),
-        (0.45, "polímero", "#ffb74d"),
-        (0.49, "caucho",   "#ef9a9a"),
+        (0.00, "corcho",   GAUSS_CANONICAL_COLOR),
+        (0.20, "hormigón", OVERLAY_ACCENT_BLUE),
+        (0.30, "acero",    CANVAS_BOUNDARY_COLOR),
+        (0.35, "aluminio", EDU_MAT_ALUMINUM_COLOR),
+        (0.45, "polímero", EDU_MAT_POLYMER_COLOR),
+        (0.49, "caucho",   EDU_MAT_RUBBER_COLOR),
     )
     _CAUCHO_NOTE = "(cuasi-inc.)"
     # Ganancia visual FIJA del probe (adimensional). Bajo tracción uniaxial
@@ -277,13 +278,13 @@ class ConstitutiveModule(CanvasOverlayModule):
                 return
             mesh.canvas.create_polygon(
                 *pts,
-                outline="#ffd54f", fill="", width=3.0, tags=_TAG,
+                outline=OVERLAY_ACCENT_AMBER, fill="", width=3.0, tags=_TAG,
             )
             cx = sum(pts[::2]) / 4
             cy = sum(pts[1::2]) / 4
             mesh.canvas.create_text(
                 cx, cy - 16, text=f"D ▸ E{self.element_id}",
-                fill="#ffd54f", font=("Consolas", 10, "bold"),
+                fill=OVERLAY_ACCENT_AMBER, font=("Consolas", 10, "bold"),
                 tags=_TAG,
             )
         except Exception:
@@ -436,7 +437,7 @@ class ConstitutiveModule(CanvasOverlayModule):
         # Marcadores de extremos del rango.
         c.create_text(x0 - 4, y + 13, text="0", fill=EDU_FG_MUTED,
                       font=("Consolas", 8), anchor="n")
-        c.create_text(x1 + 4, y + 13, text="0.5", fill="#ef5350",
+        c.create_text(x1 + 4, y + 13, text="0.5", fill=HEALTH_ERROR_COLOR,
                       font=("Consolas", 8, "bold"), anchor="n")
 
         # Anclas de material: tick + label ESCALONADO (par arriba / impar
@@ -460,12 +461,12 @@ class ConstitutiveModule(CanvasOverlayModule):
         hx = self._x_for_nu(self._nu_default)
         c.create_polygon(
             hx, y + 7, hx - 5, y + 15, hx + 5, y + 15,
-            fill=_HOME_COLOR, outline="#ffffff", width=0.8,
+            fill=_HOME_COLOR, outline=EDU_MARKER_OUTLINE_COLOR, width=0.8,
         )
 
         # Perilla en la posición actual.
         c.create_oval(kx - 8, y - 8, kx + 8, y + 8,
-                       fill=_KNOB_COLOR, outline="#ffffff", width=1.6)
+                       fill=_KNOB_COLOR, outline=EDU_MARKER_OUTLINE_COLOR, width=1.6)
 
         # Lectura ÚNICA de ν (centrada, robusta a clipping). Añade el nombre
         # del material solo cuando ν está enganchado a un ancla.

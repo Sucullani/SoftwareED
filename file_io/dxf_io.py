@@ -78,12 +78,35 @@ def _shoelace_signed_area(pts) -> float:
     return 0.5 * a
 
 
-def _find_or_create_node(project, x, y, tol):
-    """Busca nodo existente con coords (x,y) dentro de tol; si no existe lo crea."""
+def _build_coord_index(project, tol):
+    """Índice espacial nodo→celda cuantizada (tamaño tol) para dedup O(1)
+    amortizado en la importación. Sin esto, _find_or_create_node hacía un
+    scan lineal O(n) por vértice → O(n²) total en mallas DXF grandes."""
+    index: dict = {}
+    inv = 1.0 / tol if tol > 0 else 0.0
     for nid, node in project.nodes.items():
-        if abs(node.x - x) <= tol and abs(node.y - y) <= tol:
-            return nid
+        key = (int(round(node.x * inv)), int(round(node.y * inv)))
+        index.setdefault(key, []).append(nid)
+    return index
+
+
+def _find_or_create_node(project, x, y, tol, coord_index):
+    """Busca nodo existente con coords (x,y) dentro de tol; si no existe lo crea.
+
+    Usa el índice espacial `coord_index` (celdas de lado tol): solo compara
+    contra los nodos de las 9 celdas vecinas, preservando la semántica de
+    tolerancia del scan lineal original pero en O(1) amortizado.
+    """
+    inv = 1.0 / tol if tol > 0 else 0.0
+    cx, cy = int(round(x * inv)), int(round(y * inv))
+    for dx in (-1, 0, 1):
+        for dy in (-1, 0, 1):
+            for nid in coord_index.get((cx + dx, cy + dy), ()):
+                node = project.nodes.get(nid)
+                if node is not None and abs(node.x - x) <= tol and abs(node.y - y) <= tol:
+                    return nid
     new_node = project.add_node(float(x), float(y))
+    coord_index.setdefault((cx, cy), []).append(new_node.id)
     return new_node.id
 
 
@@ -187,6 +210,9 @@ def import_dxf(filepath: str,
         for elem in project.elements.values()
     }
 
+    # Índice espacial para dedup O(1) de vértices (seed desde nodos existentes).
+    coord_index = _build_coord_index(project, tol)
+
     for poly in msp.query("LWPOLYLINE POLYLINE"):
         if poly.dxf.layer != layer_elements:
             continue
@@ -211,7 +237,8 @@ def import_dxf(filepath: str,
             raw_pts = list(reversed(raw_pts))
 
         scaled = [(x * scale, y * scale) for (x, y) in raw_pts]
-        node_ids = [_find_or_create_node(project, x, y, tol) for (x, y) in scaled]
+        node_ids = [_find_or_create_node(project, x, y, tol, coord_index)
+                    for (x, y) in scaled]
 
         if len(set(node_ids)) < 4:
             warnings.append(

@@ -168,6 +168,7 @@ class ProjectModel:
         # del ultimo elemento), los `if` protegen.
         if node_id in self.nodes:
             del self.nodes[node_id]
+            self._node_index_map_cache = None
             result["nodes_deleted"].append(node_id)
         if node_id in self.nodal_loads:
             del self.nodal_loads[node_id]
@@ -249,6 +250,45 @@ class ProjectModel:
             "elements_to_delete": sorted(elements_to_delete),
             "nodes_to_delete": sorted(nodes_to_delete),
             "nodes_to_preserve": sorted(nodes_to_preserve),
+        }
+
+    def preview_element_cleanup(self, elem_id):
+        """Calcula sin mutar qué pasaría al eliminar `elem_id` con auto-cleanup:
+        qué nodos quedarían huérfanos sin referencias (auto-eliminables) vs con
+        datos del usuario (preservados). Fuente única para los modales de
+        confirmación de pre_tab y mesh_canvas (antes duplicado verbatim en ambos
+        widgets GUI). Usa el índice inverso `_node_to_elements` → O(1) por nodo
+        en vez del scan O(E) que tenían las copias UI.
+
+        Retorna dict con:
+            - "nodes_to_delete": list[int] (huérfanos sin datos)
+            - "nodes_to_preserve": list[int] (huérfanos con cargas/BCs/surface)
+        """
+        elem = self.elements.get(elem_id)
+        if elem is None:
+            return {"nodes_to_delete": [], "nodes_to_preserve": []}
+        to_delete = []
+        to_preserve = []
+        for nid in set(elem.node_ids):
+            if nid not in self.nodes:
+                continue
+            # ¿Sigue en otro elemento? O(1) via índice inverso.
+            in_other = bool(self._node_to_elements.get(nid, set()) - {elem_id})
+            if in_other:
+                continue
+            has_data = (
+                nid in self.nodal_loads
+                or nid in self.boundary_conditions
+                or any(sl.node_start == nid or sl.node_end == nid
+                       for sl in self.surface_loads)
+            )
+            if has_data:
+                to_preserve.append(nid)
+            else:
+                to_delete.append(nid)
+        return {
+            "nodes_to_delete": sorted(to_delete),
+            "nodes_to_preserve": sorted(to_preserve),
         }
 
     def is_node_referenced(self, node_id):
@@ -360,6 +400,10 @@ class ProjectModel:
                 continue
             del self.nodes[nid]
             self._node_to_elements.pop(nid, None)
+            # Invalidar el cache de indice ordinal: borrar un nodo cambia el
+            # mapeo node_id -> indice de fila/columna en K/F/u. Sin esto, un
+            # solve posterior usa indices stale (IndexError / ensamblaje malo).
+            self._node_index_map_cache = None
             result["nodes_deleted"].append(nid)
 
         result["nodes_deleted"].sort()
@@ -509,7 +553,10 @@ class ProjectModel:
         idx_map = self.node_index_map
         u_pre = np.zeros(self.total_dof)
         for bc in self.boundary_conditions.values():
-            base = 2 * idx_map[bc.node_id]
+            idx = idx_map.get(bc.node_id)
+            if idx is None:
+                continue  # BC sobre nodo inexistente: lo saltamos (ver get_restrained_dofs)
+            base = 2 * idx
             if bc.restrain_x:
                 u_pre[base] = bc.ux_value
             if bc.restrain_y:
@@ -566,6 +613,10 @@ class ProjectModel:
                     idx[nid] = set()
                 idx[nid].add(eid)
         self._node_to_elements = idx
+        # Las mutaciones masivas de node_ids (expand_q4_to_q9, shrink_q9_to_q4,
+        # subdivide) pueden agregar/quitar nodos: invalidar el cache ordinal
+        # para que node_index_map se recompute desde sorted(nodes.keys()).
+        self._node_index_map_cache = None
 
     def dof_x(self, node_id):
         """Indice DOF global de Ux para node_id (0-indexed)."""
@@ -580,7 +631,12 @@ class ProjectModel:
         idx_map = self.node_index_map
         dofs = []
         for bc in self.boundary_conditions.values():
-            base = 2 * idx_map[bc.node_id]
+            idx = idx_map.get(bc.node_id)
+            if idx is None:
+                # BC colgante (nodo borrado): el validador de salud lo flaggea;
+                # aqui lo saltamos para no romper el solve con KeyError.
+                continue
+            base = 2 * idx
             if bc.restrain_x:
                 dofs.append(base)
             if bc.restrain_y:

@@ -19,6 +19,9 @@ from config.settings import (
     APP_NAME, APP_VERSION, WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT,
     PROJECT_FILE_EXTENSION, PROJECT_FILE_DESCRIPTION,
     PHASE_PRE_COLOR, MENU_DISABLED_FG,
+    FONT_UI, FONT_UI_LARGE, HEALTH_OK_COLOR, OVERLAY_ACCENT_AMBER,
+    STATUS_BAR_BG_COLOR, BREADCRUMB_VISITED_FG_COLOR,
+    BREADCRUMB_INACTIVE_FG_COLOR,
 )
 from config import recent_files
 from models.project import ProjectModel
@@ -111,7 +114,7 @@ class MainWindow:
         seguro fuera del hilo principal."""
         def _worker():
             try:
-                from tests.example_data import load_example_project
+                from models.example_library import load_example_project
                 from fem.solver import solve_system
                 from fem.stress import compute_all_stresses
                 proj = load_example_project()
@@ -442,7 +445,7 @@ class MainWindow:
 
         self.status_label = ttk.Label(
             self.status_frame, text="Listo",
-            bootstyle="inverse-dark", font=("Segoe UI", 9), padding=(10, 4),
+            bootstyle="inverse-dark", font=FONT_UI, padding=(10, 4),
         )
         self.status_label.pack(side=LEFT)
 
@@ -451,7 +454,7 @@ class MainWindow:
         # tras el toggle correspondiente; oculto via pack_forget.
         self.ortho_indicator_label = tk.Label(
             self.status_frame, text="ORTHO",
-            fg=PHASE_PRE_COLOR, bg="#1c1e22",
+            fg=PHASE_PRE_COLOR, bg=STATUS_BAR_BG_COLOR,
             font=("Segoe UI", 9, "bold"), padx=10, pady=4,
         )
         # No pack inicial — se gestiona desde _update_ortho_indicator.
@@ -476,7 +479,7 @@ class MainWindow:
         ):
             chip = tk.Label(
                 self._breadcrumb_frame, text=label,
-                fg="#555", bg="#1c1e22",
+                fg=BREADCRUMB_INACTIVE_FG_COLOR, bg=STATUS_BAR_BG_COLOR,
                 font=("Segoe UI", 10, "bold"), padx=6, pady=4,
                 cursor="hand2",
             )
@@ -497,13 +500,13 @@ class MainWindow:
 
         self.info_label = ttk.Label(
             self.status_frame, text="",
-            bootstyle="inverse-dark", font=("Segoe UI", 9), padding=(10, 4),
+            bootstyle="inverse-dark", font=FONT_UI, padding=(10, 4),
         )
         self.info_label.pack(side=RIGHT)
 
         self.analysis_label = ttk.Label(
             self.status_frame, text="",
-            bootstyle="inverse-dark", font=("Segoe UI", 9), padding=(10, 4),
+            bootstyle="inverse-dark", font=FONT_UI, padding=(10, 4),
         )
         self.analysis_label.pack(side=RIGHT)
 
@@ -514,7 +517,7 @@ class MainWindow:
         # severidad sin depender del bootstyle del tema.
         self.health_badge = tk.Label(
             self.status_frame, text="✓ Modelo sano",
-            fg="#4caf50", bg="#1c1e22",
+            fg=HEALTH_OK_COLOR, bg=STATUS_BAR_BG_COLOR,
             font=("Segoe UI", 9, "bold"), padx=10, pady=4,
             cursor="hand2",
         )
@@ -565,11 +568,11 @@ class MainWindow:
         # Pintar cada chip según estado.
         for mod_key, chip in self._breadcrumb_chips.items():
             if mod_key in active_mod_keys:
-                chip.configure(fg="#ffd54f")  # activo
+                chip.configure(fg=OVERLAY_ACCENT_AMBER)  # activo
             elif mod_key in self._breadcrumb_visited:
-                chip.configure(fg="#ffffff")  # visitado
+                chip.configure(fg=BREADCRUMB_VISITED_FG_COLOR)  # visitado
             else:
-                chip.configure(fg="#555")     # no visitado
+                chip.configure(fg=BREADCRUMB_INACTIVE_FG_COLOR)  # no visitado
 
     def _update_status_info(self):
         """Actualiza la informacion del modelo en la barra de estado."""
@@ -853,42 +856,42 @@ class MainWindow:
         # Despacho por variante: cada bloque importa el loader perezosamente
         # y compone un mensaje informativo para la status bar.
         if variant == "canon_q9":
-            from tests.example_data import load_example_project_q9
+            from models.example_library import load_example_project_q9
             self.project = load_example_project_q9(P=1000.0)
             variant_msg = (
                 "Ejemplo Q9: 9 nodos vértices + medios + centroides, "
                 "4 elementos bicuadráticos, E=225000, ν=0.2, P=1000 N"
             )
         elif variant == "timoshenko_q4":
-            from tests.example_data import load_example_timoshenko_q4
+            from models.example_library import load_example_timoshenko_q4
             self.project = load_example_timoshenko_q4()
             variant_msg = (
                 "Viga Timoshenko Q4 (14×4): L=14 m, H=1,20 m, "
                 "E=217370 kgf/cm², q=5000 kgf/m. F5 para resolver."
             )
         elif variant == "timoshenko_q9":
-            from tests.example_data import load_example_timoshenko_q9
+            from models.example_library import load_example_timoshenko_q9
             self.project = load_example_timoshenko_q9()
             variant_msg = (
                 "Viga Timoshenko Q9 (14×4 macro): error < 0,3% vs analítico "
                 "para σ_x y δ_máx. Validada en docs/vyv/ con SAP2000."
             )
         elif variant == "cook_q4":
-            from tests.example_data import load_example_cook_q4
+            from models.example_library import load_example_cook_q4
             self.project = load_example_cook_q4()
             variant_msg = (
                 "Membrana de Cook Q4 (8×8): u_y(48,52) esperado ~22,08 "
                 "(error -7,8% vs ref 23,95 — shear-locking parcial)."
             )
         elif variant == "cook_q9":
-            from tests.example_data import load_example_cook_q9
+            from models.example_library import load_example_cook_q9
             self.project = load_example_cook_q9()
             variant_msg = (
                 "Membrana de Cook Q9 (8×8 macro): u_y(48,52) esperado ~23,93 "
                 "(error -0,10% vs ref 23,95)."
             )
         else:  # "canon_q4" o cualquier valor desconocido
-            from tests.example_data import load_example_project
+            from models.example_library import load_example_project
             self.project = load_example_project(P=1000.0)
             variant_msg = (
                 "Ejemplo cargado: 9 nodos, 4 elementos Q4, "
@@ -1612,7 +1615,7 @@ class _PDFProgressDialog:
             self._lbl = ttk.Label(
                 frame,
                 text="Inicializando…",
-                font=("Segoe UI", 10),
+                font=FONT_UI_LARGE,
             )
             self._lbl.pack(anchor="w", pady=(0, 8))
             self._bar = ttk.Progressbar(

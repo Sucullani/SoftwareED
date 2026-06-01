@@ -6,7 +6,7 @@ utilidades para secciones, ecuaciones, matrices y tablas de valores.
 from __future__ import annotations
 
 import os
-from typing import Iterable, Optional
+from typing import Optional
 
 import numpy as np
 from pylatex import (
@@ -46,17 +46,9 @@ class TheoryDoc:
         self.doc.append(NoEscape(r"\maketitle"))
 
     # ---------- estructura ----------
-    def section(self, title: str) -> None:
-        """Seccion sin numerar (no aparece en TOC por defecto)."""
-        self.doc.append(NoEscape(rf"\section*{{{title}}}"))
-
     def section_numbered(self, title: str) -> None:
         """Seccion numerada automaticamente por LaTeX, aparece en TOC."""
         self.doc.append(NoEscape(rf"\section{{{title}}}"))
-
-    def subsection(self, title: str) -> None:
-        """Subseccion sin numerar."""
-        self.doc.append(NoEscape(rf"\subsection*{{{title}}}"))
 
     def subsection_numbered(self, title: str) -> None:
         """Subseccion numerada automaticamente (X.Y), aparece en TOC.
@@ -76,11 +68,6 @@ class TheoryDoc:
         self.doc.append(NoEscape(r"\begin{equation*}"))
         self.doc.append(NoEscape(latex))
         self.doc.append(NoEscape(r"\end{equation*}"))
-
-    def align(self, lines: Iterable[str]) -> None:
-        self.doc.append(NoEscape(r"\begin{align*}"))
-        self.doc.append(NoEscape(r" \\ ".join(lines)))
-        self.doc.append(NoEscape(r"\end{align*}"))
 
     # ---------- matrices ----------
     # Convencion de formato: los positivos NO llevan prefijo '+' (solo el '-'

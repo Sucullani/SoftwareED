@@ -5,7 +5,10 @@ AboutDialog: Ventana "Acerca de..." del software.
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 
-from config.settings import APP_NAME, APP_VERSION, APP_AUTHOR
+from config.settings import (
+    APP_NAME, APP_VERSION, APP_AUTHOR,
+    DIALOG_MUTED_FG_COLOR, ABOUT_INFO_FG_COLOR, FONT_UI_LARGE,
+)
 
 
 class AboutDialog:
@@ -34,7 +37,7 @@ class AboutDialog:
             main,
             text="Software Educativo de Elementos Finitos",
             font=("Segoe UI", 11),
-            foreground="#aaa",
+            foreground=DIALOG_MUTED_FG_COLOR,
         ).pack()
 
         ttk.Separator(main).pack(fill=X, pady=15)
@@ -53,9 +56,9 @@ class AboutDialog:
         ttk.Label(
             main,
             text=info_text,
-            font=("Segoe UI", 10),
+            font=FONT_UI_LARGE,
             justify=CENTER,
-            foreground="#ccc",
+            foreground=ABOUT_INFO_FG_COLOR,
         ).pack()
 
         ttk.Separator(main).pack(fill=X, pady=15)

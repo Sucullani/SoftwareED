@@ -64,6 +64,27 @@ def _run_case(project, header):
               f"Angulos=[{q['min_angle']:.1f}, {q['max_angle']:.1f}]  "
               f"Robinson={q['robinson']:.2f}  {q['status']}")
 
+    # --- Verificacion automatica (golden-free): invariantes fisicos ---
+    # Equilibrio global de la solucion lineal: la suma de las cargas
+    # aplicadas + la suma de las reacciones debe anularse por direccion.
+    # Es exacto a precision de maquina para FE lineal -> atrapa regresiones
+    # del ensamblaje/solver sin necesidad de valores de referencia fijos.
+    F_app = solution["F"]
+    R = solution["reactions"]
+    scale = max(1.0, float(np.max(np.abs(F_app))))
+    eq_x = abs(float(np.sum(F_app[0::2]) + np.sum(R[0::2])))
+    eq_y = abs(float(np.sum(F_app[1::2]) + np.sum(R[1::2])))
+    checks = [
+        (f"{header} | u finito", bool(np.all(np.isfinite(u)))),
+        (f"{header} | equilibrio global X (|sumF+sumR|={eq_x:.2e})",
+         eq_x < 1e-6 * scale),
+        (f"{header} | equilibrio global Y (|sumF+sumR|={eq_y:.2e})",
+         eq_y < 1e-6 * scale),
+    ]
+    for name, ok in checks:
+        print(f"  [{'OK' if ok else 'FAIL'}] {name}")
+    return checks
+
 
 def _build_surface_load_case(q=100.0):
     """Cuadrado unitario 1 elemento Q4 con carga superficial en arista 2->3.
@@ -122,25 +143,44 @@ def _run_surface_load_case(tag, project, q, L=1.0):
           f"(simetrico: {sym_x}, ambos +x: {pos_x})")
     print(f"Uy nodo 2 = {u2y:+.4e}  Uy nodo 3 = {u3y:+.4e}  "
           f"(antisimetrico: {sym_y})")
+    return [
+        (f"{tag} | fuerza equivalente Fx=q*L", ok),
+        (f"{tag} | Ux simetrico nodos 2-3", sym_x),
+        (f"{tag} | Uy antisimetrico nodos 2-3", sym_y),
+        (f"{tag} | desplazamiento +x", pos_x),
+    ]
 
 
 def main():
-    _run_case(load_example_project(P=1000.0),
-              "TEST Q4: motor FEM con ejemplo de validacion")
+    checks = []
+    checks += _run_case(load_example_project(P=1000.0),
+                        "TEST Q4: motor FEM con ejemplo de validacion")
     print()
-    _run_case(load_example_project_q9(P=1000.0),
-              "TEST Q9: motor FEM con ejemplo expandido")
+    checks += _run_case(load_example_project_q9(P=1000.0),
+                        "TEST Q9: motor FEM con ejemplo expandido")
     print()
-    _run_surface_load_case(
+    checks += _run_surface_load_case(
         "TEST carga superficial Q4 (hardcoded, cuadrado unitario)",
         _build_surface_load_case(q=100.0), q=100.0)
     print()
     p_q9 = _build_surface_load_case(q=100.0)
     expand_q4_to_q9(p_q9)
-    _run_surface_load_case(
+    checks += _run_surface_load_case(
         "TEST carga superficial Q9 (cuadrado unitario expandido)",
         p_q9, q=100.0)
-    print("\nTest completado exitosamente.")
+
+    # Resumen + exit code reflejando la verificacion (CLAUDE.md: cambios en
+    # assembly/solver/stress deben pasar este test; antes siempre daba exit 0).
+    failed = [name for name, ok in checks if not ok]
+    print("\n" + "=" * 60)
+    print(f"  Resumen: {len(checks) - len(failed)}/{len(checks)} checks OK")
+    print("=" * 60)
+    if failed:
+        print("FALLOS:")
+        for name in failed:
+            print(f"  [FAIL] {name}")
+        sys.exit(1)
+    print("Test completado exitosamente.")
 
 
 if __name__ == "__main__":

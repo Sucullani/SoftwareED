@@ -1,2 +1,0 @@
-FINDSTR: No se puede abrir S:/
-FINDSTR: No se puede abrir from.*ttkbootstrap|import.*ttkbootstrap

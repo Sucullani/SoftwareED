@@ -49,6 +49,10 @@ import ttkbootstrap as ttk
 from config.settings import (
     SURFACE_3D_DEFAULT_GRID, SURFACE_3D_DISC_THRESHOLD,
     MOHR_BG, MOHR_FG,
+    CANVAS_ELEMENT_COLOR, HEALTH_ERROR_COLOR,
+    SURFACE_3D_EDGE_RAW_COLOR, SURFACE_3D_EDGE_SMOOTH_COLOR,
+    SURFACE_3D_MODE_RAW_COLOR, SURFACE_3D_Z0_PLANE_COLOR,
+    SURFACE_3D_Z0_EDGE_COLOR,
 )
 from fem.probe_query import compute_raw_grid
 from fem.shape_functions import get_shape_functions
@@ -312,7 +316,10 @@ class Surface3DViewer(tk.Toplevel):
                     Ns = N_func(XI[r, c], ETA[r, c])
                     X[r, c] = Ns @ pts[:, 0]
                     Y[r, c] = Ns @ pts[:, 1]
-                    Z_smooth[r, c] = Ns @ v_nodes_smooth
+                    # Z_smooth solo se usa en modo suavizado; en crudo se
+                    # descarta (Z viene de compute_raw_grid) -> no lo computamos.
+                    if not is_raw:
+                        Z_smooth[r, c] = Ns @ v_nodes_smooth
 
             # Modo crudo: usar la grilla pre-computada con compute_raw_grid
             if is_raw:
@@ -367,7 +374,7 @@ class Surface3DViewer(tk.Toplevel):
         # Superficie del campo: bordes blancos en suavizado (continuo),
         # bordes amarillos en crudo (resalta las "tejas" discontinuas).
         edge_lw = 0.6 if is_raw else 0.15
-        edge_color = "#ffe082" if is_raw else "#dddddd"
+        edge_color = SURFACE_3D_EDGE_RAW_COLOR if is_raw else SURFACE_3D_EDGE_SMOOTH_COLOR
 
         cmap, c_vmin, c_vmax = _cmap_for_range(vmin, vmax)
         c_range = max(c_vmax - c_vmin, 1e-15)
@@ -393,10 +400,10 @@ class Surface3DViewer(tk.Toplevel):
         # Estado de modo en el titulo, no en los ejes (que estan limpios)
         if is_raw:
             mode_lbl = "CRUDO  σ = D·B(ξ,η)·uₑ  (discontinuo C⁰)"
-            mode_color = "#ffb74d"
+            mode_color = SURFACE_3D_MODE_RAW_COLOR
         else:
             mode_lbl = "SUAVIZADO  σ = Σ Nᵢ·σᵢ̄  (continuo)"
-            mode_color = "#81c784"
+            mode_color = CANVAS_ELEMENT_COLOR
 
         ax.set_title(
             f"{label}  ·  {mode_lbl}",
@@ -490,7 +497,7 @@ class Surface3DViewer(tk.Toplevel):
             facecolors = cmap((Z - c_vmin) / c_range)
             ax.plot_surface(
                 X, Y, Z, facecolors=facecolors,
-                edgecolor="#dddddd", linewidth=0.15,
+                edgecolor=SURFACE_3D_EDGE_SMOOTH_COLOR, linewidth=0.15,
                 alpha=0.95, rcount=n, ccount=n, shade=False,
             )
 
@@ -539,7 +546,8 @@ class Surface3DViewer(tk.Toplevel):
         # Gris suave translucido: visible pero no compite con la superficie
         ax.plot_surface(
             Xp, Yp, Zp,
-            color="#5c5c70", alpha=0.18, edgecolor="#888899",
+            color=SURFACE_3D_Z0_PLANE_COLOR, alpha=0.18,
+            edgecolor=SURFACE_3D_Z0_EDGE_COLOR,
             linewidth=0.4, shade=False, zorder=0,
         )
 
@@ -568,7 +576,7 @@ class Surface3DViewer(tk.Toplevel):
                        float(v_nodes_smooth[kb]))
                 ax.plot(
                     [pa[0], pb[0]], [pa[1], pb[1]], [pa[2], pb[2]],
-                    color="#ef5350", lw=2.5, alpha=0.9, zorder=10,
+                    color=HEALTH_ERROR_COLOR, lw=2.5, alpha=0.9, zorder=10,
                 )
 
     @staticmethod

@@ -1,6 +1,0 @@
-# This file is used internally by FFMPEG.
-file 'file:C:/Tesis/Tesis Software/SoftwareED/tools/render_q4q9_manim/media/videos/q4_vs_q9/600p22/partial_movie_files/Q4vsQ9/2760756359_4012043907_3848084311.mp4'
-file 'file:C:/Tesis/Tesis Software/SoftwareED/tools/render_q4q9_manim/media/videos/q4_vs_q9/600p22/partial_movie_files/Q4vsQ9/2329991543_891910075_2041337062.mp4'
-file 'file:C:/Tesis/Tesis Software/SoftwareED/tools/render_q4q9_manim/media/videos/q4_vs_q9/600p22/partial_movie_files/Q4vsQ9/2329991543_2775030157_3453949643.mp4'
-file 'file:C:/Tesis/Tesis Software/SoftwareED/tools/render_q4q9_manim/media/videos/q4_vs_q9/600p22/partial_movie_files/Q4vsQ9/2329991543_3814820339_720482039.mp4'
-file 'file:C:/Tesis/Tesis Software/SoftwareED/tools/render_q4q9_manim/media/videos/q4_vs_q9/600p22/partial_movie_files/Q4vsQ9/2329991543_628044316_3920743218.mp4'

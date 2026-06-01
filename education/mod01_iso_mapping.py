@@ -58,14 +58,16 @@ from config.settings import (
     EDU_AXES_BG, EDU_LABEL_BG, EDU_FG_MUTED,
     EDU_NATURAL_OUTLINE_COLOR, EDU_NATURAL_AXES_COLOR,
     GAUSS_CANONICAL_COLOR, EDU_FREE_POINT_COLOR, EDU_MARKER_OUTLINE_COLOR,
+    HEALTH_ERROR_COLOR, OVERLAY_ACCENT_BLUE,
+    EDU_M1_VERTEX_NODE_COLOR, EDU_M1_CENTER_NODE_COLOR,
 )
 
 
 # Colores del cuadrado natural — estilo de referencia, fuente única en
 # config/settings.py (compartidos con el widget tk GaussCoordReadout).
 _C_BLUE = EDU_NATURAL_OUTLINE_COLOR
-_C_ORANGE = "#ff9f43"             # nodos vértice (identidad pedagógica de M1)
-_C_RED = "#ef5350"                # marcador de punto libre (rojo M1)
+_C_ORANGE = EDU_M1_VERTEX_NODE_COLOR  # nodos vértice (identidad pedagógica de M1)
+_C_RED = HEALTH_ERROR_COLOR       # marcador de punto libre (rojo M1)
 _C_CYAN = GAUSS_CANONICAL_COLOR   # snap a nodo (modo "discreto")
 _C_MUTED_RED = EDU_FREE_POINT_COLOR  # punto libre (modo "continuo")
 
@@ -484,14 +486,14 @@ class IsoMappingModule(CanvasOverlayModule):
         if self._explore_type == ELEMENT_Q9:
             mids = np.array([[0, -1], [1, 0], [0, 1], [-1, 0]])
             ax.scatter(mids[:, 0], mids[:, 1], s=60,
-                        c="#90caf9", edgecolors="white", linewidths=0.8,
+                        c=OVERLAY_ACCENT_BLUE, edgecolors="white", linewidths=0.8,
                         zorder=7)
             for i, (xi, eta) in enumerate(mids):
                 ax.annotate(str(i + 5), (xi, eta),
                              textcoords="offset points", xytext=(0, 0),
                              color="black", fontsize=7,
                              ha="center", va="center")
-            ax.scatter([0], [0], s=60, c="#ce93d8",
+            ax.scatter([0], [0], s=60, c=EDU_M1_CENTER_NODE_COLOR,
                         edgecolors="white", linewidths=0.8, zorder=7)
             ax.annotate("9", (0, 0),
                          textcoords="offset points", xytext=(0, 0),
@@ -536,7 +538,7 @@ class IsoMappingModule(CanvasOverlayModule):
         # La superficie ES esta función → su fórmula la rotula. Reemplaza al
         # antiguo `N{idx}(ξ,η)`, que duplicaba el lado izquierdo de la fórmula.
         ax.set_title(self._shape_formula_latex(),
-                      color="#90caf9", fontsize=13, pad=8)
+                      color=OVERLAY_ACCENT_BLUE, fontsize=13, pad=8)
         try:
             ax.set_xticklabels([]); ax.set_yticklabels([])
         except Exception:

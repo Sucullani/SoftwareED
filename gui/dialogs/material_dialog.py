@@ -35,6 +35,7 @@ from config.settings import LABEL_BG, LABEL_FG, CANVAS_SELECTED_ROW_BG, CANVAS_S
 from models.material import Material
 
 
+from gui.dialogs._dialog_helpers import center_dialog
 class MaterialDialog:
     """Ventana de gestion de materiales del proyecto."""
 
@@ -416,9 +417,4 @@ class MaterialDialog:
     # ═════════════════════════════════════════════════════════════════════
 
     def _center(self):
-        self.dialog.update_idletasks()
-        w = self.dialog.winfo_width()
-        h = self.dialog.winfo_height()
-        x = self.parent.winfo_x() + (self.parent.winfo_width() - w) // 2
-        y = self.parent.winfo_y() + (self.parent.winfo_height() - h) // 2
-        self.dialog.geometry(f"+{max(x, 0)}+{max(y, 0)}")
+        center_dialog(self.dialog, self.parent)

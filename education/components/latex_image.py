@@ -34,20 +34,7 @@ matplotlib.use("Agg")
 from matplotlib.figure import Figure
 from PIL import Image, ImageTk
 
-from config.settings import EDU_AXES_BG, EDU_FG, OVERLAY_BG
-
-
-def _ax_face_hex(ax) -> str:
-    """Color de fondo del axes en formato hex `#rrggbb`. Default
-    coherente con la paleta EDU si no se puede obtener."""
-    try:
-        c = ax.get_facecolor()
-        if isinstance(c, str):
-            return c if c.startswith("#") else EDU_AXES_BG
-        r, g, b = int(c[0] * 255), int(c[1] * 255), int(c[2] * 255)
-        return f"#{r:02x}{g:02x}{b:02x}"
-    except Exception:
-        return EDU_AXES_BG
+from config.settings import EDU_FG, OVERLAY_BG
 
 
 def _infer_bg(parent) -> str:
@@ -403,50 +390,6 @@ def render_expression_image(
     if cache:
         _CACHE[key] = photo
     return photo
-
-
-def _placeholder_for_matrix(
-    rows: int, cols: int, *, prefix: str, fontsize: int, bg: str,
-) -> ImageTk.PhotoImage:
-    """Placeholder dimensionado al tamaño aproximado de la matriz LaTeX
-    que vendra del async swap. Evita que el widget "salte" cuando
-    llega el PNG real."""
-    char_w = max(4, int(fontsize * 0.55))
-    # ~7 chars por celda promedio + corchetes + espaciado
-    cell_chars = 7
-    bracket_pad = 8
-    prefix_w = (len(prefix) * char_w + 12) if prefix else 0
-    width = max(50, min(1400, prefix_w + cols * cell_chars * char_w + bracket_pad * 2))
-    row_h = int(fontsize * 1.7)
-    height = max(20, rows * row_h + bracket_pad)
-    try:
-        img = Image.new("RGB", (width, height), bg)
-        return ImageTk.PhotoImage(img)
-    except Exception:
-        img = Image.new("RGBA", (1, 1), (0, 0, 0, 0))
-        return ImageTk.PhotoImage(img)
-
-
-def _placeholder_for_expression(
-    body: str, *, fontsize: int, bg: str,
-) -> ImageTk.PhotoImage:
-    """Placeholder PNG del mismo color que el bg, tamaño aproximado al
-    render LaTeX esperado.
-
-    Estimacion: ~6.5 px/char a fontsize 12 (CMU). Para fontsize distinto
-    escala linealmente. Alto = fontsize * 1.8. Sirve para que el layout
-    Tk asigne espacio razonable al widget antes de que llegue el swap
-    async — sin que el widget "salte" cuando llega el PNG real.
-    """
-    char_w = max(4, int(fontsize * 0.55))
-    width = max(20, min(1200, len(body) * char_w))
-    height = max(12, int(fontsize * 1.8))
-    try:
-        img = Image.new("RGB", (width, height), bg)
-        return ImageTk.PhotoImage(img)
-    except Exception:
-        img = Image.new("RGBA", (1, 1), (0, 0, 0, 0))
-        return ImageTk.PhotoImage(img)
 
 
 def _safe_render_mathtext_expression(
@@ -885,91 +828,6 @@ def _fig_to_photoimage(fig: Figure, *, dpi: int) -> ImageTk.PhotoImage:
     return ImageTk.PhotoImage(_fig_to_pil(fig, dpi=dpi))
 
 
-def place_matrix_in_axes(
-    ax,
-    matrix: MatrixLike,
-    *,
-    fmt: str = "{:.3g}",
-    fontsize: int = 14,
-    color: str = EDU_FG,
-    prefix: str = "",
-    bg: Optional[str] = None,
-    dpi: int = 200,
-    margin: float = 0.04,
-) -> bool:
-    """Coloca una matriz centrada en un `Axes` matplotlib.
-
-    El render se hace via HPacker matplotlib-nativo (sin paste PIL,
-    sin composicion en RGBA), salido como PIL.Image desde
-    `savefig(..., dpi=200, bbox_inches="tight")`. Despues se coloca
-    sobre el axes con `OffsetImage` + `AnnotationBbox` con `zoom`
-    calculado para preservar aspecto y entrar en el axes con `margin`
-    de respiro.
-
-    `dpi=200` produce un raster de alta resolucion; el zoom-down via
-    LANCZOS de `OffsetImage(interpolation="lanczos")` da un downscale
-    limpio. No se llama a `AnchoredOffsetbox` directo (que ignoraria
-    el tamano del axes y dejaria la matriz overflow-eada en figuras
-    chicas como las del FormulaValueToggle 6x2.6 in).
-
-    Retorna True si se renderizo OK, False si la matriz era vacia."""
-    from matplotlib.offsetbox import OffsetImage, AnnotationBbox
-
-    if bg is None:
-        bg = _ax_face_hex(ax)
-    cells = _matrix_to_strings(matrix, fmt=fmt)
-    if cells is None or cells.size == 0:
-        return False
-
-    pil_img = _render_matrix_via_packer_to_pil(
-        cells, prefix=prefix, fontsize=fontsize, color=color,
-        bg=bg, dpi=dpi,
-    )
-    arr = np.asarray(pil_img)
-    img_h, img_w = arr.shape[:2]
-    if img_h <= 0 or img_w <= 0:
-        return False
-
-    fig = ax.figure
-    # `dpi_cor=False`: el zoom mapea 1:1 entre pixel del array y pixel
-    # display. Sin esto, OffsetImage multiplica por `fig.dpi/72` y la
-    # imagen sale ~1.4x mas grande de lo esperado.
-    imagebox = OffsetImage(arr, interpolation="lanczos", dpi_cor=False)
-    ab = AnnotationBbox(
-        imagebox, (0.5, 0.5), xycoords="axes fraction",
-        frameon=False, pad=0, box_alignment=(0.5, 0.5),
-    )
-    ax.add_artist(ab)
-
-    def _fit_zoom(event=None):
-        """Re-compute OffsetImage zoom para fit-to-axes preservando
-        aspect. Se llama en cada `draw_event` para que sobreviva a
-        `tight_layout`, resize de figure y cambios de DPI."""
-        try:
-            bbox = ax.get_window_extent()
-            ax_w = bbox.width
-            ax_h = bbox.height
-            if ax_w <= 0 or ax_h <= 0 or img_w <= 0 or img_h <= 0:
-                return
-            z = min(ax_w / img_w, ax_h / img_h) * (1.0 - margin)
-            if z > 0 and abs(imagebox.get_zoom() - z) > 1e-3:
-                imagebox.set_zoom(z)
-        except Exception:
-            pass
-
-    # Compute inicial usando `get_position()` (pre-tight_layout).
-    pos = ax.get_position()
-    fig_w_in, fig_h_in = fig.get_size_inches()
-    ax_w_px = max(1.0, pos.width * fig_w_in * fig.dpi)
-    ax_h_px = max(1.0, pos.height * fig_h_in * fig.dpi)
-    z0 = min(ax_w_px / img_w, ax_h_px / img_h) * (1.0 - margin)
-    imagebox.set_zoom(max(z0, 0.01))
-
-    # Hook al evento de draw para reajustar tras tight_layout/resize.
-    fig.canvas.mpl_connect("draw_event", _fit_zoom)
-    return True
-
-
 def _matrix_to_strings(matrix: MatrixLike, *, fmt: str) -> Optional[np.ndarray]:
     """Convierte una matriz heterogénea a un array 2D de strings."""
     try:
@@ -1009,18 +867,6 @@ def _matrix_to_strings(matrix: MatrixLike, *, fmt: str) -> Optional[np.ndarray]:
     return out
 
 
-def _max_cell_chars(cells: np.ndarray) -> int:
-    """Max longitud (en caracteres) de cualquier celda — usado para el
-    cómputo de ancho de figura."""
-    m = 1
-    for row in cells:
-        for c in row:
-            n = len(str(c))
-            if n > m:
-                m = n
-    return m
-
-
 def _fit_fontsize_for_shape(rows: int, cols: int, base: int) -> int:
     """Heuristica de shrink calibrada para el factor de compensacion
     `1.7` aplicado en `render_matrix_image`.
@@ -1049,34 +895,7 @@ def _cells_key(cells: np.ndarray) -> tuple:
     return tuple(tuple(row) for row in cells)
 
 
-def clear_cache() -> None:
-    """Vacía la cache global. Útil cuando cambia el tema (colores) o se
-    quiere liberar RAM."""
-    _CACHE.clear()
-
-
 # ─── Conversion de celdas a mathtext ───────────────────────────────────────
-
-
-def _cell_for_mathtext(raw: str) -> str:
-    """Convierte una celda raw a string mathtext-ready para `ax.text`.
-
-    Reglas:
-       - numero (`+0.234`, `1e-3`) -> tal cual, sin math mode (alineacion
-         tabular se preserva)
-       - `"..."` o `"…"` -> `r"$\\ldots$"`
-       - todo lo demas (Unicode math, sintaxis LaTeX, simbolos) -> convertir
-         Unicode + wrap en `$...$` para que mathtext renderice
-    """
-    s = str(raw)
-    if not s:
-        return ""
-    if s in ("...", "…"):
-        return r"$\ldots$"
-    if all(c.isdigit() or c in "+-.eE " for c in s):
-        return s
-    converted = _unicode_math_to_latex(s)
-    return f"${converted}$"
 
 
 # Mapa Unicode math -> LaTeX. Cubre los chars que los modulos

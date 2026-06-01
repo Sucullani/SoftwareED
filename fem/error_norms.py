@@ -19,7 +19,6 @@ import numpy as np
 from config.settings import ELEMENT_Q4, ELEMENT_Q9
 from fem.shape_functions import get_shape_functions
 from fem.gauss_quadrature import get_gauss_points_2d
-from fem.jacobian import compute_jacobian, compute_dN_physical
 from fem._numba_compat import njit
 
 

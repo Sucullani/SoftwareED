@@ -27,9 +27,11 @@ from typing import Callable, Optional
 import tkinter as tk
 import ttkbootstrap as ttk
 
+from config.settings import OVERLAY_ACCENT_BLUE
+
 
 # Color "link" del header (celeste — descubrible, no agresivo).
-_EXPANDER_FG = "#90caf9"
+_EXPANDER_FG = OVERLAY_ACCENT_BLUE
 
 
 class Expander(ttk.Frame):

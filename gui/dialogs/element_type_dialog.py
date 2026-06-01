@@ -42,7 +42,8 @@ from PIL import Image, ImageDraw, ImageTk
 from config.settings import (
     ELEMENT_Q4, ELEMENT_Q9,
     LABEL_BG, TEXT_MUTED_FG, ORPHAN_NODE_FG,
-    PHASE_PROC_COLOR,
+    PHASE_PROC_COLOR, ELEMENT_Q4_DOT_COLOR,
+    FONT_UI,
 )
 from education.components.edu_plot_style import _theme_colors
 from gui.widgets.webp_player import WebpPlayer
@@ -62,10 +63,11 @@ DIALOG_W, DIALOG_H = 760, 720
 # Color de cada chip pickea la identidad cromatica de su columna del
 # video (Q4=gris, Q9=naranja). Si en el futuro el video cambia su
 # paleta, actualizar aqui.
-_Q4_DOT_COLOR = "#cdd2d8"   # gris claro (matches Q4 column header)
+_Q4_DOT_COLOR = ELEMENT_Q4_DOT_COLOR   # gris claro (matches Q4 column header)
 _Q9_DOT_COLOR = PHASE_PROC_COLOR  # naranja (matches Q9 column header)
 
 
+from gui.dialogs._dialog_helpers import center_dialog
 class ElementTypeDialog:
     """Ventana modal para configurar Tipo de Elemento (Q4 / Q9)."""
 
@@ -224,7 +226,7 @@ class ElementTypeDialog:
         tk.Label(
             self.video_frame, text=msg,
             bg=LABEL_BG, fg=ORPHAN_NODE_FG,
-            font=("Segoe UI", 9), justify=CENTER,
+            font=FONT_UI, justify=CENTER,
         ).pack(expand=YES, padx=20, pady=20)
 
     # ─── Limpieza del video ─────────────────────────────────────────────
@@ -308,13 +310,4 @@ class ElementTypeDialog:
         self.dialog.destroy()
 
     def _center(self):
-        self.dialog.update_idletasks()
-        w = self.dialog.winfo_width()
-        h = self.dialog.winfo_height()
-        sw = self.dialog.winfo_screenwidth()
-        sh = self.dialog.winfo_screenheight()
-        x = self.parent.winfo_x() + (self.parent.winfo_width() - w) // 2
-        y = self.parent.winfo_y() + (self.parent.winfo_height() - h) // 2
-        x = max(0, min(x, sw - w))
-        y = max(0, min(y, sh - h - 50))
-        self.dialog.geometry(f"+{x}+{y}")
+        center_dialog(self.dialog, self.parent, clamp_screen=True)

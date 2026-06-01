@@ -57,6 +57,9 @@ from models.mesh_utils import find_edge_midnode
 from config.settings import (
     ELEMENT_Q9,
     EDU_FIG_BG, EDU_AXES_BG, EDU_LABEL_BG, EDU_FG, EDU_FG_MUTED,
+    EDU_NATURAL_OUTLINE_COLOR, GAUSS_ACTIVE_COLOR, GAUSS_HALO_COLOR,
+    EDU_MARKER_OUTLINE_COLOR, HEALTH_ERROR_COLOR, OVERLAY_ACCENT_BLUE,
+    MOHR_GRID_COLOR, EDU_MATRIX_TEXT_COLOR,
 )
 
 
@@ -67,11 +70,11 @@ _TAG_NEXT       = "edu_m7_next"
 _TAG_HOVER      = "edu_m7_hover"
 _TAG_PULSE      = "edu_m7_pulse"
 
-_C_ASSEMBLED = "#4fa3ff"   # azul: ya ensamblado
-_C_NEXT      = "#ffd54f"   # dorado: próximo en la cola
-_C_HOVER     = "#ff8a65"   # naranja: highlight de hover
-_C_PULSE     = "#ffffff"   # blanco: flash del pulso secuencial
-_C_STRIKE    = "#ef5350"   # rojo: BCs (tachado de filas/columnas)
+_C_ASSEMBLED = EDU_NATURAL_OUTLINE_COLOR   # azul: ya ensamblado
+_C_NEXT      = GAUSS_ACTIVE_COLOR          # dorado: próximo en la cola
+_C_HOVER     = GAUSS_HALO_COLOR            # naranja: highlight de hover
+_C_PULSE     = EDU_MARKER_OUTLINE_COLOR    # blanco: flash del pulso secuencial
+_C_STRIKE    = HEALTH_ERROR_COLOR          # rojo: BCs (tachado de filas/columnas)
 
 
 class AssemblyModule(CanvasOverlayModule):
@@ -263,7 +266,7 @@ class AssemblyModule(CanvasOverlayModule):
         try:
             mesh.canvas.create_line(*flat, fill=color, width=glow_width,
                                       tags=(_TAG_BASE, tag))
-            mesh.canvas.create_line(*flat, fill="#ffffff", width=1,
+            mesh.canvas.create_line(*flat, fill=EDU_MARKER_OUTLINE_COLOR, width=1,
                                       tags=(_TAG_BASE, tag))
         except tk.TclError:
             pass
@@ -668,7 +671,7 @@ class AssemblyModule(CanvasOverlayModule):
                         if abs(v) > nz:
                             intensity = abs(v) / vmax
                             color = (EDU_LABEL_BG if intensity > 0.55
-                                       else "#dcdcdc")
+                                       else EDU_MATRIX_TEXT_COLOR)
                             ax.text(j, i, f"{v:.2g}",
                                      ha="center", va="center",
                                      color=color, fontsize=7)
@@ -706,11 +709,12 @@ class AssemblyModule(CanvasOverlayModule):
 
         # Barras horizontales: cada DOF es una fila; el ancho es el valor.
         ys = np.arange(n)
-        colors = ["#90caf9" if v >= 0 else "#ef5350" for v in F]
+        colors = [OVERLAY_ACCENT_BLUE if v >= 0 else HEALTH_ERROR_COLOR
+                  for v in F]
         ax.barh(ys, F, color=colors, edgecolor="none", alpha=0.85)
         ax.set_ylim(n - 0.5, -0.5)
         ax.set_xlim(-vmax * 1.15, vmax * 1.15)
-        ax.axvline(0, color="#404055", lw=0.7)
+        ax.axvline(0, color=MOHR_GRID_COLOR, lw=0.7)
 
         # Etiquetas numéricas cuando F es chico
         if n <= 16:
@@ -720,7 +724,8 @@ class AssemblyModule(CanvasOverlayModule):
                 ha = "left" if v >= 0 else "right"
                 dx = 0.04 * vmax * (1 if v >= 0 else -1)
                 ax.text(v + dx, i, f"{v:+.3g}",
-                         ha=ha, va="center", color="#dcdcdc", fontsize=7)
+                         ha=ha, va="center", color=EDU_MATRIX_TEXT_COLOR,
+                         fontsize=7)
 
         # BCs en rojo translúcido
         if not self._show_reduced:

@@ -26,7 +26,9 @@ from ttkbootstrap.constants import *
 
 from config.settings import (
     HEALTH_OK_COLOR, HEALTH_WARNING_COLOR, HEALTH_ERROR_COLOR, HEALTH_INFO_COLOR,
-    LABEL_BG,
+    LABEL_BG, LABEL_FG,
+    HEALTH_SUBTITLE_FG, HEALTH_CARD_BORDER_COLOR, HEALTH_HINT_FG,
+    FONT_UI, FONT_UI_LARGE,
 )
 from models.model_health import (
     Severity, HealthCode, apply_autofix, validate_project,
@@ -152,6 +154,7 @@ CODE_ICONS = {
 }
 
 
+from gui.dialogs._dialog_helpers import center_dialog
 class HealthReportDialog:
     """Modal que presenta el HealthReport y permite aplicar auto-fixes
     o navegar a los items con problemas.
@@ -238,13 +241,13 @@ class HealthReportDialog:
             font=("Segoe UI", 22, "bold"),
         ).pack(side=LEFT, padx=(0, 12))
         tk.Label(
-            title_row, text=title, fg="#e8e8ea", bg=self.dialog.cget("bg"),
+            title_row, text=title, fg=LABEL_FG, bg=self.dialog.cget("bg"),
             font=("Segoe UI", 14, "bold"),
         ).pack(side=LEFT, anchor=W)
 
         ttk.Label(
-            header, text=subtitle, foreground="#a0a0a8",
-            font=("Segoe UI", 9), wraplength=720, justify=LEFT,
+            header, text=subtitle, foreground=HEALTH_SUBTITLE_FG,
+            font=FONT_UI, wraplength=720, justify=LEFT,
         ).pack(anchor=W, pady=(6, 0))
 
         # Conteos
@@ -321,7 +324,7 @@ class HealthReportDialog:
             ttk.Label(
                 self.scroll_frame,
                 text="No se detectaron problemas en el modelo.",
-                foreground=HEALTH_OK_COLOR, font=("Segoe UI", 10),
+                foreground=HEALTH_OK_COLOR, font=FONT_UI_LARGE,
             ).pack(anchor=W, pady=12)
 
     def _unbind_wheel(self):
@@ -339,7 +342,7 @@ class HealthReportDialog:
     def _render_issue(self, parent, issue, color):
         """Tarjeta visual de un issue: icono, mensaje, botones."""
         card = tk.Frame(parent, bg=LABEL_BG, highlightthickness=1,
-                        highlightbackground="#3a3d42")
+                        highlightbackground=HEALTH_CARD_BORDER_COLOR)
         card.pack(fill=X, pady=4, padx=2)
 
         inner = ttk.Frame(card, padding=10)
@@ -356,8 +359,8 @@ class HealthReportDialog:
         ).pack(side=LEFT, padx=(0, 10))
 
         tk.Label(
-            top, text=issue.message, fg="#e8e8ea", bg=LABEL_BG,
-            font=("Segoe UI", 9), wraplength=620, justify=LEFT,
+            top, text=issue.message, fg=LABEL_FG, bg=LABEL_BG,
+            font=FONT_UI, wraplength=620, justify=LEFT,
         ).pack(side=LEFT, anchor=W, fill=X, expand=YES)
 
         # Bottom row: botones de accion
@@ -392,7 +395,7 @@ class HealthReportDialog:
         toggle_frame.pack(fill=X, pady=(4, 0))
 
         hint_lbl = tk.Label(
-            toggle_frame, text=hint_text, fg="#b0b0b8", bg=LABEL_BG,
+            toggle_frame, text=hint_text, fg=HEALTH_HINT_FG, bg=LABEL_BG,
             font=("Segoe UI", 8, "italic"), wraplength=620, justify=LEFT,
         )
 
@@ -576,13 +579,8 @@ class HealthReportDialog:
         self.dialog.destroy()
 
     def _center(self):
-        self.dialog.update_idletasks()
-        w = self.dialog.winfo_width()
-        h = self.dialog.winfo_height()
         try:
-            x = self.parent.winfo_x() + (self.parent.winfo_width() - w) // 2
-            y = self.parent.winfo_y() + (self.parent.winfo_height() - h) // 2
-            self.dialog.geometry(f"+{max(x, 0)}+{max(y, 0)}")
+            center_dialog(self.dialog, self.parent)
         except Exception:
             pass
 

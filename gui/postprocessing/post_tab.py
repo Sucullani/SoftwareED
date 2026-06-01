@@ -14,7 +14,7 @@ import numpy as np
 from config.settings import (
     DECIMALS_FORCE, DECIMALS_STRESS, DECIMALS_DISPLACEMENT, fmt,
     PHASE_POST_COLOR, PHASE_POST_BOOTSTYLE,
-    CANVAS_SELECTED_COLOR,
+    CANVAS_SELECTED_COLOR, RESULT_CELL_HIGHLIGHT_FG,
 )
 from gui.widgets.phase_banner import build_phase_banner
 from models.model_health import validate_project
@@ -297,7 +297,7 @@ class PostProcessTab:
         # consistencia cromatica con el resto de la GUI.
         self._cell_highlight = tk.Label(
             self.results_tree,
-            bg=CANVAS_SELECTED_COLOR, fg="#000000",
+            bg=CANVAS_SELECTED_COLOR, fg=RESULT_CELL_HIGHLIGHT_FG,
             font=("Segoe UI", 9, "bold"),
             anchor=CENTER, borderwidth=0, padx=0, pady=0,
         )

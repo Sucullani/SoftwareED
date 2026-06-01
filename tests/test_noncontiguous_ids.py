@@ -136,10 +136,84 @@ def test_reactions_and_total_dof_consistency():
     print(f"  [OK] restrained_dofs = {rdofs}, free_dofs = {fdofs}")
 
 
+def _build_two_q4_strip():
+    """Tira de 2 Q4 adyacentes (6 nodos 3x2). Borrar el elemento derecho
+    orfana los nodos 3 y 6 (sin datos del usuario) -> auto-eliminados."""
+    proj = ProjectModel()
+    proj.analysis_type = ANALYSIS_PLANE_STRESS
+    proj.element_type = ELEMENT_Q4
+    proj.default_thickness = 1.0
+    proj.materials["Mat"] = Material(name="Mat", E=210000.0, nu=0.30,
+                                     density=7.85e-6)
+    coords = {1: (0.0, 0.0), 2: (1.0, 0.0), 3: (2.0, 0.0),
+              4: (0.0, 1.0), 5: (1.0, 1.0), 6: (2.0, 1.0)}
+    for nid, (x, y) in coords.items():
+        proj.add_node(x, y, node_id=nid)
+    proj.add_element(node_ids=[1, 2, 5, 4], thickness=1.0,
+                     material_name="Mat", elem_id=1)
+    proj.add_element(node_ids=[2, 3, 6, 5], thickness=1.0,
+                     material_name="Mat", elem_id=2)
+    proj.set_boundary_condition(1, True, True)   # empotrado
+    proj.set_boundary_condition(4, True, True)   # empotrado (borde izq)
+    proj.set_nodal_load(5, 0.0, -1000.0)
+    return proj
+
+
+def test_solve_after_remove_element_no_stale_index():
+    """Regresion C-1: borrar un elemento que orfana nodos NO debe dejar el
+    cache de node_index_map stale (rompia el solve con IndexError)."""
+    proj = _build_two_q4_strip()
+    res = proj.remove_element(2)  # orfana nodos 3 y 6 (sin datos)
+    assert 3 in res["nodes_deleted"] and 6 in res["nodes_deleted"]
+    assert proj.num_nodes == 4
+    # El index map NO debe contener IDs muertos ni saltarse los vivos.
+    assert set(proj.node_index_map.keys()) == set(proj.nodes.keys()) == {1, 2, 4, 5}, (
+        f"node_index_map stale tras remove_element: {dict(proj.node_index_map)}"
+    )
+    assert sorted(proj.node_index_map.values()) == [0, 1, 2, 3]
+    result = solve_system(proj)  # antes del fix: IndexError / scipy ValueError
+    assert len(result["u"]) == 2 * proj.num_nodes == 8
+    print("  [OK] remove_element + solve sin indices stale")
+
+
+def test_solve_after_shrink_q9_to_q4():
+    """Regresion C-1: shrink_q9_to_q4 borra mid/center y debe invalidar el
+    cache de node_index_map (via rebuild_node_to_elements) antes del solve."""
+    from models.mesh_utils import expand_q4_to_q9, shrink_q9_to_q4
+    proj = _build_two_q4_strip()
+    expand_q4_to_q9(proj)
+    n_q9 = proj.num_nodes
+    shrink_q9_to_q4(proj)
+    assert proj.num_nodes < n_q9, "shrink no redujo el conteo de nodos"
+    assert set(proj.node_index_map.keys()) == set(proj.nodes.keys()), (
+        f"node_index_map stale tras shrink: {dict(proj.node_index_map)}"
+    )
+    assert sorted(proj.node_index_map.values()) == list(range(proj.num_nodes))
+    result = solve_system(proj)
+    assert len(result["u"]) == 2 * proj.num_nodes
+    print("  [OK] shrink_q9_to_q4 + solve sin indices stale")
+
+
+def test_solve_after_node_cascade_no_stale_index():
+    """Regresion C-1: remove_node_with_cascade tambien invalida el cache."""
+    proj = _build_two_q4_strip()
+    proj.remove_node_with_cascade(3)  # borra elem 2; nodo 6 queda huerfano
+    assert set(proj.node_index_map.keys()) == set(proj.nodes.keys()), (
+        f"node_index_map stale tras cascade: {dict(proj.node_index_map)}"
+    )
+    assert sorted(proj.node_index_map.values()) == list(range(proj.num_nodes))
+    result = solve_system(proj)
+    assert len(result["u"]) == 2 * proj.num_nodes
+    print("  [OK] remove_node_with_cascade + solve sin indices stale")
+
+
 if __name__ == "__main__":
     print("=== Regresion: node_ids no contiguos ===\n")
     test_no_index_error_with_gaps()
     test_dof_indices_within_range()
     test_numerical_equivalence_contiguous_vs_gapped()
     test_reactions_and_total_dof_consistency()
+    test_solve_after_remove_element_no_stale_index()
+    test_solve_after_shrink_q9_to_q4()
+    test_solve_after_node_cascade_no_stale_index()
     print("\nTodos los tests pasaron.")

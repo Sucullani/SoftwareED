@@ -152,7 +152,6 @@ def generate_memoria_calculo(
     *,
     mesh_diagram=None,
     contour_figures: Optional[dict] = None,
-    scope: str = "showcase",
     style: str = "educativo",
     progress_callback: Optional[Callable[[str, float], None]] = None,
     keep_tex: bool = False,
@@ -168,7 +167,6 @@ def generate_memoria_calculo(
         post-proceso degradan elegantemente).
     filepath : ruta destino, debe terminar en `.pdf`.
     mesh_diagram, contour_figures : imágenes PIL opcionales pre-renderizadas.
-    scope : reservado para iteraciones futuras.
     style : 'educativo' (default) o 'directo'.
     progress_callback : callable(stage_label, pct_0_a_1) opcional.
     keep_tex : si True, conserva el `.tex` intermedio para depuración.
@@ -189,7 +187,7 @@ def generate_memoria_calculo(
                              nodal_stresses,
                              mesh_diagram=mesh_diagram,
                              contour_figures=contour_figures,
-                             scope=scope, style=style)
+                             style=style)
 
     _progress("Construyendo capítulos", 0.15)
     memoria.build()
@@ -245,14 +243,13 @@ class MemoriaCalculo:
 
     def __init__(self, project, solution, element_stresses, nodal_stresses,
                  *, mesh_diagram=None, contour_figures=None,
-                 scope: str = "showcase", style: str = "educativo"):
+                 style: str = "educativo"):
         self._project = project
         self._solution = solution
         self._element_stresses = element_stresses or {}
         self._nodal_stresses = nodal_stresses or {}
         self._mesh_diagram = mesh_diagram
         self._contour_figures = dict(contour_figures) if contour_figures else {}
-        self._scope = scope
         self._style = style if style in self.STYLES else "educativo"
         self._tmpdir: Optional[tempfile.TemporaryDirectory] = None
         # Caches: la calidad de malla y la validación se consultan en varios
@@ -1393,7 +1390,7 @@ class MemoriaCalculo:
     def _integrando_simbolico_q4(self, elem, node_coords, material) -> None:
         td = self._td
         try:
-            from education.mod05_stiffness import SymbolicIntegrandQ4
+            from fem.symbolic_integrand import SymbolicIntegrandQ4
             import sympy as sp
         except Exception as e:
             td.para(rf"\emph{{No se pudo cargar la capa simbólica: "
@@ -1954,11 +1951,12 @@ class MemoriaCalculo:
             td.para(
                 r"Los contornos se dibujan con un gradiente bilineal sobre "
                 r"cada elemento, a partir de los valores nodales "
-                r"promediados. Convención de mapa: \emph{coolwarm} "
-                r"(divergente) para $\sigma_x$, $\sigma_y$, $\tau_{xy}$ "
-                r"— donde el cero separa tracción de compresión — y "
-                r"\emph{viridis} (secuencial) para $\sigma_{VM}$, que es "
-                r"no negativo."
+                r"promediados. Convención de mapa: \emph{jet} (arcoíris "
+                r"clásico de los programas de elementos finitos, ANSYS / "
+                r"SAP2000) para todas las componentes — $\sigma_x$, "
+                r"$\sigma_y$, $\tau_{xy}$ y $\sigma_{VM}$ —, de modo que "
+                r"el contorno de la Memoria coincide con el del visor de "
+                r"resultados de la aplicación."
             )
         for component in ("sigma_x", "sigma_y", "tau_xy", "von_mises"):
             self._insertar_contorno(component)

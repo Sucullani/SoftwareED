@@ -175,6 +175,7 @@ __all__ = [
     "gauss_physical_coords",
     "locate_point",
     "principal_and_vm",
+    "principal_angle",
 ]
 
 
@@ -362,6 +363,13 @@ def principal_and_vm(sigma_x: float, sigma_y: float, tau_xy: float):
     Usado tanto por compute_raw como por compute_smooth (en este ultimo
     sigma_1 / sigma_2 / VM NO se interpolan: se recomputan desde las
     componentes interpoladas, para mantener coherencia).
+
+    NOTA (σz): el von Mises usa la forma 2D `sqrt(s1^2 - s1*s2 + s2^2)`, válida
+    cuando σz = 0 (TENSIÓN PLANA). En DEFORMACIÓN PLANA σz = ν·(σx+σy) ≠ 0 y el
+    von Mises "verdadero" incluiría términos con σz. La forma 2D se aplica
+    uniformemente en todas las rutas (compute_raw, compute_raw_grid, los kernels
+    de stress.py). Es una simplificación deliberada y consistente; si se desea el
+    von Mises 3D correcto en DP, habría que pasar ν/analysis_type a esta capa.
     """
     sigma_avg = 0.5 * (sigma_x + sigma_y)
     R = math.sqrt(0.25 * (sigma_x - sigma_y) ** 2 + tau_xy ** 2)
@@ -369,6 +377,19 @@ def principal_and_vm(sigma_x: float, sigma_y: float, tau_xy: float):
     s2 = sigma_avg - R
     vm = math.sqrt(s1 * s1 - s1 * s2 + s2 * s2)
     return s1, s2, vm
+
+
+def principal_angle(sigma_x: float, sigma_y: float, tau_xy: float) -> float:
+    """Ángulo principal θ_p (radianes) del tensor de tensiones 2D.
+
+    θ_p = ½·atan2(2·τxy, σx − σy). Fuente única para el círculo de Mohr del
+    DetailsPanel y las cruces principales (PrincipalCrossLayer), que antes lo
+    recalculaban inline. Guard de estado isótropo: si σx≈σy y τxy≈0 el ángulo
+    es indeterminado -> 0.0 (cualquier dirección es principal).
+    """
+    if abs(sigma_x - sigma_y) < 1e-12 and abs(tau_xy) < 1e-12:
+        return 0.0
+    return 0.5 * math.atan2(2.0 * tau_xy, sigma_x - sigma_y)
 
 
 def _get_node_coords(project, elem) -> np.ndarray:

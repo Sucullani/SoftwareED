@@ -53,7 +53,7 @@ from typing import Callable, Optional
 import tkinter as tk
 import ttkbootstrap as ttk
 
-from config.settings import EDU_AXES_BG, EDU_FG, OVERLAY_BG
+from config.settings import OVERLAY_BG, HEALTH_ERROR_COLOR, FONT_UI
 
 
 class FormulaValueBlocksToggle(ttk.Frame):
@@ -181,6 +181,6 @@ class FormulaValueBlocksToggle(ttk.Frame):
     def _show_build_error(frame: ttk.Frame, exc: Exception, label: str) -> None:
         tk.Label(
             frame, text=f"Error al construir el panel de {label}:\n{exc}",
-            bg=OVERLAY_BG, fg="#ef5350", font=("Segoe UI", 9),
+            bg=OVERLAY_BG, fg=HEALTH_ERROR_COLOR, font=FONT_UI,
             justify="left", anchor="w", wraplength=440,
         ).pack(fill="both", expand=True, padx=8, pady=8)

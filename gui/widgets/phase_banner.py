@@ -8,7 +8,9 @@ del tema y aqui necesitamos un color solido independiente.
 
 import tkinter as tk
 
-from config.settings import FONT_UI
+from config.settings import (
+    FONT_UI, PHASE_BANNER_TITLE_FG_COLOR, PHASE_BANNER_SUBTITLE_FG_COLOR,
+)
 
 
 def build_phase_banner(parent, color, icon, title, subtitle, *, height=46):
@@ -29,13 +31,13 @@ def build_phase_banner(parent, color, icon, title, subtitle, *, height=46):
 
     tk.Label(
         banner, text=f"{icon}  {title}",
-        bg=color, fg="#ffffff",
+        bg=color, fg=PHASE_BANNER_TITLE_FG_COLOR,
         font=("Segoe UI Semibold", 13),
     ).pack(side="left", padx=(14, 0), pady=8)
 
     tk.Label(
         banner, text=subtitle,
-        bg=color, fg="#f0f0f0",
+        bg=color, fg=PHASE_BANNER_SUBTITLE_FG_COLOR,
         font=FONT_UI,
     ).pack(side="left", padx=(10, 14), pady=8)
 

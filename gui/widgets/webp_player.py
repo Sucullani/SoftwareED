@@ -32,6 +32,8 @@ from ttkbootstrap.constants import BOTH, YES
 
 from PIL import Image, ImageTk
 
+from config.settings import WEBP_PLAYER_BG_COLOR
+
 
 class WebpPlayer(ttk.Frame):
     """Reproductor de WebP animado en loop seamless."""
@@ -41,7 +43,7 @@ class WebpPlayer(ttk.Frame):
         parent,
         *,
         scaled: bool = True,
-        background: str = "#1a1a1a",
+        background: str = WEBP_PLAYER_BG_COLOR,
         **kw,
     ):
         super().__init__(parent, **kw)

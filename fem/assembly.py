@@ -142,7 +142,9 @@ def assemble_global_system(project, *, body_force_fn=None):
         # Material del elemento
         material = project.materials.get(elem.material_name)
         if material is None:
-            material = list(project.materials.values())[0]
+            # Fallback: primer material por orden de inserción, sin materializar
+            # la lista completa por cada elemento huérfano de material.
+            material = next(iter(project.materials.values()))
 
         # Calcular matriz de rigidez via kernel JIT.
         # Retorna ke + B + det_J por GP, sin dict gauss_data — armamos el

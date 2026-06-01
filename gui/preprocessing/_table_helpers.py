@@ -11,16 +11,23 @@ Funciones:
     navegacion estilo Excel (Tab/Shift-Tab/Enter/flechas).
 - start_combobox_editor: Combobox readonly en un Toplevel overlay para que
     el dropdown pueda desbordar el Treeview sin clipping.
-- make_context_menu: menu contextual click-derecho con items dinamicos.
 - bind_clipboard: copy/paste TSV (Ctrl+C / Ctrl+V) compatible con Excel.
-- bind_fill_down: Ctrl+D para propagar el valor de la celda activa de la
-    primera fila seleccionada hacia abajo en el resto de la seleccion.
 """
 
 import tkinter as tk
 import ttkbootstrap as ttk
 
-from config.settings import FONT_UI_LARGE
+from config.settings import (
+    FONT_UI_LARGE,
+    CANVAS_SELECTED_ROW_FG,
+    LABEL_FG,
+    EDITOR_ENTRY_BG,
+    EDITOR_ENTRY_FG,
+    EDITOR_FOCUS_BORDER_COLOR,
+    POPUP_BG,
+    POPUP_LIST_BG,
+    POPUP_SELECT_BG,
+)
 
 
 # ─── Editores flotantes ─────────────────────────────────────────────────────
@@ -49,14 +56,14 @@ def start_cell_editor(tree, item, column, current_value,
     entry = tk.Entry(
         tree,
         font=font or FONT_UI_LARGE,
-        bg="#ffffff",
-        fg="#000000",
+        bg=EDITOR_ENTRY_BG,
+        fg=EDITOR_ENTRY_FG,
         relief="solid",
         bd=1,
         highlightthickness=2,
-        highlightbackground="#3399ff",
-        highlightcolor="#3399ff",
-        insertbackground="#000000",
+        highlightbackground=EDITOR_FOCUS_BORDER_COLOR,
+        highlightcolor=EDITOR_FOCUS_BORDER_COLOR,
+        insertbackground=EDITOR_ENTRY_FG,
         justify="center",
     )
     entry.place(x=bbox[0] - 1, y=bbox[1] - 1,
@@ -144,15 +151,15 @@ def start_combobox_editor(tree, item, column, current_value, options,
     popup.overrideredirect(True)
     popup.attributes("-topmost", True)
     popup.geometry(f"{int(width_px)}x{int(height_px)}+{int(x_root)}+{int(y_root)}")
-    popup.configure(bg="#3a3d42")
+    popup.configure(bg=POPUP_BG)
 
     listbox = tk.Listbox(
         popup,
         font=cell_font,
-        bg="#1c1e22",
-        fg="#e8e8ea",
-        selectbackground="#1f6feb",
-        selectforeground="#ffffff",
+        bg=POPUP_LIST_BG,
+        fg=LABEL_FG,
+        selectbackground=POPUP_SELECT_BG,
+        selectforeground=CANVAS_SELECTED_ROW_FG,
         activestyle="none",
         relief="flat",
         bd=0,
@@ -216,48 +223,6 @@ def start_combobox_editor(tree, item, column, current_value, options,
     return listbox
 
 
-# ─── Menu contextual ────────────────────────────────────────────────────────
-
-def make_context_menu(tree, items):
-    """Crea un menu contextual y lo bindea a click-derecho del Treeview.
-
-    items: lista de tuplas. Soporta varios formatos:
-      - (label, callback)                         → siempre habilitado
-      - (label, callback, enabled_predicate)      → habilitado segun predicado
-      - ("---", None)                             → separator
-    El predicate recibe el iid de la fila clickeada y devuelve bool.
-    Devuelve el Menu (para reconfigurar items si hace falta).
-    """
-    menu = tk.Menu(tree, tearoff=0)
-
-    def _popup(event):
-        row = tree.identify_row(event.y)
-        if row and row not in tree.selection():
-            tree.selection_set(row)
-        menu.delete(0, "end")
-        for entry in items:
-            if len(entry) == 2 and entry[0] == "---":
-                menu.add_separator()
-                continue
-            label = entry[0]
-            cb = entry[1]
-            pred = entry[2] if len(entry) >= 3 else None
-            state = "normal"
-            if pred is not None:
-                try:
-                    state = "normal" if pred(row) else "disabled"
-                except Exception:
-                    state = "disabled"
-            menu.add_command(label=label, command=cb, state=state)
-        try:
-            menu.tk_popup(event.x_root, event.y_root)
-        finally:
-            menu.grab_release()
-
-    tree.bind("<Button-3>", _popup)
-    return menu
-
-
 # ─── Clipboard TSV (copy/paste con Excel) ───────────────────────────────────
 
 def bind_clipboard(tree, copy_serializer, paste_handler):
@@ -312,50 +277,3 @@ def bind_clipboard(tree, copy_serializer, paste_handler):
     tree.bind("<Control-C>", _copy)
     tree.bind("<Control-v>", _paste)
     tree.bind("<Control-V>", _paste)
-
-
-# ─── Fill-down (Ctrl+D estilo Excel) ────────────────────────────────────────
-
-def bind_fill_down(tree, get_cell_value, set_cell_value, refresh,
-                   skip_iids=None):
-    """Bindea Ctrl+D para propagar el valor de una columna hacia abajo.
-
-    Toma como fuente la PRIMERA fila seleccionada y la columna sobre la que
-    esta el puntero (o la #1 si no se puede inferir). Aplica ese valor a las
-    demas filas seleccionadas (excluyendo las que esten en skip_iids).
-
-    get_cell_value(iid, column_id) -> str
-    set_cell_value(iid, column_id, value) -> None  (debe mutar el modelo)
-    refresh() -> None  (un solo refresh + redraw al final)
-    skip_iids: iterable de iids a excluir (p.ej. {"__new__"}).
-    """
-    skip = set(skip_iids or ())
-
-    def _fill(_e=None):
-        sel = tree.selection()
-        sel = [iid for iid in sel if iid not in skip]
-        if len(sel) < 2:
-            return "break"
-        # Inferir columna activa segun donde este el cursor
-        try:
-            col = tree.identify_column(
-                tree.winfo_pointerx() - tree.winfo_rootx())
-        except tk.TclError:
-            col = "#1"
-        if not col:
-            col = "#1"
-        source_iid = sel[0]
-        try:
-            value = get_cell_value(source_iid, col)
-        except Exception:
-            return "break"
-        for iid in sel[1:]:
-            try:
-                set_cell_value(iid, col, value)
-            except Exception:
-                continue
-        refresh()
-        return "break"
-
-    tree.bind("<Control-d>", _fill)
-    tree.bind("<Control-D>", _fill)

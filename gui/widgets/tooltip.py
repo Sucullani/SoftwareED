@@ -5,6 +5,8 @@ Uso: ToolTip(button, text="Guardar (Ctrl+S)")
 
 import tkinter as tk
 
+from config.settings import FONT_UI, TOOLTIP_BG_COLOR, TOOLTIP_FG_COLOR
+
 
 class ToolTip:
     """Muestra un pequeño Toplevel sin bordes al pasar el mouse sobre el widget."""
@@ -57,11 +59,11 @@ class ToolTip:
         label = tk.Label(
             tw,
             text=self.text,
-            background="#2a2a3a",
-            foreground="#e4e4e4",
+            background=TOOLTIP_BG_COLOR,
+            foreground=TOOLTIP_FG_COLOR,
             relief="solid",
             borderwidth=1,
-            font=("Segoe UI", 9),
+            font=FONT_UI,
             padx=8,
             pady=3,
             wraplength=self.wraplength,

@@ -1,0 +1,200 @@
+\chapter{Presentación de resultados y análisis de los mismos}
+\label{cap:resultados}
+
+
+Este capítulo presenta y analiza la evidencia obtenida tras someter a EduFEM a una batería sistemática de verificación y validación (V\&V), siguiendo la distinción metodológica clásica entre \emph{verificación} --comprobar que las ecuaciones se resuelven correctamente-- y \emph{validación} --comprobar que se resuelven las ecuaciones correctas frente a una referencia externa-- \autocite{roache1998verification,oberkampf2010verification}. La estructura del capítulo recorre primero la verificación del código mediante el método de soluciones manufacturadas, continúa con las pruebas de consistencia interna del modelo de datos, presenta dos validaciones independientes (la viga de Timoshenko frente a la solución analítica y a SAP2000, y la membrana de Cook como referencia histórica de bloqueo por cortante), describe la cobertura pedagógica de los módulos educativos sobre el canal de cálculo del MEF y cierra con una discusión crítica de alcances y limitaciones. Los datos y figuras son reproducibles mediante los scripts \texttt{tests/vv\_mms.py}, \texttt{tests/vv\_timoshenko.py} y \texttt{tests/vv\_cook.py}.
+
+\section{Verificación numérica por el método de soluciones manufacturadas}
+
+El método de soluciones manufacturadas (MMS) constituye la técnica de referencia para verificar la corrección de un código de elementos finitos, ya que permite construir una solución exacta arbitraria y derivar de ella el término fuente que la hace satisfacer la ecuación de gobierno \autocite{roache1998verification,salari2000mms}. Si la implementación es correcta, el error de discretización debe disminuir con el tamaño característico de malla $h$ siguiendo las tasas asintóticas que predice la teoría de aproximación: para un elemento de orden polinómico $p$, se espera $\mathcal{O}(h^{p+1})$ en la norma $L^2$ y $\mathcal{O}(h^{p})$ en la seminorma $H^1$ \autocite{hughes2000fem,zienkiewicz2013fem}.
+
+Se adoptó como dominio el cuadrado unitario $[0,1]^2$ en tensión plana, con material $E = 1{,}0$, $\nu = 0{,}3$ y espesor $t = 1{,}0$. La solución manufacturada elegida fue
+
+\begin{equation}
+u_M(x,y) = \sin(\pi x)\,\sin(\pi y), \qquad v_M(x,y) = \cos(\pi x)\,\cos(\pi y),
+\label{eq:mms-solucion}
+\end{equation}
+
+cuyo término fuente $\mathbf{f} = -\nabla\cdot\boldsymbol{\sigma}(u_M)$ se inyecta como fuerza de volumen y los valores de $u_M$ se imponen como restricciones de Dirichlet no homogéneas en el contorno. Se resolvieron mallas estructuradas de $N\times N$ elementos para $N\in\{2,4,8,16,32\}$ y se midieron las normas de error con cuadratura de orden $p+1$, evitando así el aliasing del error con la cuadratura de la matriz de rigidez.
+
+La \autoref{tab:mms} reúne los errores y las tasas de convergencia observadas para ambos tipos de elemento. La tasa se calcula como el logaritmo en base dos del cociente de errores entre dos mallas sucesivas, puesto que cada refinamiento divide $h$ a la mitad.
+
+\begin{table}[htbp]
+\centering
+\caption{Errores y tasas de convergencia medidas por MMS para los elementos Q4 y Q9 en las normas $L^2$ y $H^1$.}
+\label{tab:mms}
+\begin{tabular}{c r r c r c}
+\hline
+$N$ & GDL & error $L^2$ & tasa $L^2$ & error $H^1$ & tasa $H^1$ \\
+\hline
+\multicolumn{6}{l}{\textbf{Q4 (bilineal, $p=1$)}} \\
+2  & 18   & $2{,}559\times10^{-1}$ & ---  & $1{,}496$               & ---  \\
+4  & 50   & $7{,}241\times10^{-2}$ & 1,82 & $7{,}247\times10^{-1}$  & 1,05 \\
+8  & 162  & $1{,}866\times10^{-2}$ & 1,96 & $3{,}578\times10^{-1}$  & 1,02 \\
+16 & 578  & $4{,}699\times10^{-3}$ & 1,99 & $1{,}783\times10^{-1}$  & 1,01 \\
+32 & 2178 & $1{,}177\times10^{-3}$ & 2,00 & $8{,}906\times10^{-2}$  & 1,00 \\
+\hline
+\multicolumn{6}{l}{\textbf{Q9 (biquadrático, $p=2$)}} \\
+2  & 50   & $2{,}172\times10^{-2}$ & ---  & $2{,}911\times10^{-1}$  & ---  \\
+4  & 162  & $2{,}776\times10^{-3}$ & 2,97 & $7{,}263\times10^{-2}$  & 2,00 \\
+8  & 578  & $3{,}479\times10^{-4}$ & 3,00 & $1{,}809\times10^{-2}$  & 2,01 \\
+16 & 2178 & $4{,}352\times10^{-5}$ & 3,00 & $4{,}516\times10^{-3}$  & 2,00 \\
+32 & 8450 & $5{,}441\times10^{-6}$ & 3,00 & $1{,}129\times10^{-3}$  & 2,00 \\
+\hline
+\end{tabular}
+\end{table}
+
+El análisis de los resultados es concluyente. El elemento Q4 alcanza asintóticamente tasas de $\mathcal{O}(h^{2{,}00})$ en $L^2$ y $\mathcal{O}(h^{1{,}00})$ en $H^1$, que coinciden exactamente con la predicción teórica para un elemento de orden $p=1$. El elemento Q9 alcanza $\mathcal{O}(h^{3{,}00})$ en $L^2$ y $\mathcal{O}(h^{2{,}00})$ en $H^1$, igualmente coincidentes con la teoría para $p=2$. La aproximación progresiva de las tasas a su valor asintótico --por ejemplo, el Q4 pasa de 1,82 en la malla más gruesa a 2,00 en la más fina-- es la firma esperada del régimen de convergencia de un código correctamente implementado. Que las tasas observadas reproduzcan los exponentes teóricos sin desviación constituye la evidencia más fuerte de que el ensamblaje, la integración por cuadratura de Gauss, la aplicación de restricciones y la recuperación de tensiones están libres de errores de orden, que son precisamente los que el MMS detecta con mayor sensibilidad.
+
+\autoref{fig:convergencia} muestra las curvas de error en escala doble logarítmica, donde la pendiente de cada recta corresponde a la tasa de convergencia.
+
+\begin{figure}[htbp]
+\centering
+\figpend{Curvas de convergencia log-log del error en normas $L^2$ y $H^1$ frente a $h$ para Q4 y Q9, con rectas de pendiente teórica de referencia (2, 1, 3 y 2).}
+\caption{Convergencia bajo refinamiento $h$ medida por MMS. Las pendientes de las rectas reproducen las tasas teóricas $\mathcal{O}(h^{p+1})$ en $L^2$ y $\mathcal{O}(h^{p})$ en $H^1$.}
+\label{fig:convergencia}
+\end{figure}
+
+\section{Consistencia interna del modelo de datos}
+
+Más allá de la corrección numérica del solucionador, se verificó la robustez de las operaciones de gestión del modelo que distinguen a EduFEM como herramienta interactiva. Dos pruebas de regresión resultan especialmente relevantes.
+
+La primera es el ciclo de transformación $\text{Q4}\rightarrow\text{Q9}\rightarrow\text{Q4}$. Al expandir un elemento bilineal a biquadrático se generan automáticamente cinco nodos adicionales (cuatro nodos medios de arista y el centroide); al reducir de nuevo a Q4 esos nodos auxiliares deben eliminarse sin contaminar el resultado. La prueba comprueba que el campo de desplazamientos calculado sobre la malla Q4 reducida es idéntico al de la malla Q4 original dentro de la tolerancia numérica, con $\max|u_{\text{Q4,inicial}} - u_{\text{Q4,reducido}}| < 10^{-9}$. Esto confirma que las rutinas de expansión y reducción de malla no introducen deriva (\emph{drift}) numérica acumulada.
+
+La segunda prueba aborda la separación entre identidad e índice de grado de libertad. Los identificadores de nodo son identidad pública y pueden presentar huecos tras operaciones de borrado, mientras que el índice de fila o columna en las matrices del sistema es ordinal y contiguo. La prueba resuelve un mismo problema con identificadores no contiguos $\{1,5,50,99\}$ y verifica equivalencia numérica inferior a $10^{-9}$ respecto del mismo problema con identificadores contiguos $\{1,2,3,4\}$. Este resultado valida el patrón de indexación de grados de libertad adoptado, equivalente al de los paquetes profesionales, y descarta la clase de fallos por indexación directa que se manifestaban cuando el usuario eliminaba nodos.
+
+\section{Validación con la viga de Timoshenko}
+
+La validación confronta el software con una referencia externa de aceptación general. Se eligió una viga simplemente apoyada de longitud $L = 14$~m, peralte $H = 1{,}20$~m y base $b = 0{,}40$~m, sometida a una carga uniforme $q = 5000$~kgf/m, modelada en el sistema técnico kgf/cm con material $E = 217\,370$~kgf/cm$^2$ ($\approx 21{,}33$~GPa) y $\nu = 0{,}20$. Se empleó una malla Q9 estructurada de $56\times8$ elementos (448 elementos, 1921 nodos, 3842 GDL). Las dos referencias de contraste son la solución analítica de la teoría de la elasticidad de Timoshenko y Goodier \autocite{timoshenko1970elasticity} y un modelo de cáscara resuelto en SAP2000 \autocite{csi2017sap2000}.
+
+La \autoref{tab:timoshenko-stress} compara la tensión normal $\sigma_x$ en tres puntos de referencia interiores de la viga.
+
+\begin{table}[htbp]
+\centering
+\caption{Tensión normal $\sigma_x$ (kgf/cm$^2$) en puntos de referencia: EduFEM frente a la solución analítica de Timoshenko-Goodier y a SAP2000.}
+\label{tab:timoshenko-stress}
+\begin{tabular}{c c r r r c c}
+\hline
+Punto & Coord.\ (m) & EduFEM & Analítico & SAP2000 & Error anal.\ (\%) & Error SAP (\%) \\
+\hline
+A & $(0{,}0;\ 0{,}6)$   & $127{,}8825$ & $127{,}8542$ & $127{,}8510$ & 0,0221 & 0,0246 \\
+B & $(-4{,}5;\ -0{,}3)$ & $-37{,}3410$ & $-37{,}3255$ & $-37{,}2640$ & 0,0414 & 0,2066 \\
+C & $(-3{,}5;\ -0{,}2)$ & $-31{,}8077$ & $-31{,}7992$ & $-31{,}7850$ & 0,0268 & 0,0715 \\
+\hline
+\end{tabular}
+\end{table}
+
+Los errores de EduFEM frente a la solución analítica permanecen por debajo del $0{,}05\,\%$ en los tres puntos, con un máximo de $0{,}0414\,\%$ en el punto B. La concordancia con SAP2000 es del mismo orden, con un máximo de $0{,}2066\,\%$, también en el punto B; conviene notar que la propia discrepancia entre SAP2000 y la solución analítica en ese punto es mayor que la de EduFEM, lo que sugiere que el resultado del presente software está, si acaso, más próximo a la referencia teórica que el del paquete comercial. La elección de los puntos A, B y C --localizados a distintas alturas y abscisas-- garantiza que la concordancia se verifique tanto en zonas de tracción como de compresión y a lo largo del peralte, donde la distribución de $\sigma_x$ varía linealmente según la teoría de vigas.
+
+La \autoref{tab:timoshenko-defl} contrasta la deflexión vertical máxima en el centro de la luz.
+
+\begin{table}[htbp]
+\centering
+\caption{Deflexión vertical máxima $|v|$ en el centro de la luz: EduFEM frente a la solución analítica con corrección de cortante.}
+\label{tab:timoshenko-defl}
+\begin{tabular}{l r r c}
+\hline
+Medición & EduFEM (cm) & Analítico (cm) & Error (\%) \\
+\hline
+$|v|(0,0)$ & $2{,}03460$ & $2{,}02926$ & 0,2633 \\
+\hline
+\end{tabular}
+\end{table}
+
+El error en deflexión es del $0{,}2633\,\%$ frente a la solución analítica que incluye la corrección de cortante de Timoshenko. Este detalle es pedagógicamente significativo: si se empleara la fórmula clásica de Euler-Bernoulli, que desprecia la deformación por cortante, el valor de referencia sería $1{,}9976$~cm y el error aparente del software ascendería al $1{,}82\,\%$. La menor discrepancia frente a la teoría de Timoshenko evidencia que el modelo de elasticidad bidimensional implementado en EduFEM captura correctamente la contribución del cortante a la flecha, contribución que es relevante en vigas de canto apreciable como la analizada, donde la relación luz-peralte es del orden de $11{,}7$. Este contraste ilustra, además, la importancia de seleccionar la referencia analítica adecuada al modelo numérico que se valida.
+
+\autoref{fig:timoshenko-contorno} presenta el contorno de tensión normal y la configuración deformada de la viga, que permiten apreciar visualmente la distribución lineal de $\sigma_x$ en el peralte.
+
+\begin{figure}[htbp]
+\centering
+\figpend{Contorno de tensión normal $\sigma_x$ sobre la malla Q9 de la viga de Timoshenko y, superpuesta, su configuración deformada amplificada.}
+\caption{Campo de tensión normal $\sigma_x$ y deformada de la viga de Timoshenko ($56\times8$ Q9). La gradación lineal en el peralte coincide con la predicción de la teoría de vigas.}
+\label{fig:timoshenko-contorno}
+\end{figure}
+
+\section{Validación con la membrana de Cook y el bloqueo por cortante}
+
+La membrana de Cook es un caso de prueba histórico, introducido por Cook en 1974, especialmente sensible al bloqueo por cortante (\emph{shear-locking}) por combinar flexión, cortante y distorsión geométrica en un cuadrilátero trapezoidal \autocite{cook1974membrane,cook2002concepts}. El dominio es un trapecio de vértices $(0,0)$, $(48,44)$, $(48,60)$ y $(0,44)$, empotrado en el borde izquierdo y cargado con una fuerza tangencial total unitaria en el borde derecho; el material es adimensional con $E = 1{,}0$, $\nu = 1/3$ y $t = 1{,}0$ en tensión plana. La cantidad de interés es el desplazamiento vertical $u_y$ en el punto $(48,52)$, cuya solución de referencia convergida es $u_y^{\text{ref}} = 23{,}95$.
+
+La \autoref{tab:cook} reúne la convergencia bajo refinamiento $N$ para ambos elementos.
+
+\begin{table}[htbp]
+\centering
+\caption{Convergencia del desplazamiento $u_y$ en $(48,52)$ para la membrana de Cook. Referencia convergida $u_y^{\text{ref}} = 23{,}95$.}
+\label{tab:cook}
+\begin{tabular}{c r r r r r r}
+\hline
+ & \multicolumn{3}{c}{\textbf{Q4}} & \multicolumn{3}{c}{\textbf{Q9}} \\
+$N$ & GDL & $u_y$ & error (\%) & GDL & $u_y$ & error (\%) \\
+\hline
+2  & 18   & $11{,}845$ & $-50{,}542$ & 50   & $23{,}289$ & $-2{,}761$ \\
+4  & 50   & $18{,}299$ & $-23{,}594$ & 162  & $23{,}840$ & $-0{,}460$ \\
+8  & 162  & $22{,}079$ & $-7{,}811$  & 578  & $23{,}925$ & $-0{,}103$ \\
+16 & 578  & $23{,}430$ & $-2{,}169$  & 2178 & $23{,}949$ & $-0{,}002$ \\
+32 & 2178 & $23{,}818$ & $-0{,}553$  & 8450 & $23{,}961$ & $+0{,}045$ \\
+\hline
+\end{tabular}
+\end{table}
+
+El contraste entre ambos elementos es ilustrativo. El elemento Q4 exhibe el fenómeno de bloqueo por cortante con claridad: en la malla más gruesa subestima la respuesta en más de un $50\,\%$, y aun con $N=32$ (2178 GDL) conserva un error del $-0{,}553\,\%$. Su convergencia es lenta y monótona por debajo de la referencia, comportamiento característico de un elemento que resulta excesivamente rígido cuando debe representar flexión mediante una interpolación bilineal incapaz de reproducir el modo de curvatura pura \autocite{cook2002concepts,bathe2014fem}. El elemento Q9, en cambio, converge con rapidez y prácticamente libre de bloqueo: con $N=8$ (578 GDL) ya alcanza un error del $-0{,}103\,\%$, y con $N=16$ (2178 GDL) lo reduce a $-0{,}002\,\%$.
+
+La comparación a igualdad de grados de libertad es el argumento pedagógico central. Con los mismos 2178 GDL, el Q9 ($N=16$) logra un error de $-0{,}002\,\%$ mientras que el Q4 ($N=32$) se queda en $-0{,}553\,\%$, es decir, más de dos órdenes de magnitud de diferencia en precisión para el mismo costo computacional. Esta evidencia empírica permite al estudiante constatar de primera mano la ventaja del elemento de mayor orden frente al bloqueo, un fenómeno que de otro modo permanece abstracto.
+
+\autoref{fig:cook-convergencia} muestra las curvas de convergencia de $u_y$ frente al número de grados de libertad para ambos elementos.
+
+\begin{figure}[htbp]
+\centering
+\figpend{Convergencia del desplazamiento $u_y$ en $(48,52)$ de la membrana de Cook frente al número de GDL, una curva para Q4 y otra para Q9, con la línea horizontal de referencia $u_y = 23{,}95$.}
+\caption{Convergencia de la membrana de Cook. El Q9 alcanza la referencia con muchos menos grados de libertad que el Q4, que sufre bloqueo por cortante.}
+\label{fig:cook-convergencia}
+\end{figure}
+
+La \autoref{tab:resumen-q4q9} sintetiza la comparación global entre ambos elementos a lo largo de las tres baterías de prueba, consolidando la evidencia que sustenta la decisión de ofrecer ambos tipos en la herramienta.
+
+\begin{table}[htbp]
+\centering
+\caption{Síntesis comparativa Q4 frente a Q9 en las baterías de verificación y validación.}
+\label{tab:resumen-q4q9}
+\begin{tabular}{l c c}
+\hline
+Aspecto & Q4 (bilineal) & Q9 (biquadrático) \\
+\hline
+Tasa $L^2$ (MMS)              & $\mathcal{O}(h^{2{,}00})$ & $\mathcal{O}(h^{3{,}00})$ \\
+Tasa $H^1$ (MMS)              & $\mathcal{O}(h^{1{,}00})$ & $\mathcal{O}(h^{2{,}00})$ \\
+Cook $N=8$ (162 / 578 GDL)    & $22{,}079$ ($-7{,}81\,\%$) & $23{,}925$ ($-0{,}103\,\%$) \\
+Cook $N=16$ (578 / 2178 GDL)  & $23{,}430$ ($-2{,}17\,\%$) & $23{,}949$ ($-0{,}002\,\%$) \\
+Timoshenko $\sigma_x$ (error máx.) & --- & 0,0414\,\% \\
+Comportamiento bajo distorsión & bloqueo parcial & sin bloqueo apreciable \\
+\hline
+\end{tabular}
+\end{table}
+
+\section{Resultados del software y cobertura del canal de cálculo del MEF}
+
+Más allá de la corrección numérica, EduFEM se propuso cubrir de extremo a extremo el procedimiento del MEF mediante ocho módulos educativos (M0 a M7) que materializan, en orden pedagógico, cada eslabón de la cadena de cálculo. Cada módulo es un \emph{overlay} interactivo que ilumina sobre la malla real el punto donde ocurre el cálculo, evitando la abstracción de una ventana desconectada del modelo \autocite{lee2015interactive,bishay2020teaching}.
+
+La cobertura del canal de cálculo es completa. El módulo M0 atiende la calidad de malla en el pre-proceso, evaluando el Jacobiano escalado y la compacidad (\emph{stretch}) con los umbrales bibliográficos de Verdict \autocite{stimpson2007verdict}. Los módulos M1 a M7 desarrollan la fase de proceso siguiendo el flujo canónico del MEF: el mapeo isoparamétrico y las funciones de forma (M1), el Jacobiano y su determinante (M2), la matriz de deformación $\mathbf{B}$ que vincula $\boldsymbol{\varepsilon} = \mathbf{B}\,\mathbf{u}$ (M3), la matriz constitutiva $\mathbf{D}$ que relaciona $\boldsymbol{\sigma} = \mathbf{D}\,\boldsymbol{\varepsilon}$ (M4), la rigidez elemental integrada por cuadratura de Gauss (M5), las fuerzas nodales equivalentes (M6) y el ensamblaje del sistema global con sus restricciones (M7). El orden refleja la dependencia lógica entre conceptos: la cadena cinemática $\mathbf{N}\rightarrow\mathbf{J}\rightarrow\mathbf{B}$ precede a la constitutiva, y la deformación $\boldsymbol{\varepsilon} = \mathbf{B}\,\mathbf{u}$ antecede a la tensión $\boldsymbol{\sigma} = \mathbf{D}\,\boldsymbol{\varepsilon}$, en consonancia con la presentación clásica de la literatura \autocite{bathe2014fem,cook2002concepts}.
+
+Cada módulo que exhibe formulación matemática incorpora un conmutador Fórmula~$\leftrightarrow$~Valores que bifurca entre la narrativa simbólica en LaTeX y la evaluación numérica en el punto seleccionado. Este mecanismo concreta una secuencia de aprendizaje deliberada: el estudiante lee primero \emph{qué} se calcula y después confronta el número real, replicable incluso en una hoja de cálculo. La interacción mediante selección directa en el lienzo, en lugar de controles redundantes, mantiene una única fuente de verdad para el elemento bajo análisis y reduce la fricción cognitiva.
+
+La fase de post-proceso ofrece la inspección del campo de resultados mediante contornos de tensión, configuración deformada, una vista tridimensional del campo y un sondeo puntual que despliega el círculo de Mohr del estado tensional en cualquier punto del dominio. Como complemento impreso, la Memoria de Cálculo genera un documento que reproduce el paso a paso simbólico y numérico del modelo concreto del usuario, desde las funciones de forma evaluadas en los puntos de Gauss hasta la recuperación de tensiones y su extrapolación nodal. Así, los módulos enseñan los conceptos en abstracto y la Memoria valida el cálculo sobre el caso particular, cerrando el ciclo entre teoría y aplicación.
+
+\section{Discusión: alcances, comparación cualitativa y limitaciones}
+
+\subsection{Alcances}
+
+La triple batería de V\&V respalda la fiabilidad del núcleo numérico. La verificación por MMS demuestra que el código reproduce sin desviación las tasas de convergencia teóricas, lo que descarta errores de orden en el ensamblaje, la integración y la recuperación de tensiones. Las dos validaciones independientes confirman la exactitud del software frente a referencias de naturaleza distinta: una solución analítica cerrada en el caso de Timoshenko, con errores inferiores al $0{,}05\,\%$ en tensiones, y un benchmark histórico sensible al bloqueo en el caso de Cook, donde la herramienta reproduce tanto la patología del Q4 como la convergencia del Q9. La concordancia con SAP2000 del mismo orden que la de un paquete comercial consolidado sitúa a EduFEM en un nivel de exactitud apto no solo para la enseñanza sino también para verificaciones de ingeniería de complejidad moderada.
+
+\subsection{Comparación cualitativa con herramientas existentes}
+
+Frente a los paquetes comerciales como SAP2000, EduFEM no compite en cobertura de tipologías estructurales, escalabilidad ni prestaciones de productividad; su valor reside en la transparencia del cálculo. Mientras que un paquete profesional opera como una caja negra optimizada para la producción, EduFEM expone cada matriz intermedia, cada punto de Gauss y cada operación de ensamblaje al estudiante. En relación con las herramientas educativas reportadas en la literatura --simuladores de armaduras, visualizadores de modos propios o entornos de procesamiento interactivo de ecuaciones del MEF \autocite{bishay2020teaching,lee2015interactive,lee2015eigenmodes}--, la contribución distintiva de EduFEM es la cobertura integral del canal de cálculo de elementos continuos bidimensionales con elementos isoparamétricos Q4 y Q9, articulada con una generación automática de memoria de cálculo sobre el modelo del propio usuario. Esta orientación responde directamente a las necesidades de formación en MEF identificadas en estudios recientes con perspectiva industrial, que señalan la brecha entre el manejo operativo de software comercial y la comprensión de sus fundamentos \autocite{perezsantiago2023fem}. La elección de un entorno íntegro en Python sobre las bibliotecas científicas de uso extendido \autocite{harris2020numpy,virtanen2020scipy} favorece, además, la inspección y extensión del código por parte de docentes y estudiantes.
+
+\subsection{Limitaciones observadas}
+
+El alcance del software está acotado de manera deliberada. EduFEM se restringe a problemas bidimensionales en régimen elástico lineal, tensión o deformación plana, con elementos cuadriláteros Q4 y Q9; quedan fuera el análisis tridimensional, los elementos triangulares, la no linealidad material o geométrica, el análisis dinámico y la formulación de placas o cáscaras. Estas restricciones son coherentes con el objetivo pedagógico, que privilegia la claridad conceptual sobre la generalidad, pero limitan la aplicabilidad a casos de ingeniería más allá de los didácticos.
+
+Desde el punto de vista numérico, el elemento Q4 arrastra el bloqueo por cortante documentado en la \autoref{tab:cook}, que aunque se aprovecha como recurso pedagógico, exige al usuario refinar la malla o recurrir al Q9 para obtener resultados precisos en problemas dominados por flexión. No se implementaron técnicas de mitigación como la integración reducida selectiva o la formulación $\bar{\mathbf{B}}$, que se reservan como línea de extensión futura. En la formulación de deformación plana, además, la matriz constitutiva degenera hacia la incompresibilidad cuando el coeficiente de Poisson se aproxima a $0{,}5$, régimen en el que aparece el bloqueo volumétrico; el software lo señala visualmente pero no lo resuelve.
+
+En cuanto a la escalabilidad, el solucionador directo y el ensamblaje en su variante legible resultan adecuados para las mallas de tamaño didáctico empleadas en las pruebas --hasta varios miles de grados de libertad-- pero no están optimizados para problemas de gran porte. La hoja de ruta del motor contempla el almacenamiento disperso de la matriz de rigidez, factorizaciones para sistemas definidos positivos y reordenamientos para reducir el llenado, mejoras que permitirían abordar mallas mayores sin sacrificar la versión pedagógica del código. Finalmente, la validación presentada se apoya en tres casos cuidadosamente seleccionados por su valor canónico; una batería más amplia de benchmarks reforzaría la confianza en el comportamiento del software ante geometrías y condiciones de carga más diversas.
+
+% DATO PENDIENTE: si se dispone de tiempos de ejecucion o consumo de memoria medidos para las mallas mayores, incorporarlos como evidencia cuantitativa de la escalabilidad en esta subseccion.

@@ -9,7 +9,6 @@ La compilación corre en un thread para no bloquear la UI.
 from __future__ import annotations
 
 import hashlib
-import tempfile
 import threading
 from pathlib import Path
 from typing import Callable, Optional
@@ -19,6 +18,7 @@ import ttkbootstrap as ttk
 import fitz  # PyMuPDF
 from PIL import Image, ImageTk
 
+from config.settings import USER_CONFIG_DIR, THEORY_VIEWER_BG_COLOR
 from .theory_builder import TheoryDoc
 
 
@@ -57,7 +57,7 @@ class TheoryViewer(ttk.Toplevel):
         outer.pack(fill="both", expand=True, padx=10, pady=(0, 10))
 
         self._canvas = tk.Canvas(outer, highlightthickness=0,
-                                  background="#2b2b3c")
+                                  background=THEORY_VIEWER_BG_COLOR)
         self._sb = ttk.Scrollbar(outer, orient="vertical",
                                   command=self._canvas.yview,
                                   bootstyle="round")
@@ -135,7 +135,11 @@ class TheoryViewer(ttk.Toplevel):
         threading.Thread(target=worker, daemon=True).start()
 
     def _compile(self, td: TheoryDoc, key: str) -> Path:
-        tmp_dir = Path(tempfile.gettempdir()) / "edufem_theory"
+        # Cache en el directorio de usuario aislado (~/.edufem), no en el TEMP
+        # compartido del sistema: en %TEMP%/C:\Windows\Temp el nombre {key}.pdf
+        # es predecible (hash de contenido publico) y otro usuario local podria
+        # pre-crearlo. ~/.edufem ya es la convencion del resto de la app.
+        tmp_dir = Path(USER_CONFIG_DIR) / "theory_cache"
         tmp_dir.mkdir(parents=True, exist_ok=True)
         out_base = tmp_dir / key
         try:

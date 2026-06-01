@@ -300,6 +300,36 @@ def main():
               f"H1 final {last['H1_semi']:.3e} (tasa~{last['rate_H1']})")
     print(f"\nOutputs en {out_dir}")
 
+    # ─── Verificacion automatica de regresion ──────────────────────────────
+    # Las tasas de convergencia deben tender a las asintoticas teoricas:
+    #   Q4 -> L2 O(h^2), H1 O(h^1);   Q9 -> L2 O(h^3), H1 O(h^2).
+    # Tolerancia +-0.5 por la desviacion pre-asintotica de las mallas finitas.
+    TOL = 0.5
+    expected = {"q4": (2.0, 1.0), "q9": (3.0, 2.0)}
+    checks = []
+    for et_key in ("q4", "q9"):
+        rL, rH = None, None
+        for r in reversed(results[et_key]):
+            if rL is None and r["rate_L2"] != "":
+                rL = float(r["rate_L2"])
+            if rH is None and r["rate_H1"] != "":
+                rH = float(r["rate_H1"])
+            if rL is not None and rH is not None:
+                break
+        exp_L, exp_H = expected[et_key]
+        if rL is not None:
+            checks.append((f"MMS {et_key.upper()} tasa L2~{exp_L} (obs {rL:.2f})",
+                           abs(rL - exp_L) < TOL))
+        if rH is not None:
+            checks.append((f"MMS {et_key.upper()} tasa H1~{exp_H} (obs {rH:.2f})",
+                           abs(rH - exp_H) < TOL))
+    failed = [n for n, ok in checks if not ok]
+    print("\n--- Verificacion ---")
+    for name, ok in checks:
+        print(f"  [{'OK' if ok else 'FAIL'}] {name}")
+    if failed:
+        sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

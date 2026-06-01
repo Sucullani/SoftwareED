@@ -23,7 +23,6 @@ from __future__ import annotations
 
 import math
 import tkinter as tk
-from typing import Optional
 
 import numpy as np
 import ttkbootstrap as ttk
@@ -37,8 +36,10 @@ from config.settings import (
     PROBE_PIN_COLOR, GAUSS_SNAP_COLOR, PROBE_NODE_SNAP_COLOR,
     PRINCIPAL_TENSION_COLOR, PRINCIPAL_COMPRESSION_COLOR,
     MOHR_CIRCLE_COLOR, MOHR_POINT_COLOR, MOHR_AXIS_COLOR,
-    MOHR_BG, MOHR_FG, fmt,
+    MOHR_BG, MOHR_FG, MOHR_GRID_COLOR, fmt,
+    OVERLAY_TITLE_FG, DETAILS_NAT_FG_COLOR,
 )
+from fem.probe_query import principal_and_vm, principal_angle
 
 
 # Accent → color del header y del borde del Toplevel.
@@ -46,7 +47,7 @@ _ACCENT_COLOR = {
     "node":    PROBE_NODE_SNAP_COLOR,
     "gauss":   GAUSS_SNAP_COLOR,
     "details": PROBE_PIN_COLOR,
-    "default": "#ffffff",
+    "default": OVERLAY_TITLE_FG,
 }
 
 
@@ -80,7 +81,7 @@ class DetailsPanel(tk.Toplevel):
             pass
 
         # Borde fino del color del accent
-        border_color = _ACCENT_COLOR.get(accent, "#ffffff")
+        border_color = _ACCENT_COLOR.get(accent, OVERLAY_TITLE_FG)
         self.configure(
             bg=LABEL_BG,
             highlightthickness=1,
@@ -146,7 +147,7 @@ class DetailsPanel(tk.Toplevel):
         header.pack(fill=tk.X, padx=8, pady=(8, 4))
         header.pack_propagate(False)
 
-        accent_fg = _ACCENT_COLOR.get(self.accent, "#ffffff")
+        accent_fg = _ACCENT_COLOR.get(self.accent, OVERLAY_TITLE_FG)
         self._title_label = tk.Label(
             header, text=self._header_text(), bg=LABEL_BG, fg=accent_fg,
             font=FONT_UI_BOLD, anchor="w",
@@ -204,7 +205,7 @@ class DetailsPanel(tk.Toplevel):
 
     # ── Render de los valores (col izquierda) ──────────────────────────
     def _render_values(self):
-        accent_fg = _ACCENT_COLOR.get(self.accent, "#ffffff")
+        accent_fg = _ACCENT_COLOR.get(self.accent, OVERLAY_TITLE_FG)
         self._title_label.configure(text=self._header_text(), fg=accent_fg)
 
         vals = self.vals
@@ -214,7 +215,7 @@ class DetailsPanel(tk.Toplevel):
         umag = math.hypot(ux, uy)
         lines = [
             (f"Pos:  ({t['world_x']:.3f}, {t['world_y']:.3f})", LABEL_FG),
-            (f"Nat:  ξ={t['xi']:+.3f}  η={t['eta']:+.3f}", "#aaaaaa"),
+            (f"Nat:  ξ={t['xi']:+.3f}  η={t['eta']:+.3f}", DETAILS_NAT_FG_COLOR),
             ("", LABEL_FG),
             (f"ux  = {fmt(ux, 'displacement')}", LABEL_FG),
             (f"uy  = {fmt(uy, 'displacement')}", LABEL_FG),
@@ -238,14 +239,11 @@ class DetailsPanel(tk.Toplevel):
         sx = vals["sigma_x"]
         sy = vals["sigma_y"]
         txy = vals["tau_xy"]
+        # Fuente unica: fem.probe_query (mismo calculo que el probe y las cruces).
         sigma_avg = 0.5 * (sx + sy)
-        R = math.hypot(0.5 * (sx - sy), txy)
-        s1 = sigma_avg + R
-        s2 = sigma_avg - R
-        if abs(sx - sy) + abs(txy) > 1e-12:
-            theta_p_rad = 0.5 * math.atan2(2 * txy, sx - sy)
-        else:
-            theta_p_rad = 0.0
+        s1, s2, _vm = principal_and_vm(sx, sy, txy)
+        R = 0.5 * (s1 - s2)            # radio del circulo de Mohr
+        theta_p_rad = principal_angle(sx, sy, txy)
         theta_p_deg = math.degrees(theta_p_rad)
 
         ax = self._ax
@@ -254,7 +252,7 @@ class DetailsPanel(tk.Toplevel):
         ax.tick_params(colors=MOHR_FG, labelsize=7)
         for spine in ax.spines.values():
             spine.set_color(MOHR_FG)
-        ax.grid(True, color="#404055", linewidth=0.3, alpha=0.5)
+        ax.grid(True, color=MOHR_GRID_COLOR, linewidth=0.3, alpha=0.5)
 
         if R < 1e-12:
             # Estado isotropo (σx=σy, τxy=0): Mohr degenera a un punto

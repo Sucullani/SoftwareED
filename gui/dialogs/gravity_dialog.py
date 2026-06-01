@@ -39,6 +39,7 @@ _PREVIEW_HEAD_PX    = 14   # tamaño de la cabeza triangular
 _PREVIEW_TAG        = "gravity_preview"
 
 
+from gui.dialogs._dialog_helpers import center_dialog
 class GravityDialog:
     """Ventana modal para configurar el vector de gravedad (gx, gy)."""
 
@@ -159,7 +160,10 @@ class GravityDialog:
         canvas = self._get_canvas()
         if canvas is not None:
             try:
-                canvas.redraw()
+                # Solo cambió la flecha de gravedad (capa overlay registrada):
+                # refrescar SOLO las capas overlay en vez de rasterizar toda la
+                # malla por cada tecla. El redraw() completo ya corrió al abrir.
+                canvas.redraw_overlays_only()
             except Exception:
                 pass
 
@@ -286,13 +290,4 @@ class GravityDialog:
         self.dialog.destroy()
 
     def _center(self):
-        self.dialog.update_idletasks()
-        w = self.dialog.winfo_width()
-        h = self.dialog.winfo_height()
-        sw = self.dialog.winfo_screenwidth()
-        sh = self.dialog.winfo_screenheight()
-        x = self.parent.winfo_x() + (self.parent.winfo_width() - w) // 2
-        y = self.parent.winfo_y() + (self.parent.winfo_height() - h) // 2
-        x = max(0, min(x, sw - w))
-        y = max(0, min(y, sh - h - 50))
-        self.dialog.geometry(f"+{x}+{y}")
+        center_dialog(self.dialog, self.parent, clamp_screen=True)

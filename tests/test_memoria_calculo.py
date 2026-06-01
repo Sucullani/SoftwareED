@@ -4,22 +4,25 @@ Test del generador de Memoria de Calculo (PDF/LaTeX) — reformulado 2026-05.
 Estilo printout (no usa pytest), consistente con el resto de tests/.
 Skip elegante si pdflatex no esta en el PATH.
 
-Cobertura:
+Cobertura (sincronizada con las funciones reales; ver el bloque __main__):
   - test_memoria_minima_q4 / _q9: compila el PDF (skip sin pdflatex).
   - test_error_pdflatex_faltante: la excepcion accionable existe.
   - test_factored_matrix_helpers: helpers de factorizacion (sin pdflatex).
   - test_no_plus_en_positivos: las celdas de matrices/vectores no llevan '+'.
   - test_tex_estructura_educativo: capitulos + jerarquia FEM del estilo
     'educativo' (default). Sin compilar.
-  - test_tex_solver_spsolve_no_cholesky: el Cap. de solucion describe spsolve
-    (LU dispersa), NO Cholesky.
-  - test_tex_indexado_ordinal: el ensamblaje describe el indexado ordinal.
+  - test_tex_solver_lu_sin_internals: el Cap. de solucion describe LU directa
+    en abstracto, sin mencionar internals (spsolve/SuperLU/etc.).
+  - test_tex_ensamblaje_lm: el ensamblaje describe el mapeo LM.
   - test_tex_sin_cross_refs_circulares: la Memoria no remite al Hub.
-  - test_tex_completo_tiene_apendices / test_tex_educativo_sin_apendices.
-  - test_tex_directo_sin_narrativa.
+  - test_tex_solo_dos_estilos: STYLES == ('educativo', 'directo').
+  - test_tex_educativo_glosario_sin_volcado / test_tex_directo_sin_narrativa /
+    test_tex_directo_paso_a_paso.
   - test_mesh_diagram_es_pil: render_mesh_diagram devuelve una PIL.Image.
   - test_contornos_pil_blanco: los contornos son PIL con fondo blanco.
-  - test_hub_*: chequeos del Theory Hub.
+  - test_pipeline_map_es_pil / test_compila_directo_q4.
+  - test_hub_*: chequeos del Theory Hub (m8/post, LU sin internals, sin Mohr,
+    BCs por eliminacion, TOC clickeable, sin bibliografia).
 """
 
 from __future__ import annotations

@@ -24,6 +24,7 @@ from ttkbootstrap.constants import *
 
 from config.settings import (
     ANALYSIS_PLANE_STRESS, ANALYSIS_PLANE_STRAIN,
+    ORPHAN_NODE_FG, FONT_UI,
 )
 from education.components.edu_plot_style import _theme_colors
 from gui.widgets.webp_player import WebpPlayer
@@ -39,6 +40,7 @@ VIDEO_W, VIDEO_H = 720, 480
 DIALOG_W, DIALOG_H = 760, 660
 
 
+from gui.dialogs._dialog_helpers import center_dialog
 class AnalysisTypeDialog:
     """Ventana modal para configurar Tipo de Análisis (TP ↔ DP)."""
 
@@ -150,7 +152,7 @@ class AnalysisTypeDialog:
             msg += f"\n\nError: {exc}"
         ttk.Label(
             self.video_frame, text=msg,
-            foreground="#d68545", font=("Segoe UI", 9),
+            foreground=ORPHAN_NODE_FG, font=FONT_UI,
             justify=CENTER,
         ).pack(expand=YES)
 
@@ -200,9 +202,4 @@ class AnalysisTypeDialog:
                 pass
 
     def _center(self):
-        self.dialog.update_idletasks()
-        w = self.dialog.winfo_width()
-        h = self.dialog.winfo_height()
-        x = self.parent.winfo_x() + (self.parent.winfo_width() - w) // 2
-        y = self.parent.winfo_y() + (self.parent.winfo_height() - h) // 2
-        self.dialog.geometry(f"+{max(x, 0)}+{max(y, 0)}")
+        center_dialog(self.dialog, self.parent)

@@ -42,6 +42,18 @@ def _units_header(project):
             f"esfuerzo={u.get('esfuerzo', '-')}")
 
 
+def _sanitize_csv_cell(value):
+    """Anti CSV/formula-injection: si una celda de TEXTO empieza con un
+    caracter que Excel/LibreOffice interpretan como fórmula (= + - @, o
+    tab/CR), se le antepone un apóstrofo para neutralizarla. Los valores
+    numéricos pasan sin tocar. Defensa estándar al exportar datos que el
+    usuario controla (p.ej. nombres de material) a un CSV abrible en planilla.
+    """
+    if isinstance(value, str) and value and value[0] in ("=", "+", "-", "@", "\t", "\r"):
+        return "'" + value
+    return value
+
+
 def _write_csv_to_zip(zf, name, header_comment, columns, rows):
     """Escribe un CSV dentro del zip con un comentario de unidades arriba."""
     buf = io.StringIO()
@@ -49,7 +61,7 @@ def _write_csv_to_zip(zf, name, header_comment, columns, rows):
     writer = csv.writer(buf)
     writer.writerow(columns)
     for row in rows:
-        writer.writerow(row)
+        writer.writerow([_sanitize_csv_cell(c) for c in row])
     zf.writestr(name, buf.getvalue())
 
 

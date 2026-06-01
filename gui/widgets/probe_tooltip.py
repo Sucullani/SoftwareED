@@ -16,7 +16,18 @@ import tkinter as tk
 from config.settings import (
     LABEL_BG, LABEL_FG, FONT_UI_BOLD, FONT_MONO_SMALL,
     PROBE_PIN_COLOR, GAUSS_SNAP_COLOR, PROBE_NODE_SNAP_COLOR,
+    OVERLAY_TITLE_FG, PROBE_TOOLTIP_BORDER_COLOR,
 )
+
+
+# Color de acento por tipo de target del probe. El header (1ra linea) y el
+# borde del Toplevel toman este color; difieren solo en el valor por defecto
+# (texto blanco vs borde gris).
+_ACCENT_COLOR = {
+    "gauss":  GAUSS_SNAP_COLOR,
+    "pinned": PROBE_PIN_COLOR,
+    "node":   PROBE_NODE_SNAP_COLOR,
+}
 
 
 class ProbeTooltip:
@@ -76,7 +87,7 @@ class ProbeTooltip:
         except tk.TclError:
             pass
         tw.configure(bg=LABEL_BG, highlightthickness=1,
-                     highlightbackground="#555")
+                     highlightbackground=PROBE_TOOLTIP_BORDER_COLOR)
         # Withdraw mientras no se posiciona, evita parpadeo en (0,0)
         tw.withdraw()
         self._tip = tw
@@ -104,21 +115,10 @@ class ProbeTooltip:
             lbl.pack(anchor="w")
             self._labels.append(lbl)
 
-        # Color del titulo segun acento
-        accent_fg = {
-            "gauss":  GAUSS_SNAP_COLOR,
-            "pinned": PROBE_PIN_COLOR,
-            "node":   PROBE_NODE_SNAP_COLOR,
-            "details": PROBE_PIN_COLOR,
-        }.get(accent, "#ffffff")
-
-        # Borde del Toplevel segun acento
-        border_color = {
-            "gauss":  GAUSS_SNAP_COLOR,
-            "pinned": PROBE_PIN_COLOR,
-            "node":   PROBE_NODE_SNAP_COLOR,
-            "details": PROBE_PIN_COLOR,
-        }.get(accent, "#555")
+        # Color del titulo y borde del Toplevel segun acento (mismo mapa,
+        # distinto default: texto blanco vs borde gris).
+        accent_fg = _ACCENT_COLOR.get(accent, OVERLAY_TITLE_FG)
+        border_color = _ACCENT_COLOR.get(accent, PROBE_TOOLTIP_BORDER_COLOR)
         try:
             self._tip.configure(highlightbackground=border_color)
         except tk.TclError:

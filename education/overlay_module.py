@@ -54,7 +54,7 @@ from typing import Callable, Optional, Tuple
 import tkinter as tk
 
 from gui.widgets.canvas_overlay import CanvasOverlay
-from config.settings import EDU_AXES_BG, HEALTH_ERROR_COLOR
+from config.settings import EDU_AXES_BG, HEALTH_ERROR_COLOR, OVERLAY_ACCENT_AMBER
 
 
 # Registry de instancias activas: (id(main_window), cls) -> instance.
@@ -275,7 +275,9 @@ class CanvasOverlayModule:
     def on_node_selected(self, node_id: int) -> None:
         """Callback override: el usuario clickeó un nodo en el canvas.
 
-        Default: no-op. M8 lo usa para cambiar el nodo del Mohr.
+        Default: no-op. Reservado para módulos que operen por-nodo (el ex-M8
+        del estado tensional puntual, que lo usaba, fue eliminado en 2026-05;
+        el círculo de Mohr vive ahora en el DetailsPanel del Post).
         """
         return None
 
@@ -328,7 +330,7 @@ class CanvasOverlayModule:
         import ttkbootstrap as ttk_local
         lbl = ttk_local.Label(
             parent, text=text,
-            font=("Segoe UI", 9), foreground="#ffd54f",
+            font=("Segoe UI", 9), foreground=OVERLAY_ACCENT_AMBER,
             wraplength=wraplength, justify="left",
         )
         lbl.pack(fill="x", padx=4, pady=(4, 0))

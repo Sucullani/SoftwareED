@@ -190,9 +190,10 @@ def _rasterize_triangle_njit(img, W, H,
     directamente en cache L1. Speedup: 15-30x vs version NumPy en triangulos
     chicos (lo tipico para el campo de tensiones, ~20-50 px de lado).
 
-    `lut`: ndarray (256, 3) uint8 (viridis o coolwarm, ver config/colormaps).
-    Indexar el LUT por `int(t*255)` es mas rapido que el branching de JET y,
-    a diferencia de JET, es perceptualmente uniforme (auditoria UX 2026-05).
+    `lut`: ndarray (256, 3) uint8 (JET para todos los campos — pedido del
+    usuario 2026-05-31, look ANSYS/SAP2000; ver config/colormaps). Indexar el
+    LUT precomputado por `int(t*255)` es mas rapido que recalcular el color por
+    pixel.
 
     `fastmath=True`: permitido aqui porque solo afecta visualizacion (el
     pipeline FEM en `fem/` NO usa fastmath para preservar bit-reproducibilidad
@@ -236,9 +237,8 @@ def _rasterize_triangle_njit(img, W, H,
             elif t > 1.0:
                 t = 1.0
 
-            # Color via LUT perceptual (viridis/coolwarm). Indexar es mas
-            # rapido que el branching de JET anterior y no produce las
-            # bandas falsas de JET.
+            # Color via LUT JET precomputado (config/colormaps): indexar por
+            # int(t*255) es mas rapido que recalcular el color por pixel.
             idx = int(t * 255.0)
             if idx < 0:
                 idx = 0
@@ -265,6 +265,9 @@ from config.settings import (
     DECIMALS_LENGTH, DECIMALS_FORCE, DECIMALS_STRESS, fmt,
     SHADOW_LOAD, SHADOW_SURFACE, SHADOW_CONSTRAINT, LABEL_BG, LABEL_FG,
     FONT_MONO_SMALL, TEXT_MUTED_FG,
+    CANVAS_AXIS_X_COLOR, CANVAS_AXIS_Y_COLOR, CANVAS_DEFORM_GHOST_COLOR,
+    CANVAS_ELEM_LABEL_ON_FIELD_COLOR, CANVAS_ELEM_LABEL_COLOR,
+    CANVAS_COLORBAR_BORDER_COLOR,
 )
 from config.colormaps import (
     JET_LUT, t_to_hex, value_to_hex,
@@ -329,14 +332,6 @@ class MeshCanvas(ttk.Frame):
         # Track del ultimo nodo clickeado para Shift+Click range select.
         self._last_node_anchor = None
 
-        # Callbacks bidireccionales spreadsheet <-> canvas. El pre_tab los
-        # setea al construir su layout. Cada uno recibe el id de la entidad
-        # clickeada (node_id para load/constraint, idx para surface).
-        self.on_load_select = None        # callable(node_id)
-        self.on_constraint_select = None  # callable(node_id)
-        self.on_surface_select = None     # callable(idx)
-        self.on_node_select = None        # callable(node_id) opcional
-        self.on_element_select = None     # callable(elem_id) opcional
         # Callback de borrado desde canvas (tecla Supr/Delete sobre item
         # actualmente highlighted). El pre_tab lo registra en
         # _wire_canvas_callbacks. Recibe (kind, target_id) donde kind in
@@ -585,7 +580,7 @@ class MeshCanvas(ttk.Frame):
         self.on_ortho_changed = None        # callable(active: bool)
 
     # ═════════════════════════════════════════════════════════════════════
-    # COLORES — LUT perceptual (viridis / coolwarm)
+    # COLORES — LUT JET (arcoíris ANSYS/SAP2000, pedido del usuario 2026-05-31)
     # ═════════════════════════════════════════════════════════════════════
     #
     # El LUT activo (`self._active_lut`) es JET para TODO (pedido del usuario
@@ -1027,20 +1022,22 @@ class MeshCanvas(ttk.Frame):
         length = 35
         bx, by = margin, self.canvas.winfo_height() - margin
         self.canvas.create_line(
-            bx, by, bx + length, by, fill="#ef5350", width=2, arrow=tk.LAST,
+            bx, by, bx + length, by, fill=CANVAS_AXIS_X_COLOR, width=2,
+            arrow=tk.LAST,
             tags=("screen", "axes"),
         )
         self.canvas.create_text(
-            bx + length + 8, by, text="X", fill="#ef5350",
+            bx + length + 8, by, text="X", fill=CANVAS_AXIS_X_COLOR,
             font=("Segoe UI", 9, "bold"), anchor=W,
             tags=("screen", "axes"),
         )
         self.canvas.create_line(
-            bx, by, bx, by - length, fill="#4fc3f7", width=2, arrow=tk.LAST,
+            bx, by, bx, by - length, fill=CANVAS_AXIS_Y_COLOR, width=2,
+            arrow=tk.LAST,
             tags=("screen", "axes"),
         )
         self.canvas.create_text(
-            bx, by - length - 8, text="Y", fill="#4fc3f7",
+            bx, by - length - 8, text="Y", fill=CANVAS_AXIS_Y_COLOR,
             font=("Segoe UI", 9, "bold"), anchor=S,
             tags=("screen", "axes"),
         )
@@ -1060,7 +1057,7 @@ class MeshCanvas(ttk.Frame):
                 continue
             coords.extend(coords[:2])
             self.canvas.create_line(
-                *coords, fill="#444466", width=1, dash=(3, 5),
+                *coords, fill=CANVAS_DEFORM_GHOST_COLOR, width=1, dash=(3, 5),
                 tags=("world", "ghost"),
             )
 
@@ -1611,7 +1608,9 @@ class MeshCanvas(ttk.Frame):
             if show_label:
                 cx = sum(coords[::2]) / 4
                 cy = sum(coords[1::2]) / 4
-                text_color = "#222" if self.result_values else "#aaaaaa"
+                text_color = (CANVAS_ELEM_LABEL_ON_FIELD_COLOR
+                              if self.result_values
+                              else CANVAS_ELEM_LABEL_COLOR)
                 self.canvas.create_text(
                     cx, cy, text=str(elem.id),
                     fill=text_color,
@@ -2194,7 +2193,7 @@ class MeshCanvas(ttk.Frame):
 
         self.canvas.create_rectangle(
             x0, y0, x0 + bar_w, y0 + bar_h,
-            outline="#aaa", width=1,
+            outline=CANVAS_COLORBAR_BORDER_COLOR, width=1,
             tags=("screen", "colorbar"),
         )
 
@@ -2445,7 +2444,12 @@ class MeshCanvas(ttk.Frame):
             if (new_snap != self.draw_hover_snap or self.draw_pending
                     or (state_changed and self.draw_pending)):
                 self.draw_hover_snap = new_snap
-                self.redraw()
+                # Solo cambió el preview de dibujo (tag "draw_preview"): refrescar
+                # SOLO esa capa en vez de rasterizar toda la malla por cada pixel
+                # del cursor. _draw_pending_overlay() es autocontenido (polígono
+                # parcial + línea al cursor + anillo de snap).
+                self.canvas.delete("draw_preview")
+                self._draw_pending_overlay()
 
     def _hover_enabled(self):
         """True si el realce de hover debe operar en el estado actual.
@@ -3052,24 +3056,6 @@ class MeshCanvas(ttk.Frame):
     def highlight_element(self, elem_id):
         self.select_element(elem_id, additive=False)
 
-    def highlight_load(self, node_id):
-        """Resalta una carga nodal en el canvas (halo + nodo asociado)."""
-        self.select_load(node_id, additive=False)
-        # Compat: la carga "highlightea" tambien el nodo asociado para
-        # que el halo del nodo se vea.
-        self.selected_nodes.add(node_id)
-        self._emit_selection_changed()
-        self.redraw()
-
-    def highlight_constraint(self, node_id):
-        self.select_constraint(node_id, additive=False)
-        self.selected_nodes.add(node_id)
-        self._emit_selection_changed()
-        self.redraw()
-
-    def highlight_surface_load(self, idx):
-        self.select_surface(idx, additive=False)
-
     def clear_highlights(self):
         """Limpia toda la seleccion (single + multi)."""
         self._clear_all_sets_silent()
@@ -3340,41 +3326,10 @@ class MeshCanvas(ttk.Frame):
             return
 
     def _preview_element_cleanup(self, elem_id):
-        """Calcula sin mutar nada que pasaria si se elimina `elem_id`
-        con el auto-cleanup: cuantos nodos quedarian huerfanos sin
-        referencias (auto-eliminables) vs con referencias (preservados).
-        Retorna dict {"nodes_to_delete": [...], "nodes_to_preserve": [...]}.
-        """
-        elem = self.project.elements.get(elem_id)
-        if elem is None:
-            return {"nodes_to_delete": [], "nodes_to_preserve": []}
-        nodes_in_elem = set(elem.node_ids)
-        to_delete = []
-        to_preserve = []
-        for nid in nodes_in_elem:
-            if nid not in self.project.nodes:
-                continue
-            in_other = any(
-                nid in e.node_ids
-                for e in self.project.elements.values()
-                if e.id != elem_id
-            )
-            if in_other:
-                continue
-            has_data = (
-                nid in self.project.nodal_loads
-                or nid in self.project.boundary_conditions
-                or any(sl.node_start == nid or sl.node_end == nid
-                       for sl in self.project.surface_loads)
-            )
-            if has_data:
-                to_preserve.append(nid)
-            else:
-                to_delete.append(nid)
-        return {
-            "nodes_to_delete": sorted(to_delete),
-            "nodes_to_preserve": sorted(to_preserve),
-        }
+        """Delega en `ProjectModel.preview_element_cleanup` (fuente única,
+        antes duplicada verbatim aquí y en pre_tab; ahora O(1) por nodo via
+        el índice inverso del modelo)."""
+        return self.project.preview_element_cleanup(elem_id)
 
     def _fire_delete_callback(self, kind, target_id, status_msg):
         """Dispara `on_canvas_delete` (si esta registrado) y muestra el
@@ -3389,37 +3344,6 @@ class MeshCanvas(ttk.Frame):
             self.main_window.set_status(status_msg)
         except Exception:
             pass
-        self.redraw()
-
-    def center_on_node(self, node_id):
-        """Centra el viewport sobre un nodo (mantiene escala actual)."""
-        node = self.project.nodes.get(node_id)
-        if node is None:
-            return
-        w = self.canvas.winfo_width()
-        h = self.canvas.winfo_height()
-        if w <= 1 or h <= 1:
-            return
-        self.offset_x = w / 2 - node.x * self.scale
-        self.offset_y = h / 2 + node.y * self.scale
-        self.redraw()
-
-    def center_on_element(self, elem_id):
-        """Centra el viewport sobre un elemento (mantiene escala actual)."""
-        elem = self.project.elements.get(elem_id)
-        if elem is None:
-            return
-        nids = [n for n in elem.node_ids[:4] if n in self.project.nodes]
-        if not nids:
-            return
-        cx = sum(self.project.nodes[n].x for n in nids) / len(nids)
-        cy = sum(self.project.nodes[n].y for n in nids) / len(nids)
-        w = self.canvas.winfo_width()
-        h = self.canvas.winfo_height()
-        if w <= 1 or h <= 1:
-            return
-        self.offset_x = w / 2 - cx * self.scale
-        self.offset_y = h / 2 + cy * self.scale
         self.redraw()
 
     def set_result_values(self, values, label="Resultado", unit=""):

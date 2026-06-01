@@ -5,8 +5,14 @@ matplotlib>=3.7.0,<4.0
 ttkbootstrap>=1.10.0,<2
 pylatex>=1.4.2,<2
 PyMuPDF>=1.24.0,<2
-Pillow>=10.0.0
+Pillow>=10.0.0,<14
 ezdxf>=1.0,<2
+#
+# Binario externo OPCIONAL (no instalable por pip): pdflatex (MiKTeX / TeX Live).
+# La Memoria de Cálculo PDF y la teoría usan pylatex -> pdflatex para calidad
+# documento. Sin pdflatex la app sigue funcionando (las fórmulas caen al
+# fallback mathtext). Instalá MiKTeX/TeX Live aparte si querés el PDF.
+#
 # ─── Opcional: JIT con numba (perf) ────────────────────────────────────────
 # @njit acelera los hot paths (FEM core + rasterizado del campo). fem/_numba_compat.py
 # provee un fallback que convierte @njit en no-op si numba NO esta instalado: el

@@ -59,6 +59,8 @@ htmlcov/
 *.nav
 *.snm
 *.vrb
+*.bcf
+*.run.xml
 
 # Project-specific
 compile_output*.txt
@@ -68,6 +70,15 @@ Example.log
 Example.out
 Example.toc
 docs/Example.*
+
+# Temporales de desarrollo / escritura atomica abortada / scratch
+*.tmp
+*.tmp.*
+temp_*
+
+# Artefactos intermedios de render Manim (regenerables desde los .py de escena;
+# el .webp final vive versionado en resources/videos/)
+tools/**/media/
 
 # User config / runtime
 ~/.edufem/

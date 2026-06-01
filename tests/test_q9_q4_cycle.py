@@ -38,16 +38,16 @@ def main():
 
     assert p.num_nodes == 9, f"quedaron {p.num_nodes} nodos, deberian 9"
 
-    if len(u_q4_a) == len(u_q4_b):
-        import numpy as np
-        diff = float(np.max(np.abs(u_q4_a - u_q4_b)))
-        print(f"\nMax |u_q4_inicial - u_q4_reducido| = {diff:.3e}")
-        if diff < 1e-9:
-            print("OK - Q4 -> Q9 -> Q4 regresa al estado numerico original.")
-        else:
-            print("FAIL - el ciclo altera los desplazamientos.")
-    else:
-        print(f"FAIL - tamanos distintos: {len(u_q4_a)} vs {len(u_q4_b)}")
+    import numpy as np
+    assert len(u_q4_a) == len(u_q4_b), (
+        f"tamanos distintos tras el ciclo: {len(u_q4_a)} vs {len(u_q4_b)}"
+    )
+    diff = float(np.max(np.abs(u_q4_a - u_q4_b)))
+    print(f"\nMax |u_q4_inicial - u_q4_reducido| = {diff:.3e}")
+    assert diff < 1e-9, (
+        f"el ciclo Q4->Q9->Q4 altera los desplazamientos: max|delta|={diff:.3e}"
+    )
+    print("OK - Q4 -> Q9 -> Q4 regresa al estado numerico original.")
 
 
 if __name__ == "__main__":

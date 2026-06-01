@@ -1,0 +1,305 @@
+\chapter{Marco teórico}
+\label{cap:marco_teorico}
+
+El Método de los Elementos Finitos (MEF) es el procedimiento numérico de referencia para aproximar la solución de problemas de mecánica de medios continuos formulados como ecuaciones diferenciales en derivadas parciales. Su solidez teórica está documentada en los textos clásicos de la disciplina \autocite{zienkiewicz2013fem,bathe2014fem,cook2002concepts,hughes2000fem,reddy2006introduction}. Este capítulo establece los fundamentos matemáticos que sustentan el motor de cálculo de EduFEM, restringido a problemas de elasticidad lineal plana resueltos con elementos isoparamétricos cuadriláteros de cuatro y nueve nodos. La exposición sigue el orden del propio canal de cálculo del programa: de la formulación variacional a la recuperación de tensiones, pasando por la calidad de malla y la verificación numérica.
+
+\section{Fundamentos del MEF y formulación variacional en elasticidad lineal}
+\label{sec:formulacion-debil}
+
+Sea un dominio bidimensional $\Omega \subset \mathbb{R}^2$ con frontera $\Gamma = \Gamma_u \cup \Gamma_t$, donde $\Gamma_u$ es la porción con desplazamientos prescritos (restricciones de Dirichlet) y $\Gamma_t$ la porción con tracciones impuestas (Neumann). El problema de equilibrio en elasticidad lineal estática se enuncia, en su forma fuerte, como
+
+\begin{equation}
+\nabla \cdot \boldsymbol{\sigma} + \mathbf{b} = \mathbf{0} \quad \text{en } \Omega,
+\label{eq:equilibrio-fuerte}
+\end{equation}
+
+donde $\boldsymbol{\sigma}$ es el tensor de tensiones y $\mathbf{b}$ la fuerza por unidad de volumen. La forma fuerte exige continuidad de segundo orden del campo de desplazamientos $\mathbf{u}$, requisito difícil de satisfacer de manera global. El MEF parte por ello de la \emph{forma débil} o variacional, obtenida multiplicando \autoref{eq:equilibrio-fuerte} por un campo de desplazamientos virtuales $\delta\mathbf{u}$ admisible (nulo sobre $\Gamma_u$) e integrando por partes mediante el teorema de la divergencia. Esto conduce al principio de los trabajos virtuales \autocite{zienkiewicz2013fem,hughes2000fem}:
+
+\begin{equation}
+\int_\Omega \delta\boldsymbol{\varepsilon}^{T} \boldsymbol{\sigma} \, d\Omega
+= \int_\Omega \delta\mathbf{u}^{T} \mathbf{b} \, d\Omega
++ \int_{\Gamma_t} \delta\mathbf{u}^{T} \mathbf{t} \, d\Gamma,
+\label{eq:trabajos-virtuales}
+\end{equation}
+
+con $\delta\boldsymbol{\varepsilon}$ las deformaciones virtuales y $\mathbf{t}$ las tracciones de borde. La formulación débil rebaja el requisito de continuidad a primer orden, lo que habilita aproximaciones polinómicas a trozos. El campo continuo se discretiza interpolando los valores nodales mediante funciones de forma: dentro de cada elemento, $\mathbf{u} \approx \mathbf{N}\,\mathbf{u}_e$, donde $\mathbf{N}$ agrupa las funciones de forma y $\mathbf{u}_e$ los desplazamientos de los nodos del elemento. Sustituyendo esta aproximación en \autoref{eq:trabajos-virtuales} y aprovechando la arbitrariedad de $\delta\mathbf{u}$ se obtiene el sistema algebraico de equilibrio
+
+\begin{equation}
+\mathbf{K}\,\mathbf{u} = \mathbf{F},
+\label{eq:sistema-global}
+\end{equation}
+
+donde $\mathbf{K}$ es la matriz de rigidez global, $\mathbf{u}$ el vector de desplazamientos nodales y $\mathbf{F}$ el vector de cargas. El resto del capítulo desarrolla cada pieza de \autoref{eq:sistema-global}.
+
+\section{Elasticidad plana: tensión plana y deformación plana}
+\label{sec:elasticidad-plana}
+
+La elasticidad bidimensional admite dos idealizaciones de un sólido tridimensional \autocite{timoshenko1970elasticity,cook2002concepts}. La \emph{tensión plana} modela cuerpos delgados cargados en su plano, en los que la tensión normal al plano es despreciable ($\sigma_z = 0$); es el caso de una chapa o membrana de poco espesor. La \emph{deformación plana} modela cuerpos prismáticos largos en los que la deformación longitudinal se anula ($\varepsilon_z = 0$); corresponde, por ejemplo, a una presa o un tubo largo donde una rebanada representa todo el sólido.
+
+En ambos casos las componentes relevantes se agrupan en notación de Voigt como $\boldsymbol{\sigma} = [\sigma_x,\, \sigma_y,\, \tau_{xy}]^T$ y $\boldsymbol{\varepsilon} = [\varepsilon_x,\, \varepsilon_y,\, \gamma_{xy}]^T$, ligadas por la ley constitutiva $\boldsymbol{\sigma} = \mathbf{D}\,\boldsymbol{\varepsilon}$. Para tensión plana la matriz constitutiva es
+
+\begin{equation}
+\mathbf{D}_{\text{TP}} = \frac{E}{1-\nu^{2}}
+\begin{bmatrix}
+1 & \nu & 0 \\
+\nu & 1 & 0 \\
+0 & 0 & \dfrac{1-\nu}{2}
+\end{bmatrix},
+\label{eq:D-tension-plana}
+\end{equation}
+
+y para deformación plana
+
+\begin{equation}
+\mathbf{D}_{\text{DP}} = \frac{E}{(1+\nu)(1-2\nu)}
+\begin{bmatrix}
+1-\nu & \nu & 0 \\
+\nu & 1-\nu & 0 \\
+0 & 0 & \dfrac{1-2\nu}{2}
+\end{bmatrix},
+\label{eq:D-deformacion-plana}
+\end{equation}
+
+donde $E$ es el módulo de elasticidad y $\nu$ el coeficiente de Poisson. El cambio en el denominador refleja el acoplamiento adicional que introduce la restricción $\varepsilon_z = 0$. La deformación plana es sensible a la incompresibilidad: cuando $\nu \to 0{,}5$ el factor $(1-2\nu)$ tiende a cero y $\mathbf{D}_{\text{DP}}$ se degrada, fenómeno asociado al bloqueo volumétrico (\emph{volumetric locking}) que se discute más adelante.
+
+\section{Elementos isoparamétricos Q4 y Q9}
+\label{sec:isoparametricos}
+
+EduFEM emplea elementos isoparamétricos cuadriláteros, en los que la misma familia de funciones de forma interpola tanto la geometría como el campo de desplazamientos \autocite{bathe2014fem,onate2009structural}. Las funciones se definen sobre un elemento de referencia (el cuadrado natural $(\xi, \eta) \in [-1, 1]^2$), y un mapeo isoparamétrico las lleva a la geometría física real.
+
+El elemento \textbf{Q4} es un cuadrilátero de cuatro nodos con interpolación bilineal. Numerados sus vértices en sentido antihorario, las funciones de forma son
+
+\begin{align}
+N_1 &= \tfrac{1}{4}(1-\xi)(1-\eta), & N_2 &= \tfrac{1}{4}(1+\xi)(1-\eta), \\
+N_3 &= \tfrac{1}{4}(1+\xi)(1+\eta), & N_4 &= \tfrac{1}{4}(1-\xi)(1+\eta).
+\label{eq:N-q4}
+\end{align}
+
+El elemento \textbf{Q9} añade cuatro nodos medios de arista y un nodo central, alcanzando interpolación bicuadrática como producto tensorial de polinomios de Lagrange unidimensionales. Sus funciones de forma para vértices, lados y centro son, respectivamente,
+
+\begin{align}
+N_i &= \tfrac{1}{4}\,\xi(\xi \mp 1)\,\eta(\eta \mp 1), \quad i \in \{1,2,3,4\}, \\
+N_5 &= \tfrac{1}{2}(1-\xi^2)\,\eta(\eta-1), \quad N_6 = \tfrac{1}{2}\,\xi(\xi+1)(1-\eta^2), \\
+N_7 &= \tfrac{1}{2}(1-\xi^2)\,\eta(\eta+1), \quad N_8 = \tfrac{1}{2}\,\xi(\xi-1)(1-\eta^2), \\
+N_9 &= (1-\xi^2)(1-\eta^2).
+\label{eq:N-q9}
+\end{align}
+
+Todas satisfacen la propiedad de Kronecker $N_i(\xi_j, \eta_j) = \delta_{ij}$ y forman una partición de la unidad. El mapeo isoparamétrico interpola la posición física de cualquier punto interior a partir de las coordenadas nodales $(x_i, y_i)$:
+
+\begin{equation}
+x(\xi, \eta) = \sum_{i=1}^{n} N_i(\xi, \eta)\,x_i, \qquad
+y(\xi, \eta) = \sum_{i=1}^{n} N_i(\xi, \eta)\,y_i,
+\label{eq:mapeo-iso}
+\end{equation}
+
+con $n = 4$ para Q4 y $n = 9$ para Q9. El elemento Q9, de orden superior, captura gradientes de tensión más complejos y resiste mejor las distorsiones geométricas, a costa de un mayor número de grados de libertad (GDL): 8 GDL en Q4 frente a 18 GDL en Q9.
+
+\begin{figure}[htbp]
+\centering
+\figpend{Esquema comparativo de los elementos Q4 y Q9 en el cuadrado natural $(\xi,\eta)$ y su mapeo a la geometría física: numeración antihoraria de nodos, ubicación de los nodos medios y central del Q9, y curvas de nivel de una función de forma representativa sobre el cuadrado de referencia.}
+\caption{Elementos isoparamétricos Q4 y Q9 y el mapeo isoparamétrico al espacio físico.}
+\label{fig:isoparametricos}
+\end{figure}
+
+\section{Jacobiano del mapeo}
+\label{sec:jacobiano}
+
+El mapeo de \autoref{eq:mapeo-iso} relaciona los dos espacios mediante la matriz Jacobiana, que transforma derivadas respecto de las coordenadas naturales en derivadas respecto de las físicas:
+
+\begin{equation}
+\mathbf{J} = \frac{\partial(x,y)}{\partial(\xi,\eta)} =
+\begin{bmatrix}
+\dfrac{\partial x}{\partial \xi} & \dfrac{\partial x}{\partial \eta} \\[6pt]
+\dfrac{\partial y}{\partial \xi} & \dfrac{\partial y}{\partial \eta}
+\end{bmatrix}
+= \frac{\partial \mathbf{N}}{\partial(\xi,\eta)}\,\mathbf{X}_e,
+\label{eq:jacobiano}
+\end{equation}
+
+donde $\mathbf{X}_e$ reúne las coordenadas nodales del elemento. Su determinante mide el factor local de cambio de área entre ambos espacios, $dx\,dy = |\det\mathbf{J}|\,d\xi\,d\eta$, y por tanto es central en la integración numérica. Para una matriz $2\times2$ se calcula de forma explícita,
+
+\begin{equation}
+\det\mathbf{J} = J_{11}J_{22} - J_{12}J_{21},
+\label{eq:detJ}
+\end{equation}
+
+y su inversa se obtiene por cofactores, evitando rutinas genéricas de inversión:
+
+\begin{equation}
+\mathbf{J}^{-1} = \frac{1}{\det\mathbf{J}}
+\begin{bmatrix}
+J_{22} & -J_{12} \\
+-J_{21} & J_{11}
+\end{bmatrix}.
+\label{eq:invJ}
+\end{equation}
+
+La condición $\det\mathbf{J} > 0$ en todo el elemento garantiza que el mapeo sea biyectivo y el elemento válido \autocite{bathe2014fem,cook2002concepts}. Un determinante nulo o negativo indica un elemento degenerado o invertido; EduFEM impone un umbral mínimo ($\texttt{JACOBIAN\_MIN\_DETERMINANT}$) para detectar y rechazar esas geometrías antes de resolver.
+
+\section{Matriz de deformación-desplazamiento B}
+\label{sec:matriz-b}
+
+Las deformaciones se obtienen derivando el campo de desplazamientos interpolado. La relación cinemática en elasticidad plana es
+
+\begin{equation}
+\boldsymbol{\varepsilon} =
+\begin{bmatrix} \varepsilon_x \\ \varepsilon_y \\ \gamma_{xy} \end{bmatrix}
+=
+\begin{bmatrix}
+\dfrac{\partial u}{\partial x} \\[4pt]
+\dfrac{\partial v}{\partial y} \\[4pt]
+\dfrac{\partial u}{\partial y} + \dfrac{\partial v}{\partial x}
+\end{bmatrix},
+\label{eq:cinematica}
+\end{equation}
+
+que en forma matricial se escribe $\boldsymbol{\varepsilon} = \mathbf{B}\,\mathbf{u}_e$. La matriz $\mathbf{B}$, de dimensión $3 \times 2n$, contiene las derivadas físicas de las funciones de forma:
+
+\begin{equation}
+\mathbf{B} =
+\begin{bmatrix}
+\dfrac{\partial N_1}{\partial x} & 0 & \dfrac{\partial N_2}{\partial x} & 0 & \cdots \\[6pt]
+0 & \dfrac{\partial N_1}{\partial y} & 0 & \dfrac{\partial N_2}{\partial y} & \cdots \\[6pt]
+\dfrac{\partial N_1}{\partial y} & \dfrac{\partial N_1}{\partial x} & \dfrac{\partial N_2}{\partial y} & \dfrac{\partial N_2}{\partial x} & \cdots
+\end{bmatrix}.
+\label{eq:matriz-B}
+\end{equation}
+
+Las funciones de forma se definen en coordenadas naturales, pero $\mathbf{B}$ exige sus derivadas físicas $\partial N_i/\partial x$ y $\partial N_i/\partial y$. El puente lo provee la inversa del Jacobiano, aplicada por columna a cada función de forma según la regla de la cadena:
+
+\begin{equation}
+\begin{bmatrix}
+\dfrac{\partial N_i}{\partial x} \\[6pt]
+\dfrac{\partial N_i}{\partial y}
+\end{bmatrix}
+= \mathbf{J}^{-1}
+\begin{bmatrix}
+\dfrac{\partial N_i}{\partial \xi} \\[6pt]
+\dfrac{\partial N_i}{\partial \eta}
+\end{bmatrix}.
+\label{eq:fisica-natural}
+\end{equation}
+
+Esta relación vectorial es la conexión esencial entre el espacio natural, donde las derivadas se conocen analíticamente, y el espacio físico, donde se formula la deformación.
+
+\section{Matriz de rigidez elemental e integración numérica de Gauss}
+\label{sec:rigidez-gauss}
+
+La matriz de rigidez de un elemento integra el producto $\mathbf{B}^T\mathbf{D}\mathbf{B}$ sobre su dominio físico, con $t$ el espesor:
+
+\begin{equation}
+\mathbf{k}_e = \int_{\Omega_e} \mathbf{B}^T \mathbf{D}\, \mathbf{B}\, t \; dA
+= \int_{-1}^{1}\!\!\int_{-1}^{1} \mathbf{B}^T(\xi,\eta)\,\mathbf{D}\,\mathbf{B}(\xi,\eta)\, t\, |\det\mathbf{J}|\; d\xi\, d\eta.
+\label{eq:ke-integral}
+\end{equation}
+
+El integrando no es polinómico: como $\mathbf{B}$ depende de $\mathbf{J}^{-1}$, que es racional en $(\xi,\eta)$, la integral carece de primitiva elemental \autocite{hughes2000fem,zienkiewicz2013fem}. Por ello se aproxima mediante cuadratura de Gauss-Legendre, que evalúa el integrando en puntos óptimos y lo pondera:
+
+\begin{equation}
+\mathbf{k}_e \approx \sum_{p=1}^{n_g} w_p\; \mathbf{B}^T(\xi_p,\eta_p)\,\mathbf{D}\,\mathbf{B}(\xi_p,\eta_p)\, t\, |\det\mathbf{J}(\xi_p,\eta_p)|,
+\label{eq:ke-gauss}
+\end{equation}
+
+donde los puntos $(\xi_p,\eta_p)$ y pesos $w_p$ surgen del producto tensorial de la regla unidimensional. La regla de $m$ puntos integra exactamente polinomios de grado $2m-1$. EduFEM usa cuadratura $2\times2$ para Q4 (cuatro puntos en $\xi = \pm 1/\sqrt{3}$) y $3\times3$ para Q9 (puntos en $\xi = \pm\sqrt{3/5},\,0$ con pesos $5/9,\,8/9,\,5/9$), órdenes que integran exactamente la rigidez de los respectivos elementos no distorsionados.
+
+El orden de integración no es arbitrario. Una \emph{subintegración} puede dejar la matriz de rigidez con rango deficiente y admitir modos de deformación de energía nula: los modos espurios (\emph{hourglass}), patrones de deformación no físicos que el elemento no puede resistir \autocite{cook2002concepts,bathe2014fem}. Una \emph{sobreintegración} (por ejemplo $3\times3$ en Q4) no aporta precisión adicional y solo encarece el cálculo. La elección $2\times2$/$3\times3$ equilibra exactitud y estabilidad para esta familia de elementos.
+
+\section{Ensamblaje, restricciones y cargas}
+\label{sec:ensamblaje}
+
+Las matrices y vectores elementales se ensamblan en el sistema global mediante el mapeo de cada GDL local a su índice global. La matriz de rigidez global se obtiene sumando las contribuciones,
+
+\begin{equation}
+\mathbf{K} = \bigwedge_{e} \mathbf{k}_e, \qquad
+\mathbf{F} = \sum_e \mathbf{f}_e^{\text{vol}} + \sum_n \mathbf{F}_n + \sum_\Gamma \mathbf{F}_\Gamma,
+\label{eq:ensamblaje}
+\end{equation}
+
+donde un nodo compartido por varios elementos acumula los aportes de todos ellos. Para mallas grandes $\mathbf{K}$ es dispersa (mayoritariamente nula), por lo que EduFEM la construye en formato de coordenadas (COO) y la convierte a filas comprimidas (CSR) para el solucionador, apoyándose en las bibliotecas científicas de Python \autocite{harris2020numpy,virtanen2020scipy}.
+
+El vector de cargas reúne tres aportes. Las \textbf{cargas nodales} $\mathbf{F}_n$ se aplican directamente en los GDL correspondientes. Las \textbf{cargas volumétricas} $\mathbf{f}_e^{\text{vol}}$ —como la gravedad— se distribuyen consistentemente integrando $\int_{\Omega_e} \mathbf{N}^T \mathbf{b}\, t\, dA$ por cuadratura de Gauss. Las \textbf{cargas superficiales} $\mathbf{F}_\Gamma$ sobre una arista se convierten en fuerzas nodales equivalentes ponderando la carga distribuida con las funciones de forma. Para una arista lineal de Q4 con carga $q$ constante y longitud $L$, el reparto exacto es $F_1 = \tfrac{L}{6}(2q_s + q_e)$ y $F_2 = \tfrac{L}{6}(q_s + 2q_e)$, mientras que para la arista cuadrática de Q9 con $q$ constante la distribución resulta $\tfrac{L}{6},\,\tfrac{4L}{6},\,\tfrac{L}{6}$, concentrando la mayor parte en el nodo medio \autocite{cook2002concepts}.
+
+Las restricciones de Dirichlet se imponen partiendo el sistema en GDL libres ($f$) y restringidos ($r$):
+
+\begin{equation}
+\begin{bmatrix} \mathbf{K}_{ff} & \mathbf{K}_{fr} \\ \mathbf{K}_{rf} & \mathbf{K}_{rr} \end{bmatrix}
+\begin{bmatrix} \mathbf{u}_f \\ \mathbf{u}_r \end{bmatrix}
+=
+\begin{bmatrix} \mathbf{F}_f \\ \mathbf{F}_r \end{bmatrix}.
+\label{eq:particion}
+\end{equation}
+
+Para \emph{restricciones homogéneas} ($\mathbf{u}_r = \mathbf{0}$) basta resolver el bloque libre $\mathbf{K}_{ff}\,\mathbf{u}_f = \mathbf{F}_f$. Para \emph{restricciones no homogéneas} ($\mathbf{u}_r \neq \mathbf{0}$), necesarias en la verificación con soluciones manufacturadas, el sistema reducido incorpora el término de sustitución estática
+
+\begin{equation}
+\mathbf{K}_{ff}\,\mathbf{u}_f = \mathbf{F}_f - \mathbf{K}_{fr}\,\mathbf{u}_r,
+\label{eq:dirichlet-no-homogeneo}
+\end{equation}
+
+que preserva la simetría del bloque libre. Un modelo bien restringido —al menos tres GDL que impidan los movimientos de cuerpo rígido— hace que $\mathbf{K}_{ff}$ sea definida positiva y, por tanto, no singular.
+
+\section{Resolución del sistema y recuperación de tensiones}
+\label{sec:resolucion-tensiones}
+
+El sistema reducido de \autoref{eq:dirichlet-no-homogeneo} se resuelve por factorización LU directa sobre la matriz dispersa \autocite{virtanen2020scipy}. Opcionalmente se aplica una reordenación de tipo Reverse Cuthill-McKee antes de factorizar para reducir el llenado (\emph{fill-in}) en mallas estructuradas. Conocido el vector $\mathbf{u}$, las reacciones en los GDL restringidos se recuperan como $\mathbf{R} = \mathbf{K}_{r}\,\mathbf{u} - \mathbf{F}_r$.
+
+Las tensiones se calculan primero en los puntos de Gauss, evaluando $\boldsymbol{\sigma}_p = \mathbf{D}\,\mathbf{B}_p\,\mathbf{u}_e$. A partir de las componentes cartesianas se obtienen las tensiones principales y la equivalente de von Mises:
+
+\begin{align}
+\sigma_{1,2} &= \frac{\sigma_x + \sigma_y}{2} \pm \sqrt{\left(\frac{\sigma_x - \sigma_y}{2}\right)^2 + \tau_{xy}^2}, \\
+\sigma_{\text{VM}} &= \sqrt{\sigma_1^2 - \sigma_1\sigma_2 + \sigma_2^2}.
+\label{eq:principales-vm}
+\end{align}
+
+Los puntos de Gauss son además los \emph{puntos de Barlow}, ubicaciones donde las tensiones convergen con un orden superior al del resto del elemento (superconvergencia) \autocite{cook2002concepts,zienkiewicz2013fem}. Por ello las tensiones nodales se obtienen extrapolando desde los puntos de Gauss mediante una matriz precalculada, $\boldsymbol{\sigma}_{\text{nodos}} = \mathbf{E}\,\boldsymbol{\sigma}_{\text{Gauss}}$, en lugar de evaluar $\mathbf{B}$ directamente en los nodos. Finalmente, como un nodo compartido recibe valores distintos desde cada elemento adyacente, se aplica un \emph{promediado nodal}
+
+\begin{equation}
+\boldsymbol{\sigma}_{\text{nodo}} = \frac{1}{n_e}\sum_{e=1}^{n_e} \boldsymbol{\sigma}_{\text{nodo}}^{(e)},
+\label{eq:promediado}
+\end{equation}
+
+que suaviza el campo y produce un contorno continuo. El salto entre los valores sin promediar es, además, un indicador útil del error de discretización: cuanto mayor la dispersión entre elementos, más gruesa es la malla en esa zona.
+
+\section{Calidad de malla}
+\label{sec:calidad-malla}
+
+La precisión del resultado depende de la calidad geométrica de los elementos. EduFEM evalúa dos métricas ortogonales tomadas de la biblioteca de calidad geométrica Verdict \autocite{stimpson2007verdict}. El \textbf{Jacobiano escalado} mide la distorsión angular normalizando el determinante del Jacobiano por las normas de las columnas de $\mathbf{J}$,
+
+\begin{equation}
+q_{SJ} = \min_g \frac{\det\mathbf{J}_g}{\|\mathbf{J}_{:,1}\|_g\,\|\mathbf{J}_{:,2}\|_g},
+\label{eq:scaled-jacobian}
+\end{equation}
+
+cantidad que equivale al seno del ángulo local y vive en el rango $[-1, 1]$: vale $1$ en un mapeo ortogonal, indica baja calidad cerca de $0$ y delata inversión cuando $q_{SJ} \le 0$. La \textbf{compacidad} o \emph{stretch} mide la proporción del elemento relacionando su arista más corta $L_{\min}$ con su diagonal más larga $D_{\max}$,
+
+\begin{equation}
+Q = \sqrt{2}\,\frac{L_{\min}}{D_{\max}} \in [0, 1],
+\label{eq:stretch}
+\end{equation}
+
+que vale $1$ para un cuadrado perfecto y disminuye al alargarse o aplastarse el elemento. Siguiendo los umbrales de la documentación de Verdict, EduFEM clasifica como aceptable $q_{SJ} \ge 0{,}50$ y $Q \ge 0{,}25$, y como buena $q_{SJ} \ge 0{,}80$ y $Q \ge 0{,}50$. Las dos métricas son complementarias: un rectángulo muy alargado puede tener $q_{SJ} = 1$ (ángulos rectos) y, aun así, una compacidad inadmisible que degrada la precisión.
+
+\section{Verificación y validación}
+\label{sec:verificacion-validacion}
+
+Un programa de cálculo debe distinguir entre \emph{verificación} —comprobar que las ecuaciones se resuelven correctamente— y \emph{validación} —comprobar que las ecuaciones representan la realidad física \autocite{roache1998verification,oberkampf2010verification}. EduFEM incorpora ambas estrategias.
+
+La verificación de código se realiza con el \textbf{Método de las Soluciones Manufacturadas} (MMS): se elige a priori un campo de desplazamientos exacto $\mathbf{u}_M$, se sustituye en las ecuaciones de equilibrio para deducir la fuerza de cuerpo $\mathbf{b} = -\nabla\cdot\boldsymbol{\sigma}(\mathbf{u}_M)$ que lo produce, y se inyectan esa carga y las restricciones de Dirichlet no homogéneas correspondientes \autocite{salari2000mms,roache1998verification}. El error de la solución numérica frente a la exacta se cuantifica con las normas $L^2$ del desplazamiento y $H^1$ de su gradiente:
+
+\begin{align}
+\|\mathbf{u}_h - \mathbf{u}\|_{L^2} &= \left( \int_\Omega \|\mathbf{u}_h - \mathbf{u}\|^2 \, d\Omega \right)^{1/2}, \\
+|\mathbf{u}_h - \mathbf{u}|_{H^1} &= \left( \int_\Omega \|\nabla\mathbf{u}_h - \nabla\mathbf{u}\|^2 \, d\Omega \right)^{1/2}.
+\label{eq:normas-error}
+\end{align}
+
+Al refinar la malla, estas normas deben decrecer con las tasas asintóticas teóricas ($\mathcal{O}(h^{p+1})$ en $L^2$ y $\mathcal{O}(h^p)$ en $H^1$, con $p$ el orden polinómico del elemento), lo que confirma la correcta implementación. Las integrales de error se evalúan con cuadratura de orden $p+1$ —un orden por encima del usado para la rigidez— para no subestimar artificialmente el error \autocite{salari2000mms}.
+
+La validación contrasta el motor contra problemas de referencia con solución conocida. La \textbf{viga de Timoshenko} simplemente apoyada admite solución analítica de la teoría de la elasticidad \autocite{timoshenko1970elasticity}, y EduFEM la reproduce con error inferior al $0{,}3\,\%$ para Q9, comparando además contra un modelo de cáscara de SAP2000 \autocite{csi2017sap2000}. La \textbf{membrana de Cook}, un trapecio en voladizo con carga de corte \autocite{cook1974membrane}, es el banco clásico para evaluar la sensibilidad a la distorsión: el desplazamiento del extremo converge al valor de referencia $\approx 23{,}9$, pero el elemento Q4 lo subestima sensiblemente ($u_y \approx 22$) por el fenómeno de \emph{shear-locking}. Este bloqueo por cortante aparece cuando un elemento bilineal no puede representar la flexión pura sin generar deformaciones de corte parásitas, lo que lo vuelve artificialmente rígido; el elemento Q9, de orden superior, lo evita y converge con rapidez \autocite{cook2002concepts,hughes2000fem}. Estos contrastes demuestran empíricamente, dentro del propio entorno educativo, por qué la elección del tipo de elemento condiciona la calidad del resultado.
+
+\section{Software educativo de MEF y motivación del trabajo}
+\label{sec:antecedentes}
+
+El MEF se enseña tradicionalmente combinando desarrollos analíticos con paquetes comerciales de propósito general. Esa práctica plantea una tensión pedagógica: las herramientas profesionales son cajas negras optimizadas para producir resultados, no para revelar el procedimiento intermedio, mientras que el desarrollo puramente manual no escala más allá de uno o dos elementos. La investigación educativa documenta esta brecha y propone software específicamente didáctico como puente \autocite{bishay2020teaching,lee2015interactive,perezsantiago2023fem}. Existen antecedentes de simuladores interactivos que exponen el procesamiento de las ecuaciones de elementos finitos \autocite{lee2015interactive} o la visualización de modos propios \autocite{lee2015eigenmodes}, y estudios informados por la industria que identifican qué competencias del MEF resultan más valiosas en la formación de grado \autocite{perezsantiago2023fem}.
+
+La mayoría de estos antecedentes se concentra en un eslabón aislado del método —el ensamblaje, la respuesta dinámica, un tipo particular de elemento— o se limita a estructuras de barras y reticulados \autocite{bishay2020teaching}, dejando sin cubrir el continuo elástico bidimensional con el detalle interno que requiere la enseñanza. La brecha que motiva este trabajo es la ausencia de un entorno integrado, en idioma español, que recorra el canal de cálculo completo del MEF en elasticidad plana —del mapeo isoparamétrico a la recuperación de tensiones— exponiendo de forma interactiva cada matriz y cada paso numérico, y que a la vez incorpore verificación y validación rigurosas con valores trazables al modelo del usuario. EduFEM se diseña para cubrir precisamente ese vacío, articulando el rigor numérico desarrollado en este capítulo con una capa pedagógica que hace observable el procedimiento que los textos clásicos formulan en abstracto.

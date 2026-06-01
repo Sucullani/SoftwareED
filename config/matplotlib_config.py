@@ -85,10 +85,6 @@ def configure_latex_style() -> None:
     _CONFIGURED = True
 
 
-def is_configured() -> bool:
-    return _CONFIGURED
-
-
 # Expresiones canonicas precompiladas. Cubre los tokens de los modulos
 # educativos para que el primer render real sea cache-hit. El parser
 # mathtext cachea por string EXACTO (no por token), asi que el warmup
@@ -161,14 +157,3 @@ def warmup_mathtext_chunk(expressions) -> None:
             pass
     except Exception:
         pass
-
-
-def warmup_mathtext() -> None:
-    """Calienta el cache mathtext de TODAS las expresiones de una sola vez.
-
-    Conservada por compatibilidad; el arranque ahora usa el warmup troceado
-    `warmup_mathtext_chunk` en el hilo principal (ver `MainWindow`).
-
-    Idempotente.
-    """
-    warmup_mathtext_chunk(MATHTEXT_WARMUP_EXPRESSIONS)

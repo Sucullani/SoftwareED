@@ -447,6 +447,22 @@ def main():
 
     print(f"\nOutputs en {out_dir}")
 
+    # ─── Verificacion automatica de regresion ──────────────────────────────
+    # La deflexion central FEM debe coincidir con la analitica (Timoshenko con
+    # correccion de cortante) dentro de tolerancia. Antes solo se imprimia.
+    checks = [
+        ("Timoshenko: probe central (0,0) dentro de malla",
+         result_center is not None),
+        (f"Timoshenko: deflexion central converge a la analitica "
+         f"(err={err_pct:.2f}% < 3%)", err_pct < 3.0),
+    ]
+    failed = [n for n, ok in checks if not ok]
+    print("\n--- Verificacion ---")
+    for name, ok in checks:
+        print(f"  [{'OK' if ok else 'FAIL'}] {name}")
+    if failed:
+        sys.exit(1)
+
 
 if __name__ == "__main__":
     main()
