@@ -50,8 +50,18 @@ El análisis de los resultados es concluyente. El elemento Q4 alcanza asintótic
 
 \begin{figure}[htbp]
 \centering
-\figpend{Curvas de convergencia log-log del error en normas $L^2$ y $H^1$ frente a $h$ para Q4 y Q9, con rectas de pendiente teórica de referencia (2, 1, 3 y 2).}
-\caption{Convergencia bajo refinamiento $h$ medida por MMS. Las pendientes de las rectas reproducen las tasas teóricas $\mathcal{O}(h^{p+1})$ en $L^2$ y $\mathcal{O}(h^{p})$ en $H^1$.}
+\begin{minipage}{0.49\linewidth}
+  \centering
+  \includegraphics[width=\linewidth]{mms_convergence_l2.png}\\[2pt]
+  {\small (a) Norma $L^2$ del desplazamiento.}
+\end{minipage}
+\hfill
+\begin{minipage}{0.49\linewidth}
+  \centering
+  \includegraphics[width=\linewidth]{mms_convergence_h1.png}\\[2pt]
+  {\small (b) Seminorma $H^1$ del desplazamiento.}
+\end{minipage}
+\caption{Convergencia bajo refinamiento $h$ medida por MMS. Las pendientes de las rectas reproducen las tasas teóricas $\mathcal{O}(h^{p+1})$ en $L^2$ y $\mathcal{O}(h^{p})$ en $H^1$; las líneas discontinuas marcan las pendientes de referencia.}
 \label{fig:convergencia}
 \end{figure}
 
@@ -107,8 +117,9 @@ El error en deflexión es del $0{,}2633\,\%$ frente a la solución analítica qu
 
 \begin{figure}[htbp]
 \centering
-\figpend{Contorno de tensión normal $\sigma_x$ sobre la malla Q9 de la viga de Timoshenko y, superpuesta, su configuración deformada amplificada.}
-\caption{Campo de tensión normal $\sigma_x$ y deformada de la viga de Timoshenko ($56\times8$ Q9). La gradación lineal en el peralte coincide con la predicción de la teoría de vigas.}
+\includegraphics[width=0.92\linewidth]{timoshenko_sigma_x_contour.png}\\[6pt]
+\includegraphics[width=0.78\linewidth]{timoshenko_deformada.png}
+\caption{Campo de tensión normal $\sigma_x$ (arriba) y configuración deformada amplificada $\times 20$ (abajo) de la viga de Timoshenko ($56\times8$ Q9). La gradación lineal de $\sigma_x$ en el peralte coincide con la predicción de la teoría de vigas.}
 \label{fig:timoshenko-contorno}
 \end{figure}
 
@@ -144,7 +155,7 @@ La comparación a igualdad de grados de libertad es el argumento pedagógico cen
 
 \begin{figure}[htbp]
 \centering
-\figpend{Convergencia del desplazamiento $u_y$ en $(48,52)$ de la membrana de Cook frente al número de GDL, una curva para Q4 y otra para Q9, con la línea horizontal de referencia $u_y = 23{,}95$.}
+\includegraphics[width=0.72\linewidth]{cook_convergence.png}
 \caption{Convergencia de la membrana de Cook. El Q9 alcanza la referencia con muchos menos grados de libertad que el Q4, que sufre bloqueo por cortante.}
 \label{fig:cook-convergencia}
 \end{figure}
@@ -195,6 +206,24 @@ El alcance del software está acotado de manera deliberada. EduFEM se restringe 
 
 Desde el punto de vista numérico, el elemento Q4 arrastra el bloqueo por cortante documentado en la \autoref{tab:cook}, que aunque se aprovecha como recurso pedagógico, exige al usuario refinar la malla o recurrir al Q9 para obtener resultados precisos en problemas dominados por flexión. No se implementaron técnicas de mitigación como la integración reducida selectiva o la formulación $\bar{\mathbf{B}}$, que se reservan como línea de extensión futura. En la formulación de deformación plana, además, la matriz constitutiva degenera hacia la incompresibilidad cuando el coeficiente de Poisson se aproxima a $0{,}5$, régimen en el que aparece el bloqueo volumétrico; el software lo señala visualmente pero no lo resuelve.
 
-En cuanto a la escalabilidad, el solucionador directo y el ensamblaje en su variante legible resultan adecuados para las mallas de tamaño didáctico empleadas en las pruebas --hasta varios miles de grados de libertad-- pero no están optimizados para problemas de gran porte. La hoja de ruta del motor contempla el almacenamiento disperso de la matriz de rigidez, factorizaciones para sistemas definidos positivos y reordenamientos para reducir el llenado, mejoras que permitirían abordar mallas mayores sin sacrificar la versión pedagógica del código. Finalmente, la validación presentada se apoya en tres casos cuidadosamente seleccionados por su valor canónico; una batería más amplia de casos de referencia reforzaría la confianza en el comportamiento del software ante geometrías y condiciones de carga más diversas.
+En cuanto a la escalabilidad, conviene precisar el estado real del motor numérico. La matriz de rigidez se almacena en formato disperso --se ensambla por tripletes de coordenadas (COO) y se convierte a filas comprimidas (CSR)-- y el sistema reducido se resuelve mediante una factorización LU dispersa directa, tal como se detalló en el \autoref{cap:marco_teorico}. Esta arquitectura está implementada, no meramente proyectada, y permite abordar mallas muy superiores a las de tamaño didáctico empleadas en las validaciones. La \autoref{tab:tiempos} cuantifica el costo de ensamblaje y solución para la membrana de Cook Q9 a refinamientos crecientes, junto con la memoria que ocuparía la matriz de rigidez en formato denso frente al disperso.
 
-% DATO PENDIENTE: si se dispone de tiempos de ejecucion o consumo de memoria medidos para las mallas mayores, incorporarlos como evidencia cuantitativa de la escalabilidad en esta subseccion.
+\begin{table}[htbp]
+\centering
+\caption{Tiempo de ensamblaje y de solución del sistema disperso, y memoria de la matriz de rigidez en formato denso frente a disperso (CSR), para la membrana de Cook Q9 a refinamientos crecientes. Medido en un equipo de escritorio con procesador Intel (microarquitectura Ivy Bridge, circa 2012) bajo Windows 10, Python 3.13, NumPy y los núcleos numéricos compilados en tiempo de ejecución con \texttt{numba}. Reproducible con \texttt{tests/bench\_timing.py}.}
+\label{tab:tiempos}
+\begin{tabular}{r r r r r}
+\hline
+GDL & $t_{\text{ensamblaje}}$ (s) & $t_{\text{solución}}$ (s) & $\mathbf{K}$ densa (MB) & $\mathbf{K}$ dispersa (MB) \\
+\hline
+578   & 0,007 & 0,010 & 3    & 0,21  \\
+2178  & 0,041 & 0,086 & 38   & 0,81  \\
+4802  & 0,069 & 0,136 & 184  & 1,81  \\
+8450  & 0,128 & 0,250 & 571  & 3,20  \\
+18818 & 0,282 & 0,741 & 2833 & 7,19  \\
+33282 & 0,561 & 2,211 & 8862 & 12,77 \\
+\hline
+\end{tabular}
+\end{table}
+
+Las mediciones evidencian que la malla más exigente de las validaciones (8450~GDL) se ensambla y resuelve en torno a un cuarto de segundo, y que el motor procesa problemas de más de 33\,000~GDL en alrededor de dos segundos, todo ello sobre hardware de más de una década de antigüedad. El contraste de memoria es igualmente ilustrativo: a 33\,282~GDL la matriz densa requeriría cerca de 8{,}9~GB, mientras que su representación dispersa ocupa menos de 13~MB --un ahorro de casi tres órdenes de magnitud que es justamente lo que hace viable el cálculo en equipos modestos--. La limitación de escalabilidad, por tanto, no reside en el almacenamiento ni en el rango de tamaños propio del uso educativo bidimensional, sino que aparece solo en el extremo de mallas masivas: el tiempo de solución crece más rápido que el de ensamblaje a medida que el llenado (\emph{fill-in}) de la factorización directa se vuelve dominante. Persisten, en consecuencia, oportunidades de optimización para problemas de gran porte --una reordenación de tipo Cuthill-McKee inverso, disponible en el motor pero desactivada por defecto; una factorización de Cholesky para sistemas definidos positivos; un ensamblaje vectorizado por lotes que conserve la versión legible reservada a los módulos didácticos; y solucionadores iterativos para mallas masivas--, que se plantean como línea de trabajo futuro. Finalmente, la validación presentada se apoya en tres casos cuidadosamente seleccionados por su valor canónico; una batería más amplia de casos de referencia reforzaría la confianza en el comportamiento del software ante geometrías y condiciones de carga más diversas.

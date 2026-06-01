@@ -47,6 +47,41 @@
   bookmarksnumbered=true,
 }
 
+% --- Listados de codigo fuente (Anexo C) ---
+% El paquete listings con un mapeo `literate` para los simbolos unicode que
+% aparecen en los comentarios del codigo (xi, eta, derivadas parciales, letras
+% griegas), de modo que los fragmentos reales del proyecto se reproduzcan fieles.
+\usepackage{listings}
+\definecolor{lstKeyword}{HTML}{0D6EFD}
+\definecolor{lstComment}{HTML}{6C757D}
+\definecolor{lstString}{HTML}{198754}
+\definecolor{lstBg}{HTML}{F6F8FA}
+\lstdefinestyle{pyedufem}{
+  language=Python,
+  basicstyle=\ttfamily\footnotesize,
+  keywordstyle=\color{lstKeyword}\bfseries,
+  commentstyle=\color{lstComment}\itshape,
+  stringstyle=\color{lstString},
+  backgroundcolor=\color{lstBg},
+  numbers=left, numberstyle=\tiny\color{lstComment}, numbersep=8pt,
+  frame=single, framesep=4pt, rulecolor=\color{lstComment},
+  breaklines=true, breakatwhitespace=false, showstringspaces=false,
+  tabsize=4, columns=fullflexible, keepspaces=true,
+  extendedchars=true, inputencoding=utf8,
+  literate=%
+    {ξ}{{$\xi$}}1 {η}{{$\eta$}}1 {∂}{{$\partial$}}1 {∈}{{$\in$}}1
+    {ε}{{$\varepsilon$}}1 {γ}{{$\gamma$}}1 {σ}{{$\sigma$}}1 {τ}{{$\tau$}}1
+    {ν}{{$\nu$}}1 {λ}{{$\lambda$}}1 {μ}{{$\mu$}}1 {θ}{{$\theta$}}1 {π}{{$\pi$}}1
+    {·}{{$\cdot$}}1 {×}{{$\times$}}1 {→}{{$\rightarrow$}}1 {∇}{{$\nabla$}}1
+    {²}{{\textsuperscript{2}}}1 {³}{{\textsuperscript{3}}}1
+    {≤}{{$\leq$}}1 {≥}{{$\geq$}}1 {≈}{{$\approx$}}1 {±}{{$\pm$}}1 {√}{{$\surd$}}1
+    {—}{{---}}1 {–}{{--}}1 {°}{{$^{\circ}$}}1
+    {á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1
+    {Á}{{\'A}}1 {É}{{\'E}}1 {Í}{{\'I}}1 {Ó}{{\'O}}1 {Ú}{{\'U}}1
+    {ñ}{{\~n}}1 {Ñ}{{\~N}}1 {ü}{{\"u}}1 {¿}{{?`}}1 {¡}{{!`}}1
+}
+\lstset{style=pyedufem}
+
 % --- Encabezados y pie ---
 \usepackage{fancyhdr}
 \pagestyle{fancy}
