@@ -1,0 +1,106 @@
+% =====================================================================
+%  capitulos/00b_nomenclatura.tex  --  Lista de simbolos y abreviaturas
+%  Material preliminar. Se incluye desde main.tex despues de \listoftables
+%  y antes de \pagenumbering{arabic}. Tabla manual (longtable) para no
+%  depender del paquete nomencl.
+% =====================================================================
+
+\chapter*{Nomenclatura}
+\addcontentsline{toc}{chapter}{Nomenclatura}
+\markboth{Nomenclatura}{Nomenclatura}
+
+Se reúnen los símbolos y las abreviaturas empleados en el documento. Las
+unidades se indican en el Sistema Internacional como referencia dimensional;
+en los casos de validación se emplean además sistemas técnicos coherentes
+(por ejemplo, kgf/cm), según se aclara en cada problema.
+
+\section*{Símbolos}
+
+\renewcommand{\arraystretch}{1.2}
+\begin{longtable}{@{}p{2.4cm}p{8.4cm}p{3.0cm}@{}}
+\toprule
+\textbf{Símbolo} & \textbf{Significado} & \textbf{Unidad} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Símbolo} & \textbf{Significado} & \textbf{Unidad} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+$\Omega,\ \Gamma$ & Dominio del problema y su frontera & --- \\
+$\Gamma_u,\ \Gamma_t$ & Frontera con desplazamientos / tracciones prescritos & --- \\
+$(x,y)$ & Coordenadas físicas (cartesianas) & m \\
+$(\xi,\eta)$ & Coordenadas naturales del elemento de referencia & adimensional \\
+$E$ & Módulo de elasticidad (de Young) & Pa \\
+$\nu$ & Coeficiente de Poisson & adimensional \\
+$\rho$ & Densidad del material & kg/m$^3$ \\
+$t$ & Espesor del elemento & m \\
+$h$ & Tamaño característico de malla & m \\
+$p$ & Orden polinómico del elemento & adimensional \\
+$\bm{u}$ & Vector de desplazamientos nodales & m \\
+$u,\ v$ & Componentes de desplazamiento en $x$ e $y$ & m \\
+$\bm{b}$ & Fuerza por unidad de volumen & N/m$^3$ \\
+$\bm{t}$ & Vector de tracciones de borde & N/m$^2$ \\
+$\bm{\sigma}$ & Vector de tensiones $[\sigma_x,\sigma_y,\tau_{xy}]^T$ (Voigt) & Pa \\
+$\sigma_x,\ \sigma_y$ & Tensiones normales & Pa \\
+$\tau_{xy}$ & Tensión cortante & Pa \\
+$\sigma_1,\ \sigma_2$ & Tensiones principales & Pa \\
+$\sigma_{\mathrm{VM}}$ & Tensión equivalente de von Mises & Pa \\
+$\bm{\varepsilon}$ & Vector de deformaciones $[\varepsilon_x,\varepsilon_y,\gamma_{xy}]^T$ & adimensional \\
+$\varepsilon_x,\ \varepsilon_y$ & Deformaciones normales & adimensional \\
+$\gamma_{xy}$ & Deformación angular (de corte) & adimensional \\
+$N_i$ & Función de forma asociada al nodo $i$ & adimensional \\
+$\bm{N}$ & Matriz de funciones de forma & adimensional \\
+$\bm{J}$ & Matriz Jacobiana del mapeo isoparamétrico & m \\
+$\det\bm{J}$ & Determinante del Jacobiano & m$^2$ \\
+$\bm{B}$ & Matriz de deformación-desplazamiento & m$^{-1}$ \\
+$\bm{D}$ & Matriz constitutiva (elástica) & Pa \\
+$\bm{k}_e$ & Matriz de rigidez elemental & N/m \\
+$\bm{K}$ & Matriz de rigidez global & N/m \\
+$\bm{F}$ & Vector de cargas global & N \\
+$\bm{R}$ & Vector de reacciones en los apoyos & N \\
+$\bm{E}$ & Matriz de extrapolación de tensiones a los nodos & adimensional \\
+$w_p$ & Peso de la cuadratura de Gauss & adimensional \\
+$n_g$ & Número de puntos de Gauss del elemento & adimensional \\
+$q_{SJ}$ & Jacobiano escalado (métrica de calidad, $\in[-1,1]$) & adimensional \\
+$Q$ & Compacidad o \emph{stretch} (métrica de calidad, $\in[0,1]$) & adimensional \\
+$L_{\min}$ & Longitud de la arista más corta del elemento & m \\
+$D_{\max}$ & Longitud de la diagonal más larga del elemento & m \\
+$\|\cdot\|_{L^2}$ & Norma $L^2$ del error en desplazamiento & según magnitud \\
+$|\cdot|_{H^1}$ & Seminorma $H^1$ del error (gradiente) & según magnitud \\
+\end{longtable}
+
+\section*{Abreviaturas y siglas}
+
+\begin{longtable}{@{}p{2.4cm}p{11.4cm}@{}}
+\toprule
+\textbf{Sigla} & \textbf{Significado} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Sigla} & \textbf{Significado} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+MEF & Método de los Elementos Finitos \\
+GDL & Grado(s) de libertad \\
+TP & Tensión plana \\
+DP & Deformación plana \\
+Q4 & Elemento cuadrilátero isoparamétrico de 4 nodos (bilineal) \\
+Q9 & Elemento cuadrilátero isoparamétrico de 9 nodos (bicuadrático) \\
+MMS & Método de las Soluciones Manufacturadas \\
+V\&V & Verificación y Validación \\
+LU & Factorización LU (descomposición triangular inferior-superior) \\
+COO & Formato disperso de coordenadas (\emph{coordinate list}) \\
+CSR & Formato disperso de filas comprimidas (\emph{compressed sparse row}) \\
+RCM & Reordenación de Cuthill-McKee inverso (\emph{reverse Cuthill-McKee}) \\
+SRI & Integración reducida selectiva (\emph{selective reduced integration}) \\
+MVC & Patrón de arquitectura Modelo-Vista-Controlador \\
+GUI & Interfaz gráfica de usuario (\emph{graphical user interface}) \\
+DXF & Formato de intercambio de dibujo CAD (\emph{drawing exchange format}) \\
+CSV & Valores separados por comas (\emph{comma-separated values}) \\
+PDF & Formato de documento portátil (\emph{portable document format}) \\
+\end{longtable}
+\renewcommand{\arraystretch}{1.0}
