@@ -1,52 +1,49 @@
 % =====================================================================
-%  portada/portada.tex  --  Portada de la tesis
-%  Usa los \newcommand definidos en main.tex (\universidad, \autorTesis, ...).
-%  Ajustar al formato exacto de tu facultad si corresponde.
+%  portada/portada.tex  --  Carátula de la tesis
+%  Reproduce el formato oficial de la UATF (ver tesis/CARATULA.pdf):
+%  encabezado institucional + escudo + título + grado + autor + ciudad/fecha.
+%  Los datos provienen de los \newcommand de main.tex.
 % =====================================================================
 \begin{titlepage}
 \centering
+\vspace*{0.4cm}
 
-% --- Logo institucional (opcional) ---
-% \includegraphics[width=3.5cm]{figuras/logo_universidad.png}\\[1cm]
+% --- Encabezado institucional ---
+{\Large\bfseries \universidad \par}
+\vspace{0.55cm}
+{\large\bfseries \facultad \par}
+\vspace{0.45cm}
+{\large\bfseries \carrera \par}
 
-{\scshape\large \universidad\par}
+\vspace{1.1cm}
+
+% --- Escudo de la universidad ---
+\includegraphics[width=5.2cm]{figuras/logo_universidad}
+
+\vspace{1.1cm}
+
+% --- Título de la tesis (mayúsculas, según formato de carátula) ---
+{\bfseries\large
+DESARROLLO DE SOFTWARE EDUCATIVO DE ELEMENTOS FINITOS
+PARA EL ANALISIS ESTRUCTURAL EMPLEANDO EL LENGUAJE DE
+PROGRAMACION PYTHON\par}
+
+\vspace{0.8cm}
+
+% --- Grado al que se opta ---
+{\large Para optar: \textbf{\gradoTesis}\par}
+
+\vspace{1.5cm}
+
+% --- Autor ---
+{\large\bfseries Autor: \autorTesis\par}
+
+\vfill
+
+% --- Ciudad y fecha ---
+{\large\bfseries \ciudadTesis\par}
 \vspace{0.3cm}
-{\scshape \facultad\par}
-\vspace{0.2cm}
-{\scshape \carrera\par}
-
-\vfill
-
-\rule{\linewidth}{0.4pt}\\[0.5cm]
-{\huge\bfseries \tituloTesis \par}
-\vspace{0.5cm}
-\rule{\linewidth}{0.4pt}
-
-\vfill
-
-{\large Tesis presentada para optar al titulo de\par}
-\vspace{0.2cm}
-{\large\bfseries \gradoTesis \par}
-
-\vfill
-
-\begin{minipage}{0.45\textwidth}
-  \begin{flushleft}\large
-    \textit{Autor/a:}\\
-    \autorTesis
-  \end{flushleft}
-\end{minipage}
-\hfill
-\begin{minipage}{0.45\textwidth}
-  \begin{flushright}\large
-    \textit{Director/a:}\\
-    \directorTesis
-  \end{flushright}
-\end{minipage}
-
-\vfill
-
-{\large \ciudadTesis \par}
-{\large \anioTesis \par}
+{\large\bfseries \anioTesis\par}
+\vspace{0.6cm}
 
 \end{titlepage}
