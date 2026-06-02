@@ -508,10 +508,173 @@ def cap_validador_salud(app):
     )
 
 
+# ───────────────────────── Toplevel nuevo (robusto por winfo_class) ─────────
+
+def _grab_new_top_any(app, construct_fn, name, settle=18):
+    """Como _grab_new_toplevel pero detecta el Toplevel nuevo por
+    winfo_class()=='Toplevel' (robusto a subclases: Surface3DViewer,
+    TheoryViewer, diálogos que heredan de Toplevel). Captura y destruye."""
+    before = set(str(w) for w in app.root.winfo_children())
+    try:
+        construct_fn()
+    except Exception as e:  # noqa: BLE001
+        import traceback; traceback.print_exc()
+        print(f"  [aviso] construcción falló: {e}")
+    _pump(app.root, settle)
+    new = [w for w in app.root.winfo_children()
+           if str(w) not in before and w.winfo_class() == "Toplevel"]
+    img = None
+    top = new[-1] if new else None
+    if top is not None:
+        try:
+            top.lift(); top.update_idletasks()
+        except Exception:
+            pass
+        _pump(app.root, 6)
+        img, _ = _grab_hwnd(top.winfo_id())
+    _save(img, name)
+    for w in new:
+        try:
+            w.destroy()
+        except Exception:
+            pass
+    _pump(app.root, 4)
+
+
+# ───────────────────────── Módulos educativos (M0–M7) ──────────────────────
+
+# (mod_key, archivo, pestaña, elemento). M0 es global del pre-proceso (sin
+# elemento); M1–M7 operan sobre el elemento 1 en la pestaña de proceso.
+_MODULOS = [
+    ("mod00", "fig_modulo_m0.png", 0, None),
+    ("mod01", "fig_modulo_m1.png", 1, 1),
+    ("mod02", "fig_modulo_m2.png", 1, 1),
+    ("mod03", "fig_modulo_m3.png", 1, 1),
+    ("mod04", "fig_modulo_m4.png", 1, 1),
+    ("mod05", "fig_modulo_m5.png", 1, 1),
+    ("mod06", "fig_modulo_m6.png", 1, 1),
+    ("mod07", "fig_modulo_m7.png", 1, 1),
+]
+
+
+def _join_side_by_side(left, right, bg=(30, 30, 46), gap=18):
+    """Pega dos imágenes lado a lado (izquierda | derecha), centradas en
+    vertical, sobre un fondo uniforme. NO depende de los rects de pantalla, por
+    lo que evita los huecos negros del compositing por-rect cuando el panel
+    flotante se reposiciona o el gestor de ventanas lo desplaza."""
+    if left is None:
+        return right
+    if right is None:
+        return left
+    h = max(left.height, right.height)
+    w = left.width + gap + right.width
+    out = Image.new("RGB", (w, h), bg)
+    out.paste(left, (0, (h - left.height) // 2))
+    out.paste(right, (left.width + gap, (h - right.height) // 2))
+    return out
+
+
+def _cap_modulo(app, mod_key, fname, tab, elem):
+    """Captura UN módulo educativo: el panel flotante del módulo (a la derecha)
+    junto al lienzo con su efecto (glow/anotaciones sobre el elemento o la
+    malla, a la izquierda). Lienzo y panel se capturan por separado y se unen
+    lado a lado, para una composición limpia sin huecos."""
+    from education.module_launcher import open_module
+    _load(app, "canon_q4")
+    # M6 (fuerzas equivalentes) requiere una carga superficial: se agrega sobre
+    # la arista superior (nodos 7-8) del elemento 3 del ejemplo canónico.
+    if mod_key == "mod06":
+        try:
+            app.project.add_surface_load(7, 8, q_start=500.0, q_end=500.0,
+                                         angle=0.0, element_id=3)
+            app._refresh_all_tabs()
+            elem = 3
+        except Exception:
+            pass
+    _select_tab(app, tab)
+    mc = app.mesh_canvas
+    mc.fit_view()
+    _pump(app.root, 6)
+    if elem is not None:
+        mc.replace_element_selection({elem})
+        _pump(app.root, 4)
+    open_module(app.root, app.project, mod_key, mesh_canvas=mc, elem_id=elem)
+    _pump(app.root, 22)
+    # Reposicionar el overlay a la derecha del lienzo dispara su repintado
+    # (necesario para que PrintWindow capture el contenido matplotlib del panel,
+    # como en la versión original que componía con _composite).
+    # Filtrar SOLO el overlay visible: _cleanup hace withdraw() (no destroy) de
+    # los overlays de módulos anteriores, que siguen siendo hijos de root. Sin
+    # este filtro, overlays[0] podría ser uno oculto y PrintWindow lo grabaría
+    # negro (causa del panel en negro al capturar varios módulos en serie).
+    overlays = [o for o in _find_toplevels(app.root, "CanvasOverlay")
+                if o.winfo_ismapped()]
+    if overlays:
+        ov = overlays[0]
+        # Posición FIJA garantizada dentro de la pantalla: si el overlay se
+        # clampa parcialmente fuera del borde, PrintWindow devuelve negro en esa
+        # zona. (+30,+30) lo deja entero visible para una captura íntegra.
+        try:
+            ov.geometry("+30+30")
+            ov.update_idletasks()
+        except Exception:
+            pass
+    _pump(app.root, 8)
+    mc.redraw()
+    _pump(app.root, 8)
+    # Capturar lienzo y panel por separado y unirlos lado a lado: PrintWindow
+    # rinde el contenido propio de cada HWND (el panel NO tapa el lienzo), y el
+    # join evita los huecos negros del compositing por-rect cuando el panel se
+    # clampa contra el borde de pantalla.
+    canvas_img, _ = _grab_hwnd(mc.winfo_id())
+    ov_img = None
+    if overlays:
+        ov_img, _ = _grab_hwnd(overlays[0].winfo_id())
+    img = _join_side_by_side(canvas_img, ov_img, bg=(30, 30, 46), gap=18)
+    _save(img, fname)
+
+
+def cap_vista3d(app):
+    """Post-proceso: Vista 3D del campo (Surface3DViewer) sobre von Mises."""
+    _load(app, "canon_q4")
+    _select_tab(app, 2)  # auto-solve
+    pt = app.post_tab
+    _pump(app.root, 12)
+    try:
+        pt.result_var.set("VM")
+        pt.show_deformed_var.set(False)
+        pt._on_result_changed()
+    except Exception:
+        pass
+    _pump(app.root, 8)
+    _grab_new_top_any(app, lambda: pt._on_open_surface_3d(),
+                      "fig_vista3d.png", settle=28)
+
+
+def cap_theory_hub(app):
+    """Ayuda ▸ Teoría del MEF: documento teórico unificado (TheoryViewer)."""
+    from gui.dialogs.theory_hub_dialog import open_theory_hub
+    _grab_new_top_any(app, lambda: open_theory_hub(app.root),
+                      "fig_theory_hub.png", settle=24)
+
+
+def cap_dialogo_analisis(app):
+    """Diálogo Modelo ▸ Tipo de Análisis (tensión/deformación plana)."""
+    _load(app, "canon_q4")
+    _select_tab(app, 0)
+    from gui.dialogs.analysis_type_dialog import AnalysisTypeDialog
+    _grab_new_top_any(app, lambda: AnalysisTypeDialog(app.root, app.project, app),
+                      "fig_dialogo_analisis.png", settle=22)
+
+
 def main():
     print("Capturando figuras desde la GUI real de EduFEM…")
     print("-" * 60)
     app = _build_app()
+    mod_entries = [
+        ("m" + str(i), (lambda a, k=mk, fn=fnm, t=tb, e=el: _cap_modulo(a, k, fn, t, e)))
+        for i, (mk, fnm, tb, el) in enumerate(_MODULOS)
+    ]
     _all = [
         ("ventana", cap_ventana_completa),
         ("material", cap_dialogo_material),
@@ -521,7 +684,10 @@ def main():
         ("postproceso", cap_postproceso),
         ("timoshenko", cap_timoshenko),
         ("cook_deformed", cap_cook_deformed),
-    ]
+        ("vista3d", cap_vista3d),
+        ("theory", cap_theory_hub),
+        ("analisis", cap_dialogo_analisis),
+    ] + mod_entries
     sel = sys.argv[1:]
     todo = [(n, f) for n, f in _all if not sel or n in sel]
     for name, fn in todo:

@@ -15,6 +15,13 @@
 % texto y en formulas (los capitulos ya escriben el espacio fino con \, donde hace falta).
 \AtBeginDocument{\DeclareRobustCommand{\%}{\char37\relax}}
 
+% Guion bajo que admite corte de linea justo despues de el. Permite que los
+% identificadores de codigo largos (p.ej. generate_structured_quad_mesh,
+% boundary_conditions.csv) se ajusten dentro de las celdas p{} estrechas de las
+% tablas de anexos sin desbordar el margen. Es puramente aditivo: solo agrega
+% oportunidades de corte, nunca fuerza un salto.
+\AtBeginDocument{\DeclareRobustCommand{\_}{\textunderscore\allowbreak}}
+
 % --- Geometria, interlineado y parrafos ---
 \usepackage[a4paper,top=3cm,bottom=2.5cm,left=3.5cm,right=2.5cm]{geometry}
 \usepackage{setspace}
@@ -128,11 +135,6 @@
 % para forzarla habria que sobrescribir el delimitador de babel, lo que es fragil.
 
 \addbibresource{bibliografia/referencias.bib}
-
-% --- Inclusion de PDF externo (Anexo E: Memoria de Calculo generada) ---
-% \includepdf inserta las paginas del PDF que produce el propio software,
-% para exhibir el artefacto distintivo de EduFEM de principio a fin.
-\usepackage{pdfpages}
 
 % --- Comando para figuras todavia inexistentes (placeholder compilable) ---
 % Uso: dentro de un entorno figure, \figpend{descripcion de la figura}.

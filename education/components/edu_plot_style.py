@@ -26,6 +26,7 @@ from __future__ import annotations
 from config.settings import (
     OVERLAY_BG, EDU_AXES_BG, EDU_FIG_BG, EDU_GRID, EDU_FG, HEALTH_INFO_COLOR,
     EDU_PLOT_TICK_COLOR, EDU_PLOT_LABEL_COLOR, EDU_PLOT_AXIS_COLOR,
+    EDU_PLOT_TITLE_COLOR,
 )
 
 

@@ -41,7 +41,7 @@ python main.py
 
 \section{Dependencias}
 
-El núcleo numérico y la interfaz se apoyan en bibliotecas de código abierto: NumPy y SciPy (cálculo), \texttt{ttkbootstrap} (interfaz), \texttt{pylatex} (memoria de cálculo), \texttt{PyMuPDF} (visualización del PDF), \texttt{Pillow} (figuras) y \texttt{ezdxf} (importación DXF), además de \texttt{matplotlib} y \texttt{sympy} (módulos educativos). Dos componentes son opcionales: una distribución \LaTeX{} (\texttt{pdflatex}) para la memoria de cálculo y el compilador JIT \texttt{numba} para acelerar el cálculo en mallas grandes; sin ninguno de los dos la aplicación funciona, con menor rendimiento o sin el PDF de alta calidad. Cabe precisar que las mediciones de tiempo de cálculo del \autoref{cap:resultados} corresponden a la ejecución con \texttt{numba} activo, por lo que reproducir esas cifras exige instalarlo.
+El núcleo numérico y la interfaz se apoyan en bibliotecas de código abierto: NumPy y SciPy (cálculo), \texttt{ttkbootstrap} (interfaz), \texttt{pylatex} (memoria de cálculo), \texttt{PyMuPDF} (visualización del PDF), \texttt{Pillow} (figuras) y \texttt{ezdxf} (importación DXF), además de \texttt{matplotlib} y \texttt{sympy} (módulos educativos). Dos componentes son opcionales: una distribución \LaTeX{} (\texttt{pdflatex}) para la memoria de cálculo y el compilador JIT \texttt{numba} para acelerar el cálculo en mallas grandes; sin ninguno de los dos la aplicación funciona, con menor rendimiento o sin el PDF de alta calidad. Las mediciones de tiempo de cálculo del \autoref{cap:resultados} corresponden a la ejecución con \texttt{numba} activo, por lo que reproducir esas cifras exige instalarlo.
 
 
 \chapter{Manual de uso}
@@ -83,6 +83,15 @@ El menú \textsf{Modelo} agrupa, en el orden lógico de definición de un proble
 \label{fig:dialogo-material}
 \end{figure}
 
+El diálogo \textsf{Tipo de Análisis} (\autoref{fig:dialogo-analisis}) ilustra con animaciones la distinción entre tensión plana ($\sigma_z = 0$) y deformación plana ($\varepsilon_z = 0$), las dos hipótesis bidimensionales que el software resuelve.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.72\linewidth]{fig_dialogo_analisis}
+\caption{Diálogo \textsf{Modelo} $\rightarrow$ \textsf{Tipo de Análisis}: la selección entre tensión plana (placa delgada cargada en su plano, $\sigma_z = 0$) y deformación plana (sólido largo confinado, $\varepsilon_z = 0$), con una animación ilustrativa de cada hipótesis.}
+\label{fig:dialogo-analisis}
+\end{figure}
+
 \subsection{Cargas y restricciones}
 
 Las cargas nodales, las cargas de superficie (presión distribuida sobre una arista) y las restricciones (empotramiento, rodillo en $x$ o en $y$) se definen en sus tablas respectivas o seleccionando la entidad en el lienzo, que pre-rellena una fila «fantasma» con valores por defecto. Los símbolos siguen la convención estructural habitual: triángulo con achurado para el empotramiento y triángulo sobre rodillo para los apoyos deslizantes.
@@ -98,15 +107,22 @@ La fase de proceso (identidad cromática naranja) resuelve el sistema y alberga 
 \label{fig:validador-salud}
 \end{figure}
 
-Siete módulos educativos (M1 a M7), accesibles con Ctrl+1 a Ctrl+7, recorren en orden el procedimiento del MEF: mapeo isoparamétrico y funciones de forma, Jacobiano, matriz de deformación $\mathbf{B}$, matriz constitutiva $\mathbf{D}$, rigidez elemental e integración de Gauss, fuerzas nodales equivalentes y ensamblaje global. Un octavo módulo (M0) atiende la calidad de malla en el pre-proceso. Cada módulo es una capa interactiva que se superpone al lienzo e ilumina, sobre el elemento que el usuario selecciona, el punto donde ocurre el cálculo; los que exhiben formulación ofrecen un conmutador Fórmula\,$\leftrightarrow$\,Valores entre la expresión simbólica y su evaluación numérica.
+Siete módulos educativos (M1 a M7), accesibles con Ctrl+1 a Ctrl+7, recorren en orden el procedimiento del MEF: mapeo isoparamétrico y funciones de forma, Jacobiano, matriz de deformación $\bm{B}$, matriz constitutiva $\bm{D}$, rigidez elemental e integración de Gauss, fuerzas nodales equivalentes y ensamblaje global. Un octavo módulo (M0) atiende la calidad de malla en el pre-proceso. Cada módulo es una capa interactiva que se superpone al lienzo e ilumina, sobre el elemento que el usuario selecciona, el punto donde ocurre el cálculo; los que exhiben formulación ofrecen un conmutador Fórmula\,$\leftrightarrow$\,Valores entre la expresión simbólica y su evaluación numérica.
 
 \section{Post-proceso: interpretación de resultados}
 
-La fase de post-proceso (identidad cromática verde) superpone los resultados sobre el mismo lienzo. El panel de control permite alternar entre los campos de tensión --von Mises, $\sigma_x$, $\sigma_y$, $\tau_{xy}$-- y de desplazamiento, mostrar la malla deformada con un factor de amplificación regulable, activar isolíneas y abrir una vista tridimensional del campo. El sondeo puntual informa, en cualquier punto del dominio, el estado tensional completo y, con el clic derecho, despliega un panel de detalles con el círculo de Mohr del punto consultado. Los valores de la tabla de resultados se copian al portapapeles con Ctrl+C en un formato compatible con hoja de cálculo.
+La fase de post-proceso (identidad cromática verde) superpone los resultados sobre el mismo lienzo. El panel de control permite alternar entre los campos de tensión --von Mises, $\sigma_x$, $\sigma_y$, $\tau_{xy}$-- y de desplazamiento, mostrar la malla deformada con un factor de amplificación regulable, activar isolíneas y abrir una vista tridimensional del campo. El sondeo puntual informa, en cualquier punto del dominio, el estado tensional completo y, con el clic derecho, despliega un panel de detalles con el círculo de Mohr del punto consultado. Los valores de la tabla de resultados se copian al portapapeles con Ctrl+C en un formato compatible con hoja de cálculo. La \autoref{fig:vista3d} muestra la vista tridimensional del campo, una representación alternativa del mismo resultado que el contorno 2D.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.82\linewidth]{fig_vista3d}
+\caption{Vista 3D del campo de tensión de von Mises sobre el ejemplo canónico. El control \textsf{Crudo}\,$\leftrightarrow$\,\textsf{Suavizado} interpola entre los valores por punto de Gauss y el campo nodal promediado; las casillas permiten marcar discontinuidades y el plano de referencia $z=0$.}
+\label{fig:vista3d}
+\end{figure}
 
 \section{Documentación del cálculo e interoperabilidad}
 
-Desde \textsf{Archivo} $\rightarrow$ \textsf{Exportar} se genera la \textbf{Memoria de Cálculo} en PDF, un documento que reproduce el paso a paso simbólico y numérico del modelo concreto del usuario --funciones de forma evaluadas en los puntos de Gauss, Jacobiano, matrices $\mathbf{B}$ y $\mathbf{D}$, rigidez elemental, ensamblaje, partición de restricciones, resolución y recuperación de tensiones-- en dos estilos, educativo o directo. El mismo menú exporta el modelo a CSV/Excel para su edición masiva. Los proyectos se guardan en el formato nativo \texttt{.edufem}.
+Desde \textsf{Archivo} $\rightarrow$ \textsf{Exportar} se genera la \textbf{Memoria de Cálculo} en PDF, un documento que reproduce el paso a paso simbólico y numérico del modelo concreto del usuario --funciones de forma evaluadas en los puntos de Gauss, Jacobiano, matrices $\bm{B}$ y $\bm{D}$, rigidez elemental, ensamblaje, partición de restricciones, resolución y recuperación de tensiones-- en dos estilos, educativo o directo. El mismo menú exporta el modelo a CSV/Excel para su edición masiva. Los proyectos se guardan en el formato nativo \texttt{.edufem}.
 
 \section{Atajos de teclado}
 
@@ -146,7 +162,7 @@ El submenú \textsf{Ayuda} $\rightarrow$ \textsf{Cargar Ejemplo} (atajo Ctrl+E p
 \section{Catálogo de módulos educativos}
 \label{sec:catalogo-modulos-edu}
 
-EduFEM organiza su contenido didáctico en ocho módulos interactivos, distribuidos según las fases del flujo del Método de Elementos Finitos (MEF). Cada módulo es una capa interactiva que se superpone sobre el lienzo donde se dibuja la malla: en lugar de presentar la teoría en una ventana aislada, ilumina, anota o anima directamente el elemento o la malla que el estudiante está modelando. El primer módulo (M0) corresponde a la fase de pre-proceso y opera sobre la malla completa, mientras que los siete restantes (M1 a M7) acompañan la fase de proceso siguiendo el orden canónico del cálculo: mapeo isoparamétrico, Jacobiano, matriz $\mathbf{B}$, matriz $\mathbf{D}$, rigidez elemental $\mathbf{k}_e$, fuerzas equivalentes y ensamblaje. La fase de post-proceso no incorpora módulos: el análisis de resultados se realiza con las herramientas nativas del Post (contorno, sonda de tensiones, círculo de Mohr y vista 3D). El \autoref{tab:modulos-edu} resume el catálogo completo, indicando para cada módulo su fase, el concepto del MEF que ilustra y el atajo de teclado asociado.
+EduFEM organiza su contenido didáctico en ocho módulos interactivos, distribuidos según las fases del flujo del Método de Elementos Finitos (MEF). Cada módulo es una capa interactiva que se superpone sobre el lienzo donde se dibuja la malla: en lugar de presentar la teoría en una ventana aislada, ilumina, anota o anima directamente el elemento o la malla que el estudiante está modelando. El primer módulo (M0) corresponde a la fase de pre-proceso y opera sobre la malla completa, mientras que los siete restantes (M1 a M7) acompañan la fase de proceso siguiendo el orden canónico del cálculo. La fase de post-proceso no incorpora módulos: el análisis de resultados se realiza con las herramientas nativas del Post (contorno, sonda de tensiones, círculo de Mohr y vista 3D). La \autoref{tab:modulos-edu} resume el catálogo completo, indicando para cada módulo su fase, el concepto del MEF que ilustra y el atajo de teclado asociado.
 
 \begin{table}[H]
 \centering
@@ -158,15 +174,74 @@ EduFEM organiza su contenido didáctico en ocho módulos interactivos, distribui
 \midrule
 M0 & Pre-proceso  & Calidad de malla: Jacobiano escalado y compacidad (Stretch). & --- \\
 M1 & Proceso      & Mapeo isoparamétrico y funciones de forma $N$: coordenadas naturales $(\xi,\eta) \leftrightarrow (x,y)$. & \texttt{Ctrl+1} \\
-M2 & Proceso      & Jacobiano $\det\mathbf{J}(\xi,\eta)$: distorsión local, superficie 3D. & \texttt{Ctrl+2} \\
-M3 & Proceso      & Matriz $\mathbf{B}$ (deformación): $\partial N/\partial x$ mediante $\mathbf{J}^{-1}$, con anclaje a puntos de Gauss. & \texttt{Ctrl+3} \\
-M4 & Proceso      & Matriz constitutiva $\mathbf{D}(E,\nu,\text{caso})$ según el material del elemento. & \texttt{Ctrl+4} \\
-M5 & Proceso      & Rigidez $\mathbf{k}_e$ y cuadratura de Gauss: la integral imposible se aproxima como suma en los puntos de Gauss. & \texttt{Ctrl+5} \\
+M2 & Proceso      & Jacobiano $\det\bm{J}(\xi,\eta)$: distorsión local, superficie 3D. & \texttt{Ctrl+2} \\
+M3 & Proceso      & Matriz $\bm{B}$ (deformación): $\partial N/\partial x$ mediante $\bm{J}^{-1}$, con anclaje a puntos de Gauss. & \texttt{Ctrl+3} \\
+M4 & Proceso      & Matriz constitutiva $\bm{D}(E,\nu,\text{caso})$ según el material del elemento. & \texttt{Ctrl+4} \\
+M5 & Proceso      & Rigidez $\bm{k}_e$ y cuadratura de Gauss: la integral imposible se aproxima como suma en los puntos de Gauss. & \texttt{Ctrl+5} \\
 M6 & Proceso      & Fuerzas equivalentes nodales: carga sobre arista y peso propio. & \texttt{Ctrl+6} \\
-M7 & Proceso      & Ensamblaje de $\mathbf{K}$ y $\mathbf{F}$ con restricciones: vuelo Bézier y patrón de dispersión. & \texttt{Ctrl+7} \\
+M7 & Proceso      & Ensamblaje de $\bm{K}$ y $\bm{F}$ con restricciones: vuelo Bézier y patrón de dispersión. & \texttt{Ctrl+7} \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+
+Las figuras \ref{fig:mod-m0} a \ref{fig:mod-m7} reproducen cada módulo en funcionamiento sobre el ejemplo canónico de validación, capturadas directamente de la aplicación: a la izquierda, el lienzo con el elemento bajo análisis y la iluminación que el módulo proyecta sobre la malla; a la derecha, el panel flotante con su contenido (fórmulas, matrices o controles interactivos).
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{fig_modulo_m0}
+\caption{Módulo M0 (calidad de malla). Vista de rayos X de la malla coloreada por calidad, las barras de Jacobiano escalado y compacidad (\emph{Stretch}) del elemento bajo el cursor, y las anotaciones geométricas sobre el lienzo: el peor ángulo, la arista mínima $L_{\min}$ y la diagonal máxima $D_{\max}$.}
+\label{fig:mod-m0}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{fig_modulo_m1}
+\caption{Módulo M1 (mapeo isoparamétrico y funciones de forma). El cuadrado natural $(\xi,\eta)$, la expresión de la función de forma $N_1$ y su superficie tridimensional, junto al elemento y el punto evaluado sobre el lienzo.}
+\label{fig:mod-m1}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{fig_modulo_m2}
+\caption{Módulo M2 (Jacobiano). El cuadrado natural y la superficie 3D de $\det\bm{J}(\xi,\eta)$, con el punto de Gauss seleccionado resaltado sobre el elemento.}
+\label{fig:mod-m2}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{fig_modulo_m3}
+\caption{Módulo M3 (matriz de deformación $\bm{B}$). La cadena de derivadas $\partial\bm{N}_{\xi\eta}\to\bm{J}^{-1}\to\bm{B}$ evaluada en el punto natural, anclada a los puntos de Gauss del elemento.}
+\label{fig:mod-m3}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{fig_modulo_m4}
+\caption{Módulo M4 (matriz constitutiva $\bm{D}$). El espectro del coeficiente de Poisson $\nu$ y su efecto sobre la matriz $\bm{D}$ y la deformación del elemento.}
+\label{fig:mod-m4}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{fig_modulo_m5}
+\caption{Módulo M5 (rigidez $\bm{k}_e$ y cuadratura de Gauss). El salto de la integral a la suma ($\int\!\to\!\sum$), los puntos de Gauss sobre el elemento y la matriz $\bm{k}_e$ que crece al sumar las contribuciones.}
+\label{fig:mod-m5}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{fig_modulo_m6}
+\caption{Módulo M6 (fuerzas equivalentes). Una carga superficial sobre una arista y su conversión en fuerzas nodales equivalentes mediante $F_i=\int N_i\,q\,ds$.}
+\label{fig:mod-m6}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{fig_modulo_m7}
+\caption{Módulo M7 (ensamblaje). El aporte de cada matriz elemental $\bm{k}_e$ a la matriz global $\bm{K}$ y el patrón de dispersión resultante.}
+\label{fig:mod-m7}
+\end{figure}
 
 
 \section{Referencia del comprobador de salud}
@@ -174,7 +249,7 @@ M7 & Proceso      & Ensamblaje de $\mathbf{K}$ y $\mathbf{F}$ con restricciones:
 
 Antes de resolver el sistema, EduFEM ejecuta un comprobador de salud que examina el modelo y agrupa sus hallazgos en tres niveles de severidad: los \emph{errores críticos} bloquean el cálculo hasta que el usuario los resuelve o decide continuar de forma explícita; las \emph{advertencias} no impiden la resolución, pero señalan aspectos que conviene revisar; y la \emph{información} reúne contadores generales del modelo. La \autoref{tab:health-checks} reúne todos los chequeos, identificados por su código estable, junto con su significado y si admiten autocorrección desde el diálogo de salud.
 
-\begin{longtable}{@{}>{\ttfamily}l l p{6.6cm} c@{}}
+\begin{longtable}{@{}>{\ttfamily\footnotesize}p{2.8cm} >{\footnotesize}l >{\footnotesize\raggedright\arraybackslash}p{5.4cm} >{\footnotesize}c@{}}
 \caption{Chequeos del comprobador de salud del modelo, agrupados por severidad.}
 \label{tab:health-checks}\\
 \toprule
@@ -203,7 +278,7 @@ degenerate\_element & Error crítico & Un elemento tiene vértices repetidos (me
 \addlinespace
 surface\_node\_missing & Error crítico & Una carga de superficie referencia como extremo (\texttt{node\_start} o \texttt{node\_end}) un nodo inexistente. & Sí \\
 \addlinespace
-no\_restraints & Error crítico & No hay ninguna restricción definida; el modelo conserva los modos de cuerpo rígido y la matriz de rigidez reducida $\mathbf{K}$ resulta singular. & No \\
+no\_restraints & Error crítico & No hay ninguna restricción definida; el modelo conserva los modos de cuerpo rígido y la matriz de rigidez reducida $\bm{K}$ resulta singular. & No \\
 \addlinespace
 insufficient\_restraints & Error crítico & Hay menos de tres GDL restringidos; se necesitan al menos tres (dos traslaciones y una rotación rígida en el plano) para suprimir los modos de cuerpo rígido en 2D. & No \\
 \addlinespace
@@ -285,7 +360,7 @@ def shape_functions_q9(xi, eta):
 
 \section{Matriz de deformación-desplazamiento B}
 
-Ensambla $\mathbf{B}$ (de dimensión $3\times 2n$) a partir de las derivadas físicas de las funciones de forma, materializando la relación $\boldsymbol{\varepsilon} = \mathbf{B}\,\mathbf{u}$.
+Ensambla $\bm{B}$ (de dimensión $3\times 2n$) a partir de las derivadas físicas de las funciones de forma, materializando la relación $\bm{\varepsilon} = \bm{B}\,\bm{u}$.
 
 \begin{lstlisting}
 def compute_b_matrix(dN_phys):
@@ -311,7 +386,7 @@ def compute_b_matrix(dN_phys):
 
 \section{Matriz constitutiva D}
 
-Relaciona tensiones y deformaciones, $\boldsymbol{\sigma} = \mathbf{D}\,\boldsymbol{\varepsilon}$, con las dos variantes de elasticidad plana.
+Relaciona tensiones y deformaciones, $\bm{\sigma} = \bm{D}\,\bm{\varepsilon}$, con las dos variantes de elasticidad plana.
 
 \begin{lstlisting}
 def _constitutive_matrix_njit(E, nu, flag):
@@ -375,7 +450,7 @@ Toda la evidencia numérica del \autoref{cap:resultados} y de este anexo se gene
 
 \begin{table}[htbp]
 \centering
-\caption{Guía de reproducibilidad de la batería de verificación y validación: comando de ejecución, objeto de la prueba y resultados asociados en el Capítulo~4 y en este anexo.}
+\caption{Guía de reproducibilidad de la batería de verificación y validación: comando de ejecución, objeto de la prueba y resultados asociados en el \autoref{cap:resultados} y en este anexo.}
 \label{tab:vyv-repro}
 \begin{tabular}{p{4.3cm} p{5.1cm} p{4.1cm}}
 \toprule
@@ -394,7 +469,7 @@ Validación con la membrana de Cook: convergencia del desplazamiento $u_y$ en $(
 \autoref{tab:cook}, \autoref{fig:cook-convergencia}, \autoref{tab:resumen-q4q9}, \autoref{tab:cook-ux}, \autoref{fig:cook-def} \\
 \addlinespace
 \texttt{python -m tests.test\_fem} &
-Validación del motor con los datos de ejemplo: resolución del sistema $\mathbf{K}\,\mathbf{u}=\mathbf{F}$, reacciones, tensiones nodales promedio y calidad de malla para los casos Q4 y Q9. &
+Validación del motor con los datos de ejemplo: resolución del sistema $\bm{K}\,\bm{u}=\bm{F}$, reacciones, tensiones nodales promedio y calidad de malla para los casos Q4 y Q9. &
 Consistencia interna del motor \\
 \addlinespace
 \texttt{python -m tests.test\_vv\_extensions} &
@@ -447,7 +522,7 @@ La \autoref{fig:mms-campos} muestra los campos discretos de desplazamiento sobre
   \includegraphics[width=\linewidth]{mms_field_v.png}\\[2pt]
   {\small (b) Componente $v_h(x,y)$.}
 \end{minipage}
-\caption{Campos discretos $\mathbf{u}_h$ sobre la malla Q9 con $N=16$ (2178 GDL).}
+\caption{Campos discretos $\bm{u}_h$ sobre la malla Q9 con $N=16$ (2178 GDL).}
 \label{fig:mms-campos}
 \end{figure}
 
@@ -581,7 +656,7 @@ La \autoref{tab:csv-archivos} enumera los seis archivos del paquete con sus colu
 \centering
 \caption{Archivos CSV del paquete de modelo y sus columnas.}
 \label{tab:csv-archivos}
-\begin{tabular}{l p{5.0cm} p{4.6cm}}
+\begin{tabular}{p{3.6cm} p{5.0cm} p{4.6cm}}
 \toprule
 \textbf{Archivo} & \textbf{Columnas} & \textbf{Descripción} \\
 \midrule
@@ -634,9 +709,3 @@ Una malla Q9 no se importa directamente desde DXF: la convención solo describe 
 
 
 
-\chapter{Memoria de Cálculo generada por el software}
-\label{anexo:memoria}
-
-Para ilustrar de principio a fin el resultado documental distintivo de EduFEM, se reproduce a continuación la \emph{Memoria de Cálculo} completa que el programa genera automáticamente para el ejemplo canónico de validación (cuadrado de nueve nodos, elemento Q4, tensión plana). El documento se obtiene desde \textsf{Archivo} $\rightarrow$ \textsf{Exportar} $\rightarrow$ \textsf{Memoria de Cálculo (PDF)}, en su estilo \emph{educativo}, y recorre el procedimiento del MEF paso a paso --funciones de forma evaluadas en los puntos de Gauss, Jacobiano, matrices $\mathbf{B}$ y $\mathbf{D}$, rigidez elemental e integración numérica, ensamblaje, partición de restricciones, resolución y recuperación de tensiones-- sobre el modelo concreto del usuario. Las páginas siguientes son el PDF tal como lo produce el software, sin edición posterior.
-
-\includepdf[pages=-,scale=0.92,pagecommand={\thispagestyle{plain}}]{anexo_memoria_calculo.pdf}
