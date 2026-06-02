@@ -89,7 +89,14 @@ Las cargas nodales, las cargas de superficie (presión distribuida sobre una ari
 
 \section{Proceso: resolución y exploración didáctica}
 
-La fase de proceso (identidad cromática naranja) resuelve el sistema y alberga los módulos educativos. La tecla F5, o el cambio a la pestaña de post-proceso, dispara la resolución, que antes valida el modelo con un comprobador de salud: los errores críticos --restricciones insuficientes, elementos degenerados o referencias colgantes-- bloquean el cálculo y se reportan con sugerencias de corrección; las advertencias no lo impiden.
+La fase de proceso (identidad cromática naranja) resuelve el sistema y alberga los módulos educativos. La tecla F5, o el cambio a la pestaña de post-proceso, dispara la resolución, que antes valida el modelo con un comprobador de salud (\autoref{fig:validador-salud}): los errores críticos --restricciones insuficientes, elementos degenerados o referencias colgantes-- bloquean el cálculo y se reportan con sugerencias de corrección; las advertencias no lo impiden.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.82\linewidth]{fig_validador_salud}
+\caption{Comprobador de salud del modelo. Los errores críticos --aquí, la ausencia de restricciones, que volvería singular la matriz de rigidez reducida-- bloquean la resolución y se acompañan de una explicación; las advertencias no la impiden. Cada hallazgo ofrece, cuando procede, corrección automática y navegación al elemento implicado.}
+\label{fig:validador-salud}
+\end{figure}
 
 Siete módulos educativos (M1 a M7), accesibles con Ctrl+1 a Ctrl+7, recorren en orden el procedimiento del MEF: mapeo isoparamétrico y funciones de forma, Jacobiano, matriz de deformación $\mathbf{B}$, matriz constitutiva $\mathbf{D}$, rigidez elemental e integración de Gauss, fuerzas nodales equivalentes y ensamblaje global. Un octavo módulo (M0) atiende la calidad de malla en el pre-proceso. Cada módulo es una capa interactiva que se superpone al lienzo e ilumina, sobre el elemento que el usuario selecciona, el punto donde ocurre el cálculo; los que exhiben formulación ofrecen un conmutador Fórmula\,$\leftrightarrow$\,Valores entre la expresión simbólica y su evaluación numérica.
 
@@ -134,6 +141,98 @@ Ctrl+Q                   & Salir \\
 \section{Casos de ejemplo}
 
 El submenú \textsf{Ayuda} $\rightarrow$ \textsf{Cargar Ejemplo} (atajo Ctrl+E para el caso canónico) ofrece tres casos de referencia, cada uno en variante Q4 y Q9: el \textbf{cuadrado de validación} (nueve nodos, caso histórico del proyecto), la \textbf{viga de Timoshenko} (simplemente apoyada, validada contra la solución analítica y SAP2000) y la \textbf{membrana de Cook} (trapecio que ilustra el bloqueo por cortante). Estos casos sirven de punto de partida para explorar todas las funciones descritas.
+
+
+\section{Catálogo de módulos educativos}
+\label{sec:catalogo-modulos-edu}
+
+EduFEM organiza su contenido didáctico en ocho módulos interactivos, distribuidos según las fases del flujo del Método de Elementos Finitos (MEF). Cada módulo es una capa interactiva que se superpone sobre el lienzo donde se dibuja la malla: en lugar de presentar la teoría en una ventana aislada, ilumina, anota o anima directamente el elemento o la malla que el estudiante está modelando. El primer módulo (M0) corresponde a la fase de pre-proceso y opera sobre la malla completa, mientras que los siete restantes (M1 a M7) acompañan la fase de proceso siguiendo el orden canónico del cálculo: mapeo isoparamétrico, Jacobiano, matriz $\mathbf{B}$, matriz $\mathbf{D}$, rigidez elemental $\mathbf{k}_e$, fuerzas equivalentes y ensamblaje. La fase de post-proceso no incorpora módulos: el análisis de resultados se realiza con las herramientas nativas del Post (contorno, sonda de tensiones, círculo de Mohr y vista 3D). El \autoref{tab:modulos-edu} resume el catálogo completo, indicando para cada módulo su fase, el concepto del MEF que ilustra y el atajo de teclado asociado.
+
+\begin{table}[H]
+\centering
+\caption{Catálogo de los ocho módulos educativos de EduFEM, ordenados según el flujo del MEF. M0 es global del pre-proceso y carece de atajo numérico; M1 a M7 siguen el orden canónico del cálculo con atajos \texttt{Ctrl+1} a \texttt{Ctrl+7}.}
+\label{tab:modulos-edu}
+\begin{tabular}{l l p{6.2cm} l}
+\toprule
+\textbf{Módulo} & \textbf{Fase} & \textbf{Concepto del MEF} & \textbf{Atajo} \\
+\midrule
+M0 & Pre-proceso  & Calidad de malla: Jacobiano escalado y compacidad (Stretch). & --- \\
+M1 & Proceso      & Mapeo isoparamétrico y funciones de forma $N$: coordenadas naturales $(\xi,\eta) \leftrightarrow (x,y)$. & \texttt{Ctrl+1} \\
+M2 & Proceso      & Jacobiano $\det\mathbf{J}(\xi,\eta)$: distorsión local, superficie 3D. & \texttt{Ctrl+2} \\
+M3 & Proceso      & Matriz $\mathbf{B}$ (deformación): $\partial N/\partial x$ mediante $\mathbf{J}^{-1}$, con anclaje a puntos de Gauss. & \texttt{Ctrl+3} \\
+M4 & Proceso      & Matriz constitutiva $\mathbf{D}(E,\nu,\text{caso})$ según el material del elemento. & \texttt{Ctrl+4} \\
+M5 & Proceso      & Rigidez $\mathbf{k}_e$ y cuadratura de Gauss: la integral imposible se aproxima como suma en los puntos de Gauss. & \texttt{Ctrl+5} \\
+M6 & Proceso      & Fuerzas equivalentes nodales: carga sobre arista y peso propio. & \texttt{Ctrl+6} \\
+M7 & Proceso      & Ensamblaje de $\mathbf{K}$ y $\mathbf{F}$ con restricciones: vuelo Bézier y patrón de dispersión. & \texttt{Ctrl+7} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\section{Referencia del comprobador de salud}
+\label{sec:health-checks}
+
+Antes de resolver el sistema, EduFEM ejecuta un comprobador de salud que examina el modelo y agrupa sus hallazgos en tres niveles de severidad: los \emph{errores críticos} bloquean el cálculo hasta que el usuario los resuelve o decide continuar de forma explícita; las \emph{advertencias} no impiden la resolución, pero señalan aspectos que conviene revisar; y la \emph{información} reúne contadores generales del modelo. La \autoref{tab:health-checks} reúne todos los chequeos, identificados por su código estable, junto con su significado y si admiten autocorrección desde el diálogo de salud.
+
+\begin{longtable}{@{}>{\ttfamily}l l p{6.6cm} c@{}}
+\caption{Chequeos del comprobador de salud del modelo, agrupados por severidad.}
+\label{tab:health-checks}\\
+\toprule
+\normalfont\textbf{Código} & \textbf{Severidad} & \textbf{Significado} & \textbf{Autocorrección} \\
+\midrule
+\endfirsthead
+\multicolumn{4}{@{}l}{\small\itshape (continuación de la \autoref{tab:health-checks})}\\
+\toprule
+\normalfont\textbf{Código} & \textbf{Severidad} & \textbf{Significado} & \textbf{Autocorrección} \\
+\midrule
+\endhead
+\midrule
+\multicolumn{4}{r@{}}{\small\itshape continúa en la página siguiente}\\
+\endfoot
+\bottomrule
+\endlastfoot
+
+% --- Errores criticos ---
+no\_elements & Error crítico & El modelo no tiene ningún elemento; es preciso agregar al menos uno para poder resolver. & No \\
+\addlinespace
+elem\_node\_missing & Error crítico & Un elemento referencia en sus \texttt{node\_ids} un nodo que no existe en el modelo. & No \\
+\addlinespace
+elem\_material\_missing & Error crítico & Un elemento usa un nombre de material que no figura en la librería de materiales. & No \\
+\addlinespace
+degenerate\_element & Error crítico & Un elemento tiene vértices repetidos (menos de cuatro distintos); su Jacobiano será cero o negativo. & No \\
+\addlinespace
+surface\_node\_missing & Error crítico & Una carga de superficie referencia como extremo (\texttt{node\_start} o \texttt{node\_end}) un nodo inexistente. & Sí \\
+\addlinespace
+no\_restraints & Error crítico & No hay ninguna restricción definida; el modelo conserva los modos de cuerpo rígido y la matriz de rigidez reducida $\mathbf{K}$ resulta singular. & No \\
+\addlinespace
+insufficient\_restraints & Error crítico & Hay menos de tres GDL restringidos; se necesitan al menos tres (dos traslaciones y una rotación rígida en el plano) para suprimir los modos de cuerpo rígido en 2D. & No \\
+\addlinespace
+bc\_orphan\_node & Error crítico & Un nodo tiene restricción pero no pertenece a ningún elemento: es un GDL colgante restringido que deja mal condicionada la matriz reducida. & Sí \\
+\midrule
+
+% --- Advertencias ---
+load\_orphan\_node & Advertencia & Un nodo tiene carga pero no pertenece a ningún elemento, por lo que la carga no contribuye al análisis. & Sí \\
+\addlinespace
+unused\_material & Advertencia & Un material está definido en la librería pero ningún elemento lo utiliza. & Sí \\
+\addlinespace
+negative\_jacobian & Advertencia & Un elemento tiene los nodos en orden horario (área con signo negativa); su Jacobiano será negativo y debe reordenarse en sentido antihorario. & No \\
+\addlinespace
+zero\_nodal\_load & Advertencia & Una carga nodal tiene componentes $F_x$ y $F_y$ nulas, probablemente por valores sin asignar. & Sí \\
+\addlinespace
+zero\_surface\_load & Advertencia & Una carga de superficie tiene $q_{\text{inicio}}$ y $q_{\text{fin}}$ nulas y no contribuye al análisis. & Sí \\
+\addlinespace
+suspicious\_young\_modulus & Advertencia & El módulo de elasticidad $E$ de un material en uso queda fuera del rango físico típico (de unos \mbox{$100$~MPa} a \mbox{$500$~GPa}); sugiere un posible error de unidades. & No \\
+\addlinespace
+suspicious\_model\_scale & Advertencia & La extensión del modelo queda fuera del rango habitual (de \mbox{$0{,}1$~mm} a \mbox{$10$~km}); sugiere un posible error en la unidad de longitud. & No \\
+\addlinespace
+gravity\_no\_density & Advertencia & La gravedad está activa (\texttt{include\_gravity}) pero un material en uso tiene densidad $\rho \le 0$, de modo que la fuerza volumétrica $F = \rho\, g\, V$ será nula. & No \\
+\midrule
+
+% --- Informacion ---
+summary & Información & Contadores generales del modelo: número de nodos, de elementos y de GDL totales, libres y restringidos. & No \\
+
+\end{longtable}
+
 
 
 \chapter{Listados de código seleccionados}
@@ -269,6 +368,48 @@ K = coo_matrix(
 
 Este anexo amplía la evidencia del \autoref{cap:resultados} con tablas y figuras complementarias generadas por los mismos \emph{scripts} de verificación y validación del proyecto. Los datos crudos se conservan en los archivos CSV del directorio \texttt{docs/vyv/datos/}.
 
+\section{Reproducibilidad de la verificación y validación}
+\label{sec:vyv-reproducibilidad}
+
+Toda la evidencia numérica del \autoref{cap:resultados} y de este anexo se genera con los \emph{scripts} de verificación y validación incluidos en el repositorio del proyecto. El conjunto de pruebas no se apoya en un marco de pruebas automatizado del tipo \texttt{pytest}: cada \emph{script} es un programa de tipo \emph{printout} que se ejecuta de forma autónoma como módulo de Python, imprime su diagnóstico por consola y deposita los datos crudos --en archivos CSV-- y las figuras en el directorio \texttt{docs/vyv/datos/} (y, para las figuras, en \texttt{docs/vyv/figuras/}). Esta organización determinista y reejecutable garantiza la repetibilidad de cada cifra reportada: basta volver a lanzar el comando correspondiente para regenerar la tabla o la figura asociada. Los comandos se invocan desde la raíz del proyecto, con el entorno virtual activado y las dependencias instaladas según el \autoref{anexo:instalacion}. La \autoref{tab:vyv-repro} enumera cada \emph{script}, indica qué verifica o valida y remite a la tabla o figura concreta que produce, tanto en el cuerpo principal como en este anexo.
+
+\begin{table}[htbp]
+\centering
+\caption{Guía de reproducibilidad de la batería de verificación y validación: comando de ejecución, objeto de la prueba y resultados asociados en el Capítulo~4 y en este anexo.}
+\label{tab:vyv-repro}
+\begin{tabular}{p{4.3cm} p{5.1cm} p{4.1cm}}
+\toprule
+\textbf{Script} & \textbf{Qué verifica} & \textbf{Resultados (Cap.~4 / Anexo)} \\
+\midrule
+\texttt{python -m tests.vv\_mms} &
+Verificación por el método de soluciones manufacturadas: tasas asintóticas de convergencia en norma $L^2$ y seminorma $H^1$ para los elementos Q4 y Q9 sobre el cuadrado unitario en tensión plana. &
+\autoref{tab:mms}, \autoref{fig:convergencia}, \autoref{tab:mms-rel}, \autoref{fig:mms-campos} \\
+\addlinespace
+\texttt{python -m tests.vv\_timoshenko} &
+Validación de la viga simplemente apoyada frente a la solución analítica de Timoshenko-Goodier y al modelo de cáscara de SAP2000: tensión normal $\sigma_x$, componentes $\sigma_y$ y $\tau_{xy}$, desplazamientos y deflexión máxima. &
+\autoref{tab:timoshenko-stress}, \autoref{tab:timoshenko-defl}, \autoref{fig:timoshenko-contorno}, \autoref{tab:tim-componentes}, \autoref{tab:tim-desp}, \autoref{fig:tim-perfil} \\
+\addlinespace
+\texttt{python -m tests.vv\_cook} &
+Validación con la membrana de Cook: convergencia del desplazamiento $u_y$ en $(48,52)$ bajo refinamiento, evidenciando el bloqueo por cortante del Q4 frente a la convergencia del Q9. &
+\autoref{tab:cook}, \autoref{fig:cook-convergencia}, \autoref{tab:resumen-q4q9}, \autoref{tab:cook-ux}, \autoref{fig:cook-def} \\
+\addlinespace
+\texttt{python -m tests.test\_fem} &
+Validación del motor con los datos de ejemplo: resolución del sistema $\mathbf{K}\,\mathbf{u}=\mathbf{F}$, reacciones, tensiones nodales promedio y calidad de malla para los casos Q4 y Q9. &
+Consistencia interna del motor \\
+\addlinespace
+\texttt{python -m tests.test\_vv\_extensions} &
+Regresión de las extensiones del solucionador usadas en la batería de V\&V: fuerza de volumen (\texttt{body\_force\_fn}), restricciones de Dirichlet no homogéneas (\texttt{ux\_value}/\texttt{uy\_value}), malla estructurada (\texttt{generate\_structured\_quad\_mesh}) y normas de error $L^2$/$H^1$. &
+Soporte de la verificación por soluciones manufacturadas \\
+\addlinespace
+\texttt{python -m tests.test\_q9\_q4\_cycle} &
+Regresión del ciclo de transformación de malla $\text{Q4}\rightarrow\text{Q9}\rightarrow\text{Q4}$: el campo de desplazamientos de la malla Q4 reducida coincide con el de la Q4 original sin deriva numérica. &
+\autoref{sec:medicion} (consistencia interna del modelo) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+
 \section{Método de soluciones manufacturadas: errores relativos y campos}
 
 Además de las normas absolutas reportadas en el cuerpo principal, la \autoref{tab:mms-rel} presenta los errores \emph{relativos} en norma $L^2$ y seminorma $H^1$, que confirman la misma jerarquía de convergencia con independencia de la escala del problema. Las normas de error se integraron con cuadratura de Gauss de orden $p+1$ ($3\times 3$ para Q4, $4\times 4$ para Q9) para evitar el aliasing del error con la cuadratura de la rigidez.
@@ -385,3 +526,117 @@ $N$ & $u_x$ (Q4) & $u_x$ (Q9) \\
 \caption{Post-proceso de EduFEM: configuración deformada de la membrana de Cook (Q9, $N=8$) con el contorno de magnitud de desplazamiento $|U|$. El empotramiento del borde izquierdo y el desplazamiento creciente hacia el extremo libre cargado son visibles sobre la geometría original (en línea punteada).}
 \label{fig:cook-def}
 \end{figure}
+
+
+\chapter{Formatos de interoperabilidad}
+\label{anexo:formatos}
+
+EduFEM intercambia datos con el exterior mediante tres formatos de archivo, cada uno con un propósito distinto: el formato nativo \texttt{.edufem} para guardar y reabrir el proyecto completo sin pérdida de información; un paquete de archivos CSV comprimido para la edición masiva del modelo en una hoja de cálculo; y el formato DXF de dibujo asistido para importar la geometría desde un programa de diseño. Este anexo documenta, como referencia, la estructura de cada uno tal como la lee y escribe la aplicación.
+
+\section{Proyecto nativo (\texttt{.edufem})}
+
+Un archivo \texttt{.edufem} es un documento de texto en formato JSON, codificado en UTF-8, que almacena la totalidad del modelo --geometría, propiedades, cargas y restricciones-- pero \emph{no} los resultados del cálculo, que se recomputan al reabrir el proyecto. La serialización la produce el método \texttt{to\_dict} de la clase \texttt{ProjectModel}, y la lectura inversa el método \texttt{from\_dict}; ambos comparten el mismo esquema de claves.
+
+El guardado es \textbf{atómico}: el contenido se escribe primero en un archivo temporal del mismo directorio, se fuerza su descarga a disco (\texttt{fsync}) y solo entonces se renombra sobre el destino final mediante \texttt{os.replace}. De este modo, una interrupción a mitad de escritura --un cierre forzado, un disco lleno o un corte de energía-- nunca deja el archivo original corrupto o truncado: queda intacto el contenido anterior o bien el nuevo completo. La escritura usa una indentación de dos espacios y conserva los caracteres no ASCII (\texttt{ensure\_ascii=False}), de modo que el JSON resultante es legible e inspeccionable con cualquier editor de texto.
+
+El diccionario de nivel superior contiene las claves que detalla la \autoref{tab:edufem-claves}. Las ocho primeras son escalares de configuración global del análisis; las restantes son colecciones de entidades, cada una serializada a su vez con su propio diccionario.
+
+\begin{table}[htbp]
+\centering
+\caption{Claves del diccionario JSON de un proyecto \texttt{.edufem}.}
+\label{tab:edufem-claves}
+\begin{tabular}{l p{9.2cm}}
+\toprule
+\textbf{Clave} & \textbf{Significado} \\
+\midrule
+\texttt{project\_name}       & Nombre del proyecto (cadena de texto). \\
+\texttt{analysis\_type}      & Tipo de análisis: tensión plana o deformación plana. \\
+\texttt{element\_type}       & Tipo de elemento de la malla: Q4 o Q9. \\
+\texttt{unit\_system}        & Sistema de unidades activo (uno de los ocho predefinidos). \\
+\texttt{default\_thickness}  & Espesor por defecto de los elementos. \\
+\texttt{gravity\_x}          & Componente $x$ del vector de aceleración de la gravedad. \\
+\texttt{gravity\_y}          & Componente $y$ del vector de aceleración de la gravedad. \\
+\texttt{include\_gravity}    & Indicador booleano de si la gravedad se incluye como carga. \\
+\texttt{nodes}               & Diccionario de nodos indexado por identificador; cada nodo guarda \texttt{id}, \texttt{x}, \texttt{y}. \\
+\texttt{elements}            & Diccionario de elementos; cada uno guarda \texttt{id}, \texttt{node\_ids}, \texttt{thickness}, \texttt{material\_name}. \\
+\texttt{materials}           & Diccionario de materiales indexado por nombre; cada uno guarda \texttt{name}, \texttt{E}, \texttt{nu}, \texttt{density}. \\
+\texttt{nodal\_loads}        & Cargas puntuales por nodo; cada una guarda \texttt{node\_id}, \texttt{fx}, \texttt{fy}. \\
+\texttt{surface\_loads}      & Lista de cargas superficiales; cada una guarda \texttt{node\_start}, \texttt{node\_end}, \texttt{q\_start}, \texttt{q\_end}, \texttt{angle}, \texttt{element\_id}. \\
+\texttt{boundary\_conditions} & Restricciones por nodo; cada una guarda \texttt{node\_id}, \texttt{restrain\_x}, \texttt{restrain\_y}, \texttt{ux\_value}, \texttt{uy\_value}. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+La conectividad de cada elemento se almacena en \texttt{node\_ids} como una lista de identificadores: cuatro para un Q4 y nueve para un Q9. Como los identificadores son la identidad pública del nodo (visibles en la interfaz, pueden presentar huecos tras un borrado), el método \texttt{from\_dict} reconstruye internamente el mapeo a índices ordinales del sistema lineal sin depender de que sean contiguos.
+
+\section{Modelo en CSV/Excel (ZIP)}
+
+Para la edición masiva del modelo en una planilla de cálculo, EduFEM exporta e importa el modelo completo como un archivo comprimido \texttt{.zip} que contiene un archivo CSV por cada tipo de entidad. Esta vía complementa al formato nativo \texttt{.edufem}: mientras este último es un JSON pensado para guardar y reabrir el proyecto sin edición manual, el paquete de CSV es el formato editable en Excel o LibreOffice.
+
+Cada CSV antepone, en su primera línea, un comentario con las unidades vigentes del proyecto (por ejemplo, \texttt{\# Unidades: longitud=mm, fuerza=N, esfuerzo=MPa}) para que el usuario sepa en qué sistema está editando los valores. La segunda línea es el encabezado real de columnas y, a partir de la tercera, los datos. Al leer, las líneas que comienzan con \texttt{\#} se descartan. La escritura del ZIP también es atómica, mediante archivo temporal y \texttt{os.replace}, y las celdas de texto que comenzaran por un carácter que la planilla interpretaría como fórmula (\texttt{=}, \texttt{+}, \texttt{-}, \texttt{@}) se neutralizan anteponiendo un apóstrofo.
+
+La \autoref{tab:csv-archivos} enumera los seis archivos del paquete con sus columnas reales y su contenido.
+
+\begin{table}[htbp]
+\centering
+\caption{Archivos CSV del paquete de modelo y sus columnas.}
+\label{tab:csv-archivos}
+\begin{tabular}{l p{5.0cm} p{4.6cm}}
+\toprule
+\textbf{Archivo} & \textbf{Columnas} & \textbf{Descripción} \\
+\midrule
+\texttt{nodes.csv} & \texttt{ID}, \texttt{X}, \texttt{Y} & Identificador y coordenadas de cada nodo. \\
+\texttt{elements.csv} & \texttt{ID}, \texttt{N1}, \texttt{N2}, \texttt{N3}, \texttt{N4}, \texttt{Espesor}, \texttt{Material} & Identificador, conectividad, espesor y material de cada elemento. \\
+\texttt{materials.csv} & \texttt{Nombre}, \texttt{E}, \texttt{nu}, \texttt{densidad} & Nombre, módulo de elasticidad $E$, coeficiente de Poisson $\nu$ y densidad $\rho$. \\
+\texttt{nodal\_loads.csv} & \texttt{Nodo}, \texttt{Fx}, \texttt{Fy} & Carga puntual (componentes $F_x$, $F_y$) por nodo. \\
+\texttt{boundary\_conditions.csv} & \texttt{Nodo}, \texttt{Restringe\_X}, \texttt{Restringe\_Y} & Restricción por nodo; cada columna de restricción vale \texttt{1} (restringido) o \texttt{0} (libre). \\
+\texttt{surface\_loads.csv} & \texttt{Nodo\_Inicio}, \texttt{Nodo\_Final}, \texttt{q\_inicio}, \texttt{q\_final}, \texttt{Angulo} & Carga distribuida sobre la arista entre dos nodos, con magnitudes en cada extremo y ángulo de aplicación. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Las columnas son fijas, salvo una salvedad sobre la conectividad de los elementos. La tabla de \texttt{elements.csv} expone \textbf{siempre cuatro columnas de nodo}, \texttt{N1} a \texttt{N4}, que corresponden a los cuatro vértices del cuadrilátero. En una malla Q9, los cinco nodos restantes de cada elemento --los cuatro de arista y el central-- no se escriben en el CSV: se generan automáticamente al reconstruir el modelo, por lo que el formato editable nunca expone columnas \texttt{N5} a \texttt{N9} ni admite su edición manual. Al importar, las cargas y restricciones cuyo nodo no exista en el modelo se descartan silenciosamente, y los materiales se cargan antes que los elementos para que estos puedan referenciarlos por nombre.
+
+\section{Geometría CAD (\texttt{.dxf})}
+
+EduFEM importa la geometría de la malla desde archivos DXF de dibujo asistido, mediante la biblioteca \texttt{ezdxf}. La convención de intercambio es deliberadamente simple: solo se procesan las entidades que residen en la capa denominada \texttt{FEM\_ELEMENTS} (el nombre es configurable, pero ese es el valor por defecto); las demás capas se ignoran por completo. Dentro de esa capa, cada \textbf{polilínea cerrada de exactamente cuatro vértices} se convierte en un elemento cuadrilátero Q4. Una polilínea que no esté cerrada, o que tenga un número de vértices distinto de cuatro, se descarta y se registra una advertencia.
+
+Las coordenadas del DXF se toman literalmente; su significado físico (milímetros, metros, pulgadas, etcétera) lo fija el sistema de unidades del proyecto, al estilo de los programas de análisis estructural comerciales. El diálogo de importación aplica un factor de escala según la unidad que el usuario seleccione.
+
+Al construir cada elemento, la importación impone dos reglas de consistencia con el resto del modelo:
+
+\begin{itemize}
+  \item \textbf{Orientación antihoraria forzada.} Se calcula el área con signo de la polilínea mediante la fórmula del cordón de zapato (\emph{shoelace}); si resulta negativa --orden horario--, se invierte el orden de los vértices. Sin esta corrección, el determinante del Jacobiano sería negativo y el elemento resultaría inválido.
+  \item \textbf{Compartición automática de nodos.} Los vértices de cada polilínea se deduplican contra los nodos existentes del proyecto dentro de una tolerancia numérica, de modo que dos elementos adyacentes comparten el nodo común en lugar de duplicarlo.
+\end{itemize}
+
+La importación es además \textbf{idempotente}: antes de crear un elemento se calcula su firma topológica como el conjunto no ordenado de sus nodos (\texttt{frozenset} de los identificadores) y se compara con las firmas de los elementos ya presentes. Si coincide con uno existente, el elemento se omite y se contabiliza como duplicado. Reimportar el mismo DXF sobre un proyecto ya poblado, por tanto, no genera elementos repetidos.
+
+La función \texttt{import\_dxf} muta el proyecto en su lugar y devuelve un diccionario con el balance de la operación, cuyas claves se describen en la \autoref{tab:dxf-resultado}.
+
+\begin{table}[htbp]
+\centering
+\caption{Campos del diccionario de resultado de \texttt{import\_dxf}.}
+\label{tab:dxf-resultado}
+\begin{tabular}{l p{8.4cm}}
+\toprule
+\textbf{Campo} & \textbf{Significado} \\
+\midrule
+\texttt{nodes\_added}                & Número de nodos creados (los compartidos por deduplicación no se cuentan). \\
+\texttt{elements\_added}             & Número de elementos Q4 efectivamente creados. \\
+\texttt{elements\_skipped\_duplicate} & Número de polilíneas omitidas por coincidir su firma topológica con un elemento ya existente. \\
+\texttt{warnings}                    & Lista de mensajes de advertencia (polilíneas no cerradas, con número de vértices distinto de cuatro o degeneradas tras la deduplicación). \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Una malla Q9 no se importa directamente desde DXF: la convención solo describe cuadriláteros de cuatro vértices, por lo que el resultado inmediato de la importación es siempre una malla de elementos Q4, que puede convertirse después a Q9 desde el menú de la aplicación.
+
+
+
+\chapter{Memoria de Cálculo generada por el software}
+\label{anexo:memoria}
+
+Para ilustrar de principio a fin el resultado documental distintivo de EduFEM, se reproduce a continuación la \emph{Memoria de Cálculo} completa que el programa genera automáticamente para el ejemplo canónico de validación (cuadrado de nueve nodos, elemento Q4, tensión plana). El documento se obtiene desde \textsf{Archivo} $\rightarrow$ \textsf{Exportar} $\rightarrow$ \textsf{Memoria de Cálculo (PDF)}, en su estilo \emph{educativo}, y recorre el procedimiento del MEF paso a paso --funciones de forma evaluadas en los puntos de Gauss, Jacobiano, matrices $\mathbf{B}$ y $\mathbf{D}$, rigidez elemental e integración numérica, ensamblaje, partición de restricciones, resolución y recuperación de tensiones-- sobre el modelo concreto del usuario. Las páginas siguientes son el PDF tal como lo produce el software, sin edición posterior.
+
+\includepdf[pages=-,scale=0.92,pagecommand={\thispagestyle{plain}}]{anexo_memoria_calculo.pdf}
