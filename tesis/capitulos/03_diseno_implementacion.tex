@@ -19,7 +19,8 @@ La implementación se realizó íntegramente en Python, lenguaje que combina una
 \centering
 \caption{Componentes del stack tecnológico de EduFEM.}
 \label{tab:stack}
-\begin{tabular}{@{}lll@{}}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}l >{\raggedright\arraybackslash}p{4.0cm} >{\raggedright\arraybackslash}p{6.9cm}@{}}
 \toprule
 \textbf{Función} & \textbf{Tecnología} & \textbf{Rol en el sistema} \\
 \midrule
@@ -82,7 +83,7 @@ Esta separación tiene una consecuencia directa: la matriz de rigidez se dimensi
 El paquete \texttt{fem/} concentra el motor numérico y observa una regla de pureza estricta: no importa \texttt{tkinter}, \texttt{matplotlib} ni ninguna biblioteca de interfaz, de modo que puede ejecutarse sin entorno gráfico, por ejemplo en los guiones de verificación. El cálculo se organiza como un canal de operaciones encadenadas: evaluación de las funciones de forma, cálculo de la matriz Jacobiana y su determinante, construcción de la matriz de deformación--desplazamiento $\bm{B}$, ensamblaje de la matriz constitutiva $\bm{D}$ y, finalmente, integración de la rigidez elemental mediante cuadratura de Gauss. La rigidez de cada elemento se obtiene como
 
 \begin{equation}
-\bm{k}_e = \int_{-1}^{1}\!\!\int_{-1}^{1} \bm{B}^{\top}\, \bm{D}\, \bm{B}\, \det\bm{J}\, t\, d\xi\, d\eta,
+\bm{k}_e = \int_{-1}^{1}\!\!\int_{-1}^{1} \bm{B}^{\top}\, \bm{D}\, \bm{B}\, |\det\bm{J}|\, t\, d\xi\, d\eta,
 \label{eq:rigidez-elemental}
 \end{equation}
 

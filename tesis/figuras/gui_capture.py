@@ -409,11 +409,113 @@ def cap_cook_deformed(app):
     _save(img, "fig_cook_deformed.png")
 
 
+def _grab_new_toplevel(app, construct_fn, name, settle=16):
+    """Construye un diálogo (Toplevel) con construct_fn, lo localiza como el
+    hijo nuevo de root y lo captura. Devuelve la imagen y destruye el diálogo.
+
+    Robusto al nombre de atributo interno del diálogo: detecta el Toplevel
+    recién creado comparando los hijos de root antes/después."""
+    before = set(app.root.winfo_children())
+    obj = construct_fn()
+    _pump(app.root, settle)
+    new_tops = [w for w in app.root.winfo_children()
+                if w not in before and type(w).__name__ == "Toplevel"]
+    img = None
+    top = new_tops[-1] if new_tops else None
+    if top is not None:
+        try:
+            top.lift()
+            top.update_idletasks()
+        except Exception:
+            pass
+        _pump(app.root, 6)
+        img, _ = _grab_hwnd(top.winfo_id())
+    _save(img, name)
+    # Cerrar el diálogo (Toplevel normal: destroy es seguro, no es overlay).
+    for w in new_tops:
+        try:
+            w.destroy()
+        except Exception:
+            pass
+    _pump(app.root, 4)
+    return obj
+
+
+def cap_ventana_completa(app):
+    """Ventana COMPLETA de la aplicación (las tres zonas: cuaderno de tablas a
+    la izquierda, lienzo a la derecha, barra de menús). Ancla del Anexo B —
+    es la única figura que muestra el layout entero que el manual describe."""
+    _load(app, "canon_q4")
+    _select_tab(app, 0)
+    mc = app.mesh_canvas
+    try:
+        app.root.state("zoomed")  # maximizar para una captura representativa
+    except Exception:
+        pass
+    _pump(app.root, 10)
+    mc.fit_view()
+    mc.redraw()
+    _pump(app.root, 12)
+    img, _ = _grab_hwnd(app.root.winfo_id())
+    _save(img, "fig_app_completa.png")
+    try:
+        app.root.state("normal")
+    except Exception:
+        pass
+    _pump(app.root, 6)
+
+
+def cap_dialogo_material(app):
+    """Diálogo Modelo ▸ Materiales (master-detail): la lista de materiales y el
+    formulario con E, ν, ρ. Lo describe el manual pero nunca se ve."""
+    _load(app, "canon_q4")
+    _select_tab(app, 0)
+    from gui.dialogs.material_dialog import MaterialDialog
+    _grab_new_toplevel(
+        app,
+        lambda: MaterialDialog(app.root, app.project, app),
+        "fig_dialogo_material.png",
+        settle=18,
+    )
+
+
+def cap_validador_salud(app):
+    """Validador de salud (HealthReportDialog) poblado con un error crítico.
+    Se construye un modelo deliberadamente incompleto (sin restricciones) para
+    que el diálogo muestre el flujo de diagnóstico real."""
+    from models.example_library import load_example_project
+    from models.model_health import validate_project
+    from gui.dialogs.health_report_dialog import HealthReportDialog
+
+    broken = load_example_project()
+    broken.boundary_conditions.clear()       # -> error crítico no_restraints
+    if broken.materials:
+        # material extra sin asignar -> advertencia unused_material
+        from models.material import Material
+        try:
+            extra = Material("Aluminio", 70000.0, 0.33, 2700.0)
+            broken.materials[extra.name] = extra
+        except Exception:
+            pass
+    report = validate_project(broken)
+
+    _grab_new_toplevel(
+        app,
+        lambda: HealthReportDialog(app.root, report, broken, app,
+                                   allow_continue=True),
+        "fig_validador_salud.png",
+        settle=20,
+    )
+
+
 def main():
     print("Capturando figuras desde la GUI real de EduFEM…")
     print("-" * 60)
     app = _build_app()
     _all = [
+        ("ventana", cap_ventana_completa),
+        ("material", cap_dialogo_material),
+        ("validador", cap_validador_salud),
         ("lienzo", cap_lienzo),
         ("modulo", cap_modulo),
         ("postproceso", cap_postproceso),

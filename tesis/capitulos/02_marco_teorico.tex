@@ -114,10 +114,11 @@ El elemento \textbf{Q9} añade cuatro nodos medios de arista y un nodo central, 
 
 \begin{equation}
 \begin{aligned}
-N_i &= \tfrac{1}{4}\,\xi(\xi \mp 1)\,\eta(\eta \mp 1), \quad i \in \{1,2,3,4\}, \\
-N_5 &= \tfrac{1}{2}(1-\xi^2)\,\eta(\eta-1), \quad N_6 = \tfrac{1}{2}\,\xi(\xi+1)(1-\eta^2), \\
-N_7 &= \tfrac{1}{2}(1-\xi^2)\,\eta(\eta+1), \quad N_8 = \tfrac{1}{2}\,\xi(\xi-1)(1-\eta^2), \\
-N_9 &= (1-\xi^2)(1-\eta^2).
+N_1 &= \tfrac{1}{4}\,\xi(\xi-1)\,\eta(\eta-1), & N_2 &= \tfrac{1}{4}\,\xi(\xi+1)\,\eta(\eta-1), \\
+N_3 &= \tfrac{1}{4}\,\xi(\xi+1)\,\eta(\eta+1), & N_4 &= \tfrac{1}{4}\,\xi(\xi-1)\,\eta(\eta+1), \\
+N_5 &= \tfrac{1}{2}(1-\xi^2)\,\eta(\eta-1), & N_6 &= \tfrac{1}{2}\,\xi(\xi+1)(1-\eta^2), \\
+N_7 &= \tfrac{1}{2}(1-\xi^2)\,\eta(\eta+1), & N_8 &= \tfrac{1}{2}\,\xi(\xi-1)(1-\eta^2), \\
+N_9 &= (1-\xi^2)(1-\eta^2). &&
 \end{aligned}
 \label{eq:N-q9}
 \end{equation}
@@ -279,7 +280,7 @@ que preserva la simetría del bloque libre. Un modelo bien restringido —al men
 \section{Resolución del sistema y recuperación de tensiones}
 \label{sec:resolucion-tensiones}
 
-El sistema reducido de \autoref{eq:dirichlet-no-homogeneo} se resuelve por factorización LU directa sobre la matriz dispersa \autocite{virtanen2020scipy}. Opcionalmente se aplica una reordenación de tipo Cuthill-McKee inverso antes de factorizar para reducir el llenado (\emph{fill-in}) en mallas estructuradas. Conocido el vector $\bm{u}$, las reacciones en los GDL restringidos se recuperan como $\bm{R} = \bm{K}_{r}\,\bm{u} - \bm{F}_r$.
+El sistema reducido de \autoref{eq:dirichlet-no-homogeneo} se resuelve por factorización LU directa sobre la matriz dispersa \autocite{virtanen2020scipy}. Opcionalmente se aplica una reordenación de tipo Cuthill-McKee inverso antes de factorizar para reducir el llenado (\emph{fill-in}) en mallas estructuradas. Conocido el vector $\bm{u}$, las reacciones en los GDL restringidos se recuperan como $\bm{R} = \bm{K}_{rf}\,\bm{u}_f + \bm{K}_{rr}\,\bm{u}_r - \bm{F}_r$.
 
 Las tensiones se calculan primero en los puntos de Gauss, evaluando $\bm{\sigma}_p = \bm{D}\,\bm{B}_p\,\bm{u}_e$. A partir de las componentes cartesianas se obtienen las tensiones principales y la equivalente de von Mises:
 
@@ -369,6 +370,6 @@ La verificación de código se realiza con el \textbf{Método de las Soluciones 
 \label{eq:normas-error}
 \end{equation}
 
-Al refinar la malla, estas normas deben decrecer con las tasas asintóticas teóricas ($\mathcal{O}(h^{p+1})$ en $L^2$ y $\mathcal{O}(h^p)$ en $H^1$, con $p$ el orden polinómico del elemento), lo que confirma la correcta implementación. Las integrales de error se evalúan con cuadratura de orden $p+1$ —un orden por encima del usado para la rigidez— para no subestimar artificialmente el error \autocite{salari2000mms}.
+Al refinar la malla, estas normas deben decrecer con las tasas asintóticas teóricas ($\mathcal{O}(h^{p+1})$ en $L^2$ y $\mathcal{O}(h^p)$ en $H^1$, con $p$ el orden polinómico del elemento) que establece la teoría de aproximación del MEF \autocite{strang2008analysis,hughes2000fem}, lo que confirma la correcta implementación. Las integrales de error se evalúan con cuadratura de orden $p+1$ —un orden por encima del usado para la rigidez— para no subestimar artificialmente el error \autocite{salari2000mms}.
 
 La validación contrasta el motor contra problemas de referencia con solución conocida. La \textbf{viga de Timoshenko} simplemente apoyada admite solución analítica de la teoría de la elasticidad \autocite{timoshenko1970elasticity}, y EduFEM la reproduce con error inferior al $0{,}3\,\%$ para Q9, comparando además contra un modelo de cáscara de SAP2000 \autocite{csi2017sap2000}. La \textbf{membrana de Cook}, un trapecio en voladizo con carga de corte \autocite{cook1974membrane}, es el banco clásico para evaluar la sensibilidad a la distorsión: el desplazamiento del extremo converge al valor de referencia $\approx 23{,}9$, pero el elemento Q4 lo subestima sensiblemente ($u_y \approx 22$) por el fenómeno de \emph{shear-locking}. Este bloqueo por cortante aparece cuando un elemento bilineal no puede representar la flexión pura sin generar deformaciones de corte parásitas, lo que lo vuelve artificialmente rígido; el elemento Q9, de orden superior, lo evita y converge con rapidez \autocite{cook2002concepts,hughes2000fem}. Estos contrastes demuestran empíricamente, dentro del propio entorno educativo, por qué la elección del tipo de elemento condiciona la calidad del resultado.

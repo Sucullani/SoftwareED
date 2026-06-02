@@ -1,6 +1,7 @@
 % =====================================================================
-%  capitulos/06_anexos.tex  --  Anexos (apéndices A, B, C, ...)
-%  Va después de \appendix en main.tex, por eso los \chapter se numeran A, B...
+%  capitulos/06_anexos.tex  --  Anexos (A, B, C, ...)
+%  Va después de \appendix en main.tex (que los numera A, B, ...); el rótulo
+%  "Anexo" lo fija \renewcommand{\appendixname}{Anexo} en main.tex.
 % =====================================================================
 
 \chapter{Manual de instalación}
@@ -40,13 +41,22 @@ python main.py
 
 \section{Dependencias}
 
-El núcleo numérico y la interfaz se apoyan en bibliotecas de código abierto: NumPy y SciPy (cálculo), \texttt{ttkbootstrap} (interfaz), \texttt{pylatex} (memoria de cálculo), \texttt{PyMuPDF} (visualización del PDF), \texttt{Pillow} (figuras) y \texttt{ezdxf} (importación DXF), además de \texttt{matplotlib} y \texttt{sympy} (módulos educativos). Dos componentes son opcionales: una distribución \LaTeX{} (\texttt{pdflatex}) para la memoria de cálculo y el compilador JIT \texttt{numba} para acelerar el cálculo en mallas grandes; sin ninguno de los dos la aplicación funciona, con menor rendimiento o sin el PDF de alta calidad.
+El núcleo numérico y la interfaz se apoyan en bibliotecas de código abierto: NumPy y SciPy (cálculo), \texttt{ttkbootstrap} (interfaz), \texttt{pylatex} (memoria de cálculo), \texttt{PyMuPDF} (visualización del PDF), \texttt{Pillow} (figuras) y \texttt{ezdxf} (importación DXF), además de \texttt{matplotlib} y \texttt{sympy} (módulos educativos). Dos componentes son opcionales: una distribución \LaTeX{} (\texttt{pdflatex}) para la memoria de cálculo y el compilador JIT \texttt{numba} para acelerar el cálculo en mallas grandes; sin ninguno de los dos la aplicación funciona, con menor rendimiento o sin el PDF de alta calidad. Cabe precisar que las mediciones de tiempo de cálculo del \autoref{cap:resultados} corresponden a la ejecución con \texttt{numba} activo, por lo que reproducir esas cifras exige instalarlo.
 
 
 \chapter{Manual de uso}
 \label{anexo:manual}
 
 Este anexo describe el flujo de trabajo de EduFEM, desde la construcción del modelo hasta la interpretación de los resultados. La aplicación organiza el trabajo en tres fases --pre-proceso, proceso y post-proceso-- accesibles mediante pestañas, todas compartiendo un único lienzo central donde se visualiza el modelo. La barra de menús se reduce de forma deliberada a tres entradas: \textsf{Archivo}, \textsf{Modelo} y \textsf{Ayuda}.
+
+La \autoref{fig:app-completa} muestra la ventana principal en la fase de pre-proceso, con sus tres zonas: el cuaderno de tablas, el lienzo compartido y la barra de estado.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{fig_app_completa}
+\caption{Ventana principal de EduFEM en la fase de pre-proceso. A la izquierda, el cuaderno de tablas editables (con la tabla de \textsf{Nodos} activa); a la derecha, el lienzo compartido con el modelo del ejemplo canónico --nodos, elementos, la carga nodal, los apoyos y los ejes--. La barra de estado inferior resume el diagnóstico de salud, el tipo de análisis y el recuento de grados de libertad.}
+\label{fig:app-completa}
+\end{figure}
 
 \section{Pre-proceso: construcción del modelo}
 
@@ -64,7 +74,14 @@ Existen tres vías para construir la malla:
 
 \subsection{Propiedades del modelo}
 
-El menú \textsf{Modelo} agrupa, en el orden lógico de definición de un problema de elementos finitos, cinco diálogos: \textsf{Tipo de Elemento} (Q4 o Q9), \textsf{Unidades} (ocho sistemas predefinidos con conversión automática de los valores), \textsf{Materiales} (módulo de elasticidad $E$, coeficiente de Poisson $\nu$ y densidad $\rho$), \textsf{Gravedad} (vector de aceleración y su activación) y \textsf{Tipo de Análisis} (tensión o deformación plana). Al cambiar de Q4 a Q9, los cinco nodos adicionales por elemento --cuatro de arista y el central-- se generan automáticamente.
+El menú \textsf{Modelo} agrupa, en el orden lógico de definición de un problema de elementos finitos, cinco diálogos: \textsf{Tipo de Elemento} (Q4 o Q9), \textsf{Unidades} (ocho sistemas predefinidos con conversión automática de los valores), \textsf{Materiales} (módulo de elasticidad $E$, coeficiente de Poisson $\nu$ y densidad $\rho$), \textsf{Gravedad} (vector de aceleración y su activación) y \textsf{Tipo de Análisis} (tensión o deformación plana). Al cambiar de Q4 a Q9, los cinco nodos adicionales por elemento --cuatro de arista y el central-- se generan automáticamente. La \autoref{fig:dialogo-material} muestra, a modo de ejemplo, el diálogo de materiales.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.72\linewidth]{fig_dialogo_material}
+\caption{Diálogo \textsf{Modelo} $\rightarrow$ \textsf{Materiales}: la lista de materiales definidos a la izquierda y el formulario de propiedades ($E$, $\nu$, $\rho$) a la derecha.}
+\label{fig:dialogo-material}
+\end{figure}
 
 \subsection{Cargas y restricciones}
 
@@ -74,7 +91,7 @@ Las cargas nodales, las cargas de superficie (presión distribuida sobre una ari
 
 La fase de proceso (identidad cromática naranja) resuelve el sistema y alberga los módulos educativos. La tecla F5, o el cambio a la pestaña de post-proceso, dispara la resolución, que antes valida el modelo con un comprobador de salud: los errores críticos --restricciones insuficientes, elementos degenerados o referencias colgantes-- bloquean el cálculo y se reportan con sugerencias de corrección; las advertencias no lo impiden.
 
-Siete módulos educativos (M1 a M7), accesibles con Ctrl+1 a Ctrl+7, recorren en orden el procedimiento del MEF: mapeo isoparamétrico y funciones de forma, Jacobiano, matriz de deformación $\bm{B}$, matriz constitutiva $\bm{D}$, rigidez elemental e integración de Gauss, fuerzas nodales equivalentes y ensamblaje global. Un octavo módulo (M0) atiende la calidad de malla en el pre-proceso. Cada módulo es una capa interactiva que se superpone al lienzo e ilumina, sobre el elemento que el usuario selecciona, el punto donde ocurre el cálculo; los que exhiben formulación ofrecen un conmutador Fórmula\,$\leftrightarrow$\,Valores entre la expresión simbólica y su evaluación numérica.
+Siete módulos educativos (M1 a M7), accesibles con Ctrl+1 a Ctrl+7, recorren en orden el procedimiento del MEF: mapeo isoparamétrico y funciones de forma, Jacobiano, matriz de deformación $\mathbf{B}$, matriz constitutiva $\mathbf{D}$, rigidez elemental e integración de Gauss, fuerzas nodales equivalentes y ensamblaje global. Un octavo módulo (M0) atiende la calidad de malla en el pre-proceso. Cada módulo es una capa interactiva que se superpone al lienzo e ilumina, sobre el elemento que el usuario selecciona, el punto donde ocurre el cálculo; los que exhiben formulación ofrecen un conmutador Fórmula\,$\leftrightarrow$\,Valores entre la expresión simbólica y su evaluación numérica.
 
 \section{Post-proceso: interpretación de resultados}
 
@@ -82,7 +99,7 @@ La fase de post-proceso (identidad cromática verde) superpone los resultados so
 
 \section{Documentación del cálculo e interoperabilidad}
 
-Desde \textsf{Archivo} $\rightarrow$ \textsf{Exportar} se genera la \textbf{Memoria de Cálculo} en PDF, un documento que reproduce el paso a paso simbólico y numérico del modelo concreto del usuario --funciones de forma evaluadas en los puntos de Gauss, Jacobiano, matrices $\bm{B}$ y $\bm{D}$, rigidez elemental, ensamblaje, partición de restricciones, resolución y recuperación de tensiones-- en dos estilos, educativo o directo. El mismo menú exporta el modelo a CSV/Excel para su edición masiva. Los proyectos se guardan en el formato nativo \texttt{.edufem}.
+Desde \textsf{Archivo} $\rightarrow$ \textsf{Exportar} se genera la \textbf{Memoria de Cálculo} en PDF, un documento que reproduce el paso a paso simbólico y numérico del modelo concreto del usuario --funciones de forma evaluadas en los puntos de Gauss, Jacobiano, matrices $\mathbf{B}$ y $\mathbf{D}$, rigidez elemental, ensamblaje, partición de restricciones, resolución y recuperación de tensiones-- en dos estilos, educativo o directo. El mismo menú exporta el modelo a CSV/Excel para su edición masiva. Los proyectos se guardan en el formato nativo \texttt{.edufem}.
 
 \section{Atajos de teclado}
 
@@ -169,7 +186,7 @@ def shape_functions_q9(xi, eta):
 
 \section{Matriz de deformación-desplazamiento B}
 
-Ensambla $\bm{B}$ (de dimensión $3\times 2n$) a partir de las derivadas físicas de las funciones de forma, materializando la relación $\bm{\varepsilon} = \bm{B}\,\bm{u}$.
+Ensambla $\mathbf{B}$ (de dimensión $3\times 2n$) a partir de las derivadas físicas de las funciones de forma, materializando la relación $\boldsymbol{\varepsilon} = \mathbf{B}\,\mathbf{u}$.
 
 \begin{lstlisting}
 def compute_b_matrix(dN_phys):
@@ -195,7 +212,7 @@ def compute_b_matrix(dN_phys):
 
 \section{Matriz constitutiva D}
 
-Relaciona tensiones y deformaciones, $\bm{\sigma} = \bm{D}\,\bm{\varepsilon}$, con las dos variantes de elasticidad plana.
+Relaciona tensiones y deformaciones, $\boldsymbol{\sigma} = \mathbf{D}\,\boldsymbol{\varepsilon}$, con las dos variantes de elasticidad plana.
 
 \begin{lstlisting}
 def _constitutive_matrix_njit(E, nu, flag):
@@ -289,13 +306,13 @@ La \autoref{fig:mms-campos} muestra los campos discretos de desplazamiento sobre
   \includegraphics[width=\linewidth]{mms_field_v.png}\\[2pt]
   {\small (b) Componente $v_h(x,y)$.}
 \end{minipage}
-\caption{Campos discretos $\bm{u}_h$ sobre la malla Q9 con $N=16$ (2178 GDL).}
+\caption{Campos discretos $\mathbf{u}_h$ sobre la malla Q9 con $N=16$ (2178 GDL).}
 \label{fig:mms-campos}
 \end{figure}
 
 \section{Viga de Timoshenko: componentes restantes y desplazamientos}
 
-El cuerpo principal contrastó la tensión normal $\sigma_x$, que concuerda con la solución analítica con un error inferior al $0{,}05\,\%$. La \autoref{tab:tim-componentes} completa el estado tensional con las componentes $\sigma_y$ y $\tau_{xy}$ en los tres puntos de referencia. Estas componentes secundarias, de magnitud absoluta mucho menor que $\sigma_x$ y, por ello, más sensibles a la discretización de la malla, concuerdan con la solución analítica dentro de un margen del orden del $1$ al $3\,\%$: las mayores diferencias relativas se registran en el punto $B$ —el más exigente—, con un $0{,}94\,\%$ en $\sigma_y$ y un $2{,}89\,\%$ en $\tau_{xy}$, mientras que en el punto $C$ se reducen al $0{,}03\,\%$ y al $1{,}0\,\%$, respectivamente. La diferencia de signo en $\tau_{xy}$ frente a SAP2000 proviene de la convención de eje $y$ (la solución de Timoshenko-Goodier emplea $y$ hacia abajo, y el \emph{script} de validación aplica el cambio $y_{\text{MEF}} = -y_{\text{ref}}$, que invierte el signo de las componentes sensibles a la reflexión).
+El cuerpo principal contrastó la tensión normal $\sigma_x$. La \autoref{tab:tim-componentes} completa el estado tensional con las componentes $\sigma_y$ y $\tau_{xy}$ en los tres puntos de referencia. La concordancia con la solución analítica es nuevamente excelente; la diferencia de signo en $\tau_{xy}$ frente a SAP2000 proviene de la convención de eje $y$ (la solución de Timoshenko-Goodier emplea $y$ hacia abajo, y el \emph{script} de validación aplica el cambio $y_{\text{FEM}} = -y_{\text{ref}}$, que invierte el signo de las componentes sensibles a la reflexión).
 
 \begin{table}[htbp]
 \centering
@@ -337,7 +354,7 @@ La \autoref{fig:tim-perfil} muestra el perfil de $\sigma_x$ a lo largo del peral
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.55\linewidth]{timoshenko_perfil_x0.png}
-\caption[Perfil de $\sigma_x(y)$ en el centro del vano (Timoshenko).]{Perfil de $\sigma_x(y)$ en $x=0$ (centro del vano) de la viga de Timoshenko. La distribución es lineal en el peralte, en consistencia con la teoría de vigas.}
+\caption{Perfil de $\sigma_x(y)$ en $x=0$ (centro del vano) de la viga de Timoshenko. La distribución es lineal en el peralte, en consistencia con la teoría de vigas.}
 \label{fig:tim-perfil}
 \end{figure}
 
@@ -364,7 +381,7 @@ $N$ & $u_x$ (Q4) & $u_x$ (Q9) \\
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.78\linewidth]{fig_cook_deformed}
-\caption[Configuración deformada de la membrana de Cook (Q9, $N=8$).]{Post-proceso de EduFEM: configuración deformada de la membrana de Cook (Q9, $N=8$) con el contorno de magnitud de desplazamiento $|U|$. El empotramiento del borde izquierdo y el desplazamiento creciente hacia el extremo libre cargado son visibles sobre la geometría original (en línea punteada).}
+\includegraphics[width=0.78\linewidth]{figuras/fig_cook_deformed}
+\caption{Post-proceso de EduFEM: configuración deformada de la membrana de Cook (Q9, $N=8$) con el contorno de magnitud de desplazamiento $|U|$. El empotramiento del borde izquierdo y el desplazamiento creciente hacia el extremo libre cargado son visibles sobre la geometría original (en línea punteada).}
 \label{fig:cook-def}
 \end{figure}
