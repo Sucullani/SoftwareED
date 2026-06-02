@@ -69,6 +69,9 @@ htmlcov/
 
 # Project-specific
 compile_output*.txt
+# PDFs de referencias bibliograficas (articulos de pago: NO redistribuir en
+# repo publico). El main.pdf de la tesis SI se versiona (no esta aqui).
+tesis/bibliografia/*.pdf
 Example.pdf
 Example.aux
 Example.log
