@@ -412,7 +412,7 @@ def _constitutive_matrix_njit(E, nu, flag):
 
 \section{Ensamblaje disperso de la matriz de rigidez global}
 
-El núcleo de la escalabilidad analizada en el \autoref{cap:resultados}: la rigidez se acumula por tripletes de coordenadas (COO) y se convierte a filas comprimidas (CSR) para el solucionador disperso.
+El núcleo de la escalabilidad analizada en el \autoref{cap:resultados}: la rigidez se acumula por tripletes en formato COO y se convierte a filas comprimidas CSR para el solucionador disperso.
 
 \begin{lstlisting}
 # Acumuladores COO para el ensamblaje disperso de K.
@@ -452,7 +452,9 @@ Toda la evidencia numérica del \autoref{cap:resultados} y de este anexo se gene
 \centering
 \caption{Guía de reproducibilidad de la batería de verificación y validación: comando de ejecución, objeto de la prueba y resultados asociados en el \autoref{cap:resultados} y en este anexo.}
 \label{tab:vyv-repro}
-\begin{tabular}{p{4.3cm} p{5.1cm} p{4.1cm}}
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{4.3cm} >{\raggedright\arraybackslash}p{5.1cm} >{\raggedright\arraybackslash}p{4.1cm}@{}}
 \toprule
 \textbf{Script} & \textbf{Qué verifica} & \textbf{Resultados (Cap.~4 / Anexo)} \\
 \midrule

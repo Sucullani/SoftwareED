@@ -80,7 +80,7 @@ Esta separación tiene una consecuencia directa: la matriz de rigidez se dimensi
 \section{Motor de cálculo del MEF}
 \label{sec:motor}
 
-El paquete \texttt{fem/} concentra el motor numérico y observa una regla de pureza estricta: no importa \texttt{tkinter}, \texttt{matplotlib} ni ninguna biblioteca de interfaz, de modo que puede ejecutarse sin entorno gráfico, por ejemplo en los guiones de verificación. El cálculo se organiza como un canal de operaciones encadenadas: evaluación de las funciones de forma, cálculo de la matriz Jacobiana y su determinante, construcción de la matriz de deformación--desplazamiento $\bm{B}$, ensamblaje de la matriz constitutiva $\bm{D}$ y, finalmente, integración de la rigidez elemental mediante cuadratura de Gauss. La rigidez de cada elemento se obtiene como
+El paquete \texttt{fem/} concentra el motor numérico y observa una regla de pureza estricta: no importa \texttt{tkinter}, \texttt{matplotlib} ni ninguna biblioteca de interfaz, de modo que puede ejecutarse sin entorno gráfico, por ejemplo en los guiones de verificación. El cálculo se organiza como un canal de operaciones encadenadas que van de la evaluación de las funciones de forma a la integración de la rigidez elemental por cuadratura de Gauss. La rigidez de cada elemento se obtiene como
 
 \begin{equation}
 \bm{k}_e = \int_{-1}^{1}\!\!\int_{-1}^{1} \bm{B}^{\top}\, \bm{D}\, \bm{B}\, |\det\bm{J}|\, t\, d\xi\, d\eta,

@@ -4,72 +4,15 @@ Latexmk: This is Latexmk, John Collins, 9 March 2026. Version 4.88.
 Latexmk: applying rule 'pdflatex'...
 Rule 'pdflatex':  Reasons for rerun
 Changed files or newly in use/created:
-  C:/Users/User/AppData/Local/MiKTeX/miktex/data/le/pdftex/pdflatex.fmt
   capitulos/06_anexos.tex
-  figuras/cook_convergence.png
-  figuras/fig_app_completa.png
-  figuras/fig_arquitectura.png
-  figuras/fig_cook_deformed.png
-  figuras/fig_dialogo_analisis.png
-  figuras/fig_dialogo_material.png
-  figuras/fig_isoparametricos.png
-  figuras/fig_lienzo_lod.png
-  figuras/fig_modulo_capa.png
-  figuras/fig_modulo_m0.png
-  figuras/fig_modulo_m1.png
-  figuras/fig_modulo_m2.png
-  figuras/fig_modulo_m3.png
-  figuras/fig_modulo_m4.png
-  figuras/fig_modulo_m5.png
-  figuras/fig_modulo_m6.png
-  figuras/fig_modulo_m7.png
-  figuras/fig_postproceso.png
-  figuras/fig_timoshenko_contorno.png
-  figuras/fig_validador_salud.png
-  figuras/fig_vista3d.png
-  figuras/logo_universidad.png
-  figuras/mms_convergence_h1.png
-  figuras/mms_convergence_l2.png
-  figuras/mms_field_u.png
-  figuras/mms_field_v.png
-  figuras/timoshenko_perfil_x0.png
-  main.bbl
 Category 'changed_user':
-  C:/Users/User/AppData/Local/MiKTeX/miktex/data/le/pdftex/pdflatex.fmt
   capitulos/06_anexos.tex
-  figuras/cook_convergence.png
-  figuras/fig_app_completa.png
-  figuras/fig_arquitectura.png
-  figuras/fig_cook_deformed.png
-  figuras/fig_dialogo_analisis.png
-  figuras/fig_dialogo_material.png
-  figuras/fig_isoparametricos.png
-  figuras/fig_lienzo_lod.png
-  figuras/fig_modulo_capa.png
-  figuras/fig_modulo_m0.png
-  figuras/fig_modulo_m1.png
-  figuras/fig_modulo_m2.png
-  figuras/fig_modulo_m3.png
-  figuras/fig_modulo_m4.png
-  figuras/fig_modulo_m5.png
-  figuras/fig_modulo_m6.png
-  figuras/fig_modulo_m7.png
-  figuras/fig_postproceso.png
-  figuras/fig_timoshenko_contorno.png
-  figuras/fig_validador_salud.png
-  figuras/fig_vista3d.png
-  figuras/logo_universidad.png
-  figuras/mms_convergence_h1.png
-  figuras/mms_convergence_l2.png
-  figuras/mms_field_u.png
-  figuras/mms_field_v.png
-  figuras/timoshenko_perfil_x0.png
 
 ------------
 Run number 1 of rule 'pdflatex'
 ------------
 ------------
-Running 'pdflatex  -interaction=nonstopmode -recorder  "main.tex"'
+Running 'pdflatex  -interaction=nonstopmode -halt-on-error -recorder  "main.tex"'
 ------------
 This is pdfTeX, Version 3.141592653-2.6-1.40.27 (MiKTeX 25.4) (preloaded format=pdflatex.fmt)
  restricted \write18 enabled.
@@ -576,7 +519,7 @@ Package fancyhdr Warning: \headheight is too small (12.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
 
-[23]
+[23]) (capitulos/03_diseno_implementacion.tex
 
 Package fancyhdr Warning: \headheight is too small (12.0pt): 
 (fancyhdr)                Make it at least 13.59999pt, for example:
@@ -584,7 +527,7 @@ Package fancyhdr Warning: \headheight is too small (12.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
 
-[24]) (capitulos/03_diseno_implementacion.tex
+[24]
 
 Package fancyhdr Warning: \headheight is too small (12.0pt): 
 (fancyhdr)                Make it at least 13.59999pt, for example:
@@ -778,6 +721,7 @@ Package fancyhdr Warning: \headheight is too small (12.0pt):
 (fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
 
 [48]
+[49]
 
 Package fancyhdr Warning: \headheight is too small (12.0pt): 
 (fancyhdr)                Make it at least 13.59999pt, for example:
@@ -785,7 +729,6 @@ Package fancyhdr Warning: \headheight is too small (12.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
 
-[49]
 [50]
 
 Package fancyhdr Warning: \headheight is too small (12.0pt): 
@@ -802,7 +745,7 @@ Package fancyhdr Warning: \headheight is too small (12.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
 
-[52]
+[52])
 
 Package fancyhdr Warning: \headheight is too small (12.0pt): 
 (fancyhdr)                Make it at least 13.59999pt, for example:
@@ -810,7 +753,8 @@ Package fancyhdr Warning: \headheight is too small (12.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
 
-[53])
+[53]
+[54] (capitulos/06_anexos.tex
 
 Package fancyhdr Warning: \headheight is too small (12.0pt): 
 (fancyhdr)                Make it at least 13.59999pt, for example:
@@ -818,19 +762,10 @@ Package fancyhdr Warning: \headheight is too small (12.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
 
-[54]
-[55] (capitulos/06_anexos.tex
-
-Package fancyhdr Warning: \headheight is too small (12.0pt): 
-(fancyhdr)                Make it at least 13.59999pt, for example:
-(fancyhdr)                \setlength{\headheight}{13.59999pt}.
-(fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
-
-[56]
+[55]
 Anexo A.
 
-[57]
+[56]
 
 Package fancyhdr Warning: \headheight is too small (12.0pt): 
 (fancyhdr)                Make it at least 13.59999pt, for example:
@@ -838,10 +773,10 @@ Package fancyhdr Warning: \headheight is too small (12.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
 
-[58]
+[57]
 Anexo B.
 
-[59 <./figuras/fig_app_completa.png (PNG copy)>]
+[58 <./figuras/fig_app_completa.png (PNG copy)>]
 
 Package fancyhdr Warning: \headheight is too small (12.0pt): 
 (fancyhdr)                Make it at least 13.59999pt, for example:
@@ -849,7 +784,7 @@ Package fancyhdr Warning: \headheight is too small (12.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
 
-[60]
+[59]
 
 Package fancyhdr Warning: \headheight is too small (12.0pt): 
 (fancyhdr)                Make it at least 13.59999pt, for example:
@@ -857,7 +792,7 @@ Package fancyhdr Warning: \headheight is too small (12.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
 
-[61 <./figuras/fig_dialogo_material.png (PNG copy)> <./figuras/fig_dialogo_anal
+[60 <./figuras/fig_dialogo_material.png (PNG copy)> <./figuras/fig_dialogo_anal
 isis.png (PNG copy)>]
 
 Package fancyhdr Warning: \headheight is too small (12.0pt): 
@@ -866,7 +801,7 @@ Package fancyhdr Warning: \headheight is too small (12.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
 
-[62 <./figuras/fig_validador_salud.png (PNG copy)>]
+[61 <./figuras/fig_validador_salud.png (PNG copy)>]
 
 Package fancyhdr Warning: \headheight is too small (12.0pt): 
 (fancyhdr)                Make it at least 13.59999pt, for example:
@@ -874,7 +809,15 @@ Package fancyhdr Warning: \headheight is too small (12.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
 
-[63 <./figuras/fig_vista3d.png (PNG copy)>]
+[62 <./figuras/fig_vista3d.png (PNG copy)>]
+
+Package fancyhdr Warning: \headheight is too small (12.0pt): 
+(fancyhdr)                Make it at least 13.59999pt, for example:
+(fancyhdr)                \setlength{\headheight}{13.59999pt}.
+(fancyhdr)                You might also make \topmargin smaller:
+(fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
+
+[63]
 
 Package fancyhdr Warning: \headheight is too small (12.0pt): 
 (fancyhdr)                Make it at least 13.59999pt, for example:
@@ -898,15 +841,7 @@ Package fancyhdr Warning: \headheight is too small (12.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
 
-[66]
-
-Package fancyhdr Warning: \headheight is too small (12.0pt): 
-(fancyhdr)                Make it at least 13.59999pt, for example:
-(fancyhdr)                \setlength{\headheight}{13.59999pt}.
-(fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
-
-[67 <./figuras/fig_modulo_m0.png (PNG copy)> <./figuras/fig_modulo_m1.png (PNG 
+[66 <./figuras/fig_modulo_m0.png (PNG copy)> <./figuras/fig_modulo_m1.png (PNG 
 copy)>]
 
 Package fancyhdr Warning: \headheight is too small (12.0pt): 
@@ -915,7 +850,7 @@ Package fancyhdr Warning: \headheight is too small (12.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
 
-[68 <./figuras/fig_modulo_m2.png (PNG copy)> <./figuras/fig_modulo_m3.png (PNG 
+[67 <./figuras/fig_modulo_m2.png (PNG copy)> <./figuras/fig_modulo_m3.png (PNG 
 copy)> <./figuras/fig_modulo_m4.png (PNG copy)>]
 
 Package fancyhdr Warning: \headheight is too small (12.0pt): 
@@ -924,7 +859,7 @@ Package fancyhdr Warning: \headheight is too small (12.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
 
-[69 <./figuras/fig_modulo_m5.png (PNG copy)> <./figuras/fig_modulo_m6.png (PNG 
+[68 <./figuras/fig_modulo_m5.png (PNG copy)> <./figuras/fig_modulo_m6.png (PNG 
 copy)>]
 Underfull \hbox (badness 10000) in paragraph at lines 273--273
 []|\T1/lmtt/m/n/10 elem_node_
@@ -965,7 +900,15 @@ Package fancyhdr Warning: \headheight is too small (12.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
 
-[70 <./figuras/fig_modulo_m7.png (PNG copy)>]
+[69 <./figuras/fig_modulo_m7.png (PNG copy)>]
+
+Package fancyhdr Warning: \headheight is too small (12.0pt): 
+(fancyhdr)                Make it at least 13.59999pt, for example:
+(fancyhdr)                \setlength{\headheight}{13.59999pt}.
+(fancyhdr)                You might also make \topmargin smaller:
+(fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
+
+[70]
 
 Package fancyhdr Warning: \headheight is too small (12.0pt): 
 (fancyhdr)                Make it at least 13.59999pt, for example:
@@ -974,15 +917,15 @@ Package fancyhdr Warning: \headheight is too small (12.0pt):
 (fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
 
 [71]
+Anexo C.
+
+[72]
 
 Package fancyhdr Warning: \headheight is too small (12.0pt): 
 (fancyhdr)                Make it at least 13.59999pt, for example:
 (fancyhdr)                \setlength{\headheight}{13.59999pt}.
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
-
-[72]
-Anexo C.
 
 [73]
 
@@ -1001,60 +944,15 @@ Package fancyhdr Warning: \headheight is too small (12.0pt):
 (fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
 
 [75]
+Anexo D.
+
+[76]
 
 Package fancyhdr Warning: \headheight is too small (12.0pt): 
 (fancyhdr)                Make it at least 13.59999pt, for example:
 (fancyhdr)                \setlength{\headheight}{13.59999pt}.
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
-
-[76]
-Anexo D.
-
-Underfull \hbox (badness 10000) in paragraph at lines 459--459
-[]|\T1/lmtt/m/n/12 python -m tests.vv_
-
-Underfull \hbox (badness 10000) in paragraph at lines 463--463
-[]|\T1/lmtt/m/n/12 python -m tests.vv_
-
-Underfull \hbox (badness 8094) in paragraph at lines 464--464
-\T1/lmr/m/n/12 (+20) la so-lu-ción ana-lí-ti-ca de
-
-Underfull \hbox (badness 10000) in paragraph at lines 467--467
-[]|\T1/lmtt/m/n/12 python -m tests.vv_
-
-Underfull \hbox (badness 2050) in paragraph at lines 468--468
-\T1/lmr/m/n/12 (+20) ba-jo re-fi-na-mien-to, evi-den-
-
-Underfull \hbox (badness 10000) in paragraph at lines 471--471
-[]|\T1/lmtt/m/n/12 python -m
-
-Underfull \hbox (badness 10000) in paragraph at lines 473--474
-[]|\T1/lmr/m/n/12 (+20) Consistencia in-ter-na
-
-Underfull \hbox (badness 10000) in paragraph at lines 475--475
-[]|\T1/lmtt/m/n/12 python -m
-
-Underfull \hbox (badness 10000) in paragraph at lines 475--475
-\T1/lmtt/m/n/12 tests.test_vv_
-
-Underfull \hbox (badness 1331) in paragraph at lines 476--476
-\T1/lmr/m/n/12 (+20) tric-cio-nes de Di-ri-chlet no
-
-Underfull \hbox (badness 5288) in paragraph at lines 476--476
-\T1/lmtt/m/n/12 value\T1/lmr/m/n/12 (+20) ), ma-lla es-truc-tu-ra-
-
-Underfull \hbox (badness 2326) in paragraph at lines 476--476
-\T1/lmtt/m/n/12 quad_mesh\T1/lmr/m/n/12 (+20) ) y nor-mas de
-
-Underfull \hbox (badness 10000) in paragraph at lines 479--479
-[]|\T1/lmtt/m/n/12 python -m
-
-Underfull \hbox (badness 10000) in paragraph at lines 479--479
-\T1/lmtt/m/n/12 tests.test_q9_q4_
-
-LaTeX Warning: Float too large for page by 72.82515pt on input line 484.
-
 
 [77]
 
@@ -1064,7 +962,7 @@ Package fancyhdr Warning: \headheight is too small (12.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
 
-[78]
+[78 <./figuras/mms_field_u.png> <./figuras/mms_field_v.png>]
 
 Package fancyhdr Warning: \headheight is too small (12.0pt): 
 (fancyhdr)                Make it at least 13.59999pt, for example:
@@ -1072,7 +970,7 @@ Package fancyhdr Warning: \headheight is too small (12.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
 
-[79 <./figuras/mms_field_u.png> <./figuras/mms_field_v.png>]
+[79]
 
 Package fancyhdr Warning: \headheight is too small (12.0pt): 
 (fancyhdr)                Make it at least 13.59999pt, for example:
@@ -1080,7 +978,7 @@ Package fancyhdr Warning: \headheight is too small (12.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
 
-[80]
+[80 <./figuras/timoshenko_perfil_x0.png>]
 
 Package fancyhdr Warning: \headheight is too small (12.0pt): 
 (fancyhdr)                Make it at least 13.59999pt, for example:
@@ -1088,18 +986,10 @@ Package fancyhdr Warning: \headheight is too small (12.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
 
-[81 <./figuras/timoshenko_perfil_x0.png>]
-
-Package fancyhdr Warning: \headheight is too small (12.0pt): 
-(fancyhdr)                Make it at least 13.59999pt, for example:
-(fancyhdr)                \setlength{\headheight}{13.59999pt}.
-(fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
-
-[82 <./figuras/fig_cook_deformed.png (PNG copy)>]
+[81 <./figuras/fig_cook_deformed.png (PNG copy)>]
 Anexo E.
 
-[83]
+[82]
 
 Package fancyhdr Warning: \headheight is too small (12.0pt): 
 (fancyhdr)                Make it at least 13.59999pt, for example:
@@ -1107,21 +997,21 @@ Package fancyhdr Warning: \headheight is too small (12.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
 
-[84]
-Underfull \hbox (badness 10000) in paragraph at lines 664--665
+[83]
+Underfull \hbox (badness 10000) in paragraph at lines 666--667
 []|\T1/lmr/m/n/12 (+20) Identificador, co-nec-ti-vi-
 
-Underfull \hbox (badness 1917) in paragraph at lines 666--667
+Underfull \hbox (badness 1917) in paragraph at lines 668--669
 []|\T1/lmr/m/n/12 (+20) Carga pun-tual (com-po-
 
-Underfull \hbox (badness 10000) in paragraph at lines 667--667
+Underfull \hbox (badness 10000) in paragraph at lines 669--669
 []|\T1/lmtt/m/n/12 boundary_
 
-Underfull \hbox (badness 10000) in paragraph at lines 667--667
+Underfull \hbox (badness 10000) in paragraph at lines 669--669
 []|\T1/lmtt/m/n/12 Nodo\T1/lmr/m/n/12 (+20) , \T1/lmtt/m/n/12 Restringe_X\T1/lm
 r/m/n/12 (+20) ,
 
-Underfull \hbox (badness 10000) in paragraph at lines 668--668
+Underfull \hbox (badness 10000) in paragraph at lines 670--670
 []|\T1/lmtt/m/n/12 surface_
 
 
@@ -1131,7 +1021,7 @@ Package fancyhdr Warning: \headheight is too small (12.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
 
-[85]
+[84]
 
 Package fancyhdr Warning: \headheight is too small (12.0pt): 
 (fancyhdr)                Make it at least 13.59999pt, for example:
@@ -1139,7 +1029,7 @@ Package fancyhdr Warning: \headheight is too small (12.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
 
-[86])
+[85])
 
 Package fancyhdr Warning: \headheight is too small (12.0pt): 
 (fancyhdr)                Make it at least 13.59999pt, for example:
@@ -1147,7 +1037,7 @@ Package fancyhdr Warning: \headheight is too small (12.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
 
-[87] (main.aux)
+[86] (main.aux)
 
 LaTeX Font Warning: Some font shapes were not available, defaults substituted.
 
@@ -1173,7 +1063,7 @@ fonts/type1/public/lm/lmtk10.pfb><C:/Program Files/MiKTeX/fonts/type1/public/lm
 /lmtt10.pfb><C:/Program Files/MiKTeX/fonts/type1/public/lm/lmtt12.pfb><C:/Progr
 am Files/MiKTeX/fonts/type1/public/lm/lmtti10.pfb><C:/Program Files/MiKTeX/font
 s/type1/public/amsfonts/symbols/msbm10.pfb>
-Output written on main.pdf (102 pages, 2634514 bytes).
+Output written on main.pdf (101 pages, 2635990 bytes).
 Transcript written on main.log.
 pdflatex: major issue: User/administrator updates are out-of-sync.
 Latexmk: Getting log file 'main.log'
