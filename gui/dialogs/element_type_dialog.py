@@ -43,14 +43,14 @@ from config.settings import (
     ELEMENT_Q4, ELEMENT_Q9,
     LABEL_BG, TEXT_MUTED_FG, ORPHAN_NODE_FG,
     PHASE_PROC_COLOR, ELEMENT_Q4_DOT_COLOR,
-    FONT_UI,
+    FONT_UI, resource_path,
 )
 from education.components.edu_plot_style import _theme_colors
 from gui.widgets.webp_player import WebpPlayer
 from models.mesh_utils import expand_q4_to_q9, shrink_q9_to_q4
 
 
-VIDEO_PATH = os.path.join("resources", "videos", "cantilever_q4_q9.webp")
+VIDEO_PATH = resource_path("videos", "cantilever_q4_q9.webp")
 
 # Misma anchura y video que AnalysisTypeDialog. La altura es 60 px
 # mayor (720 vs 660) porque ElementTypeDialog tiene UN renglon de hint

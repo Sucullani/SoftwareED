@@ -24,15 +24,13 @@ from ttkbootstrap.constants import *
 
 from config.settings import (
     ANALYSIS_PLANE_STRESS, ANALYSIS_PLANE_STRAIN,
-    ORPHAN_NODE_FG, FONT_UI,
+    ORPHAN_NODE_FG, FONT_UI, resource_path,
 )
 from education.components.edu_plot_style import _theme_colors
 from gui.widgets.webp_player import WebpPlayer
 
 
-VIDEO_PATH = os.path.join(
-    "resources", "videos", "tension_deformacion_plana.webp",
-)
+VIDEO_PATH = resource_path("videos", "tension_deformacion_plana.webp")
 
 # Tamaño del video. Nativo: 900×600 (3:2). Lo escalamos a 720×480 para
 # que el diálogo entre cómodo en pantallas comunes sin perder calidad.

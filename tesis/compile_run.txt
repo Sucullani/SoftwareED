@@ -1,80 +1,3 @@
-Rc files read (in order):
-  NONE
-Latexmk: This is Latexmk, John Collins, 9 March 2026. Version 4.88.
-Latexmk: applying rule 'pdflatex'...
-Rule 'pdflatex':  Reasons for rerun
-Changed files or newly in use/created:
-  C:/Users/User/AppData/Local/MiKTeX/miktex/data/le/pdftex/pdflatex.fmt
-  c:/Tesis/Tesis Software/SoftwareED/tesis/main.tex
-  capitulos/06_anexos.tex
-  figuras/cook_convergence.png
-  figuras/fig_app_completa.png
-  figuras/fig_arquitectura.png
-  figuras/fig_cook_deformed.png
-  figuras/fig_dialogo_analisis.png
-  figuras/fig_dialogo_material.png
-  figuras/fig_isoparametricos.png
-  figuras/fig_lienzo_lod.png
-  figuras/fig_modulo_capa.png
-  figuras/fig_modulo_m0.png
-  figuras/fig_modulo_m1.png
-  figuras/fig_modulo_m2.png
-  figuras/fig_modulo_m3.png
-  figuras/fig_modulo_m4.png
-  figuras/fig_modulo_m5.png
-  figuras/fig_modulo_m6.png
-  figuras/fig_modulo_m7.png
-  figuras/fig_postproceso.png
-  figuras/fig_timoshenko_contorno.png
-  figuras/fig_validador_salud.png
-  figuras/fig_vista3d.png
-  figuras/logo_universidad.png
-  figuras/mms_convergence_h1.png
-  figuras/mms_convergence_l2.png
-  figuras/mms_field_u.png
-  figuras/mms_field_v.png
-  figuras/timoshenko_perfil_x0.png
-  main.bbl
-  main.tex
-Category 'changed_user':
-  C:/Users/User/AppData/Local/MiKTeX/miktex/data/le/pdftex/pdflatex.fmt
-  c:/Tesis/Tesis Software/SoftwareED/tesis/main.tex
-  capitulos/06_anexos.tex
-  figuras/cook_convergence.png
-  figuras/fig_app_completa.png
-  figuras/fig_arquitectura.png
-  figuras/fig_cook_deformed.png
-  figuras/fig_dialogo_analisis.png
-  figuras/fig_dialogo_material.png
-  figuras/fig_isoparametricos.png
-  figuras/fig_lienzo_lod.png
-  figuras/fig_modulo_capa.png
-  figuras/fig_modulo_m0.png
-  figuras/fig_modulo_m1.png
-  figuras/fig_modulo_m2.png
-  figuras/fig_modulo_m3.png
-  figuras/fig_modulo_m4.png
-  figuras/fig_modulo_m5.png
-  figuras/fig_modulo_m6.png
-  figuras/fig_modulo_m7.png
-  figuras/fig_postproceso.png
-  figuras/fig_timoshenko_contorno.png
-  figuras/fig_validador_salud.png
-  figuras/fig_vista3d.png
-  figuras/logo_universidad.png
-  figuras/mms_convergence_h1.png
-  figuras/mms_convergence_l2.png
-  figuras/mms_field_u.png
-  figuras/mms_field_v.png
-  figuras/timoshenko_perfil_x0.png
-  main.tex
-
-------------
-Run number 1 of rule 'pdflatex'
-------------
-------------
-Running 'pdflatex  -interaction=nonstopmode -halt-on-error -recorder  "main.tex"'
-------------
 This is pdfTeX, Version 3.141592653-2.6-1.40.27 (MiKTeX 25.4) (preloaded format=pdflatex.fmt)
  restricted \write18 enabled.
 entering extended mode
@@ -331,9 +254,17 @@ Package fancyhdr Warning: \headheight is too small (12.0pt):
 (fancyhdr)                \addtolength{\topmargin}{-2.1595pt}.
 
 [6]
-Cap\'{\i }tulo 1.
+
+Package fancyhdr Warning: \headheight is too small (12.0pt): 
+(fancyhdr)                Make it at least 14.1595pt, for example:
+(fancyhdr)                \setlength{\headheight}{14.1595pt}.
+(fancyhdr)                You might also make \topmargin smaller:
+(fancyhdr)                \addtolength{\topmargin}{-2.1595pt}.
 
 [7]
+Cap\'{\i }tulo 1.
+
+[8]
 Underfull \hbox (badness 10000) in paragraph at lines 25--26
 []|\T1/lmr/bx/n/10 (+20) Canal
 
@@ -389,14 +320,6 @@ Package fancyhdr Warning: \headheight is too small (12.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
 
-[8]
-
-Package fancyhdr Warning: \headheight is too small (12.0pt): 
-(fancyhdr)                Make it at least 13.59999pt, for example:
-(fancyhdr)                \setlength{\headheight}{13.59999pt}.
-(fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
-
 [9]
 
 Package fancyhdr Warning: \headheight is too small (12.0pt): 
@@ -421,7 +344,7 @@ Package fancyhdr Warning: \headheight is too small (12.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
 
-[12 <./figuras/fig_isoparametricos.png>]
+[12]
 
 Package fancyhdr Warning: \headheight is too small (12.0pt): 
 (fancyhdr)                Make it at least 13.59999pt, for example:
@@ -429,7 +352,7 @@ Package fancyhdr Warning: \headheight is too small (12.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
 
-[13]
+[13 <./figuras/fig_isoparametricos.png>]
 
 Package fancyhdr Warning: \headheight is too small (12.0pt): 
 (fancyhdr)                Make it at least 13.59999pt, for example:
@@ -469,7 +392,7 @@ Package fancyhdr Warning: \headheight is too small (12.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
 
-[18]) (capitulos/02b_diseno_metodologico.tex
+[18]
 
 Package fancyhdr Warning: \headheight is too small (12.0pt): 
 (fancyhdr)                Make it at least 13.59999pt, for example:
@@ -477,94 +400,94 @@ Package fancyhdr Warning: \headheight is too small (12.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
 
-[19]
+[19]) (capitulos/02b_diseno_metodologico.tex
+
+Package fancyhdr Warning: \headheight is too small (12.0pt): 
+(fancyhdr)                Make it at least 13.59999pt, for example:
+(fancyhdr)                \setlength{\headheight}{13.59999pt}.
+(fancyhdr)                You might also make \topmargin smaller:
+(fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
+
+[20]
 Cap\'{\i }tulo 2.
 
-Underfull \hbox (badness 10000) in paragraph at lines 19--19
+[21]
+Underfull \hbox (badness 10000) in paragraph at lines 24--24
 []|\T1/lmr/m/n/12 (+20) Independiente:
 
-Underfull \hbox (badness 5954) in paragraph at lines 19--19
+Underfull \hbox (badness 5954) in paragraph at lines 24--24
 \T1/lmr/m/n/12 (+20) de-fi-ni-ción del
 
-Underfull \hbox (badness 4543) in paragraph at lines 19--19
+Underfull \hbox (badness 4543) in paragraph at lines 24--24
 \T1/lmr/m/n/12 (+20) rial; ac-cio-nes y
 
-Underfull \hbox (badness 10000) in paragraph at lines 20--20
+Underfull \hbox (badness 10000) in paragraph at lines 25--25
 []|\T1/lmr/m/n/12 (+20) Independiente:
 
-Underfull \hbox (badness 10000) in paragraph at lines 21--21
+Underfull \hbox (badness 10000) in paragraph at lines 26--26
 []|\T1/lmr/m/n/12 (+20) Dependiente:
 
-Underfull \hbox (badness 10000) in paragraph at lines 21--21
+Underfull \hbox (badness 10000) in paragraph at lines 26--26
 \T1/lmr/m/n/12 (+20) res-pues-ta es-
 
-Underfull \hbox (badness 10000) in paragraph at lines 21--21
+Underfull \hbox (badness 10000) in paragraph at lines 26--26
 []|\T1/lmr/m/n/12 (+20) Tensiones; de-
 
-Underfull \hbox (badness 10000) in paragraph at lines 21--21
+Underfull \hbox (badness 10000) in paragraph at lines 26--26
 \T1/lmr/m/n/12 (+20) for-ma-cio-nes;
 
-Underfull \hbox (badness 10000) in paragraph at lines 21--21
+Underfull \hbox (badness 10000) in paragraph at lines 26--26
 \T1/lmr/m/n/12 (+20) des-pla-za-mien-tos;
 
-Underfull \hbox (badness 10000) in paragraph at lines 21--21
+Underfull \hbox (badness 10000) in paragraph at lines 26--26
 []|$\OML/lmm/m/it/12 ^^[[]; ^^[[]; ^^\[]; ^^[[]$\T1/lmr/m/n/12 (+20) ; $\OML/lm
 m/m/it/12 "[]; "[]; ^^M[]$\T1/lmr/m/n/12 (+20) ;
 
-Underfull \hbox (badness 10000) in paragraph at lines 21--22
+Underfull \hbox (badness 10000) in paragraph at lines 26--27
 []|\T1/lmr/m/n/12 (+20) Solucionador
 
-Underfull \hbox (badness 10000) in paragraph at lines 22--22
+Underfull \hbox (badness 10000) in paragraph at lines 27--27
 []|\T1/lmr/m/n/12 (+20) Dependiente:
 
-Underfull \hbox (badness 10000) in paragraph at lines 22--22
+Underfull \hbox (badness 10000) in paragraph at lines 27--27
 []|\T1/lmr/m/n/12 (+20) Convergencia;
 
-Underfull \hbox (badness 10000) in paragraph at lines 22--23
+Underfull \hbox (badness 10000) in paragraph at lines 27--28
 []|\T1/lmr/m/n/12 (+20) Guiones de
 
-[20]
-Underfull \hbox (badness 10000) in paragraph at lines 44--44
+Underfull \hbox (badness 10000) in paragraph at lines 49--49
 []|\T1/lmr/m/n/10 (+20) Implementación
 
-Underfull \hbox (badness 1990) in paragraph at lines 44--44
+Underfull \hbox (badness 1990) in paragraph at lines 49--49
 \T1/lmr/m/n/10 (+20) pu-ra en NumP-
 
-Underfull \hbox (badness 2529) in paragraph at lines 45--45
+Underfull \hbox (badness 2529) in paragraph at lines 50--50
 []|\T1/lmr/m/n/10 (+20) Organización de
 
-Underfull \hbox (badness 3128) in paragraph at lines 45--45
+Underfull \hbox (badness 3128) in paragraph at lines 50--50
 []|\T1/lmr/m/n/10 (+20) Diseño cen-tra-do
 
-Underfull \hbox (badness 10000) in paragraph at lines 46--46
+Underfull \hbox (badness 10000) in paragraph at lines 51--51
 []|\T1/lmr/m/n/10 (+20) Capas in-ter-ac-ti-
 
-Underfull \hbox (badness 1087) in paragraph at lines 47--47
+Underfull \hbox (badness 1087) in paragraph at lines 52--52
 \T1/lmr/m/n/10 (+20) moshen-ko, mem-
 
-Underfull \hbox (badness 10000) in paragraph at lines 48--48
+Underfull \hbox (badness 10000) in paragraph at lines 53--53
 []|\T1/lmr/m/n/10 (+20) Generar me-mo-ria
 
-Underfull \hbox (badness 2088) in paragraph at lines 48--48
+Underfull \hbox (badness 2088) in paragraph at lines 53--53
 []|\T1/lmr/m/n/10 (+20) Trazabilidad del
 
-Underfull \hbox (badness 10000) in paragraph at lines 48--48
+Underfull \hbox (badness 10000) in paragraph at lines 53--53
 []|\T1/lmr/m/n/10 (+20) Generación de
 
-Underfull \hbox (badness 10000) in paragraph at lines 48--48
+Underfull \hbox (badness 10000) in paragraph at lines 53--53
 \T1/lmr/m/n/10 (+20) PDF; im-por-ta-
 
-Underfull \hbox (badness 10000) in paragraph at lines 48--48
+Underfull \hbox (badness 10000) in paragraph at lines 53--53
 \T1/lmr/m/n/10 (+20) ció-n/ex-por-ta-ción
 
-
-Package fancyhdr Warning: \headheight is too small (12.0pt): 
-(fancyhdr)                Make it at least 13.59999pt, for example:
-(fancyhdr)                \setlength{\headheight}{13.59999pt}.
-(fancyhdr)                You might also make \topmargin smaller:
-(fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
-
-[21]
 
 Package fancyhdr Warning: \headheight is too small (12.0pt): 
 (fancyhdr)                Make it at least 13.59999pt, for example:
@@ -580,7 +503,7 @@ Package fancyhdr Warning: \headheight is too small (12.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
 
-[23]) (capitulos/03_diseno_implementacion.tex
+[23]
 
 Package fancyhdr Warning: \headheight is too small (12.0pt): 
 (fancyhdr)                Make it at least 13.59999pt, for example:
@@ -596,11 +519,16 @@ Package fancyhdr Warning: \headheight is too small (12.0pt):
 (fancyhdr)                You might also make \topmargin smaller:
 (fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
 
-[25]
-Cap\'{\i }tulo 3.
+[25]) (capitulos/03_diseno_implementacion.tex
+
+Package fancyhdr Warning: \headheight is too small (12.0pt): 
+(fancyhdr)                Make it at least 13.59999pt, for example:
+(fancyhdr)                \setlength{\headheight}{13.59999pt}.
+(fancyhdr)                You might also make \topmargin smaller:
+(fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
 
 [26]
-Overfull \hbox (7.04797pt too wide) in paragraph at lines 23--37
+Overfull \hbox (7.04797pt too wide) in paragraph at lines 20--34
  [][] 
 
 
@@ -619,7 +547,7 @@ Package fancyhdr Warning: \headheight is too small (12.0pt):
 (fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
 
 [28]
-Overfull \hbox (17.87262pt too wide) in paragraph at lines 71--72
+Overfull \hbox (17.87262pt too wide) in paragraph at lines 68--69
 []\T1/lmr/m/n/12 (-20) Toda mu-ta-ción ori-gi-na-da por la in-ter-faz se apli-c
 a so-bre el mis-mo ob-je-to \T1/lmtt/m/n/12 ProjectModel\T1/lmr/m/n/12 (-20) ,
 
@@ -687,7 +615,7 @@ Package fancyhdr Warning: \headheight is too small (12.0pt):
 (fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
 
 [36]
-Cap\'{\i }tulo 4.
+Cap\'{\i }tulo 3.
 
 [37]
 
@@ -1124,20 +1052,6 @@ fonts/type1/public/lm/lmtk10.pfb><C:/Program Files/MiKTeX/fonts/type1/public/lm
 /lmtt10.pfb><C:/Program Files/MiKTeX/fonts/type1/public/lm/lmtt12.pfb><C:/Progr
 am Files/MiKTeX/fonts/type1/public/lm/lmtti10.pfb><C:/Program Files/MiKTeX/font
 s/type1/public/amsfonts/symbols/msbm10.pfb>
-Output written on main.pdf (101 pages, 2639674 bytes).
+Output written on main.pdf (101 pages, 2642063 bytes).
 Transcript written on main.log.
 pdflatex: major issue: User/administrator updates are out-of-sync.
-Latexmk: Getting log file 'main.log'
-Latexmk: Examining 'main.fls'
-Latexmk: Examining 'main.log'
-Latexmk: Found input bbl file 'main.bbl'
-Latexmk: Log file says output to 'main.pdf'
-Latexmk: Using biber to make bibliography file(s).
-Latexmk: Bibliography file(s) from .bcf file:
-  bibliografia/referencias.bib
-Sources for biber
-  bibliografia/referencias.bib
-  main.bcf
-Latexmk: All targets (main.pdf) are up-to-date
-
-latexmk: major issue: User/administrator updates are out-of-sync.

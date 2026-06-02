@@ -72,7 +72,10 @@ python -m tests.test_selection_integration # smoke: seleccion multi end-to-end (
 python -m tests.test_canvas_visualization # headless: LOD, culling, label policy, silueta, focus, colormaps
 python -m tests.generate_example_dxf      # regenera ejemplo DXF
 pip install -r requirements.txt
+pyinstaller --noconfirm build.spec        # genera el .exe unico -> dist/EduFEM.exe (onefile, ~101 MB)
 ```
+
+**Empaquetado (.exe)**: PyInstaller con [build.spec](build.spec) en **modo onefile** → un único `dist/EduFEM.exe` autoextraíble (~101 MB). En cada arranque el bootloader descomprime binarios + `resources/` a una carpeta temporal (`sys._MEIPASS`) y lanza la app real como **proceso hijo** (el padre es el bootloader, sin ventana) → el primer arranque es más lento que onedir. Bundlea `resources/` (videos `.webp`, ejemplos DXF, fuentes TTF si existen) + matplotlib data + hidden imports de pylatex/fitz/ezdxf/scipy.sparse/TkAgg. No bundlea MiKTeX (cae al fallback mathtext). **Toda ruta a un recurso debe pasar por `config.settings.resource_path(*parts)`** — resuelve vía `sys._MEIPASS` (carpeta temporal de extracción en onefile) y vía la raíz del repo en dev. **Nunca** usar rutas relativas al CWD (`os.path.join("resources", ...)`) para recursos: funcionan en dev pero fallan en el `.exe` (su directorio de trabajo no es la carpeta del programa). Espejo de `gui.fonts_loader._resources_root` — mantener ambos en sync. Para volver a onedir (arranque más rápido, carpeta en vez de archivo único), restaurar el `COLLECT` y `exclude_binaries=True` en el spec.
 
 Sin pytest/lint — los tests son scripts tipo printout. Proyectos usan extensión `.edufem` (JSON via `ProjectModel.to_dict` / `from_dict`).
 

@@ -4,6 +4,7 @@ Constantes, rutas y valores por defecto.
 """
 
 import os
+import sys
 
 # ─── Información de la aplicación ───────────────────────────────────────────
 APP_NAME = "EduFEM - Software Educativo de Elementos Finitos"
@@ -11,8 +12,28 @@ APP_VERSION = "1.0.0"
 APP_AUTHOR = "Tesis de Grado"
 
 # ─── Rutas ──────────────────────────────────────────────────────────────────
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+def _base_dir() -> str:
+    """Raíz para resolver recursos empaquetados. En desarrollo es la raíz del
+    repo; en un bundle PyInstaller es ``sys._MEIPASS`` (la carpeta temporal /
+    ``_internal`` donde se extraen ``resources/``). Espejo de la lógica de
+    ``gui.fonts_loader._resources_root`` — mantener ambas en sync.
+    """
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        return sys._MEIPASS  # type: ignore[attr-defined]
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+BASE_DIR = _base_dir()
 RESOURCES_DIR = os.path.join(BASE_DIR, "resources")
+
+
+def resource_path(*parts: str) -> str:
+    """Ruta absoluta a un recurso bajo ``resources/``, válida tanto corriendo
+    desde el repo como desde el ``.exe`` empaquetado. Usar SIEMPRE esto para
+    videos/ejemplos/iconos — nunca rutas relativas al CWD (fallan en el bundle,
+    cuyo directorio de trabajo no es la carpeta del programa).
+    """
+    return os.path.join(RESOURCES_DIR, *parts)
 
 # ─── Tipos de análisis ─────────────────────────────────────────────────────
 ANALYSIS_PLANE_STRESS = "Tensión Plana"

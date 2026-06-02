@@ -1,9 +1,14 @@
-\chapter{Diseño metodológico}
+\chapter{Diseño e implementación del modelo a desarrollar}
+\label{cap:diseno}
+
+Este capítulo articula el modelo de investigación y su materialización en software. Se presenta primero el \emph{diseño metodológico} —las variables y su operacionalización, la matriz de consistencia, la hipótesis y su contrastación, la población y los casos de estudio, y los sistemas de control, repetición y validación que sostienen la confiabilidad de los datos y los resultados— y, a continuación, el \emph{diseño e implementación} de EduFEM, el software que concreta ese modelo. Por su finalidad, el trabajo es de carácter \emph{propositivo} —la propuesta de un artefacto que resuelve un problema formativo—; por su naturaleza se inscribe en la \emph{investigación aplicada} de tipo \emph{tecnológico}, con enfoque \emph{cuantitativo} en su fase de verificación y validación: la calidad del artefacto se establece midiendo errores numéricos, tensiones, desplazamientos y tasas de convergencia frente a referencias de exactitud conocida.
+
+\section{Diseño metodológico}
 \label{cap:metodologia}
 
-La Introducción presentó una visión general del enfoque de investigación; este capítulo lo desarrolla en detalle. Se especifican las variables del estudio y su matriz de consistencia, la hipótesis y su forma de contrastación, la población y los casos de estudio, el proceso metodológico seguido y los sistemas de control, repetición y validación que sostienen la confiabilidad de los datos y los resultados. Por su naturaleza, el trabajo se inscribe en la \emph{investigación aplicada} de carácter \emph{tecnológico}, con un enfoque \emph{cuantitativo} en su fase de verificación y validación: la calidad del artefacto se establece midiendo errores numéricos, tensiones, desplazamientos y tasas de convergencia frente a referencias de exactitud conocida.
+La Introducción presentó una visión general del enfoque de investigación; esta sección lo desarrolla en detalle: las variables del estudio y su matriz de consistencia, la hipótesis y su forma de contrastación, la población y los casos de estudio, el proceso metodológico seguido y los sistemas de control, repetición y validación de datos y resultados.
 
-\section{Identificación de las variables}
+\subsection{Identificación de las variables}
 \label{sec:variables-met}
 
 La \autoref{tab:variables} operacionaliza las variables del estudio. La \emph{variable independiente} reúne la definición del modelo estructural —geometría, material y acciones con sus apoyos— y las decisiones de discretización que el investigador manipula: el tipo de elemento (Q4 o Q9) y la densidad de malla (tamaño característico $h$, o $N\times N$). La \emph{variable dependiente} es la respuesta estructural calculada —tensiones, deformaciones, desplazamientos y reacciones— junto con su \emph{exactitud} frente a las soluciones de referencia, medida por las normas de error $L^2$ y $H^1$ y por los errores relativos en tensión y desplazamiento. Las restantes magnitudes —tipo de análisis (tensión o deformación plana) y orden de cuadratura— se mantienen como \emph{variables controladas}.
@@ -25,7 +30,7 @@ Controladas & Tipo de análisis; integración & Tensión o deformación plana; o
 \end{tabular}
 \end{table}
 
-\section{Matriz de consistencia}
+\subsection{Matriz de consistencia}
 \label{sec:matriz-consistencia}
 
 El \textbf{problema general} —la ausencia de un entorno educativo en español que exponga de forma transparente, interactiva y verificable el canal de cálculo completo del MEF en elasticidad plana— se atiende mediante el \textbf{objetivo general} de desarrollar EduFEM, y se contrasta con la \textbf{hipótesis de diseño} de que tal herramienta es factible y constituye un apoyo plausible al aprendizaje. La \autoref{tab:consistencia} traza la correspondencia entre cada objetivo específico, la pregunta de investigación que responde, las variables o indicadores asociados, el método o instrumento empleado y la evidencia que lo respalda en el documento.
@@ -41,11 +46,11 @@ El \textbf{problema general} —la ausencia de un entorno educativo en español 
 \toprule
 \textbf{Objetivo específico} & \textbf{Pregunta asociada} & \textbf{Variable / indicador} & \textbf{Método / instrumento} & \textbf{Evidencia} \\
 \midrule
-Implementar el motor MEF 2D Q4/Q9 verificado & PI-1 & Tipo de elemento; exactitud (normas $L^2$, $H^1$) & Implementación pura en NumPy/SciPy; pruebas de regresión & \autoref{cap:diseno}; \autoref{cap:resultados} (MMS) \\
-Diseñar la interfaz pre/proceso/post & PI-2 & Organización de la interfaz; flujo de trabajo & Diseño centrado en un lienzo único compartido & \autoref{cap:diseno} \\
-Desarrollar los módulos educativos & PI-2 & Cobertura del canal de cálculo & Capas interactivas superpuestas a la malla real & \autoref{cap:diseno}; \autoref{cap:resultados} \\
+Implementar el motor MEF 2D Q4/Q9 verificado & PI-1 & Tipo de elemento; exactitud (normas $L^2$, $H^1$) & Implementación pura en NumPy/SciPy; pruebas de regresión & \autoref{sec:motor}; \autoref{cap:resultados} (MMS) \\
+Diseñar la interfaz pre/proceso/post & PI-2 & Organización de la interfaz; flujo de trabajo & Diseño centrado en un lienzo único compartido & \autoref{sec:pre-proceso} \\
+Desarrollar los módulos educativos & PI-2 & Cobertura del canal de cálculo & Capas interactivas superpuestas a la malla real & \autoref{sec:educacion}; \autoref{cap:resultados} \\
 Verificar y validar el software & PI-1, PI-3 & Exactitud; tasa de convergencia; bloqueo por cortante & MMS, viga de Timoshenko, membrana de Cook & \autoref{cap:resultados} \\
-Generar memoria de cálculo e interoperabilidad & --- & Trazabilidad del cálculo & Generación de PDF; importación/exportación DXF y CSV & \autoref{cap:diseno} \\
+Generar memoria de cálculo e interoperabilidad & --- & Trazabilidad del cálculo & Generación de PDF; importación/exportación DXF y CSV & \autoref{sec:memoria-io} \\
 \bottomrule
 \end{tabular}}
 \renewcommand{\arraystretch}{1.0}
@@ -55,42 +60,44 @@ Las preguntas de investigación referidas en la matriz son las enunciadas en la 
 
 El quinto objetivo específico —generar la memoria de cálculo y soportar la interoperabilidad de datos— es de carácter \emph{instrumental}: no deriva de una pregunta de investigación propia, sino que provee la trazabilidad documental y el intercambio de formatos que apoyan la transparencia perseguida por \textbf{PI-2}; de ahí que la \autoref{tab:consistencia} no le asocie ninguna pregunta.
 
-\section{Hipótesis y su contrastación}
+\subsection{Hipótesis y su contrastación}
 \label{sec:hipotesis-met}
 
 La hipótesis de diseño enunciada en la Introducción —la factibilidad de construir un software que exponga el canal de cálculo completo del MEF en elasticidad plana de forma transparente, interactiva, numéricamente verificable y coherente con el flujo de trabajo profesional— se contrasta, por tanto, \emph{por diseño}: se establece comprobando que el artefacto reúne esos atributos. Las afirmaciones subordinadas de carácter cuantitativo —que el motor alcanza precisión verificable (PI-1) y que la herramienta evidencia el bloqueo por cortante (PI-3)— sí se contrastan numéricamente mediante la batería de verificación y validación, cuyo desarrollo se reporta en el \autoref{cap:resultados}. La evaluación empírica del impacto educativo con estudiantes excede el alcance temporal del trabajo y se plantea como línea futura.
 
-\section{Población y casos de estudio}
+En la nomenclatura del diseño clásico de investigación, esta hipótesis puede leerse identificando sus tres elementos: el \emph{aporte} o variable interviniente es EduFEM —el software que expone el canal de cálculo—; la \emph{variable independiente} es la transparencia e interactividad con que se presenta ese canal, frente a la opacidad del software profesional y la abstracción de los textos clásicos; y la \emph{variable dependiente} es el apoyo a la comprensión de los fundamentos del MEF. Se trata de una correspondencia formal: en un trabajo tecnológico la hipótesis se verifica \emph{por diseño} —construyendo el artefacto y comprobando sus atributos— y mediante la verificación y validación numérica de sus afirmaciones cuantitativas, no a través de un contraste estadístico de efectividad educativa.
+
+\subsection{Población y casos de estudio}
 \label{sec:poblacion}
 
 La población de referencia es el universo de problemas de elasticidad lineal plana —en tensión o deformación plana— resolubles con elementos cuadriláteros isoparamétricos. Como ese universo no puede contrastarse por completo, la muestra se compone de un conjunto de \emph{casos de estudio canónicos} seleccionados por disponer de una solución de referencia objetiva: el cuadrado unitario del método de soluciones manufacturadas (solución exacta arbitraria), la viga de Timoshenko simplemente apoyada (solución analítica de la teoría de la elasticidad y modelo de cáscara en SAP2000) y la membrana de Cook (benchmark histórico sensible a la distorsión geométrica). El muestreo es, por tanto, \emph{intencional}: cada caso se elige por su valor probatorio y se resuelve con ambos tipos de elemento (Q4 y Q9) sobre mallas de refinamiento creciente, lo que permite observar el comportamiento de las variables dependientes en función de las independientes.
 
-\section{Proceso metodológico de la investigación}
+\subsection{Proceso metodológico de la investigación}
 \label{sec:proceso-met}
 
 El diseño metodológico combina dos ciclos articulados. El \emph{desarrollo del software} siguió un proceso iterativo e incremental: cada componente del canal de cálculo del MEF (\autoref{cap:marco_teorico}) se implementó y se sometió a prueba de regresión antes de integrarse al conjunto. La \emph{evaluación de la corrección} se realizó mediante un esquema de verificación y validación (\autoref{sec:verificacion-validacion}): verificación por el método de soluciones manufacturadas y validación contra la viga de Timoshenko y la membrana de Cook \autocite{roache1998verification,oberkampf2010verification,salari2000mms}. Los instrumentos de medición son los guiones de verificación y validación del proyecto (\texttt{tests/vv\_mms.py}, \texttt{tests/vv\_timoshenko.py} y \texttt{tests/vv\_cook.py}), que computan las normas de error y los errores relativos frente a las referencias.
 
-\section{Sistema de control}
+\subsection{Sistema de control}
 \label{sec:sistema-control}
 
 Para aislar el efecto de las variables independientes, las demás magnitudes se mantienen fijas dentro de cada caso de estudio. El tipo de análisis (tensión o deformación plana), el material ($E$, $\nu$, espesor $t$), la geometría del dominio y las condiciones de carga y apoyo se conservan constantes mientras se manipulan únicamente el tipo de elemento y la densidad de malla. El orden de cuadratura se fija según el elemento ($2\times2$ para Q4 y $3\times3$ para Q9), y las tolerancias numéricas del motor —el cero numérico y el determinante Jacobiano mínimo admisible— son constantes del programa, no parámetros ajustables por caso. Este control garantiza que las diferencias observadas en la respuesta y su exactitud sean atribuibles a las variables manipuladas y no a factores incidentales.
 
-\section{Sistema de repetición}
+\subsection{Sistema de repetición}
 \label{sec:sistema-repeticion}
 
 La confiabilidad de las mediciones se apoya en el \emph{determinismo} del motor de cálculo: ante las mismas entradas, el solucionador produce las mismas salidas, sin componentes aleatorias. Cada caso de estudio es reproducible reejecutando su guion de verificación y validación, que reconstruye la malla, ensambla el sistema, lo resuelve y vuelve a medir los errores. A este determinismo se suma una batería de pruebas de regresión que verifica la estabilidad del modelo de datos ante operaciones de edición —entre ellas el ciclo de transformación $\text{Q4}\rightarrow\text{Q9}\rightarrow\text{Q4}$ sin deriva numérica y la equivalencia de resultados con identificadores de nodo no contiguos— y que se reporta en el \autoref{cap:resultados}. La repetibilidad queda así garantizada tanto en el resultado físico como en la integridad de las estructuras de datos.
 
-\section{Sistema de validación de los datos}
+\subsection{Sistema de validación de los datos}
 \label{sec:validacion-datos}
 
 Antes de cada resolución, un validador de salud del modelo —una función pura sin dependencias de la interfaz— recorre el proyecto y verifica la consistencia de los datos de entrada: la existencia de elementos, la suficiencia de restricciones para suprimir los movimientos de cuerpo rígido, la ausencia de nodos referenciados inexistentes y la no degeneración de los elementos (determinante Jacobiano positivo). Los errores críticos bloquean el cálculo y se reportan con sugerencias de corrección. En el caso de la verificación por soluciones manufacturadas, la consistencia de los datos está garantizada por construcción: el término fuente se deduce analíticamente de una solución exacta elegida a priori, de modo que las cargas y las restricciones de Dirichlet impuestas corresponden exactamente a esa solución.
 
-\section{Protocolo de cálculo}
+\subsection{Protocolo de cálculo}
 \label{sec:protocolo-calculo}
 
 El cálculo de cada caso sigue el protocolo canónico del MEF, desarrollado en detalle en el \autoref{cap:marco_teorico} y reproducido por las mismas funciones del motor que consumen los módulos educativos y la memoria de cálculo, lo que garantiza coherencia entre lo que el alumno ve explicado y lo que el programa resuelve. Las normas de error se integran, además, con cuadratura de orden $p+1$ (\autoref{sec:verificacion-validacion}) para no subestimar artificialmente el error.
 
-\section{Sistema de validación de los resultados}
+\subsection{Sistema de validación de los resultados}
 \label{sec:validacion-resultados}
 
 Los resultados se validan por contraste con referencias de naturaleza distinta, lo que refuerza la confianza en el motor. La verificación por soluciones manufacturadas exige que las normas de error decrezcan, al refinar la malla, con las tasas asintóticas teóricas ($\mathcal{O}(h^{p+1})$ en $L^2$ y $\mathcal{O}(h^{p})$ en $H^1$): la coincidencia de las tasas observadas con las teóricas es el criterio de aceptación de la verificación. La validación, por su parte, exige que los desplazamientos y las tensiones concuerden con la solución analítica de la viga de Timoshenko y con el modelo de SAP2000 dentro de márgenes de error acotados, y que la membrana de Cook reproduzca el valor de referencia convergido junto con el comportamiento característico de cada elemento frente al bloqueo por cortante. El cumplimiento de estos criterios, cuyo detalle cuantitativo se presenta en el \autoref{cap:resultados}, constituye la base sobre la que se interpretan los resultados y se contrasta la hipótesis.
