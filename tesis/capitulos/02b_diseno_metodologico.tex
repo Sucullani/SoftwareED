@@ -6,7 +6,24 @@ La Introducción presentó una visión general del enfoque de investigación; es
 \section{Identificación de las variables}
 \label{sec:variables-met}
 
-La \autoref{tab:variables} de la Introducción operacionaliza las variables del estudio. La \emph{variable independiente} reúne la definición del modelo estructural —geometría, material y acciones con sus apoyos— y las decisiones de discretización que el investigador manipula: el tipo de elemento (Q4 o Q9) y la densidad de malla (tamaño característico $h$, o $N\times N$). La \emph{variable dependiente} es la respuesta estructural calculada —tensiones, deformaciones, desplazamientos y reacciones— junto con su \emph{exactitud} frente a las soluciones de referencia, medida por las normas de error $L^2$ y $H^1$ y por los errores relativos en tensión y desplazamiento. Las restantes magnitudes —tipo de análisis (tensión o deformación plana) y orden de cuadratura— se mantienen como \emph{variables controladas}.
+La \autoref{tab:variables} operacionaliza las variables del estudio. La \emph{variable independiente} reúne la definición del modelo estructural —geometría, material y acciones con sus apoyos— y las decisiones de discretización que el investigador manipula: el tipo de elemento (Q4 o Q9) y la densidad de malla (tamaño característico $h$, o $N\times N$). La \emph{variable dependiente} es la respuesta estructural calculada —tensiones, deformaciones, desplazamientos y reacciones— junto con su \emph{exactitud} frente a las soluciones de referencia, medida por las normas de error $L^2$ y $H^1$ y por los errores relativos en tensión y desplazamiento. Las restantes magnitudes —tipo de análisis (tensión o deformación plana) y orden de cuadratura— se mantienen como \emph{variables controladas}.
+
+\begin{table}[htbp]
+\centering
+\caption{Operacionalización de las variables de la investigación.}
+\label{tab:variables}
+\begin{tabular}{@{}p{2.7cm}p{3.2cm}p{5.1cm}p{2.5cm}@{}}
+\toprule
+\textbf{Variable} & \textbf{Dimensión} & \textbf{Indicador} & \textbf{Instrumento} \\
+\midrule
+Independiente: definición del modelo & Geometría; material; acciones y apoyos & Dominio y malla; $E$, $\nu$, espesor $t$; cargas y restricciones & Configuración del modelo \\
+Independiente: discretización & Tipo de elemento; densidad de malla & Q4/Q9; tamaño característico $h$ (o $N\times N$) y número de GDL & Configuración del modelo \\
+Dependiente: respuesta estructural & Tensiones; deformaciones; desplazamientos; reacciones & $\sigma_x,\sigma_y,\tau_{xy},\sigma_{\mathrm{VM}}$; $\varepsilon_x,\varepsilon_y,\gamma_{xy}$; $u,v$ nodales; reacciones en los apoyos & Solucionador del MEF \\
+Dependiente: exactitud de la solución & Convergencia; error en desplazamiento; error en tensión & Tasa de convergencia (orden $p$); normas $L^2$ y $H^1$; error relativo (\%) en $\sigma_x$ y en deflexión frente al analítico y a SAP2000 & Guiones de V\&V \\
+Controladas & Tipo de análisis; integración & Tensión o deformación plana; orden de cuadratura & Parámetros fijos del caso \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \section{Matriz de consistencia}
 \label{sec:matriz-consistencia}

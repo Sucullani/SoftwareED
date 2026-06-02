@@ -51,30 +51,7 @@ De esta hipótesis se desprenden las siguientes preguntas de investigación que 
 
 Por su naturaleza, este trabajo se inscribe en la \emph{investigación aplicada} de carácter \emph{tecnológico}: su producto es un artefacto de software cuya construcción y evaluación constituyen el núcleo del estudio. Por el abordaje del problema, el enfoque es \emph{cuantitativo}, pues la calidad del artefacto se establece midiendo tensiones, desplazamientos, errores numéricos y tasas de convergencia frente a referencias de exactitud conocida; los criterios de diseño pedagógico se fundamentan cualitativamente en la literatura sobre enseñanza del MEF \autocite{lee2015interactive,bishay2020teaching}. Según su nivel u objetivo, la investigación es \emph{explicativa} y, en su fase de validación, \emph{comparativa}: no se limita a describir el comportamiento del modelo, sino que establece las relaciones de causa y efecto entre las variables y explica fenómenos numéricos como el bloqueo por cortante del elemento Q4 frente a la convergencia del Q9.
 
-El diseño metodológico combina dos ciclos. El \emph{desarrollo del software} siguió un proceso iterativo e incremental, en el que cada componente del canal de cálculo se implementó y se sometió a prueba de regresión antes de integrarse. La \emph{evaluación de la corrección} se realizó mediante un esquema de verificación y validación que distingue entre comprobar que las ecuaciones se resuelven correctamente —verificación por el método de soluciones manufacturadas— y comprobar que se resuelven las ecuaciones correctas —validación contra la viga de Timoshenko y la membrana de Cook— \autocite{roache1998verification,oberkampf2010verification,salari2000mms}.
-
-La unidad de análisis son los modelos numéricos de referencia (el cuadrado unitario del método de soluciones manufacturadas, la viga de Timoshenko y la membrana de Cook), cada uno resuelto con elementos Q4 y Q9 sobre mallas de refinamiento creciente. Los instrumentos de medición son los guiones de verificación y validación, que computan las normas de error $L^2$ y $H^1$ y los errores relativos en tensión y desplazamiento frente a las referencias.
-
-\section*{Variables}
-
-La \autoref{tab:variables} operacionaliza las variables del estudio. La \emph{variable independiente} reúne, por un lado, la definición del modelo estructural —geometría, propiedades del material y acciones externas con sus condiciones de apoyo— y, por otro, las decisiones de discretización que el investigador manipula —el tipo de elemento y la densidad de malla—. La \emph{variable dependiente} es la respuesta estructural calculada —tensiones, deformaciones, desplazamientos y reacciones— junto con su \emph{exactitud} frente a las soluciones de referencia. Las restantes magnitudes se mantienen como \emph{variables controladas}.
-
-\begin{table}[H]
-\centering
-\caption{Operacionalización de las variables de la investigación.}
-\label{tab:variables}
-\begin{tabular}{@{}p{2.7cm}p{3.2cm}p{5.1cm}p{2.5cm}@{}}
-\toprule
-\textbf{Variable} & \textbf{Dimensión} & \textbf{Indicador} & \textbf{Instrumento} \\
-\midrule
-Independiente: definición del modelo & Geometría; material; acciones y apoyos & Dominio y malla; $E$, $\nu$, espesor $t$; cargas y restricciones & Configuración del modelo \\
-Independiente: discretización & Tipo de elemento; densidad de malla & Q4/Q9; tamaño característico $h$ (o $N\times N$) y número de GDL & Configuración del modelo \\
-Dependiente: respuesta estructural & Tensiones; deformaciones; desplazamientos; reacciones & $\sigma_x,\sigma_y,\tau_{xy},\sigma_{\mathrm{VM}}$; $\varepsilon_x,\varepsilon_y,\gamma_{xy}$; $u,v$ nodales; reacciones en los apoyos & Solucionador del MEF \\
-Dependiente: exactitud de la solución & Convergencia; error en desplazamiento; error en tensión & Tasa de convergencia (orden $p$); normas $L^2$ y $H^1$; error relativo (\%) en $\sigma_x$ y en deflexión frente al analítico y a SAP2000 & Guiones de V\&V \\
-Controladas & Tipo de análisis; integración & Tensión o deformación plana; orden de cuadratura & Parámetros fijos del caso \\
-\bottomrule
-\end{tabular}
-\end{table}
+El diseño metodológico —con las variables y su operacionalización, la matriz de consistencia, la población y los casos de estudio, el proceso de desarrollo y validación, y los sistemas de control, repetición y validación que sostienen la confiabilidad de los datos y los resultados— se desarrolla en detalle en el \autoref{cap:metodologia}.
 
 \section*{Alcance y limitaciones}
 
