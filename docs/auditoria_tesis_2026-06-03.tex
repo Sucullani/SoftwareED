@@ -1,0 +1,452 @@
+% =====================================================================
+%  Informe de auditoria de la tesis EduFEM
+%  Generado el 2026-06-03. Documento independiente (no forma parte de la
+%  tesis). Compila con pdflatex (MiKTeX).
+% =====================================================================
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-tabla]{babel}
+\usepackage{lmodern}
+\usepackage[a4paper,margin=2.3cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{bm}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage[most]{tcolorbox}
+\usepackage{hyperref}
+\usepackage{microtype}
+\usepackage{parskip}
+\usepackage{fancyhdr}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!60!black,
+  urlcolor=blue!60!black,
+  pdftitle={Informe de auditoria - Tesis EduFEM},
+  pdfauthor={Auditoria asistida},
+}
+
+\definecolor{cAlta}{HTML}{C0392B}
+\definecolor{cMedia}{HTML}{D68910}
+\definecolor{cBaja}{HTML}{707B7C}
+\definecolor{cOk}{HTML}{1E8449}
+\definecolor{cAzul}{HTML}{0D6EFD}
+
+\newcommand{\sevalta}{\textcolor{cAlta}{\textbf{[ALTA]}}}
+\newcommand{\sevmedia}{\textcolor{cMedia}{\textbf{[MEDIA]}}}
+\newcommand{\sevbaja}{\textcolor{cBaja}{\textbf{[BAJA]}}}
+\newcommand{\sevok}{\textcolor{cOk}{\textbf{[OK]}}}
+\newcommand{\fileref}[1]{\texttt{\small #1}}
+
+\tcbuselibrary{skins,breakable}
+\newtcolorbox{execbox}{
+  colback=blue!4, colframe=cAzul, boxrule=0.8pt, arc=3pt,
+  left=10pt,right=10pt,top=8pt,bottom=8pt, breakable,
+  title=\textbf{Resumen ejecutivo}, fonttitle=\color{white}\bfseries,
+  colbacktitle=cAzul
+}
+\newtcolorbox{notabox}{
+  colback=gray!5, colframe=gray!50!black, boxrule=0.6pt, arc=2pt,
+  left=8pt,right=8pt,top=6pt,bottom=6pt, breakable
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small Auditoría — Tesis EduFEM}
+\fancyhead[R]{\small\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\setlist[itemize]{leftmargin=1.4em, itemsep=2pt, topsep=3pt}
+
+\title{\vspace{-1.2cm}\textbf{Informe de auditoría}\\[2pt]
+\large Tesis: \textit{Desarrollo de software educativo de elementos finitos para el análisis estructural empleando el lenguaje de programación Python} (EduFEM)}
+\author{Revisión técnica y editorial asistida}
+\date{3 de junio de 2026}
+
+\begin{document}
+\maketitle
+\thispagestyle{fancy}
+
+\begin{execbox}
+La tesis se encuentra en un estado \textbf{sólido y apto para defensa}. La arquitectura
+argumental es madura y cierra el lazo problema\,--\,objetivo\,--\,hipótesis\,--\,verificación\,--\,conclusiones,
+con correspondencia uno a uno entre objetivos específicos y conclusiones. El rigor técnico y la
+consistencia numérica son altos: los datos cuadran entre capítulos y la memoria de cálculo del
+anexo es trazable, cifra por cifra, con la salida del motor. El marco metodológico está bien
+preparado para un tribunal que aplique los enfoques de Álvarez de Zayas (problema, objeto, campo,
+objetivos, hipótesis) y de Hernández-Sampieri (enfoque, alcance, diseño).
+
+\medskip
+La auditoría en siete dimensiones reunió \textbf{43 hallazgos}: \sevalta~2, \sevmedia~15 y
+\sevbaja~26. \textbf{Ningún hallazgo compromete la validez de los resultados}; los dos de severidad
+alta son de estilo (fatiga léxica por repetición), no de contenido. La intervención previa —cuatro
+mejoras de contenido y una revisión adversarial (\autoref{sec:intervencion})— ya está incorporada y
+el documento compila limpio (122~páginas, sin referencias ni citas sin resolver). Las observaciones
+de la auditoría que recaían sobre el texto recién añadido se corrigieron en el acto; el resto se
+entrega en este informe para decisión del autor.
+
+\medskip
+\noindent\textbf{Prioridades sugeridas:}
+\begin{enumerate}[leftmargin=1.6em,nosep]
+  \item Corregir la única inconsistencia aritmética genuina: el error frente a Euler-Bernoulli
+  declara \(1{,}82\%\) cuando el cálculo da \(1{,}85\%\) (\fileref{04\_resultados.tex}); verificar
+  contra el guion \fileref{vv\_timoshenko}.
+  \item Podar la redundancia transversal: limitaciones repetidas en tres capítulos y solapamiento de
+  la descripción de módulos entre el capítulo de diseño y la sección de resultados.
+  \item Diversificar el léxico sobre-usado (``canal de cálculo'', ``caja negra'', ``paso a paso'').
+  \item Reforzar el flanco metodológico: distinguir los dos planos de variables (numérico y
+  pedagógico) y dotar a la pregunta PI-2 de un criterio de cumplimiento auditable.
+  \item Cerrar las afirmaciones comparativas sin fuente sobre productos de terceros y ampliar
+  mínimamente la base de literatura pedagógica.
+\end{enumerate}
+\end{execbox}
+
+\section{Alcance y método de la auditoría}
+
+Este informe acompaña una intervención de mejora sobre la tesis y presenta una auditoría
+integral de su estado resultante. La revisión se organizó en dos fases. En la primera se
+aplicaron cuatro cambios de contenido solicitados por el autor y se sometieron a una
+\emph{revisión adversarial} por lentes independientes (rigor técnico, registro, higiene
+\LaTeX, consistencia interna y citación), cuyas observaciones se incorporaron al texto. En
+la segunda se auditó la tesis completa —los trece archivos fuente \texttt{.tex}, la
+bibliografía y los recursos de figuras— a lo largo de siete dimensiones, cada una a cargo de
+un revisor especializado independiente.
+
+La severidad de cada hallazgo se clasifica como \sevalta\ (debe corregirse antes de la
+defensa), \sevmedia\ (recomendable corregir; fortalece la solidez) o \sevbaja\ (pulido
+opcional). Se distingue, además, entre defectos genuinos y \emph{decisiones de autor}
+legítimas que un evaluador podría cuestionar pero que son defendibles. La tesis compila de
+forma limpia (122~páginas, sin referencias ni citas sin resolver) en su estado actual.
+
+\section{Intervención aplicada (junio de 2026)}
+\label{sec:intervencion}
+
+La intervención partió de cuatro observaciones del autor. La \autoref{tab:intervencion}
+resume cada una, su tratamiento y los archivos afectados.
+
+\subsection*{1. Justificación del dominio bidimensional como puente 1D\,$\leftrightarrow$\,3D}
+
+Se incorporó en la Introducción (sección \emph{Alcance y limitaciones}) un párrafo que
+reencuadra la restricción a dos dimensiones como una \emph{decisión pedagógica}, no como una
+mera limitación de alcance. El argumento sitúa el continuo plano en el punto intermedio entre
+el análisis unidimensional de barras —insuficiente para ilustrar el mapeo isoparamétrico, el
+Jacobiano, la matriz $\bm{B}$ y la cuadratura en dos direcciones— y el tridimensional, cuyo
+aparato algebraico ($\bm{D}$ de $6\times6$, $\bm{B}$ de $6\times24$ y rigidez de $24\times24$
+en un hexaedro de ocho nodos) volvería impracticable el seguimiento paso a paso que constituye
+el núcleo didáctico de la herramienta. El plano conserva matrices de tamaño legible
+($\bm{D}$ de $3\times3$, $\bm{B}$ de $3\times8$ en el Q4) y, a la vez, una formulación
+generalizable a 3D, de modo que opera como puente: lo aprendido en 2D se extiende de forma
+natural al caso tridimensional, planteado como línea de continuación.
+
+\subsection*{2. Anclaje teórico del bloqueo por cortante}
+
+El \emph{bloqueo por cortante} (\emph{shear-locking}) se mencionaba en la Introducción, en los
+Resultados (membrana de Cook) y en las Conclusiones, pero carecía de un tratamiento teórico
+propio en el Marco teórico, y la referencia al bloqueo volumétrico era una promesa
+incumplida (``se discute más adelante''). Se añadió una sección dedicada —\emph{Fenómenos
+numéricos en elementos de bajo orden: bloqueo y modos espurios}— que define con respaldo
+bibliográfico el bloqueo por cortante, el bloqueo volumétrico y los modos espurios
+(\emph{hourglass}), y discute las técnicas correctivas (SRI, $\bar{\bm{B}}$) que la herramienta
+no implementa. La promesa colgante se reconectó mediante referencia cruzada, y las menciones
+dispersas ahora apuntan a esta sección.
+
+\subsection*{3. Corrección del dato sobre ED-Elas2D}
+
+La tesis describía al antecedente ED-Elas2D como software ``en inglés''. La verificación del
+material original confirma que es un programa desarrollado en la Universitat Politècnica de
+Catalunya, de origen español y con versiones en español; el artículo de revista que lo
+documenta está en inglés porque la publicación es internacional, pero el idioma no es un rasgo
+diferenciador frente a EduFEM. Se corrigió el dato (incluida la celda de la tabla comparativa,
+de ``Inglés'' a ``Español'') y se reenfocó la diferenciación hacia los atributos que sí son
+genuinos y defendibles: carácter libre y de código abierto (frente a software académico
+cerrado), exposición interactiva del cálculo por elemento, generación automática de una
+memoria de cálculo trazable y batería de verificación y validación documentada. Esta
+corrección protege la tesis de una objeción factual del tribunal.
+
+\subsection*{4. Realce de la memoria de cálculo paso a paso como aporte distintivo}
+
+Se reforzó —en el Resumen, la Introducción, los Resultados y las Conclusiones— la generación
+automática de una memoria de cálculo que reconstruye el procedimiento con sustitución numérica
+paso a paso sobre el modelo del propio usuario, presentándola como un \emph{compañero de
+verificación}: un registro que el estudiante puede rehacer a mano o en una hoja de cálculo y
+contrastar con el programa, elemento por elemento. Para mantener el rigor, las afirmaciones de
+rareza se acotaron al relevamiento de antecedentes del propio trabajo (``no se documenta entre
+los antecedentes revisados'') en lugar de aseverar una unicidad no medida.
+
+\subsection*{Revisión adversarial y consistencia}
+
+Las ediciones se sometieron a revisión por lentes independientes. El hallazgo de mayor impacto
+fue una \textbf{inconsistencia crítica derivada del cambio 3}: el ``problema general'' del
+diseño metodológico seguía afirmando la ``ausencia de un entorno educativo en español'', lo que
+el reconocimiento de ED-Elas2D como software español volvía falso. Se reancló el problema en la
+combinación inédita (libre y de código abierto, en español, con memoria de cálculo trazable),
+coherente ya con el marco teórico. Otras correcciones incorporadas: citas localizadas en cada
+bloqueo, respaldo bibliográfico del párrafo del dominio 2D, atenuación de afirmaciones
+comparativas, reducción de redundancia en la sección de \emph{hourglass} y una aclaración de que
+la tensión de von Mises se calcula en su forma plana (consistente con el motor de cálculo).
+
+\begin{table}[h]
+\centering
+\caption{Síntesis de la intervención aplicada.}
+\label{tab:intervencion}
+\small
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{@{}p{4.0cm}p{6.2cm}p{4.6cm}@{}}
+\toprule
+\textbf{Observación} & \textbf{Tratamiento} & \textbf{Archivos} \\
+\midrule
+Dominio 2D como puente 1D--3D & Párrafo de justificación pedagógica con dimensiones de matrices y citas & \fileref{01\_introduccion.tex} \\
+Bloqueo por cortante sin anclaje teórico & Nueva sección de fenómenos numéricos (bloqueo y \emph{hourglass}) + referencias cruzadas & \fileref{02\_marco\_teorico.tex}, \fileref{05\_conclusiones.tex} \\
+ED-Elas2D no es ``en inglés'' & Corrección del dato + reenfoque de la diferenciación & \fileref{02\_marco\_teorico.tex} \\
+Memoria de cálculo como aporte único & Realce en cuatro secciones, con afirmaciones acotadas & \fileref{00\_resumen.tex}, \fileref{01\_introduccion.tex}, \fileref{04\_resultados.tex}, \fileref{05\_conclusiones.tex} \\
+Consistencia (revisión) & Reanclaje del problema general; citas, von Mises, redundancia & \fileref{02b\_diseno\_metodologico.tex}, \fileref{02\_marco\_teorico.tex} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Auditoría por dimensiones}
+
+Cada dimensión fue auditada por un revisor independiente sobre el estado actual de la tesis. Se
+reportan las fortalezas verificadas, los hallazgos con su severidad y ubicación, y un veredicto.
+Cuando una observación recaía sobre el texto añadido en esta intervención y se corrigió de
+inmediato, se marca \textit{(resuelto)}.
+
+\subsection{Estructura, argumentación y coherencia global}
+
+\textbf{Fortalezas.} La cadena problema\,$\to$\,objetivo\,$\to$\,hipótesis\,$\to$\,resultados está bien
+trabada: la ``doble brecha'' (abstracción de los textos / opacidad del software) se enuncia al inicio
+y se recupera explícitamente en las conclusiones (``el trabajo regresa así a la contradicción que lo
+originó''). La correspondencia objetivos\,$\leftrightarrow$\,conclusiones es uno a uno y verificable, sellada
+por la matriz de consistencia. El manejo de la hipótesis ``por diseño'' es honesto y consistente de
+extremo a extremo. El resumen refleja fielmente el contenido y sus cifras coinciden con las tablas.
+
+\textbf{Hallazgos.}
+\begin{itemize}
+  \item \sevmedia\ \fileref{01\_introduccion.tex}, \fileref{04\_resultados.tex} y \fileref{05\_conclusiones.tex} — La misma lista de limitaciones (no 3D, no no-lineal, solo Q4/Q9, bloqueo no mitigado, sin validación con estudiantes) aparece tres veces con redacción muy próxima. \textit{Recomendación:} en Resultados conservar solo las limitaciones que emergen de la evidencia medida (escalabilidad de \fileref{tab:tiempos}, bloqueo de \fileref{tab:cook}) y remitir el resto a la Introducción.
+  \item \sevmedia\ \fileref{04\_resultados.tex} (``Resultados del software y cobertura'') solapa con la descripción de módulos del capítulo de diseño (\fileref{tab:modulos}): describe el producto, no un resultado medido. \textit{Recomendación:} reencuadrar como evidencia de cumplimiento del objetivo de cobertura del canal de cálculo y remitir a la tabla, sin re-describir cada módulo.
+  \item \sevmedia\ Transversal — La metáfora ``caja negra'' (7 apariciones) y la ``doble brecha'' se reiteran en resumen, introducción, marco y conclusiones. \textit{Recomendación:} fijar la metáfora en el planteamiento y el cierre, y sustituirla por variantes en el cuerpo intermedio.
+  \item \sevbaja\ \fileref{tab:resumen-q4q9} — La fila ``Timoshenko $\sigma_x$'' deja Q4 con ``---'', lo que puede leerse como dato faltante (la validación se hizo solo con Q9). \textit{Recomendación:} sustituir por ``(no evaluado; malla Q9)''.
+  \item \sevbaja\ \fileref{01\_introduccion.tex} (Estructura del documento) — Afirma ``tres capítulos'' mientras el lector percibe cuatro bloques (marco, metodológico, diseño, resultados). \textit{Recomendación:} una frase que aclare que el diseño metodológico abre el capítulo de diseño e implementación.
+  \item \sevbaja\ Completitud — No hay un caso de aplicación de ingeniería civil concreto (una ménsula, un muro) interpretado como lo haría un ingeniero; el salto del banco de prueba abstracto al aula queda implícito. \textit{Recomendación (opcional):} un párrafo breve con la lectura ingenieril de un contorno de tensión reconocible.
+  \item \sevbaja\ \fileref{04\_resultados.tex} y \fileref{05\_conclusiones.tex} — La validación de la hipótesis se repite casi literal entre ambos. \textit{Recomendación:} sintetizar en conclusiones y remitir a la sección de validación.
+\end{itemize}
+
+\textbf{Veredicto.} Arquitectura argumental sólida y madura; la prioridad es podar la redundancia
+transversal. Ningún hallazgo es de severidad alta; la estructura está lista para defensa con ajustes
+editoriales menores.
+
+\subsection{Rigor técnico FEM y consistencia numérica}
+
+\textbf{Fortalezas.} La coherencia numérica es notable y verificable: cada cifra de la memoria de
+cálculo (Anexo F) reproduce la salida del motor (matriz $\bm{D}$, Jacobiano y su determinante, matriz
+de extrapolación de Barlow, tensiones principales y de von Mises, equilibrio de reacciones
+$\sum R_y = 1000 = P$). Las tasas de convergencia del MMS se reproducen al recalcular el logaritmo del
+cociente de errores (Q4: $\mathcal{O}(h^{2})$ en $L^2$, $\mathcal{O}(h^{1})$ en $H^1$; Q9:
+$\mathcal{O}(h^{3})$ y $\mathcal{O}(h^{2})$). La formulación teórica es correcta y sigue el orden del
+canal de cálculo real. La honestidad metodológica (nota del valor redondeado de Cook, advertencia de
+que la cáscara de SAP2000 no es el continuo de tensión plana) es valiosa.
+
+\textbf{Hallazgos.}
+\begin{itemize}
+  \item \sevmedia\ \fileref{04\_resultados.tex} — Inconsistencia aritmética: el texto afirma que con la referencia de Euler-Bernoulli ($1{,}9976$~cm) ``el error aparente ascendería al $1{,}82\%$'', pero $(2{,}03460-1{,}9976)/1{,}9976 = 1{,}85\%$. \textit{Recomendación:} corregir a $1{,}85\%$ (o ajustar la referencia a $1{,}9982$~cm); verificar cuál produce el guion \fileref{vv\_timoshenko}. \textbf{Es el único error numérico genuino del documento.}
+  \item \sevbaja\ \fileref{04\_resultados.tex} — $217\,370$~kgf/cm$^2 \approx 21{,}32$~GPa, no $21{,}33$. \textit{Recomendación:} corregir a $\approx 21{,}32$~GPa.
+  \item \sevbaja\ Deflexión $0{,}2633\%$ frente a $0{,}2632\%$ recalculado de los valores redondeados (el motor usa precisión completa; admisible). \textit{Recomendación:} ninguna acción obligatoria.
+  \item \sevbaja\ \fileref{02\_marco\_teorico.tex} — La forma plana de von Mises ($\sigma_3=0$) puede subestimar la tensión equivalente en deformación plana. \textit{(resuelto: se añadió esa aclaración en la nota de la ecuación).}
+\end{itemize}
+
+\textbf{Veredicto.} Rigor técnico y consistencia numérica sólidos; los datos cuadran entre capítulos y
+la memoria de cálculo es trazable cifra por cifra con el motor. La prioridad es corregir el
+$1{,}82\%$ frente a $1{,}85\%$; las dos cifras de redondeo son cosméticas.
+
+\subsection{Marco metodológico y alineación con el tribunal}
+
+\textbf{Fortalezas.} El diseño teórico clásico está explícito y diferenciado (problema científico como
+interrogante, objeto de estudio y campo de acción con su relación de inclusión enunciada
+literalmente). La hipótesis de diseño está blindada en tres lugares concéntricos y consistentes, y se
+traduce a la nomenclatura clásica de variable independiente/dependiente, gesto que anticipa la
+objeción del tribunal. La matriz de consistencia es trazable de punta a punta y honesta sobre su
+propio hueco (el quinto objetivo, instrumental). Los sistemas de control, repetición y validación se
+fundan correctamente en el determinismo del motor.
+
+\textbf{Hallazgos.}
+\begin{itemize}
+  \item \sevmedia\ \fileref{02b\_diseno\_metodologico.tex} (\fileref{tab:variables} vs. hipótesis) — Conviven dos juegos de variables: las del experimento numérico (tipo de elemento, exactitud) y las de la hipótesis de diseño (transparencia, apoyo a la comprensión), sin un puente que aclare que operan en planos distintos. \textit{Recomendación:} una frase bisagra que explicite los dos niveles (verificación numérica vs.\ diseño pedagógico).
+  \item \sevmedia\ \fileref{02b\_diseno\_metodologico.tex} (Población y casos de estudio) — Se llama ``población/muestra'' al universo de problemas-test, no a sujetos; un tribunal formado en Hernández-Sampieri puede objetar la disonancia con el objeto declarado (proceso de enseñanza-aprendizaje). \textit{Recomendación:} una oración que justifique el desplazamiento conceptual y lo conecte con la validación pedagógica futura.
+  \item \sevmedia\ PI-2 se verifica ``por diseño'' sin criterio de aceptación explícito, a diferencia de PI-1 y PI-3 (con umbrales numéricos). \textit{Recomendación:} declarar un criterio de diseño auditable —una checklist etapa del canal\,$\leftrightarrow$\,módulo que la expone, con base en \fileref{tab:modulos}—.
+  \item \sevbaja\ La caracterización metodológica (propositivo/aplicada-tecnológica/cuantitativo) está duplicada casi literal en introducción y capítulo metodológico. \textit{Recomendación:} sintetizar en la introducción y remitir.
+  \item \sevbaja\ \fileref{tab:consistencia} — La columna ``Variable/indicador'' usa para algunos objetivos atributos de diseño no medibles. \textit{Recomendación:} renombrar a ``Variable/indicador o atributo de diseño''.
+  \item \sevbaja\ Estructura ``tres capítulos'' con el diseño metodológico dentro del capítulo de diseño; un tribunal ortodoxo espera un capítulo metodológico propio. \textit{Recomendación:} no cambiar la estructura; añadir una frase que justifique la integración como unidad propia de un trabajo tecnológico.
+\end{itemize}
+
+\textbf{Veredicto.} Marco metodológico sólido y bien blindado para un tribunal UATF. La prioridad es
+reconciliar los dos juegos de variables (numéricas vs.\ pedagógicas) y dotar a PI-2 de un criterio de
+cumplimiento auditable.
+
+\subsection{Redacción, estilo académico y naturalidad}
+
+\textbf{Fortalezas.} Voz impersonal y registro académico consistentes; sin coloquialismos ni primera
+persona. Terminología MEF canónica impecable (GDL, MEF, restricción, tensión/deformación/desplazamiento;
+las únicas apariciones de ``FEM''/``DOF'' están dentro de código). Prosa teórica clara y bien
+encadenada. Ausencia de las muletillas de IA más delatoras.
+
+\textbf{Hallazgos.}
+\begin{itemize}
+  \item \sevalta\ Transversal — Sobreuso de ``canal de cálculo'' (unas 28 apariciones con sus variantes ``cadena de cálculo/del método''). Repetido con esa densidad, suena a fórmula. \textit{Recomendación:} alternar (``el procedimiento del MEF'', ``la secuencia de cálculo'', ``el flujo de operaciones'') y reducir a unos 12--15 usos.
+  \item \sevalta\ Transversal — El binomio ``caja negra que oculta\,/\,paso a paso que el estudiante puede replicar'' se repite casi verbatim en resumen, introducción, resultados y conclusiones (``caja negra'' 7 veces, ``paso a paso'' unas 17). \textit{Recomendación:} variar ``paso a paso'' (``con sustitución numérica detallada'', ``operación por operación'') y reformular el binomio en al menos dos de los cuatro pasajes.
+  \item \sevmedia\ \fileref{00\_resumen.tex} — Oración inicial muy cargada (tres subordinadas anidadas más una aposición). \textit{Recomendación:} partir la aposición de ``análisis estructural'' en oración aparte.
+  \item \sevmedia\ Transversal — El cuarteto ``transparente, interactiva, verificable, coherente con el flujo profesional'' reaparece literal cuatro veces. \textit{Recomendación:} mantenerlo en hipótesis y conclusiones (donde el paralelismo es virtud) y parafrasear en el planteamiento y el campo de acción.
+  \item \sevmedia\ \fileref{01\_introduccion.tex} — ``compañero de verificación'' es una personificación poco académica. \textit{(resuelto: sustituido por ``recurso de verificación'').}
+  \item \sevmedia\ \fileref{01\_introduccion.tex} — Oración larga en la justificación del dominio 2D. \textit{(resuelto: dividida en dos).}
+  \item \sevbaja\ Arranques de sección repetidos con ``abre / abre con''. \textit{Recomendación:} alternar con ``comienza con'', ``parte de''.
+  \item \sevbaja\ \fileref{04\_resultados.tex} — ``concluyente'' + ``la evidencia más fuerte'' en oraciones contiguas, algo enfático. \textit{Recomendación:} atenuar.
+  \item \sevbaja\ Transversal — Conviven guiones dobles de teclado y guiones largos tipográficos. \textit{Recomendación:} normalizar los incisos a guion largo.
+  \item \sevbaja\ \fileref{04\_resultados.tex} (nota de Cook) — ``sobrepasada'' como sustantivo es informal. \textit{Recomendación:} ``ese exceso''.
+\end{itemize}
+
+\textbf{Veredicto.} Redacción sólida, de registro consistente y terminología impecable. La debilidad
+real y accionable es la fatiga léxica por sobreuso de un puñado de fórmulas, sobre todo ``canal de
+cálculo'' y el binomio ``caja negra\,/\,paso a paso''.
+
+\subsection{Bibliografía y citación Vancouver}
+
+\textbf{Fortalezas.} Integridad referencial perfecta: las 21 entradas se citan al menos una vez y todas
+las invocaciones de \texttt{\textbackslash autocite} resuelven (cero claves huérfanas, cero entradas sin citar).
+Estilo Vancouver correctamente configurado (biber, \texttt{numeric-comp}, \texttt{sorting=none}). Las
+afirmaciones teóricas fuertes están ancladas donde corresponde y los datos propios del software no se
+citan a fuentes externas.
+
+\textbf{Hallazgos.}
+\begin{itemize}
+  \item \sevmedia\ \fileref{02\_marco\_teorico.tex} — Afirmaciones comparativas sobre productos de terceros sin fuente: VisualFEA (``cerrado, en inglés y de pago''), FEniCS y CALFEM en la tabla, ninguno en la bibliografía. \textit{Recomendación:} añadir una referencia mínima (manual/sitio o paper canónico) y citarla, o atenuar a una caracterización genérica sin nombres propios. No inventar DOIs.
+  \item \sevmedia\ Brecha de literatura pedagógica: la base sobre enseñanza descansa en cuatro artículos del mismo journal, sin teoría educativa general. \textit{Recomendación:} incorporar una o dos referencias de fundamento (visualización/simulación interactiva en educación en ingeniería) para no sostener la justificación didáctica en una sola fuente.
+  \item \sevbaja\ \fileref{02\_marco\_teorico.tex} — ``ED-Beams y ED-Frames'' se citan con el artículo de ED-Elas2D. \textit{Recomendación:} verificar que la fuente los nombre o reformular a ``programas hermanos del mismo grupo''.
+  \item \sevbaja\ \fileref{00\_resumen.tex} — Las tasas teóricas de convergencia se respaldan con las fuentes del método MMS en vez de las de la teoría de aproximación. \textit{Recomendación (opcional):} añadir \fileref{strang2008analysis} a esa cita.
+  \item \sevbaja\ \fileref{04\_resultados.tex} — El valor convergido de Cook ($\approx 23{,}95$) se atribuye a Cook (1974/2002); proviene de la literatura de \textit{benchmarking} posterior. \textit{Recomendación:} verificar o matizar ``ampliamente reportado en la literatura''.
+\end{itemize}
+
+\textbf{Veredicto.} Estado sólido: integridad referencial perfecta y Vancouver bien implementado. La
+prioridad es cerrar las afirmaciones comparativas sin fuente sobre productos de terceros y ampliar
+mínimamente la base de literatura pedagógica (dos a cuatro referencias, sin inventar datos).
+
+\subsection{Higiene \LaTeX, figuras y tablas}
+
+\textbf{Fortalezas.} Verificado de forma programática: 133 etiquetas, cero duplicados, cero referencias
+cruzadas rotas; las 31 inclusiones de imagen resuelven contra la carpeta de figuras (ninguna falta);
+tablas bien formadas (las columnas declaradas coinciden con los datos) y entornos matemáticos
+balanceados. La nota de ``elaboración propia'' está presente y cubre el único activo de terceros.
+
+\textbf{Hallazgos.}
+\begin{itemize}
+  \item \sevmedia\ \fileref{01\_introduccion.tex} — El Anexo F (memoria de cálculo paso a paso) no se referenciaba desde el cuerpo. \textit{(resuelto: añadido a la enumeración de anexos de la estructura).}
+  \item \sevmedia\ \fileref{02\_marco\_teorico.tex} — La figura de elementos isoparamétricos (\fileref{fig:isoparametricos}) tiene leyenda y etiqueta pero no se cita en el texto. \textit{Recomendación:} citarla al introducir los elementos Q4/Q9.
+  \item \sevbaja\ \fileref{07\_anexo\_memoria.tex} — La figura del modelo discretizado (\fileref{fig:mem-modelo}) no se cita. \textit{Recomendación:} citarla al abrir la sección de datos.
+  \item \sevbaja\ \fileref{07\_anexo\_memoria.tex} — Cuatro tablas en \texttt{minipage} tienen etiqueta pero no se referencian. \textit{Recomendación:} citarlas en la prosa que las precede o aceptarlas como tablas de datos en línea.
+  \item \sevbaja\ \fileref{07\_anexo\_memoria.tex} — Cuatro cajas \textit{overfull} ($\approx 53$~pt) por pares de \texttt{minipage} y dos matrices anchas. \textit{Recomendación:} bajar los anchos de \texttt{minipage} o envolver las matrices con \texttt{\textbackslash resizebox}.
+  \item \sevbaja\ \fileref{preambulo.tex} — \texttt{\textbackslash headheight} de 12~pt dispara una advertencia repetida. \textit{Recomendación:} fijar \texttt{\textbackslash headheight} en 14~pt.
+\end{itemize}
+
+\textbf{Veredicto.} Higiene \LaTeX\ en muy buen estado: cero referencias rotas, cero figuras faltantes,
+cero etiquetas duplicadas. La prioridad es integrar las figuras y el anexo huérfanos; el resto son
+ajustes cosméticos.
+
+\subsection{Anexos, reproducibilidad y aporte}
+
+\textbf{Fortalezas.} Reproducibilidad sólida y verificable: el anexo de V\&V nombra cada guion con su
+comando exacto y todos existen en el repositorio, junto con los datos crudos versionados y el
+repositorio público citado. La memoria de cálculo (Anexo F) es numéricamente exacta y coherente con el
+marco teórico (el equilibrio cierra, $\sigma_{\mathrm{VM}}$ es consistente). Los anexos no duplican el
+cuerpo: aportan errores relativos, componentes adicionales y formatos de datos con detalle de producto.
+El aporte queda demostrado.
+
+\textbf{Hallazgos.}
+\begin{itemize}
+  \item \sevbaja\ \fileref{06\_anexos.tex} — La figura de la deformada de Cook usa una ruta con prefijo \texttt{figuras/} redundante (ya lo antepone \texttt{\textbackslash graphicspath}). \textit{Recomendación:} quitar el prefijo para alinearla con el resto.
+  \item \sevbaja\ \fileref{06\_anexos.tex} — La deflexión del cuerpo (centroide) y la del punto A del anexo (a media altura) pueden leerse como contradicción. \textit{Recomendación:} aclarar que el punto A no está en el eje neutro.
+  \item \sevbaja\ \fileref{06\_anexos.tex} (Anexo C) — Los listados de código no incluyen el solucionador (partición y resolución del sistema reducido). \textit{Recomendación (opcional):} añadir un fragmento corto o aclarar la omisión.
+  \item \sevbaja\ \fileref{07\_anexo\_memoria.tex} — La configuración de apoyos del ejemplo canónico es atípica para un caso introductorio. \textit{Recomendación (opcional):} una frase aclarando que es el caso histórico de validación del proyecto.
+\end{itemize}
+
+\textbf{Veredicto.} Dimensión en muy buen estado: anexos completos, reproducibilidad excelente y memoria
+de cálculo exacta que demuestra el aporte diferenciador. La única acción con prioridad clara es trivial
+(normalizar una ruta de figura); el resto son refinamientos opcionales.
+
+\section{Recomendaciones priorizadas}
+
+La \autoref{tab:reco} consolida los hallazgos accionables en tres niveles de prioridad. Las
+correcciones recaían en su mayoría sobre contenido preexistente; este informe las entrega para
+decisión del autor, no las aplica (salvo las marcadas como ya incorporadas).
+
+\begin{longtable}{@{}p{0.5cm}p{12cm}p{2.6cm}@{}}
+\caption{Recomendaciones consolidadas por prioridad.}\label{tab:reco}\\
+\toprule
+\textbf{\#} & \textbf{Acción} & \textbf{Dimensión} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{\#} & \textbf{Acción} & \textbf{Dimensión} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\multicolumn{3}{@{}l}{\textbf{\textcolor{cAlta}{Antes de la defensa (verificar y corregir)}}}\\[2pt]
+1 & Corregir el error frente a Euler-Bernoulli: $1{,}82\%\to 1{,}85\%$ (o ajustar la referencia); verificar con \fileref{vv\_timoshenko}. & Rigor FEM \\
+\midrule
+\multicolumn{3}{@{}l}{\textbf{\textcolor{cMedia}{Mejoras de solidez (recomendadas)}}}\\[2pt]
+2 & Podar la triple aparición de la lista de limitaciones; conservar en Resultados solo las que emergen de la evidencia medida. & Estructura \\
+3 & Reencuadrar ``Resultados del software'' como cumplimiento del objetivo de cobertura y remitir a \fileref{tab:modulos}, sin re-describir módulos. & Estructura \\
+4 & Diversificar el léxico sobre-usado: ``canal de cálculo'' ($\sim$28), ``caja negra'' (7) y ``paso a paso'' ($\sim$17). & Redacción \\
+5 & Añadir una frase bisagra que distinga las variables numéricas (V\&V) de las pedagógicas (hipótesis de diseño). & Metodología \\
+6 & Justificar el encuadre ``población/muestra'' sobre problemas-test y conectarlo con la validación pedagógica futura. & Metodología \\
+7 & Dotar a PI-2 de un criterio de cumplimiento auditable (checklist etapa\,$\leftrightarrow$\,módulo). & Metodología \\
+8 & Citar o atenuar las afirmaciones sobre VisualFEA, FEniCS y CALFEM; ampliar la base de literatura pedagógica (1--2 refs). & Bibliografía \\
+9 & Citar la figura de elementos isoparamétricos, hoy huérfana. & \LaTeX/figuras \\
+\midrule
+\multicolumn{3}{@{}l}{\textbf{\textcolor{cBaja}{Pulido (opcional)}}}\\[2pt]
+10 & Cifras de redondeo ($21{,}33\to 21{,}32$~GPa; nota de $0{,}2632\%$). & Rigor FEM \\
+11 & ``(no evaluado; malla Q9)'' en \fileref{tab:resumen-q4q9}; sintetizar la doble validación de hipótesis. & Estructura \\
+12 & Normalizar guiones largos; atenuar ``concluyente''; ``ese exceso'' por ``sobrepasada''. & Redacción \\
+13 & Citar figuras y tablas huérfanas del Anexo F; corregir \textit{overfull}; fijar \texttt{\textbackslash headheight}. & \LaTeX/figuras \\
+14 & Normalizar la ruta de la figura de Cook; aclarar punto A vs.\ centroide; (opcional) fragmento del solucionador en el Anexo C. & Anexos \\
+\end{longtable}
+
+\subsection*{Ya incorporado en esta intervención}
+
+\begin{itemize}[nosep]
+  \item Aclaración de que la tensión de von Mises se calcula en su forma plana y de que en deformación plana puede subestimar la tensión equivalente real (\fileref{02\_marco\_teorico.tex}).
+  \item ``compañero de verificación'' $\to$ ``recurso de verificación'' (\fileref{01\_introduccion.tex}).
+  \item División de la oración larga en la justificación del dominio 2D (\fileref{01\_introduccion.tex}).
+  \item Referencia al Anexo F (memoria de cálculo) en la enumeración de anexos (\fileref{01\_introduccion.tex}).
+  \item Reanclaje del problema general tras la corrección de ED-Elas2D, y citas localizadas en cada bloqueo (revisión de la intervención).
+\end{itemize}
+
+\subsection*{Decisiones de autor (legítimas y defendibles)}
+
+Las siguientes observaciones no son errores: corresponden a decisiones deliberadas que conviene saber
+defender ante el tribunal, no necesariamente cambiar.
+
+\begin{itemize}[nosep]
+  \item \textbf{Tres capítulos con el diseño metodológico integrado} en el capítulo de diseño: defendible como unidad propia de un trabajo tecnológico; basta una frase justificativa.
+  \item \textbf{``Población/muestra'' sobre problemas-test} y no sobre sujetos: coherente con una tesis tecnológica cuyo objeto evaluable es el artefacto; la población humana corresponde a la validación pedagógica futura.
+  \item \textbf{Reporte de $0{,}2633\%$} (precisión completa del motor) frente al $0{,}2632\%$ de los valores redondeados de tabla: admisible.
+  \item \textbf{Configuración de apoyos del ejemplo canónico}: es el caso histórico de validación del proyecto, internamente consistente.
+\end{itemize}
+
+\section{Conclusión del auditor}
+
+La tesis está en un estado maduro y apto para la defensa. Su columna vertebral —la cadena
+problema\,--\,objetivo\,--\,hipótesis\,--\,verificación\,--\,conclusiones— es coherente y se sostiene con
+evidencia numérica trazable y un marco metodológico bien preparado para el tribunal. \textbf{La
+auditoría no halló ningún defecto que comprometa la validez de los resultados:} de los 43 hallazgos,
+los dos de severidad alta son de estilo y el único error aritmético genuino es de fácil corrección.
+
+El grueso del trabajo restante es editorial: podar la redundancia transversal, diversificar un puñado
+de expresiones sobre-usadas y reforzar dos flancos metodológicos con frases puntuales. Atendidas la
+corrección aritmética y las mejoras de solidez de prioridad media, el documento quedará en condiciones
+óptimas. Este informe funciona como hoja de ruta; la decisión sobre cada punto corresponde al autor.
+
+\end{document}

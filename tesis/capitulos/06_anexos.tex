@@ -7,11 +7,13 @@
 \chapter{Manual de instalación}
 \label{anexo:instalacion}
 
-EduFEM se distribuye por dos vías: un ejecutable autocontenido para uso inmediato y la instalación desde el código fuente para su inspección o extensión. El código está disponible en el repositorio público del proyecto\footnote{\url{https://github.com/Sucullani/SoftwareED}}.
+EduFEM se distribuye por dos vías: un instalador para Windows —la vía recomendada para el alumno—, que despliega un ejecutable autocontenido, y la instalación desde el código fuente para su inspección o extensión. El código está disponible en el repositorio público del proyecto\footnote{\url{https://github.com/Sucullani/SoftwareED}}.
 
-\section{Ejecutable autocontenido (Windows)}
+\section{Instalación en Windows}
 
-Es la vía recomendada para el alumno. Se descarga el ejecutable \texttt{.exe} publicado en el repositorio y se ejecuta directamente: no requiere instalar Python ni dependencias, ya que el empaquetado con \texttt{PyInstaller} incluye el intérprete y todas las bibliotecas. Requisito: Windows 10 u 11 de 64 bits. La generación de la memoria de cálculo en PDF necesita, además, una distribución \LaTeX{} instalada (MiKTeX o \TeX{} Live); sin ella la aplicación funciona igual y las fórmulas se rinden mediante un mecanismo alternativo.
+Es la vía recomendada para el alumno. El programa se distribuye como un instalador único (\texttt{EduFEM-Setup.exe}) que copia la aplicación, crea accesos directos en el menú Inicio y en el escritorio —identificados por el icono del programa (\autoref{fig:logo-edufem})— y registra un desinstalador; la instalación se realiza por usuario, sin privilegios de administrador. El ejecutable es autocontenido: el empaquetado con \texttt{PyInstaller} incorpora el intérprete de Python y todas las dependencias, de modo que no requiere instalar Python ni bibliotecas. Requisito: Windows 10 u 11 de 64 bits. La generación de la memoria de cálculo en PDF necesita, además, una distribución \LaTeX{} instalada (MiKTeX o \TeX{} Live); sin ella la aplicación funciona igual y las fórmulas se rinden mediante un mecanismo alternativo.
+
+Al no estar firmado con un certificado comercial, la primera ejecución del instalador puede mostrar el aviso de Microsoft Defender SmartScreen (\enquote{Windows protegió su PC}), habitual en aplicaciones nuevas; se continúa con \emph{Más información} y \emph{Ejecutar de todas formas}. Una vez instalado, el programa se abre desde su icono como cualquier aplicación, sin nuevos avisos.
 
 \section{Instalación desde el código fuente}
 
@@ -610,7 +612,14 @@ $N$ & $u_x$ (Q4) & $u_x$ (Q9) \\
 
 Este anexo reproduce el documento de análisis, elaborado por el autor, del que se obtuvieron las referencias de contraste de la validación de la viga de Timoshenko presentada en el \autoref{cap:resultados} y ampliada en el \autoref{anexo:vyv}. Reúne la resolución analítica de la tensión normal $\sigma_x$ según la teoría de la elasticidad de Timoshenko-Goodier, el modelado de la misma viga en SAP2000 con elementos de cáscara (\emph{shell}) y la comparación numérica punto a punto entre ambas referencias, junto con el contraste por teoría de vigas. Se incorpora como evidencia documental, en su formato original, para dar trazabilidad a las cifras de contraste; por ello su tipografía difiere de la del resto del documento.
 
-\includepdf[pages=-,pagecommand={\thispagestyle{plain}},width=\textwidth]{anexos/validacion_sap2000.pdf}
+% Replica fiel preservando orientacion: con un solo \includepdf, fitpaper
+% aplica el tamano de la PRIMERA pagina a todo el lote. Como la pag.1 es
+% vertical y las pag.2-11 apaisadas, se separan en dos llamadas para que
+% fitpaper tome el tamano correcto de cada grupo. (Sin pagecommand: insercion
+% raw -> respeta el tamano original; el precio es que no llevan el numero de
+% pagina de la tesis.)
+\includepdf[pages=1,fitpaper=true]{anexos/validacion_sap2000.pdf}
+\includepdf[pages=2-11,fitpaper=true]{anexos/validacion_sap2000.pdf}
 
 
 \chapter{Formatos de interoperabilidad}
