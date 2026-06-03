@@ -85,6 +85,16 @@ class MemoriaCalculoError(RuntimeError):
     """Error elevado por el generador con un mensaje accionable para el usuario."""
 
 
+class PdflatexNotFoundError(MemoriaCalculoError):
+    """Subtipo específico: no se encontró ``pdflatex`` en el PATH.
+
+    La GUI lo distingue de un fallo de compilación genérico para ofrecer un
+    diálogo con botón de descarga de MiKTeX (ver
+    ``gui.dialogs.pdflatex_missing_dialog``). Hereda de ``MemoriaCalculoError``
+    para que los ``except MemoriaCalculoError`` existentes lo sigan capturando.
+    """
+
+
 # ---------------------------------------------------------------------------
 # Helpers de matriz global (K puede ser scipy.sparse CSR o densa)
 # ---------------------------------------------------------------------------
@@ -205,7 +215,7 @@ def generate_memoria_calculo(
         else:
             _hint = ("Instalá TeX Live (en Debian/Ubuntu: "
                      "sudo apt install texlive-latex-base texlive-latex-extra)")
-        raise MemoriaCalculoError(
+        raise PdflatexNotFoundError(
             "No se encontró pdflatex en el PATH — la Memoria de Cálculo se "
             "compila con LaTeX.\n"
             f"{_hint}, luego reiniciá EduFEM.\n"

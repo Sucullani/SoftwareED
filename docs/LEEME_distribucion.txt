@@ -1,0 +1,115 @@
+============================================================
+  EduFEM - Software Educativo de Elementos Finitos
+  Guia de uso y notas de distribucion
+  Version 1.0.0
+============================================================
+
+EduFEM es una aplicacion educativa de analisis por el Metodo de
+Elementos Finitos (MEF) en 2D (tension plana / deformacion plana),
+con elementos Q4 y Q9. Permite modelar, resolver y visualizar
+resultados, ademas de modulos educativos paso a paso.
+
+
+------------------------------------------------------------
+1. REQUISITOS
+------------------------------------------------------------
+- Windows 10 u 11 de 64 bits.
+- No requiere instalacion: es un unico archivo portable
+  (EduFEM.exe). Se puede copiar y ejecutar desde cualquier
+  carpeta o pendrive.
+
+
+------------------------------------------------------------
+2. COMO EJECUTAR
+------------------------------------------------------------
+- Hacer doble clic en "EduFEM.exe".
+
+- IMPORTANTE: el PRIMER arranque es mas lento (puede tardar
+  entre 10 y 40 segundos). La primera vez el programa descomprime
+  sus componentes a una carpeta temporal; los arranques
+  siguientes son mas rapidos. Esperar a que aparezca la ventana
+  -- no hacer doble clic varias veces.
+
+
+------------------------------------------------------------
+3. SI APARECE "Windows protegio su PC" (SmartScreen)
+------------------------------------------------------------
+Es un aviso NORMAL de Windows ante programas nuevos sin firma
+comercial. EduFEM NO es un virus: es una aplicacion propia,
+desarrollada como trabajo de tesis.
+
+Para ejecutarlo de todas formas:
+  1) Hacer clic en "Mas informacion".
+  2) Hacer clic en el boton "Ejecutar de todas formas".
+
+Si el aviso reaparece despues de copiar el archivo (por USB,
+correo o nube), quitar la marca de "archivo descargado":
+  - Clic derecho sobre EduFEM.exe  ->  Propiedades.
+  - Marcar la casilla "Desbloquear" (parte inferior).
+  - Aplicar  ->  Aceptar.
+
+(Algunos antivirus tambien pueden marcar programas nuevos sin
+firma: es un falso positivo habitual en aplicaciones generadas
+con PyInstaller.)
+
+
+------------------------------------------------------------
+4. MEMORIA DE CALCULO EN PDF  (requiere LaTeX / MiKTeX)
+------------------------------------------------------------
+La exportacion de la "Memoria de Calculo (PDF)" se genera con
+LaTeX. Para que funcione, la PC debe tener instalada una
+distribucion TeX:
+
+  - Windows:  MiKTeX  ->  https://miktex.org/download
+
+Sin MiKTeX, TODO el resto del programa funciona normalmente
+(modelar, resolver, ver resultados, modulos educativos); solo la
+exportacion del PDF no estara disponible. Si se intenta exportar
+la memoria sin MiKTeX, EduFEM muestra un aviso con un boton de
+descarga. Despues de instalar MiKTeX, reiniciar EduFEM.
+
+Nota: las formulas que se ven DENTRO del programa NO necesitan
+MiKTeX -- usan un modo de respaldo automatico.
+
+
+------------------------------------------------------------
+5. VELOCIDAD  (numba -- opcional, usuarios avanzados)
+------------------------------------------------------------
+EduFEM.exe ejecuta los calculos en NumPy puro, lo cual es mas
+que suficiente para los modelos educativos (mallas pequenas).
+
+Para acelerar el calculo en mallas MUY grandes se puede usar la
+libreria "numba" (compilacion JIT). numba NO viene incluida en
+el .exe; para aprovecharla hay que ejecutar el programa desde el
+codigo fuente (repositorio del proyecto):
+
+  1) Descargar el repositorio de EduFEM.
+  2) Crear un entorno virtual e instalar las dependencias:
+
+        python -m venv .venv
+        .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+        .\.venv\Scripts\python.exe -m pip install numba
+
+     (numba puede requerir una version de numpy compatible; si
+     pip propone cambiar numpy, revisar antes de aceptar.)
+
+  3) Ejecutar el programa:
+
+        .\.venv\Scripts\python.exe main.py
+
+Para el uso normal de la tesis NO hace falta: el .exe alcanza.
+
+
+------------------------------------------------------------
+6. PRIMEROS PASOS DENTRO DEL PROGRAMA
+------------------------------------------------------------
+- Menu "Ayuda"  ->  "Cargar Ejemplo": modelos de demostracion
+  (cuadrado de validacion, viga de Timoshenko, membrana de Cook),
+  en versiones Q4 y Q9.
+- Menu "Ayuda"  ->  "Manual" y "Atajos" para mas informacion.
+- Pulsar F5 (o abrir la pestana POST-PROCESO) para resolver.
+
+
+============================================================
+  Trabajo de tesis de grado  --  EduFEM v1.0.0
+============================================================

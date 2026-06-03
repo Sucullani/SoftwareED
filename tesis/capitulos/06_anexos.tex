@@ -530,7 +530,7 @@ La \autoref{fig:mms-campos} muestra los campos discretos de desplazamiento sobre
 
 \section{Viga de Timoshenko: componentes restantes y desplazamientos}
 
-El cuerpo principal contrastó la tensión normal $\sigma_x$. La \autoref{tab:tim-componentes} completa el estado tensional con las componentes $\sigma_y$ y $\tau_{xy}$ en los tres puntos de referencia. La concordancia con la solución analítica es nuevamente excelente; la diferencia de signo en $\tau_{xy}$ frente a SAP2000 proviene de la convención de eje $y$ (la solución de Timoshenko-Goodier emplea $y$ hacia abajo, y el \emph{script} de validación aplica el cambio $y_{\text{FEM}} = -y_{\text{ref}}$, que invierte el signo de las componentes sensibles a la reflexión).
+El cuerpo principal contrastó la tensión normal $\sigma_x$. El modelo de SAP2000 y la resolución analítica que originan las referencias de esta sección se reproducen, como evidencia documental, en el \autoref{anexo:sap2000}. La \autoref{tab:tim-componentes} completa el estado tensional con las componentes $\sigma_y$ y $\tau_{xy}$ en los tres puntos de referencia. La concordancia con la solución analítica es nuevamente excelente; la diferencia de signo en $\tau_{xy}$ frente a SAP2000 proviene de la convención de eje $y$ (la solución de Timoshenko-Goodier emplea $y$ hacia abajo, y el \emph{script} de validación aplica el cambio $y_{\text{FEM}} = -y_{\text{ref}}$, que invierte el signo de las componentes sensibles a la reflexión).
 
 \begin{table}[htbp]
 \centering
@@ -603,6 +603,14 @@ $N$ & $u_x$ (Q4) & $u_x$ (Q9) \\
 \caption{Post-proceso de EduFEM: configuración deformada de la membrana de Cook (Q9, $N=8$) con el contorno de magnitud de desplazamiento $|U|$. El empotramiento del borde izquierdo y el desplazamiento creciente hacia el extremo libre cargado son visibles sobre la geometría original (en línea punteada).}
 \label{fig:cook-def}
 \end{figure}
+
+
+\chapter{Modelo de validación en SAP2000 y solución analítica de Timoshenko}
+\label{anexo:sap2000}
+
+Este anexo reproduce el documento de análisis, elaborado por el autor, del que se obtuvieron las referencias de contraste de la validación de la viga de Timoshenko presentada en el \autoref{cap:resultados} y ampliada en el \autoref{anexo:vyv}. Reúne la resolución analítica de la tensión normal $\sigma_x$ según la teoría de la elasticidad de Timoshenko-Goodier, el modelado de la misma viga en SAP2000 con elementos de cáscara (\emph{shell}) y la comparación numérica punto a punto entre ambas referencias, junto con el contraste por teoría de vigas. Se incorpora como evidencia documental, en su formato original, para dar trazabilidad a las cifras de contraste; por ello su tipografía difiere de la del resto del documento.
+
+\includepdf[pages=-,pagecommand={\thispagestyle{plain}},width=\textwidth]{anexos/validacion_sap2000.pdf}
 
 
 \chapter{Formatos de interoperabilidad}

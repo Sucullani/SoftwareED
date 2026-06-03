@@ -1034,10 +1034,18 @@ class MainWindow:
             err = result_state["error"]
             path = result_state["path"]
             if err is not None:
-                messagebox.showerror(
-                    "Error",
-                    f"Error al generar la Memoria de Cálculo:\n{err}"
-                )
+                from file_io.memoria_calculo import PdflatexNotFoundError
+                if isinstance(err, PdflatexNotFoundError):
+                    # Falta LaTeX: ofrecer descarga en vez de un error seco.
+                    from gui.dialogs.pdflatex_missing_dialog import (
+                        show_pdflatex_missing_dialog,
+                    )
+                    show_pdflatex_missing_dialog(self.root)
+                else:
+                    messagebox.showerror(
+                        "Error",
+                        f"Error al generar la Memoria de Cálculo:\n{err}"
+                    )
                 return
             if path is None:
                 messagebox.showerror(
