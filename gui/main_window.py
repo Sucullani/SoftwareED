@@ -55,6 +55,16 @@ class MainWindow:
         self.root.state("zoomed")
         self._is_fullscreen = False
 
+        # Icono de la app (Explorador, barra de tareas, titulo de ventana).
+        # resource_path resuelve en dev y en el .exe empaquetado (sys._MEIPASS).
+        try:
+            from config.settings import resource_path
+            _ico = resource_path("icons", "edufem.ico")
+            if os.path.exists(_ico):
+                self.root.iconbitmap(_ico)
+        except Exception:
+            pass
+
         # tk.Menu nativo Windows + tema oscuro: el render por defecto del
         # estado disabled hace doble pasada (shadow + highlight) que se
         # percibe como embossado/mas grueso. Forzar un foreground plano

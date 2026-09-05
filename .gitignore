@@ -30,6 +30,9 @@ ENV/
 *.manifest
 # build.spec is intentionally tracked
 
+# Inno Setup: el instalador generado (installer/EduFEM.iss SI se versiona)
+installer/Output/
+
 # IDEs
 .vscode/
 .idea/

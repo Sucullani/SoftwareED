@@ -36,6 +36,7 @@ block_cipher = None
 datas = [
     ("resources/videos/*.webp", "resources/videos"),
     ("resources/examples/*", "resources/examples"),
+    ("resources/icons/*.ico", "resources/icons"),  # icono de ventana (iconbitmap)
     ("config/*.py", "config"),  # por si algun importlib.resources lo busca
 ]
 # Las TTF son opcionales (CMU para LaTeX). Solo se incluyen si estan presentes;

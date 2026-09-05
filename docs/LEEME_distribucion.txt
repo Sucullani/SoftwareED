@@ -6,47 +6,86 @@
 
 EduFEM es una aplicacion educativa de analisis por el Metodo de
 Elementos Finitos (MEF) en 2D (tension plana / deformacion plana),
-con elementos Q4 y Q9. Permite modelar, resolver y visualizar
-resultados, ademas de modulos educativos paso a paso.
+con elementos cuadrilateros Q4 y Q9.
+
+En esta carpeta hay estos archivos:
+  - EduFEM.exe                       ->  el programa.
+  - Iniciar EduFEM.bat               ->  lanzador recomendado (seccion 3).
+  - Crear acceso directo EduFEM.bat  ->  crea el icono en el Escritorio.
+  - LEEME.txt                        ->  esta guia.
 
 
 ------------------------------------------------------------
-1. REQUISITOS
+1. QUE PUEDE HACER EduFEM
 ------------------------------------------------------------
-- Windows 10 u 11 de 64 bits.
-- No requiere instalacion: es un unico archivo portable
-  (EduFEM.exe). Se puede copiar y ejecutar desde cualquier
-  carpeta o pendrive.
+- Modela y resuelve problemas 2D de elasticidad lineal (tension
+  plana y deformacion plana) con elementos Q4 y Q9.
+- PRE-PROCESO: dibuja la malla sobre un lienzo, define materiales,
+  cargas y restricciones; importa geometria desde DXF y modelos
+  desde CSV/Excel.
+- PROCESO: resuelve por el MEF y ofrece 8 modulos educativos
+  interactivos que muestran paso a paso el mapeo isoparametrico,
+  el Jacobiano, las matrices B y D, la rigidez con cuadratura de
+  Gauss, las fuerzas equivalentes y el ensamblaje global.
+- POST-PROCESO: contornos de tension y desplazamiento, malla
+  deformada, vista 3D y sonda puntual con circulo de Mohr.
+- Genera una Memoria de Calculo en PDF con el procedimiento
+  completo, y exporta modelos y resultados a CSV/Excel.
 
 
 ------------------------------------------------------------
-2. COMO EJECUTAR
+2. REQUISITOS
 ------------------------------------------------------------
-- Hacer doble clic en "EduFEM.exe".
-
-- IMPORTANTE: el PRIMER arranque es mas lento (puede tardar
-  entre 10 y 40 segundos). La primera vez el programa descomprime
-  sus componentes a una carpeta temporal; los arranques
-  siguientes son mas rapidos. Esperar a que aparezca la ventana
-  -- no hacer doble clic varias veces.
+- Sistema: Windows 10 u 11 de 64 bits.
+- Memoria RAM: 4 GB recomendado (2 GB minimo).
+- Disco: unos 300 MB libres (programa + extraccion temporal).
+- No requiere conexion a internet ni tarjeta grafica dedicada.
+- No requiere instalacion: es portable. Manten SIEMPRE juntos
+  "EduFEM.exe" y "Iniciar EduFEM.bat" en la misma carpeta.
 
 
 ------------------------------------------------------------
-3. SI APARECE "Windows protegio su PC" (SmartScreen)
+3. COMO EJECUTAR  (recomendado: el lanzador)
 ------------------------------------------------------------
+RECOMENDADO:
+  Hace doble clic en  ->  "Iniciar EduFEM.bat"
+  Abre EduFEM sin el aviso de seguridad de Windows. No requiere
+  instalacion, permisos de administrador ni configuracion: solo
+  manten ese archivo junto a EduFEM.exe.
+  (Puede verse por un instante una ventana negra: es normal, se
+  cierra sola.)
+
+ICONO EN EL ESCRITORIO (opcional, recomendado):
+  Hace doble clic UNA VEZ en "Crear acceso directo EduFEM.bat".
+  Aparece el icono "EduFEM" en tu Escritorio; desde ahi abris el
+  programa con un clic, como cualquier aplicacion, sin avisos.
+
+ALTERNATIVA:
+  Tambien podes hacer doble clic directo en "EduFEM.exe". En ese
+  caso Windows puede mostrar el aviso "Windows protegio su PC"
+  -> ver la seccion 4.
+
+IMPORTANTE (en cualquiera de las dos formas): el PRIMER arranque
+es mas lento (puede tardar entre 10 y 40 segundos), porque la
+primera vez el programa descomprime sus componentes a una carpeta
+temporal. Espera a que aparezca la ventana; no hagas doble clic
+varias veces.
+
+
+------------------------------------------------------------
+4. SI APARECE "Windows protegio su PC" (SmartScreen)
+------------------------------------------------------------
+Esto solo aparece si abris "EduFEM.exe" directamente. Con el
+lanzador "Iniciar EduFEM.bat" normalmente NO aparece.
+
 Es un aviso NORMAL de Windows ante programas nuevos sin firma
 comercial. EduFEM NO es un virus: es una aplicacion propia,
 desarrollada como trabajo de tesis.
 
 Para ejecutarlo de todas formas:
-  1) Hacer clic en "Mas informacion".
-  2) Hacer clic en el boton "Ejecutar de todas formas".
-
-Si el aviso reaparece despues de copiar el archivo (por USB,
-correo o nube), quitar la marca de "archivo descargado":
-  - Clic derecho sobre EduFEM.exe  ->  Propiedades.
-  - Marcar la casilla "Desbloquear" (parte inferior).
-  - Aplicar  ->  Aceptar.
+  1) Clic en "Mas informacion".
+  2) Clic en el boton "Ejecutar de todas formas".
+Esa autorizacion queda recordada para ese archivo en esa PC.
 
 (Algunos antivirus tambien pueden marcar programas nuevos sin
 firma: es un falso positivo habitual en aplicaciones generadas
@@ -54,7 +93,19 @@ con PyInstaller.)
 
 
 ------------------------------------------------------------
-4. MEMORIA DE CALCULO EN PDF  (requiere LaTeX / MiKTeX)
+5. PRIMEROS PASOS DENTRO DEL PROGRAMA
+------------------------------------------------------------
+- Menu "Ayuda"  ->  "Cargar Ejemplo": modelos de demostracion
+  (cuadrado de validacion, viga de Timoshenko, membrana de Cook),
+  en versiones Q4 y Q9.
+- Menu "Ayuda"  ->  "Manual" y "Atajos" para mas informacion.
+- Pulsar F5 (o abrir la pestana POST-PROCESO) para resolver.
+- Menu "Archivo"  ->  Guardar / Abrir: los modelos se guardan como
+  archivos ".edufem" (podes retomarlos despues).
+
+
+------------------------------------------------------------
+6. MEMORIA DE CALCULO EN PDF  (requiere LaTeX / MiKTeX)
 ------------------------------------------------------------
 La exportacion de la "Memoria de Calculo (PDF)" se genera con
 LaTeX. Para que funcione, la PC debe tener instalada una
@@ -62,9 +113,8 @@ distribucion TeX:
 
   - Windows:  MiKTeX  ->  https://miktex.org/download
 
-Sin MiKTeX, TODO el resto del programa funciona normalmente
-(modelar, resolver, ver resultados, modulos educativos); solo la
-exportacion del PDF no estara disponible. Si se intenta exportar
+Sin MiKTeX, TODO el resto del programa funciona normalmente; solo
+la exportacion del PDF no estara disponible. Si se intenta exportar
 la memoria sin MiKTeX, EduFEM muestra un aviso con un boton de
 descarga. Despues de instalar MiKTeX, reiniciar EduFEM.
 
@@ -73,27 +123,26 @@ MiKTeX -- usan un modo de respaldo automatico.
 
 
 ------------------------------------------------------------
-5. VELOCIDAD  (numba -- opcional, usuarios avanzados)
+7. MAS VELOCIDAD  (opcional -- libreria numba)
 ------------------------------------------------------------
-EduFEM.exe ejecuta los calculos en NumPy puro, lo cual es mas
-que suficiente para los modelos educativos (mallas pequenas).
+EduFEM ejecuta los calculos en NumPy puro, lo cual es suficiente
+para los modelos educativos. Si trabajas con mallas MUY grandes y
+queres mas velocidad, podes usar la libreria "numba" (compilacion
+JIT que acelera el calculo). numba NO viene incluida en el .exe;
+para aprovecharla hay que ejecutar el programa desde el codigo
+fuente (repositorio del proyecto):
 
-Para acelerar el calculo en mallas MUY grandes se puede usar la
-libreria "numba" (compilacion JIT). numba NO viene incluida en
-el .exe; para aprovecharla hay que ejecutar el programa desde el
-codigo fuente (repositorio del proyecto):
-
-  1) Descargar el repositorio de EduFEM.
-  2) Crear un entorno virtual e instalar las dependencias:
+  1) Descarga el repositorio de EduFEM (ver SOPORTE, mas abajo).
+  2) Crea un entorno virtual e instala las dependencias:
 
         python -m venv .venv
         .\.venv\Scripts\python.exe -m pip install -r requirements.txt
         .\.venv\Scripts\python.exe -m pip install numba
 
-     (numba puede requerir una version de numpy compatible; si
-     pip propone cambiar numpy, revisar antes de aceptar.)
+     (numba puede requerir una version de numpy compatible; si pip
+     propone cambiar numpy, revisalo antes de aceptar.)
 
-  3) Ejecutar el programa:
+  3) Ejecuta el programa:
 
         .\.venv\Scripts\python.exe main.py
 
@@ -101,15 +150,35 @@ Para el uso normal de la tesis NO hace falta: el .exe alcanza.
 
 
 ------------------------------------------------------------
-6. PRIMEROS PASOS DENTRO DEL PROGRAMA
+8. SOLUCION DE PROBLEMAS
 ------------------------------------------------------------
-- Menu "Ayuda"  ->  "Cargar Ejemplo": modelos de demostracion
-  (cuadrado de validacion, viga de Timoshenko, membrana de Cook),
-  en versiones Q4 y Q9.
-- Menu "Ayuda"  ->  "Manual" y "Atajos" para mas informacion.
-- Pulsar F5 (o abrir la pestana POST-PROCESO) para resolver.
+- El primer arranque tarda 10-40 s: es normal (se descomprimen los
+  componentes la primera vez). Espera a que aparezca la ventana.
+- Aparece "Windows protegio su PC" o el antivirus lo marca: falso
+  positivo habitual en programas nuevos sin firma; usa el lanzador
+  "Iniciar EduFEM.bat" o segui la seccion 4.
+- No se genera la Memoria PDF: falta MiKTeX (ver seccion 6);
+  instalalo y reinicia EduFEM.
+- El lanzador no encuentra el programa: asegurate de que
+  "Iniciar EduFEM.bat" este en la MISMA carpeta que "EduFEM.exe".
+
+
+------------------------------------------------------------
+9. SOPORTE, CODIGO FUENTE Y LICENCIA
+------------------------------------------------------------
+EduFEM es software libre y de codigo abierto. El codigo fuente,
+las novedades y la forma de reportar problemas estan en:
+
+    https://github.com/Sucullani/SoftwareED
 
 
 ============================================================
+  AUTOR
+  Hedy Yhassmany Oyola Sucullani
+  Carrera de Ingenieria Civil
+  Universidad Autonoma "Tomas Frias" -- Potosi, Bolivia
+  Correo: hedy.yhassmany@gmail.com
+  Repositorio: https://github.com/Sucullani/SoftwareED
+
   Trabajo de tesis de grado  --  EduFEM v1.0.0
 ============================================================
