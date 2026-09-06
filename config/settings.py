@@ -38,12 +38,10 @@ def resource_path(*parts: str) -> str:
 # ─── Tipos de análisis ─────────────────────────────────────────────────────
 ANALYSIS_PLANE_STRESS = "Tensión Plana"
 ANALYSIS_PLANE_STRAIN = "Deformación Plana"
-ANALYSIS_TYPES = [ANALYSIS_PLANE_STRESS, ANALYSIS_PLANE_STRAIN]
 
 # ─── Tipos de elemento ─────────────────────────────────────────────────────
 ELEMENT_Q4 = "Q4 - Cuadrilátero 4 nodos"
 ELEMENT_Q9 = "Q9 - Cuadrilátero 9 nodos"
-ELEMENT_TYPES = [ELEMENT_Q4, ELEMENT_Q9]
 
 # ─── Puntos de Gauss por tipo de elemento ───────────────────────────────────
 GAUSS_POINTS = {
@@ -122,7 +120,7 @@ CANVAS_SELECTED_ROW_FG   = "#ffffff"
 CANVAS_FONT_SIZE = 9
 
 # ─── Realce de seleccion + hover (sistema de seleccion profesional) ───────
-# Auditoria UX 2026-05 (docs/auditoria_canvas_ux.md): la seleccion por
+# Auditoria UX 2026-05 (docs/auditorias/historico/2026-05-30_auditoria_canvas_ux.md): la seleccion por
 # simple color-swap se perdia en mallas grandes. Se agrega un HALO (anillo
 # claro mas ancho dibujado DEBAJO del item, tecnica del glow ya usada en
 # cargas) para que el item seleccionado destaque de inmediato a cualquier
@@ -165,7 +163,7 @@ DECORATION_SCALE_MAX_FACTOR = 2.5   # techo del multiplicador (al acercar)
 # El canvas decide cuanto detalle dibujar segun los pixeles-por-arista-media
 # (mediana de longitud de arista en mundo * scale). Reduce el ruido visual Y
 # el arbol de items Tk en mallas grandes (la principal palanca de
-# rendimiento — ver docs/auditoria_canvas_ux.md seccion E).
+# rendimiento — ver docs/auditorias/historico/2026-05-30_auditoria_canvas_ux.md seccion E).
 #   far  (< LOD_EDGE_PX_FAR):  solo silueta + corners como puntos, sin labels.
 #   mid  (< LOD_EDGE_PX_NEAR): aristas + corners, mid/center atenuados, labels
 #                              solo en el item seleccionado.
@@ -193,8 +191,6 @@ CANVAS_FOCUS_MIN_ELEMENTS    = 60
 #   - Gauss libres: azul claro discreto (parte de la malla, no destacan)
 #   - Gauss snappeado: amarillo brillante (igual que CANVAS_SELECTED_COLOR)
 PROBE_PIN_COLOR        = "#ff9933"   # naranja: marcador pinneado
-PROBE_PIN_LABEL_FG     = "#ffd9a3"   # texto de etiqueta P1, P2, ...
-PROBE_HOVER_COLOR      = "#ffe066"   # halo del cursor en hover
 GAUSS_MARKER_COLOR     = "#5fa8ff"   # cuadrado azul de Gauss en reposo
 GAUSS_SNAP_COLOR       = "#ffeb3b"   # cuadrado al snappear (=SELECTED)
 GAUSS_MARKER_SIZE_PX   = 3           # mitad del lado del cuadrado
@@ -334,7 +330,6 @@ OVERLAY_TITLE_FG = "#ffffff"   # Foreground del titulo del header
 # fórmulas secundarias, captions). Pre-cacheados en el warmup para evitar
 # misses en los modulos que cambian color.
 OVERLAY_ACCENT_BLUE  = "#90caf9"   # Material Blue 200 — formulas secundarias
-OVERLAY_ACCENT_MUTED = "#9aa6b5"   # Gris azulado — hints / captions
 OVERLAY_ACCENT_AMBER = "#ffd54f"   # Amber 300 — bridge / cross-references
 
 # ─── Tolerancias numéricas ──────────────────────────────────────────────────
@@ -342,12 +337,13 @@ NUMERICAL_TOLERANCE = 1e-10
 JACOBIAN_MIN_DETERMINANT = 1e-12
 
 # ─── Solucionador ──────────────────────────────────────────────────────────
-# Reordenamiento Reverse Cuthill-McKee (RCM) antes de factorizar K_red.
-# Reduce el fill-in 2-5x en mallas estructuradas. DESACTIVADO por defecto:
-# con el flag en False el output es bit-a-bit idéntico al solver clásico
-# (la permutación + despermutación son una identidad numérica). Activarlo
-# para comparar rendimiento en mallas grandes (M9).
-SOLVER_USE_RCM = False
+# Ordenamiento de columnas de SuperLU (`permc_spec` de scipy.sparse.linalg.spsolve).
+# K es simetrica y definida positiva: "MMD_AT_PLUS_A" (minimo grado sobre
+# A^T + A) reduce el llenado de la factorizacion LU frente al default
+# "COLAMD", pensado para matrices no simetricas. Medido en la membrana de Cook
+# (spsolve sobre K_red ya en CSC): 2178 GDL 14,3 -> 9,1 ms (1,6x);
+# 8450 GDL 128 -> 61 ms (2,1x); 33 282 GDL 888 -> 421 ms (2,1x). |du| ~ 3e-11.
+SOLVER_PERMC_SPEC = "MMD_AT_PLUS_A"
 
 # ─── Formato de archivos ───────────────────────────────────────────────────
 PROJECT_FILE_EXTENSION = ".edufem"

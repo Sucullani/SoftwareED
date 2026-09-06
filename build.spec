@@ -45,7 +45,27 @@ if _glob.glob("resources/fonts/*.ttf"):
     datas.append(("resources/fonts/*.ttf", "resources/fonts"))
 
 # ─── Hidden imports ────────────────────────────────────────────────────────
+# Los modulos educativos M0..M7 se cargan por NOMBRE en runtime
+# (`education.module_launcher.open_module` -> `importlib.import_module`), asi
+# que el analizador estatico de PyInstaller NUNCA los ve y quedaban FUERA del
+# bundle: la app abria, pero cada modulo fallaba con "No module named
+# education.modXX_...". Se enumeran por glob (no lista fija) para que un modulo
+# nuevo en education/ entre al bundle sin tocar este spec. Basta sembrar los
+# modXX: sus dependencias estaticas (education.components.*, fem.*, gui.*) las
+# arrastra el grafo de imports.
+edu_modules = sorted(
+    "education." + os.path.splitext(os.path.basename(_p))[0]
+    for _p in _glob.glob("education/mod*.py")
+)
+if not edu_modules:  # fail-fast: mejor romper el build que shippear sin modulos
+    raise SystemExit(
+        "build.spec: no se encontro education/mod*.py — "
+        "correr pyinstaller desde la raiz del repo."
+    )
+
 hiddenimports = [
+    # Modulos educativos M0..M7 (import dinamico, ver nota de arriba).
+    *edu_modules,
     # pylatex tiene submodulos no detectados por autodiscover.
     *collect_submodules("pylatex"),
     # fitz / PyMuPDF
@@ -82,6 +102,10 @@ a = Analysis(
         "av",  # PyAV: decidido NO usar (ver CLAUDE.md)
         "tkvideoplayer",  # idem
         "manim",  # solo se usa offline para prerender videos
+        # El motor es NumPy vectorizado por lotes: el JIT nunca entra al
+        # bundle aunque alguien lo instale en el venv (+40 MB y recompila
+        # en cada arranque porque onefile extrae a una carpeta aleatoria).
+        "numba", "llvmlite",
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,

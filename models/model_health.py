@@ -63,6 +63,7 @@ class HealthCode:
     DEGENERATE_ELEMENT      = "degenerate_element"
     # Warnings
     LOAD_ORPHAN_NODE        = "load_orphan_node"
+    ORPHAN_FREE_NODE        = "orphan_free_node"
     UNUSED_MATERIAL         = "unused_material"
     NEGATIVE_JACOBIAN       = "negative_jacobian"
     ZERO_NODAL_LOAD         = "zero_nodal_load"
@@ -143,7 +144,10 @@ def validate_project(project) -> HealthReport:
     # sino construirlo (proyectos cargados antes del índice, o tests unitarios).
     n2e = getattr(project, "_node_to_elements", None)
     if n2e is not None:
-        nodes_in_elements: set = set(n2e.keys())
+        # Filtrar los sets vacios: remove_element deja la clave del nodo con
+        # un set vacio cuando lo preserva como huerfano. Tomar las claves a
+        # secas contaba esos huerfanos como si pertenecieran a un elemento.
+        nodes_in_elements: set = {nid for nid, s in n2e.items() if s}
     else:
         nodes_in_elements = set()
         for elem in project.elements.values():
@@ -157,6 +161,7 @@ def validate_project(project) -> HealthReport:
     _check_surface_load_refs(project, report)
     _check_restraints(project, report)
     _check_bc_orphan_nodes(project, report, nodes_in_elements)
+    _check_orphan_free_nodes(project, report, nodes_in_elements)
 
     # ─── Warnings ────────────────────────────────────────────────────
     # Nombres de material en uso: computado una vez y compartido por los
@@ -242,7 +247,9 @@ def _check_surface_load_refs(project, report):
                             f"{nid} ({label}) que no existe.",
                     target_kind="surface", target_id=i,
                     fixable=True,
-                    extra={"missing_node_id": nid, "field": label},
+                    # `ref` permite que el autofix borre ESTA carga aunque el
+                    # indice posicional haya cambiado por un fix anterior.
+                    extra={"missing_node_id": nid, "field": label, "ref": sl},
                 ))
 
 
@@ -310,11 +317,40 @@ def _check_load_orphan_nodes(project, report, nodes_in_elements=None):
                 severity=Severity.WARNING,
                 code=HealthCode.LOAD_ORPHAN_NODE,
                 message=f"Nodo {nid} tiene carga pero no pertenece a "
-                        f"ningun elemento. La carga no contribuye al "
-                        f"analisis.",
+                        f"ningun elemento: la carga SI entra al vector F, "
+                        f"pero el nodo no aporta rigidez y el sistema queda "
+                        f"singular.",
                 target_kind="load", target_id=nid,
                 fixable=True,
             ))
+
+
+def _check_orphan_free_nodes(project, report, nodes_in_elements=None):
+    """Nodo que no pertenece a ningun elemento y no esta totalmente
+    restringido: aporta dos filas y columnas nulas a K, asi que el sistema
+    reducido queda singular y el solve falla con un error generico de NaN.
+    El validador lo daba por sano porque ningun check miraba este caso.
+    """
+    if nodes_in_elements is None:
+        nodes_in_elements = {nid for elem in project.elements.values()
+                             for nid in elem.node_ids}
+    for nid in project.nodes:
+        if nid in nodes_in_elements:
+            continue
+        bc = project.boundary_conditions.get(nid)
+        if bc is not None and bc.restrain_x and bc.restrain_y:
+            # Ambos GDL restringidos: salen del sistema reducido, no hay
+            # singularidad. El nodo queda inerte pero es inofensivo.
+            continue
+        report.errors.append(HealthIssue(
+            severity=Severity.ERROR,
+            code=HealthCode.ORPHAN_FREE_NODE,
+            message=f"Nodo {nid} no pertenece a ningun elemento y tiene GDL "
+                    f"libres: aporta filas nulas a K y el sistema queda "
+                    f"singular.",
+            target_kind="node", target_id=nid,
+            fixable=True,
+        ))
 
 
 def _check_unused_materials(project, report, used_mat_names=None):
@@ -381,6 +417,7 @@ def _check_zero_loads(project, report):
                         f"No contribuye al analisis.",
                 target_kind="surface", target_id=i,
                 fixable=True,
+                extra={"ref": sl},
             ))
 
 
@@ -524,6 +561,11 @@ def apply_autofix(project, issue: HealthIssue) -> bool:
         if nid in project.nodal_loads:
             project.remove_nodal_load(nid)
             return True
+    elif code == HealthCode.ORPHAN_FREE_NODE:
+        nid = issue.target_id
+        if nid in project.nodes:
+            project.remove_node_with_cascade(nid)
+            return True
     elif code == HealthCode.BC_ORPHAN_NODE:
         nid = issue.target_id
         if nid in project.boundary_conditions:
@@ -537,22 +579,39 @@ def apply_autofix(project, issue: HealthIssue) -> bool:
             project.is_solved = False
             return True
     elif code == HealthCode.SURFACE_NODE_MISSING:
-        idx = issue.target_id
-        if 0 <= idx < len(project.surface_loads):
-            del project.surface_loads[idx]
-            project.is_modified = True
-            project.is_solved = False
-            return True
+        return _remove_surface_load(project, issue)
     elif code == HealthCode.ZERO_NODAL_LOAD:
         nid = issue.target_id
         if nid in project.nodal_loads:
             project.remove_nodal_load(nid)
             return True
     elif code == HealthCode.ZERO_SURFACE_LOAD:
-        idx = issue.target_id
-        if 0 <= idx < len(project.surface_loads):
-            del project.surface_loads[idx]
-            project.is_modified = True
-            project.is_solved = False
-            return True
+        return _remove_surface_load(project, issue)
     return False
+
+
+def _remove_surface_load(project, issue) -> bool:
+    """Borra la carga superficial del issue por IDENTIDAD de objeto.
+
+    Usar el indice posicional (`issue.target_id`) rompe en cuanto se aplica
+    mas de un autofix sobre la misma lista: el segundo click borraba la carga
+    equivocada o era un no-op silencioso. El indice queda solo como fallback
+    para issues construidos a mano (tests).
+    """
+    ref = issue.extra.get("ref") if issue.extra else None
+    pos = None
+    if ref is not None:
+        for i, sl in enumerate(project.surface_loads):
+            if sl is ref:
+                pos = i
+                break
+    if pos is None:
+        idx = issue.target_id
+        if isinstance(idx, int) and 0 <= idx < len(project.surface_loads):
+            pos = idx
+    if pos is None:
+        return False
+    del project.surface_loads[pos]
+    project.is_modified = True
+    project.is_solved = False
+    return True

@@ -7,7 +7,7 @@ result_type del post: cambiar de VM a σx repinta automaticamente.
 
 Diseno visual (rediseno 2026-05):
   - **Estilo coherente con el canvas del Post**: mismo colormap que el
-    MeshCanvas (jet/arcoiris para campos no negativos, coolwarm para los con
+    MeshCanvas (jet/arcoiris para todos los campos; los que tienen signo se
     signo; LUTs de config/colormaps, no los de matplotlib). Esto unifica
     cromaticamente la vista 2D del contorno y la vista 3D de la superficie
     -- el alumno reconoce los mismos colores.
@@ -54,7 +54,7 @@ from config.settings import (
     SURFACE_3D_MODE_RAW_COLOR, SURFACE_3D_Z0_PLANE_COLOR,
     SURFACE_3D_Z0_EDGE_COLOR,
 )
-from fem.probe_query import compute_raw_grid
+from fem.probe_query import compute_raw_grids
 from fem.shape_functions import get_shape_functions
 
 
@@ -292,6 +292,14 @@ class Surface3DViewer(tk.Toplevel):
         elem_data = []
         all_z = []
         per_node_raw = {}   # para detector de discontinuidades
+        # Modo crudo: grillas (n+1, n+1) de todos los elementos en una sola
+        # llamada vectorizada por lotes.
+        raw_grids = None
+        if is_raw:
+            try:
+                raw_grids = compute_raw_grids(self.project, self.solution, n=n)
+            except Exception:
+                raw_grids = None
 
         for eid, elem in self.project.elements.items():
             n_nodes_elem = elem.num_nodes
@@ -321,14 +329,9 @@ class Surface3DViewer(tk.Toplevel):
                     if not is_raw:
                         Z_smooth[r, c] = Ns @ v_nodes_smooth
 
-            # Modo crudo: usar la grilla pre-computada con compute_raw_grid
+            # Modo crudo: usar la grilla pre-computada por lotes (raw_grids)
             if is_raw:
-                try:
-                    grids = compute_raw_grid(
-                        self.project, self.solution, eid, n=n,
-                    )
-                except Exception:
-                    grids = None
+                grids = raw_grids.get(eid) if raw_grids else None
                 if grids is None:
                     continue
                 Z = np.asarray(grids[key])

@@ -110,8 +110,8 @@ def get_dN_at_gauss_points(element_type):
     gauss_wts: shape (n_gp,) — pesos w_i * w_j.
     N_at_gps:  shape (n_gp, n_nodes) — funciones de forma en cada GP.
 
-    Usado por `_element_stiffness_kernel_njit` y por el ensamblaje de
-    body forces (necesita N en cada GP). Cacheado por element_type.
+    Usado por el ensamblaje por lotes (`fem/batch.py`: geometria, rigidez
+    y fuerzas de cuerpo, que necesita N en cada GP). Cacheado por element_type.
     """
     cached = _DN_AT_GAUSS_CACHE.get(element_type)
     if cached is not None:

@@ -16,7 +16,7 @@ Tres familias:
         - Datos: E=225000, nu=0.2, t=0.8, rho=0.2447, g=9.8079.
   2. `load_example_timoshenko` (Q4/Q9)
         - Viga simplemente apoyada Timoshenko-Goodier en unidades tecnicas.
-        - Documentada en docs/Timoshenko,sap2000.pdf y validada en
+        - Documentada en tesis/anexos/validacion_sap2000.pdf y validada en
           docs/vyv/capitulo_vyv.tex con error < 0.05% vs analitico.
   3. `load_example_cook` (Q4/Q9)
         - Membrana trapezoidal de Cook (1974), benchmark adimensional clasico
@@ -141,7 +141,7 @@ def load_example_project_q9(P=1000.0):
 def load_example_timoshenko(element_type=ELEMENT_Q9, nx=14, ny=4):
     """Viga rectangular simplemente apoyada en unidades técnicas (kgf, cm).
 
-    Geometría (idéntica al caso documentado en docs/Timoshenko,sap2000.pdf):
+    Geometría (idéntica al caso documentado en tesis/anexos/validacion_sap2000.pdf):
         L = 1400 cm, H = 120 cm, b (espesor) = 40 cm
         E = 217370 kgf/cm², nu = 0.2
         q = 50 kgf/cm (= 5000 kgf/m) hacia -y sobre el borde superior

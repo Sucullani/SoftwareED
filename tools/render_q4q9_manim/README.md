@@ -2,8 +2,8 @@
 
 Genera el video comparativo Q4 vs Q9 para el diálogo `🔲 Tipo de
 Elemento` de EduFEM. Reemplaza al pipeline anterior
-[`tools/render_q4q9/`](../render_q4q9/) (Claude Design + Chrome
-headless + DevTools Protocol), unificándose con el de TPvsDP
+`tools/render_q4q9/` (Claude Design + Chrome
+headless + DevTools Protocol; eliminado del repo), unificándose con el de TPvsDP
 ([`tools/render_tp_dp_manim/`](../render_tp_dp_manim/)) en un único
 runtime (manim).
 

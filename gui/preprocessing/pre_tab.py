@@ -42,7 +42,7 @@ from config.settings import (
 from config.units import get_unit_labels
 from gui.preprocessing._table_helpers import (
     start_cell_editor, start_combobox_editor,
-    bind_clipboard,
+    bind_clipboard, to_float_flex,
 )
 from gui.widgets.tooltip import ToolTip
 from gui.dialogs.material_dialog import MaterialDialog
@@ -851,8 +851,12 @@ class PreProcessTab:
             self.project.is_solved = False
             # Si el nodo editado es vertice macro de algun Q9, recalcular sus
             # nodos medios y centroide para mantener la geometria coherente.
-            for elem in self.project.elements.values():
-                if elem.num_nodes == 9 and node_id in elem.node_ids[:4]:
+            # O(1) con el indice inverso en vez de recorrer todos los
+            # elementos: solo los que contienen al nodo pueden verse afectados.
+            for eid in self.project._node_to_elements.get(node_id, set()):
+                elem = self.project.elements.get(eid)
+                if (elem is not None and elem.num_nodes == 9
+                        and node_id in elem.node_ids[:4]):
                     recompute_q9_midnodes(self.project, elem)
             self._mark_completed(ci)
             self._refresh_nodes_tree()
@@ -1940,9 +1944,9 @@ class PreProcessTab:
         for row in rows:
             try:
                 if len(row) >= 3:
-                    x, y = float(row[1]), float(row[2])
+                    x, y = to_float_flex(row[1]), to_float_flex(row[2])
                 elif len(row) == 2:
-                    x, y = float(row[0]), float(row[1])
+                    x, y = to_float_flex(row[0]), to_float_flex(row[1])
                 else:
                     continue
                 self.project.add_node(x, y)
@@ -1968,7 +1972,7 @@ class PreProcessTab:
                 n2 = int(row[offset + 1])
                 n3 = int(row[offset + 2])
                 n4 = int(row[offset + 3])
-                thickness = float(row[offset + 4])
+                thickness = to_float_flex(row[offset + 4])
                 material = (row[offset + 5].strip()
                             if offset + 5 < len(row) else mat_default)
                 if material not in self.project.materials:
@@ -1998,8 +2002,8 @@ class PreProcessTab:
                 if len(row) < 3:
                     continue
                 nid = int(row[0])
-                fx = float(row[1])
-                fy = float(row[2])
+                fx = to_float_flex(row[1])
+                fy = to_float_flex(row[2])
                 if nid not in self.project.nodes:
                     continue
                 self.project.set_nodal_load(nid, fx, fy)
@@ -2045,9 +2049,9 @@ class PreProcessTab:
                     continue
                 ns = int(row[0])
                 ne = int(row[1])
-                qs = float(row[2])
-                qe = float(row[3])
-                ang = float(row[4])
+                qs = to_float_flex(row[2])
+                qe = to_float_flex(row[3])
+                ang = to_float_flex(row[4])
                 if ns not in self.project.nodes or ne not in self.project.nodes:
                     continue
                 self.project.add_surface_load(ns, ne, qs, qe, ang)

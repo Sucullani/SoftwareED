@@ -67,12 +67,9 @@ htmlcov/
 
 # Project-specific
 compile_output*.txt
-Example.pdf
-Example.aux
-Example.log
-Example.out
-Example.toc
-docs/Example.*
+# Plantilla LaTeX de referencia (ex docs/Example.tex): se conserva en disco como
+# ejemplo de estilos tcolorbox, pero no se versiona.
+docs/auditorias/historico/plantilla_latex_ejemplo.*
 
 # Temporales de desarrollo / escritura atomica abortada / scratch
 *.tmp

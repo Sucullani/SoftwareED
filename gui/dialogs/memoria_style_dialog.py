@@ -28,6 +28,7 @@ import ttkbootstrap as ttk
 from ttkbootstrap.constants import BOTH, BOTTOM, E, RIGHT, W, X, YES
 
 from config.settings import FONT_UI, FONT_UI_BOLD, TEXT_MUTED_FG
+from gui.dialogs._dialog_helpers import center_dialog
 
 
 _ESTILOS = [
@@ -127,13 +128,4 @@ class MemoriaStyleDialog:
         self._top.destroy()
 
     def _center(self, parent) -> None:
-        self._top.update_idletasks()
-        pw = parent.winfo_width()
-        ph = parent.winfo_height()
-        px = parent.winfo_rootx()
-        py = parent.winfo_rooty()
-        dw = self._top.winfo_width()
-        dh = self._top.winfo_height()
-        x = px + (pw - dw) // 2
-        y = py + (ph - dh) // 2
-        self._top.geometry(f"+{x}+{y}")
+        center_dialog(self._top, parent)

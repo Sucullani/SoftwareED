@@ -214,7 +214,8 @@ class DetailsPanel(tk.Toplevel):
         uy = vals.get("uy", 0.0)
         umag = math.hypot(ux, uy)
         lines = [
-            (f"Pos:  ({t['world_x']:.3f}, {t['world_y']:.3f})", LABEL_FG),
+            (f"Pos:  ({fmt(t['world_x'], 'length')}, "
+             f"{fmt(t['world_y'], 'length')})", LABEL_FG),
             (f"Nat:  ξ={t['xi']:+.3f}  η={t['eta']:+.3f}", DETAILS_NAT_FG_COLOR),
             ("", LABEL_FG),
             (f"ux  = {fmt(ux, 'displacement')}", LABEL_FG),

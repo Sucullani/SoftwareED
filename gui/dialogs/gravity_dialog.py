@@ -274,7 +274,6 @@ class GravityDialog:
             try:
                 self.main_window._update_status_info()
                 self.main_window._update_title()
-                self.main_window._refresh_menu_state()
                 self.main_window.set_status(
                     f"Gravedad: g = ({gx:.3g}, {gy:.3g})"
                     + ("  ✓ incluida" if include else "  (no aplicada)")

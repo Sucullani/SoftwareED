@@ -55,6 +55,13 @@ EDUCATIONAL_HINTS = {
         "no tienen GDL rotacional, el cuerpo completo puede girar y eso debe "
         "bloquearse. Tipicamente: un nodo empotrado (Δx=Δy=0) y otro con "
         "Δy=0 a cierta distancia, o equivalente.",
+    HealthCode.ORPHAN_FREE_NODE:
+        "Un nodo que no pertenece a ningun elemento no recibe rigidez de "
+        "nadie: sus dos filas y columnas en K quedan en cero. Si ademas sus "
+        "GDL estan libres, sobreviven a la particion y K_red tiene dos filas "
+        "nulas, asi que K_red u = F no tiene solucion unica y el solucionador "
+        "devuelve NaN. Conectalo a un elemento, restringilo por completo, o "
+        "borralo.",
     HealthCode.BC_ORPHAN_NODE:
         "Un nodo con restriccion pero sin elemento que lo conecte "
         "introduce una fila/columna en K que solo tiene la entrada "
@@ -136,6 +143,7 @@ EDUCATIONAL_HINTS = {
 CODE_ICONS = {
     HealthCode.NO_RESTRAINTS:           "🔓",
     HealthCode.INSUFFICIENT_RESTRAINTS: "🔓",
+    HealthCode.ORPHAN_FREE_NODE:        "📍",
     HealthCode.BC_ORPHAN_NODE:          "🔗",
     HealthCode.ELEM_NODE_MISSING:       "❌",
     HealthCode.ELEM_MATERIAL_MISSING:   "🧱",
@@ -453,6 +461,14 @@ class HealthReportDialog:
 
     def _on_fix(self, issue, card_widget):
         """Aplica el auto-fix y remueve la tarjeta del DOM."""
+        # Los autofixes mutan el project: sin snapshot previo no son
+        # reversibles con Ctrl+Z (regla dura de captura de undo).
+        stack = getattr(self.main_window, "undo_stack", None)
+        if stack is not None:
+            try:
+                stack.capture(f"corregir: {issue.code}")
+            except Exception:
+                pass
         ok = apply_autofix(self.project, issue)
         if ok:
             self.fixes_applied += 1

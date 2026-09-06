@@ -1,0 +1,5 @@
+# Normaliza fin de linea: los scripts V&V regeneran estos archivos con LF
+# y sin esto el diff mostraba todo el archivo por CRLF commiteado.
+*.csv text eol=lf
+*.py  text eol=lf
+*.md  text eol=lf

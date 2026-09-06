@@ -122,7 +122,6 @@ class UnitsDialog:
                 self.main_window._refresh_all_tabs()
                 self.main_window._update_status_info()
                 self.main_window._update_title()
-                self.main_window._refresh_menu_state()
                 suffix = " (valores convertidos)" if converted else ""
                 self.main_window.set_status(
                     f"Unidades: {self.project.unit_system}{suffix}"

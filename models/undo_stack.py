@@ -131,5 +131,8 @@ class UndoStack:
             try:
                 cb()
             except Exception:
-                # No interrumpir el resto de listeners
-                pass
+                # No interrumpir al resto de listeners, pero dejar rastro: un
+                # bug en _on_state_restored desincroniza la UI y sin traza es
+                # invisible (se manifiesta mucho despues como estado raro).
+                import traceback
+                traceback.print_exc()

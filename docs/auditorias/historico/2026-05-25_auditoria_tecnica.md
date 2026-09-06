@@ -13,7 +13,7 @@
 
 ## 1. Tecnologías y dependencias
 
-Declaradas en [`requirements.txt`](../requirements.txt). No hay `pyproject.toml`
+Declaradas en [`requirements.txt`](../../../requirements.txt). No hay `pyproject.toml`
 ni lockfile; todas las restricciones son `>=` (sin techo de versión).
 
 | Paquete | Restricción repo | Última versión (PyPI, may-2026) | Función en el sistema | Flag |
@@ -48,7 +48,7 @@ ni lockfile; todas las restricciones son `>=` (sin techo de versión).
 ## 2. Arquitectura
 
 Patrón **MVC-ish**. La pieza central es `ProjectModel`
-([`models/project.py`](../models/project.py)): un contenedor mutable de dicts
+([`models/project.py`](../../../models/project.py)): un contenedor mutable de dicts
 (`nodes`, `elements`, `materials`, `nodal_loads`, `boundary_conditions`,
 `surface_loads`) + configuración (`analysis_type`, `element_type`, `unit_system`,
 gravedad) + estado de solución. Todos los componentes toman una referencia y la
@@ -140,24 +140,24 @@ solution dict {u,K,F,K_red,F_red,...}  ──►  element_stresses + nodal_avg
 
 | Punto | Archivo:línea | Complejidad | Comentario |
 |---|---|---|---|
-| Scatter de kₑ → K con doble bucle Python | [`fem/assembly.py:116-118`](../fem/assembly.py) | O(d²) Python por elemento (d=8/18) | El núcleo del ensamblaje hace el *scatter* celda por celda en Python puro. Vectorizable con `K[np.ix_(dof,dof)] += ke` (bit-idéntico, medido ~35% más rápido en el scatter). **Quick win.** |
-| Factorización densa general | [`fem/solver.py:97`](../fem/solver.py) | O(N³) LU | `scipy.linalg.solve` general, no explota simetría/SPD. Probado `assume_a='pos'`: sólo ~5% más rápido en el rango educativo y cambia el modo de fallo (LinAlgError si no es SPD). **No vale el riesgo en la ruta densa**; la ganancia real es *sparse* (§5). |
-| Recuperación de esfuerzos recomputa B/J | [`fem/stress.py:32-41`](../fem/stress.py) | O(elem·gp) duplicado | `compute_element_stresses` recalcula `dN`, J, inv_J y B en cada punto de Gauss, **pese a que `element_stiffness` ya los guardó** en `element_data[eid]["gauss_data"]`. Duplica el trabajo de B/J en el Post. Reutilizable (bit-idéntico). Riesgo medio (ver §8). |
-| Reconstrucción de `u` con bucle | [`fem/solver.py:102-106`](../fem/solver.py) | O(N) Python | `for i,dof in enumerate(free_dofs): u[dof]=u_free[i]`. Vectorizable con fancy-indexing `u[free_dofs]=u_free`. Bit-idéntico. **Quick win** (impacto chico). |
-| `validate_project` recorre elementos varias veces | [`models/model_health.py:272,291,307,399,451`](../models/model_health.py) | O(E) ×N pasadas | Cada `_check_*` reconstruye `nodes_in_elements` / `used_mat_names`. Son O(E) lineales (no cuadráticos) y la validación corre por acción del usuario, no por frame. Bajo impacto. |
+| Scatter de kₑ → K con doble bucle Python | [`fem/assembly.py:116-118`](../../../fem/assembly.py) | O(d²) Python por elemento (d=8/18) | El núcleo del ensamblaje hace el *scatter* celda por celda en Python puro. Vectorizable con `K[np.ix_(dof,dof)] += ke` (bit-idéntico, medido ~35% más rápido en el scatter). **Quick win.** |
+| Factorización densa general | [`fem/solver.py:97`](../../../fem/solver.py) | O(N³) LU | `scipy.linalg.solve` general, no explota simetría/SPD. Probado `assume_a='pos'`: sólo ~5% más rápido en el rango educativo y cambia el modo de fallo (LinAlgError si no es SPD). **No vale el riesgo en la ruta densa**; la ganancia real es *sparse* (§5). |
+| Recuperación de esfuerzos recomputa B/J | [`fem/stress.py:32-41`](../../../fem/stress.py) | O(elem·gp) duplicado | `compute_element_stresses` recalcula `dN`, J, inv_J y B en cada punto de Gauss, **pese a que `element_stiffness` ya los guardó** en `element_data[eid]["gauss_data"]`. Duplica el trabajo de B/J en el Post. Reutilizable (bit-idéntico). Riesgo medio (ver §8). |
+| Reconstrucción de `u` con bucle | [`fem/solver.py:102-106`](../../../fem/solver.py) | O(N) Python | `for i,dof in enumerate(free_dofs): u[dof]=u_free[i]`. Vectorizable con fancy-indexing `u[free_dofs]=u_free`. Bit-idéntico. **Quick win** (impacto chico). |
+| `validate_project` recorre elementos varias veces | [`models/model_health.py:272,291,307,399,451`](../../../models/model_health.py) | O(E) ×N pasadas | Cada `_check_*` reconstruye `nodes_in_elements` / `used_mat_names`. Son O(E) lineales (no cuadráticos) y la validación corre por acción del usuario, no por frame. Bajo impacto. |
 
 ### Memoria
 
 | Punto | Archivo:línea | Comentario |
 |---|---|---|
-| **K global densa** | [`fem/assembly.py:80`](../fem/assembly.py) | `K = np.zeros((n_dof, n_dof))`. O(N²) memoria. Para 10k GDL ≈ 800 MB. El roadmap del propio `CLAUDE.md` marca *K sparse* como prioridad alta. **No es quick win seguro** (rompe consumidores densos: M5 `K.toarray()`, `post_tab`, `memoria_calculo`, que están fuera del scope nocturno). Ver §8. |
-| `K_red = K[np.ix_(free,free)]` | [`fem/solver.py:42`](../fem/solver.py) | Copia densa adicional (N_red²). Inherente a la ruta densa. |
-| `gauss_data` guarda copias por punto | [`fem/stiffness.py:72-84`](../fem/stiffness.py) | Cada gp guarda `J.copy()`, `B.copy()`, `ke_contribution.copy()`, etc. Necesario para los módulos educativos M2/M4/M5, pero infla `element_data` ~10× el tamaño de K. Aceptable por valor pedagógico; documentar. |
+| **K global densa** | [`fem/assembly.py:80`](../../../fem/assembly.py) | `K = np.zeros((n_dof, n_dof))`. O(N²) memoria. Para 10k GDL ≈ 800 MB. El roadmap del propio `CLAUDE.md` marca *K sparse* como prioridad alta. **No es quick win seguro** (rompe consumidores densos: M5 `K.toarray()`, `post_tab`, `memoria_calculo`, que están fuera del scope nocturno). Ver §8. |
+| `K_red = K[np.ix_(free,free)]` | [`fem/solver.py:42`](../../../fem/solver.py) | Copia densa adicional (N_red²). Inherente a la ruta densa. |
+| `gauss_data` guarda copias por punto | [`fem/stiffness.py:72-84`](../../../fem/stiffness.py) | Cada gp guarda `J.copy()`, `B.copy()`, `ke_contribution.copy()`, etc. Necesario para los módulos educativos M2/M4/M5, pero infla `element_data` ~10× el tamaño de K. Aceptable por valor pedagógico; documentar. |
 
 ### Disco
 - I/O de proyecto/CSV/ZIP es síncrono y corre en el hilo de GUI
-  ([`file_io/project_io.py`](../file_io/project_io.py),
-  [`file_io/model_io.py`](../file_io/model_io.py)). Para archivos chicos
+  ([`file_io/project_io.py`](../../../file_io/project_io.py),
+  [`file_io/model_io.py`](../../../file_io/model_io.py)). Para archivos chicos
   (`.edufem` ≈ KB) es imperceptible. La **generación de PDF sí** se hizo
   asíncrona (`gui/main_window.py` `_worker` en daemon thread con `root.after`)
   — patrón correcto.
@@ -188,13 +188,13 @@ solution dict {u,K,F,K_red,F_red,...}  ──►  element_stresses + nodal_avg
 
 | Hallazgo | Archivo:línea | Detalle |
 |---|---|---|
-| **Scatter celda-a-celda** (vectorizable) | [`fem/assembly.py:116-118`](../fem/assembly.py) | Doble `for` Python → `np.ix_`. Bit-idéntico. |
-| **Bucle de reconstrucción de `u`** | [`fem/solver.py:102-106`](../fem/solver.py) | Reemplazable por fancy-indexing. |
-| **`list(project.materials.values())[0]`** | [`fem/assembly.py:100`](../fem/assembly.py), [`fem/stress.py:161-162`](../fem/stress.py) | Construye lista completa para tomar `[0]`. `next(iter(...))` evita la copia. Micro, pero `probe_query` ya usa el idioma correcto. |
-| **Re-chequeo O(E) de pertenencia de nodo** | [`models/project.py:330-332`](../models/project.py) `remove_element`; [`models/project.py:223`](../models/project.py) `preview_node_cascade`; cascada en `remove_node_with_cascade` | `any(nid in e.node_ids for e in self.elements.values())` **dentro** del bucle sobre los nodos del elemento → O(npe·E) por borrado, y O(E²) bajo `remove_node_with_cascade` (llama `remove_element` por cada elemento). Precomputar **una vez** el set de node_ids referenciados por los elementos restantes lo baja a O(E+npe). Bit-idéntico. Cubierto por `test_node_cascade`. **Quick win.** |
-| **B/J recomputados en el Post** | [`fem/stress.py:32-41`](../fem/stress.py) vs [`fem/stiffness.py:55-64`](../fem/stiffness.py) | `gauss_data` ya tiene B, J, inv_J; `compute_element_stresses` los recalcula. Reutilizar evitaría duplicar el cómputo más caro. Riesgo medio (toca la ruta del Post). Ver §8. |
-| **Lógica de fuerzas equivalentes** (posible duplicación M6) | [`fem/equivalent_forces.py`](../fem/equivalent_forces.py) ↔ `education/mod06_equivalent_forces.py` | `CLAUDE.md` pide deduplicar en favor de `fem/`. **No verificable/implementable nocturno**: `education/` está fuera del scope de modificación. Documentar. |
-| **`node_index_map` recomputado** | [`models/project.py:518-525`](../models/project.py) | `@property` que ordena las claves en cada acceso. Cachearlo con invalidación es tentador pero **riesgoso** (staleness si se muta `nodes` sin invalidar). No tocar sin un mecanismo de invalidación robusto. Ver §8. |
+| **Scatter celda-a-celda** (vectorizable) | [`fem/assembly.py:116-118`](../../../fem/assembly.py) | Doble `for` Python → `np.ix_`. Bit-idéntico. |
+| **Bucle de reconstrucción de `u`** | [`fem/solver.py:102-106`](../../../fem/solver.py) | Reemplazable por fancy-indexing. |
+| **`list(project.materials.values())[0]`** | [`fem/assembly.py:100`](../../../fem/assembly.py), [`fem/stress.py:161-162`](../../../fem/stress.py) | Construye lista completa para tomar `[0]`. `next(iter(...))` evita la copia. Micro, pero `probe_query` ya usa el idioma correcto. |
+| **Re-chequeo O(E) de pertenencia de nodo** | [`models/project.py:330-332`](../../../models/project.py) `remove_element`; [`models/project.py:223`](../../../models/project.py) `preview_node_cascade`; cascada en `remove_node_with_cascade` | `any(nid in e.node_ids for e in self.elements.values())` **dentro** del bucle sobre los nodos del elemento → O(npe·E) por borrado, y O(E²) bajo `remove_node_with_cascade` (llama `remove_element` por cada elemento). Precomputar **una vez** el set de node_ids referenciados por los elementos restantes lo baja a O(E+npe). Bit-idéntico. Cubierto por `test_node_cascade`. **Quick win.** |
+| **B/J recomputados en el Post** | [`fem/stress.py:32-41`](../../../fem/stress.py) vs [`fem/stiffness.py:55-64`](../../../fem/stiffness.py) | `gauss_data` ya tiene B, J, inv_J; `compute_element_stresses` los recalcula. Reutilizar evitaría duplicar el cómputo más caro. Riesgo medio (toca la ruta del Post). Ver §8. |
+| **Lógica de fuerzas equivalentes** (posible duplicación M6) | [`fem/equivalent_forces.py`](../../../fem/equivalent_forces.py) ↔ `education/mod06_equivalent_forces.py` | `CLAUDE.md` pide deduplicar en favor de `fem/`. **No verificable/implementable nocturno**: `education/` está fuera del scope de modificación. Documentar. |
+| **`node_index_map` recomputado** | [`models/project.py:518-525`](../../../models/project.py) | `@property` que ordena las claves en cada acceso. Cachearlo con invalidación es tentador pero **riesgoso** (staleness si se muta `nodes` sin invalidar). No tocar sin un mecanismo de invalidación robusto. Ver §8. |
 
 **Operaciones sparse→dense innecesarias**: no se halló ningún `.toarray()` /
 `.todense()` en `fem/` ni `models/` (no se usa `scipy.sparse` en absoluto). El
@@ -228,7 +228,7 @@ densa por diseño.
 ### `eval` / `exec` / `pickle` / `os.system` / `shell=True`
 - ✅ **Cero** ocurrencias de `eval(`, `exec(`, `pickle`, `os.system`,
   `shell=True`, `__import__` en código de producción. (Esperado y cumplido.)
-- ✅ Único `subprocess` en [`config/latex_cache.py:194-210`](../config/latex_cache.py):
+- ✅ Único `subprocess` en [`config/latex_cache.py:194-210`](../../../config/latex_cache.py):
   `subprocess.run([...], timeout=20)` con **lista de args** (no shell), captura
   de salida, y manejo explícito de `FileNotFoundError` / `TimeoutExpired`. Seguro.
 
@@ -236,29 +236,29 @@ densa por diseño.
 - ✅ **Cero `except:` bare.**
 - ⚠️ ~357 `except Exception` (mayoría en GUI/PDF, tolerancia de UI aceptable).
   Puntos a revisar en capas no-GUI:
-  - [`file_io/model_io.py:232`](../file_io/model_io.py): `except Exception: continue`
+  - [`file_io/model_io.py:232`](../../../file_io/model_io.py): `except Exception: continue`
     al construir `Material` — silencia cualquier error de fila. Acotar a
     `(ValueError, TypeError)` sería más correcto (el `continue` intencional se
     conserva). Bajo impacto (los `_to_float` ya dan defaults). No implementado
     nocturno por bajo valor + riesgo de cambiar qué errores se silencian.
-  - [`file_io/dxf_io.py:109`](../file_io/dxf_io.py): `except Exception: return None`
+  - [`file_io/dxf_io.py:109`](../../../file_io/dxf_io.py): `except Exception: return None`
     leyendo `$INSUNITS` — demasiado amplio.
-  - [`models/undo_stack.py:133`](../models/undo_stack.py): `except Exception` en
+  - [`models/undo_stack.py:133`](../../../models/undo_stack.py): `except Exception` en
     callbacks de listeners — **intencional** (no debe romper otros listeners). OK.
 
 ### Validación de input en `file_io/`
-- ⚠️ [`file_io/project_io.py:36-38`](../file_io/project_io.py): `json.load(f)` sin
+- ⚠️ [`file_io/project_io.py:36-38`](../../../file_io/project_io.py): `json.load(f)` sin
   `try/except`; el dict no se valida antes de `from_dict`. Un `.edufem` corrupto
   produce un `KeyError`/`JSONDecodeError` crudo. **Recomendación**: envolver y
   re-lanzar con mensaje claro. **No implementado nocturno**: introduciría un
   string que puede llegar a un `messagebox` (regla "no tocar strings visibles").
-- ⚠️ [`file_io/csv_io.py:30-32,93-94`](../file_io/csv_io.py): `float()/int()` sin
+- ⚠️ [`file_io/csv_io.py:30-32,93-94`](../../../file_io/csv_io.py): `float()/int()` sin
   protección — una celda no numérica lanza `ValueError` no capturado. Mismo
   criterio: documentar, no tocar (riesgo de string visible + cambia el flujo).
-- ✅ [`file_io/model_io.py`](../file_io/model_io.py): defensivo. Helpers
+- ✅ [`file_io/model_io.py`](../../../file_io/model_io.py): defensivo. Helpers
   `_to_int/_to_float/_to_bool` con defaults; valida existencia de nodos/materiales
   antes de crear elementos/cargas. Buen patrón.
-- ⚠️ [`file_io/dxf_io.py`](../file_io/dxf_io.py): el factor `scale` provisto por el
+- ⚠️ [`file_io/dxf_io.py`](../../../file_io/dxf_io.py): el factor `scale` provisto por el
   usuario se aplica sin chequeo de cota (podría ser 0 o negativo). Idempotencia
   por `frozenset(node_ids)` y forzado CCW vía shoelace — correctos.
 

@@ -12,6 +12,7 @@ Funciones:
 - start_combobox_editor: Combobox readonly en un Toplevel overlay para que
     el dropdown pueda desbordar el Treeview sin clipping.
 - bind_clipboard: copy/paste TSV (Ctrl+C / Ctrl+V) compatible con Excel.
+- to_float_flex: float() que tolera la coma decimal de Excel en español.
 """
 
 import tkinter as tk
@@ -28,6 +29,27 @@ from config.settings import (
     POPUP_LIST_BG,
     POPUP_SELECT_BG,
 )
+
+
+# ─── Conversion numerica tolerante ──────────────────────────────────────────
+
+
+def to_float_flex(value) -> float:
+    """`float()` que acepta la coma decimal de Excel en español.
+
+    El separador decimal del proyecto es el punto, pero un Excel en español
+    copia `1,5` al portapapeles. Sin este fallback los `_paste_*` descartaban
+    esas filas en silencio. Eleva `ValueError` igual que `float()` cuando el
+    texto no es un número, para que el `except` del llamador siga saltando
+    la fila.
+    """
+    if isinstance(value, (int, float)):
+        return float(value)
+    text = str(value).strip()
+    try:
+        return float(text)
+    except ValueError:
+        return float(text.replace(",", "."))
 
 
 # ─── Editores flotantes ─────────────────────────────────────────────────────

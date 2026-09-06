@@ -99,11 +99,7 @@ def main():
     print(f"  Maquina : {platform.processor() or platform.machine()}")
     print(f"  Sistema : {platform.system()} {platform.release()}")
     print(f"  Python  : {platform.python_version()} | NumPy {np.__version__}")
-    try:
-        import numba  # noqa: F401
-        print("  Numba   : instalado (kernels JIT activos)")
-    except ImportError:
-        print("  Numba   : ausente (kernels en Python puro)")
+    print("  Motor   : NumPy vectorizado por lotes (fem/batch.py), sin JIT")
     print("=" * 78)
     header = (f"{'N':>3} {'elem':>6} {'GDL':>7} {'nnz(K)':>9} "
               f"{'t_asm[s]':>9} {'t_solve[s]':>11} "

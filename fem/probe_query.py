@@ -15,6 +15,11 @@ API principal:
           Esfuerzo CRUDO en (xi, eta) via sigma = D * B(xi, eta) * u_e.
           Discontinuo entre elementos (naturaleza C0 del MEF Galerkin).
 
+    - compute_raw_grids(project, solution, n)
+          El campo crudo en una grilla (n+1, n+1) de TODOS los elementos,
+          vectorizado por lotes (`fem/batch.py`). `compute_raw_grid` es
+          la version para un solo elemento.
+
     - compute_smooth(project, nodal_stresses, elem_id, xi, eta)
           Esfuerzo SUAVIZADO via sigma = sum N_i(xi, eta) * sigma_i_avg.
           Continuo entre elementos. Coincide con el contorno renderizado.
@@ -46,91 +51,11 @@ import numpy as np
 
 from config.settings import NUMERICAL_TOLERANCE, JACOBIAN_MIN_DETERMINANT
 from fem.shape_functions import get_shape_functions
+from fem.jacobian import compute_jacobian, compute_dN_physical
 from fem.b_matrix import compute_b_matrix
 from fem.constitutive import constitutive_matrix
-from fem._numba_compat import njit
-
-
-@njit(cache=True)
-def _compute_raw_grid_njit(dN_at_grid, coords_used, D, u_e):
-    """Kernel JIT de `compute_raw_grid`: evalua sigma en cada (xi, eta)
-    de la grilla (side x side) sin allocations intermedias.
-
-    Parametros:
-        dN_at_grid: (side, side, 2, n_nodes) — derivadas naturales en cada
-            punto de la grilla (precomputadas).
-        coords_used: (n_nodes, 2) — coords (x, y) de los nodos.
-        D: (3, 3) — matriz constitutiva.
-        u_e: (2 * n_nodes,) — desplazamientos del elemento.
-
-    Retorna (sx_g, sy_g, txy_g, s1_g, s2_g, vm_g), cada uno (side, side).
-
-    Optimizacion: en vez de armar B (3 x 2*n_nodes) y hacer B @ u, calcula
-    strain directamente desde dN_phys y u (B es solo un reorden, no aporta
-    aritmetica). Ahorra ~6*n_nodes alloca/iter y elimina el `B[:] = 0.0`.
-    """
-    side = dN_at_grid.shape[0]
-    n_nodes = coords_used.shape[0]
-
-    sx_g = np.zeros((side, side))
-    sy_g = np.zeros((side, side))
-    txy_g = np.zeros((side, side))
-    s1_g = np.zeros((side, side))
-    s2_g = np.zeros((side, side))
-    vm_g = np.zeros((side, side))
-
-    for i in range(side):
-        for j in range(side):
-            dN_nat = dN_at_grid[i, j]
-
-            # J = dN_nat @ coords_used (2x2)
-            J00 = 0.0; J01 = 0.0; J10 = 0.0; J11 = 0.0
-            for k in range(n_nodes):
-                J00 += dN_nat[0, k] * coords_used[k, 0]
-                J01 += dN_nat[0, k] * coords_used[k, 1]
-                J10 += dN_nat[1, k] * coords_used[k, 0]
-                J11 += dN_nat[1, k] * coords_used[k, 1]
-            det_J = J00 * J11 - J01 * J10
-            if abs(det_J) < JACOBIAN_MIN_DETERMINANT:
-                continue
-
-            inv_d = 1.0 / det_J
-            invJ00 =  J11 * inv_d
-            invJ01 = -J01 * inv_d
-            invJ10 = -J10 * inv_d
-            invJ11 =  J00 * inv_d
-
-            # Strain = B @ u_e desplegado: B[0,:]=[dphx_k, 0, ...],
-            # B[1,:]=[0, dphy_k, ...], B[2,:]=[dphy_k, dphx_k, ...].
-            ex = 0.0; ey = 0.0; gxy = 0.0
-            for k in range(n_nodes):
-                dphx = invJ00 * dN_nat[0, k] + invJ01 * dN_nat[1, k]
-                dphy = invJ10 * dN_nat[0, k] + invJ11 * dN_nat[1, k]
-                u_x = u_e[2 * k]
-                u_y = u_e[2 * k + 1]
-                ex  += dphx * u_x
-                ey  += dphy * u_y
-                gxy += dphy * u_x + dphx * u_y
-
-            # sigma = D @ strain
-            sx = D[0, 0] * ex + D[0, 1] * ey + D[0, 2] * gxy
-            sy = D[1, 0] * ex + D[1, 1] * ey + D[1, 2] * gxy
-            txy = D[2, 0] * ex + D[2, 1] * ey + D[2, 2] * gxy
-
-            sigma_avg = 0.5 * (sx + sy)
-            R = math.sqrt(0.25 * (sx - sy) * (sx - sy) + txy * txy)
-            s1 = sigma_avg + R
-            s2 = sigma_avg - R
-            vm = math.sqrt(s1 * s1 - s1 * s2 + s2 * s2)
-
-            sx_g[i, j] = sx
-            sy_g[i, j] = sy
-            txy_g[i, j] = txy
-            s1_g[i, j] = s1
-            s2_g[i, j] = s2
-            vm_g[i, j] = vm
-
-    return sx_g, sy_g, txy_g, s1_g, s2_g, vm_g
+from fem.batch import gather_elements, geometry_at_points, stress_at_points
+from fem.stress import _STRESS_KEYS
 
 
 # Cache de dN evaluado en la grilla (n+1, n+1) por (element_type, n).
@@ -169,6 +94,7 @@ __all__ = [
     "inverse_iso_map_NR",
     "compute_raw",
     "compute_raw_grid",
+    "compute_raw_grids",
     "compute_smooth",
     "crude_values_at_node",
     "displacement_at",
@@ -206,71 +132,6 @@ def locate_point(project, x: float, y: float, tol: float = 1e-6):
 
 # ─── Inversion isoparametrica (Newton-Raphson clasico) ─────────────────────
 
-# Flags internos para el kernel JIT (Numba no maneja strings bien).
-_FLAG_Q4 = 0
-_FLAG_Q9 = 1
-
-
-@njit(cache=True)
-def _inverse_iso_map_q4_njit(x_p, y_p, coords, tol, max_iter):
-    """Newton-Raphson para Q4. Returns (success, xi, eta).
-
-    success=False indica no-convergencia / singular / fuera del maestro.
-    """
-    xi = 0.0
-    eta = 0.0
-    for _ in range(max_iter):
-        # N(xi, eta) y Fx, Fy
-        N0 = 0.25 * (1.0 - xi) * (1.0 - eta)
-        N1 = 0.25 * (1.0 + xi) * (1.0 - eta)
-        N2 = 0.25 * (1.0 + xi) * (1.0 + eta)
-        N3 = 0.25 * (1.0 - xi) * (1.0 + eta)
-        Fx = (N0 * coords[0, 0] + N1 * coords[1, 0]
-              + N2 * coords[2, 0] + N3 * coords[3, 0]) - x_p
-        Fy = (N0 * coords[0, 1] + N1 * coords[1, 1]
-              + N2 * coords[2, 1] + N3 * coords[3, 1]) - y_p
-
-        if math.sqrt(Fx * Fx + Fy * Fy) < tol:
-            if abs(xi) > 1.05 or abs(eta) > 1.05:
-                return False, 0.0, 0.0
-            return True, xi, eta
-
-        # dN/dxi, dN/deta (4 entries cada uno)
-        dNx0 = -0.25 * (1.0 - eta)
-        dNx1 =  0.25 * (1.0 - eta)
-        dNx2 =  0.25 * (1.0 + eta)
-        dNx3 = -0.25 * (1.0 + eta)
-        dNe0 = -0.25 * (1.0 - xi)
-        dNe1 = -0.25 * (1.0 + xi)
-        dNe2 =  0.25 * (1.0 + xi)
-        dNe3 =  0.25 * (1.0 - xi)
-
-        # J = dN @ coords. Fila 0: dx/dxi, dy/dxi. Fila 1: dx/deta, dy/deta.
-        J00 = (dNx0 * coords[0, 0] + dNx1 * coords[1, 0]
-               + dNx2 * coords[2, 0] + dNx3 * coords[3, 0])
-        J01 = (dNx0 * coords[0, 1] + dNx1 * coords[1, 1]
-               + dNx2 * coords[2, 1] + dNx3 * coords[3, 1])
-        J10 = (dNe0 * coords[0, 0] + dNe1 * coords[1, 0]
-               + dNe2 * coords[2, 0] + dNe3 * coords[3, 0])
-        J11 = (dNe0 * coords[0, 1] + dNe1 * coords[1, 1]
-               + dNe2 * coords[2, 1] + dNe3 * coords[3, 1])
-
-        det_J = J00 * J11 - J01 * J10
-        if abs(det_J) < JACOBIAN_MIN_DETERMINANT:
-            return False, 0.0, 0.0
-
-        inv_det = 1.0 / det_J
-        d_xi  = -inv_det * ( J11 * Fx - J10 * Fy)
-        d_eta = -inv_det * (-J01 * Fx + J00 * Fy)
-        xi += d_xi
-        eta += d_eta
-
-        if abs(xi) > 5.0 or abs(eta) > 5.0:
-            return False, 0.0, 0.0
-
-    return False, 0.0, 0.0
-
-
 def inverse_iso_map_NR(
     x_p: float,
     y_p: float,
@@ -286,9 +147,8 @@ def inverse_iso_map_NR(
     `education/components/iso_inverse.py` (que se mantiene para fines
     didacticos en M0..M9, ver convencion del CLAUDE.md).
 
-    Para Q4 usa el kernel JIT `_inverse_iso_map_q4_njit` (sin allocations).
-    Para Q9 cae al path NumPy con `get_shape_functions` (uso poco frecuente,
-    no justifica un kernel separado).
+    Un unico camino para Q4 y Q9 con las funciones de forma del tipo: es
+    una consulta por click, el costo es irrelevante.
 
     Parametros:
         x_p, y_p: punto fisico consultado.
@@ -314,18 +174,10 @@ def inverse_iso_map_NR(
     # node_coords incluye mas filas (caller paso un slice mas largo),
     # nos quedamos con las primeras n.
     n_test = len(N_func(0.0, 0.0))
-    coords = np.ascontiguousarray(coords[:n_test])
+    coords = coords[:n_test]
+    x_p = float(x_p)
+    y_p = float(y_p)
 
-    # Fast path Q4: kernel JIT sin allocations.
-    if n_test == 4:
-        ok, xi, eta = _inverse_iso_map_q4_njit(
-            float(x_p), float(y_p), coords, float(tol), int(max_iter)
-        )
-        if ok:
-            return (xi, eta)
-        return None
-
-    # Slow path Q9: NumPy puro (uso poco frecuente vs Q4).
     xi, eta = 0.0, 0.0
     for _ in range(max_iter):
         N = N_func(xi, eta)
@@ -367,9 +219,10 @@ def principal_and_vm(sigma_x: float, sigma_y: float, tau_xy: float):
     NOTA (σz): el von Mises usa la forma 2D `sqrt(s1^2 - s1*s2 + s2^2)`, válida
     cuando σz = 0 (TENSIÓN PLANA). En DEFORMACIÓN PLANA σz = ν·(σx+σy) ≠ 0 y el
     von Mises "verdadero" incluiría términos con σz. La forma 2D se aplica
-    uniformemente en todas las rutas (compute_raw, compute_raw_grid, los kernels
-    de stress.py). Es una simplificación deliberada y consistente; si se desea el
-    von Mises 3D correcto en DP, habría que pasar ν/analysis_type a esta capa.
+    uniformemente en todas las rutas (compute_raw, compute_raw_grids, los
+    rutas por lotes de fem/batch.py). Es una simplificación deliberada y consistente; si
+    se desea el von Mises 3D correcto en DP, habría que pasar ν/analysis_type
+    a esta capa.
     """
     sigma_avg = 0.5 * (sigma_x + sigma_y)
     R = math.sqrt(0.25 * (sigma_x - sigma_y) ** 2 + tau_xy ** 2)
@@ -424,55 +277,15 @@ def displacement_at(project, solution, elem_id: int, xi: float, eta: float):
     return ux, uy
 
 
-@njit(cache=True)
-def _compute_raw_at_point_njit(dN_nat, node_coords, D, u_e):
-    """Kernel JIT: calcula (sx, sy, txy) en un punto (xi, eta) dado dN.
-
-    Replica el computo de `compute_raw` sin allocations de B / inv_J.
-    Retorna (sx, sy, txy, ok). `ok=False` si el Jacobiano es singular.
-    """
-    n_nodes = node_coords.shape[0]
-
-    # J = dN_nat @ node_coords
-    J00 = 0.0; J01 = 0.0; J10 = 0.0; J11 = 0.0
-    for k in range(n_nodes):
-        J00 += dN_nat[0, k] * node_coords[k, 0]
-        J01 += dN_nat[0, k] * node_coords[k, 1]
-        J10 += dN_nat[1, k] * node_coords[k, 0]
-        J11 += dN_nat[1, k] * node_coords[k, 1]
-    det_J = J00 * J11 - J01 * J10
-    if abs(det_J) < JACOBIAN_MIN_DETERMINANT:
-        return 0.0, 0.0, 0.0, False
-
-    inv_d = 1.0 / det_J
-    invJ00 =  J11 * inv_d
-    invJ01 = -J01 * inv_d
-    invJ10 = -J10 * inv_d
-    invJ11 =  J00 * inv_d
-
-    # strain = B @ u_e (sin armar B explicito — solo dot products)
-    ex = 0.0; ey = 0.0; gxy = 0.0
-    for k in range(n_nodes):
-        dphx = invJ00 * dN_nat[0, k] + invJ01 * dN_nat[1, k]
-        dphy = invJ10 * dN_nat[0, k] + invJ11 * dN_nat[1, k]
-        ux_k = u_e[2 * k]
-        uy_k = u_e[2 * k + 1]
-        ex  += dphx * ux_k
-        ey  += dphy * uy_k
-        gxy += dphy * ux_k + dphx * uy_k
-
-    # stress = D @ strain
-    sx = D[0, 0] * ex + D[0, 1] * ey + D[0, 2] * gxy
-    sy = D[1, 0] * ex + D[1, 1] * ey + D[1, 2] * gxy
-    txy = D[2, 0] * ex + D[2, 1] * ey + D[2, 2] * gxy
-    return sx, sy, txy, True
-
-
 def compute_raw(project, solution, elem_id: int, xi: float, eta: float):
     """Esfuerzo CRUDO en (xi, eta): sigma = D * B(xi, eta) * u_e.
 
     Discontinuo entre elementos -- es la verdad del MEF Galerkin C0
     (los desplazamientos son C0; sus derivadas, no).
+
+    Es un solo punto por consulta, asi que usa la cadena legible
+    (`compute_jacobian` -> `compute_dN_physical` -> `compute_b_matrix`),
+    la misma que ensenan M2/M3.
 
     Retorna dict con:
         sigma_x, sigma_y, tau_xy, sigma_1, sigma_2, von_mises, ux, uy
@@ -494,18 +307,22 @@ def compute_raw(project, solution, elem_id: int, xi: float, eta: float):
 
     # DOFs ordinales (NO 2*(nid-1)). Soporta IDs no contiguos.
     dof_idx = elem.get_dof_indices(project)
-    u_e = np.ascontiguousarray(solution["u"][dof_idx])
+    u_e = np.asarray(solution["u"])[dof_idx]
 
-    dN_nat = np.ascontiguousarray(dN_func(xi, eta))
-    coords_arr = np.ascontiguousarray(node_coords[:dN_nat.shape[1]])
-    sx, sy, txy, ok = _compute_raw_at_point_njit(dN_nat, coords_arr, D, u_e)
-    if not ok:
-        return None
+    dN_nat = dN_func(xi, eta)
+    n_nodes = dN_nat.shape[1]
+    try:
+        _J, _det_J, inv_J = compute_jacobian(dN_nat, node_coords[:n_nodes])
+    except ValueError:
+        return None  # Jacobiano singular
+    B = compute_b_matrix(compute_dN_physical(dN_nat, inv_J))
+    stress = D @ (B @ u_e[:2 * n_nodes])
+    sx, sy, txy = float(stress[0]), float(stress[1]), float(stress[2])
     s1, s2, vm = principal_and_vm(sx, sy, txy)
     ux, uy = displacement_at(project, solution, elem_id, xi, eta)
 
     return {
-        "sigma_x": float(sx), "sigma_y": float(sy), "tau_xy": float(txy),
+        "sigma_x": sx, "sigma_y": sy, "tau_xy": txy,
         "sigma_1": s1, "sigma_2": s2, "von_mises": vm,
         "ux": ux, "uy": uy,
         "mode": "raw",
@@ -634,9 +451,11 @@ def crude_values_at_node(project, solution, node_id):
 
 # ─── Evaluacion vectorizada en grilla (modo CRUDO para contorno) ──────────
 
-def compute_raw_grid(project, solution, elem_id: int, n: int = 6):
-    """Evalua sigma = D * B(xi, eta) * u_e vectorizado en una grilla
-    (n+1, n+1) de puntos (xi, eta) dentro del elemento maestro.
+def compute_raw_grids(project, solution, n: int = 6, elem_ids=None,
+                      chunk_size: int = 1024):
+    """Evalua sigma = D * B(xi, eta) * u_e en una grilla (n+1, n+1) de
+    puntos (xi, eta) del elemento maestro, para TODOS los elementos a la
+    vez (o para `elem_ids`), vectorizado por lotes con `fem/batch.py`.
 
     Para visualizacion del contorno CRUDO necesitamos evaluar el campo en
     MUCHOS puntos -- no solo los 4 corners -- porque sigma no es bilineal
@@ -644,55 +463,72 @@ def compute_raw_grid(project, solution, elem_id: int, n: int = 6):
     y sigma_2. La interpolacion bilineal de 4 corner-values daba errores
     de hasta 800% para VM en elementos distorsionados.
 
-    Una sola pasada arma: shape functions, jacobianos, B y sigmas para
-    toda la grilla. Retorna TODOS los campos en un dict (compartiendo la
-    fase mas cara, que es construir B). post_tab elige cual mostrar.
+    Los elementos se procesan en trozos de `chunk_size` para acotar la
+    memoria de las B intermedias (e * p * 3 * 2n floats). Un punto con
+    Jacobiano singular queda en 0.0 (el elemento entero se reporta en el
+    validador de salud, no aqui).
 
     Parametros:
-        elem_id: id del elemento.
         n: subdivisiones por lado -> grilla (n+1, n+1). Debe coincidir con
-            la subdivision interna del render del MeshCanvas (actualmente
-            n=6, dando grilla 7x7).
+            la subdivision interna del render del MeshCanvas (n=6, 7x7).
+        elem_ids: subconjunto de ids; None = todos los elementos.
 
     Retorna:
-        dict con 6 claves -> ndarray (n+1, n+1):
-            "sigma_x", "sigma_y", "tau_xy", "sigma_1", "sigma_2", "von_mises"
-        o None si los datos no estan disponibles.
+        dict {elem_id: {"sigma_x", "sigma_y", "tau_xy", "sigma_1",
+        "sigma_2", "von_mises"} -> ndarray (n+1, n+1)}, o None si los
+        datos no estan disponibles (sin solucion, sin materiales, malla
+        inconsistente).
+    """
+    if solution is None or not project.elements or not project.materials:
+        return None
+    if elem_ids is not None:
+        elem_ids = [eid for eid in elem_ids if eid in project.elements]
+        if not elem_ids:
+            return {}
+    try:
+        batch = gather_elements(project, elem_ids)
+    except ValueError:
+        return None
+
+    dN_at_grid = _get_dN_at_grid(project.element_type, n)
+    side = n + 1
+    dN_pts = dN_at_grid.reshape(side * side, 2, dN_at_grid.shape[3])
+    # Usar los primeros nodos comunes a las funciones de forma y a la malla
+    # (defensivo: proyecto Q9 con elementos de 4 nodos o viceversa).
+    n_use = min(batch.n_nodes, dN_pts.shape[2])
+    dN_pts = dN_pts[:, :, :n_use]
+    coords = batch.coords[:, :n_use]
+    dofs = batch.dofs[:, :2 * n_use]
+    u = np.asarray(solution["u"], dtype=float)
+
+    out = {}
+    for start in range(0, batch.n_elements, chunk_size):
+        sl = slice(start, start + chunk_size)
+        _J, det_J, B = geometry_at_points(coords[sl], dN_pts, check=False)
+        sig = stress_at_points(B, u[dofs[sl]], batch.D[sl])          # (e, p, 6)
+        singular = np.abs(det_J) < JACOBIAN_MIN_DETERMINANT
+        if singular.any():
+            sig[singular] = 0.0
+        sig = sig.reshape(-1, side, side, len(_STRESS_KEYS))
+        for i, eid in enumerate(batch.elem_ids[sl]):
+            out[int(eid)] = {
+                key: np.ascontiguousarray(sig[i, :, :, j])
+                for j, key in enumerate(_STRESS_KEYS)
+            }
+    return out
+
+
+def compute_raw_grid(project, solution, elem_id: int, n: int = 6):
+    """Grilla cruda (n+1, n+1) de UN elemento; ver `compute_raw_grids`.
+
+    Retorna el dict de 6 campos del elemento, o None si no esta disponible.
     """
     if solution is None or elem_id not in project.elements:
         return None
-
-    elem = project.elements[elem_id]
-    node_coords = _get_node_coords(project, elem)
-    n_nodes = elem.num_nodes if elem.num_nodes in (4, 9) else 4
-    coords_used = node_coords[:n_nodes]
-
-    material = project.materials.get(elem.material_name)
-    if material is None:
-        material = next(iter(project.materials.values()), None)
-        if material is None:
-            return None
-    D = constitutive_matrix(material.E, material.nu, project.analysis_type)
-
-    dof_idx = elem.get_dof_indices(project)
-    u_e = np.ascontiguousarray(solution["u"][dof_idx])   # (2 * n_nodes,)
-
-    # dN evaluado en la grilla (cacheado por element_type + n) — evita
-    # `dshape_functions_q*` por punto en cada llamada.
-    dN_at_grid = _get_dN_at_grid(project.element_type, n)
-    # Truncar a las primeras n_nodes derivadas si el caller pidio Q4 sobre
-    # un proyecto Q9 (no deberia pasar, defensivo).
-    if dN_at_grid.shape[3] > n_nodes:
-        dN_at_grid = np.ascontiguousarray(dN_at_grid[:, :, :, :n_nodes])
-
-    sx_g, sy_g, txy_g, s1_g, s2_g, vm_g = _compute_raw_grid_njit(
-        dN_at_grid, np.ascontiguousarray(coords_used), D, u_e
-    )
-
-    return {
-        "sigma_x": sx_g, "sigma_y": sy_g, "tau_xy": txy_g,
-        "sigma_1": s1_g, "sigma_2": s2_g, "von_mises": vm_g,
-    }
+    grids = compute_raw_grids(project, solution, n=n, elem_ids=[elem_id])
+    if not grids:
+        return None
+    return grids.get(elem_id)
 
 
 # ─── Puntos de Gauss (Barlow superconvergente) ─────────────────────────────

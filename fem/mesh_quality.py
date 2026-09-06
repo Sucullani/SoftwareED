@@ -19,7 +19,7 @@ de cada familia: Q4 es susceptible al trapezoidal locking; Q9 puede invalidarse
 por nodos medios/centroide mal colocados (criterio del cuarto de arista y
 envolvente convexa de los 4 nodos medios).
 
-Ver docs/mesh_quality_theory.pdf para el desarrollo teorico completo.
+Ver docs/teoria/calidad_malla/mesh_quality_theory.pdf para el desarrollo teorico completo.
 """
 
 import math
@@ -31,60 +31,32 @@ from fem.gauss_quadrature import (
     get_gauss_points_for_element,
     get_dN_at_gauss_points,
 )
-from fem.jacobian import compute_jacobian, _JAC_MIN_DET
 from config.settings import ELEMENT_Q4, ELEMENT_Q9, JACOBIAN_MIN_DETERMINANT
-from fem._numba_compat import njit
 
 
 # --------------------------------------------------------------------------- #
 # METRICAS BASADAS EN EL JACOBIANO                                             #
 # --------------------------------------------------------------------------- #
 
-@njit(cache=True)
-def _jacobian_samples_njit(dN_at_gps, node_coords):
-    """Kernel JIT: evalua det(J) y normas de columnas de J en cada GP.
-
-    Retorna (dets, col_norms, ok). `ok=False` indica que algun Jacobiano
-    fue singular (caller debe descartar el elemento).
-
-    Sin allocations de J/inv_J por GP — calcula los 4 escalares (J00..J11)
-    inline. Aplica al mismo array de dN precomputado que usa el assembly,
-    no hay re-evaluacion de shape functions.
-    """
-    n_gp = dN_at_gps.shape[0]
-    n_nodes = node_coords.shape[0]
-    dets = np.empty(n_gp)
-    col_norms = np.empty((n_gp, 2))
-
-    for g in range(n_gp):
-        dN_nat = dN_at_gps[g]
-        J00 = 0.0; J01 = 0.0; J10 = 0.0; J11 = 0.0
-        for k in range(n_nodes):
-            J00 += dN_nat[0, k] * node_coords[k, 0]
-            J01 += dN_nat[0, k] * node_coords[k, 1]
-            J10 += dN_nat[1, k] * node_coords[k, 0]
-            J11 += dN_nat[1, k] * node_coords[k, 1]
-        det_J = J00 * J11 - J01 * J10
-        if abs(det_J) < _JAC_MIN_DET:
-            return dets, col_norms, False
-        dets[g] = det_J
-        # ||J[:, 0]|| = sqrt(J00^2 + J10^2); ||J[:, 1]|| = sqrt(J01^2 + J11^2)
-        col_norms[g, 0] = math.sqrt(J00 * J00 + J10 * J10)
-        col_norms[g, 1] = math.sqrt(J01 * J01 + J11 * J11)
-    return dets, col_norms, True
-
-
 def _jacobian_samples(node_coords, element_type):
-    """Wrapper Python sobre `_jacobian_samples_njit`. Mantiene la API
-    existente (retorna listas o `(None, None)` en caso singular).
+    """det(J) y normas de las columnas de J en cada punto de Gauss nativo.
+
+    Vectorizado sobre los GP con el mismo array de dN precomputado que usa
+    el ensamblaje (`get_dN_at_gauss_points`). Retorna (dets, col_norms)
+    como listas, o `(None, None)` si algun Jacobiano es singular (el caller
+    descarta el elemento).
     """
     dN_at_gps, _, _, _ = get_dN_at_gauss_points(element_type)
-    node_coords = np.ascontiguousarray(np.asarray(node_coords, dtype=float))
-    dets, col_norms, ok = _jacobian_samples_njit(dN_at_gps, node_coords)
-    if not ok:
+    node_coords = np.asarray(node_coords, dtype=float)
+    # J[g] = dN_nat[g] @ coords  ->  J[g, a, b] = sum_k dN[g, a, k] x[k, b]
+    J = np.einsum("gak,kb->gab", dN_at_gps, node_coords)
+    dets = J[:, 0, 0] * J[:, 1, 1] - J[:, 0, 1] * J[:, 1, 0]
+    if np.any(np.abs(dets) < JACOBIAN_MIN_DETERMINANT):
         return None, None
-    return dets.tolist(), [(float(col_norms[g, 0]), float(col_norms[g, 1]))
-                            for g in range(col_norms.shape[0])]
+    # ||J[:, 0]|| = sqrt(J00^2 + J10^2); ||J[:, 1]|| = sqrt(J01^2 + J11^2)
+    col_0 = np.sqrt(J[:, 0, 0] ** 2 + J[:, 1, 0] ** 2)
+    col_1 = np.sqrt(J[:, 0, 1] ** 2 + J[:, 1, 1] ** 2)
+    return dets.tolist(), list(zip(col_0.tolist(), col_1.tolist()))
 
 
 def jacobian_ratio(node_coords, element_type):

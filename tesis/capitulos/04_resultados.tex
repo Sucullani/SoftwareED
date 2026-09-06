@@ -218,23 +218,23 @@ En cuanto a la escalabilidad, conviene precisar el estado real del motor numéri
 
 \begin{table}[htbp]
 \centering
-\caption[Tiempos de ensamblaje y solución, y memoria de la matriz de rigidez (Cook Q9).]{Tiempo de ensamblaje y de solución del sistema disperso, y memoria de la matriz de rigidez en formato denso frente a disperso (CSR), para la membrana de Cook Q9 a refinamientos crecientes. Medido en un equipo de escritorio con procesador Intel (microarquitectura Ivy Bridge, circa 2012) bajo Windows 10 y Python 3.13. Los tiempos corresponden a la configuración con los núcleos numéricos acelerados por compilación JIT mediante \texttt{numba}; reproducir estas cifras requiere, por tanto, tener \texttt{numba} instalado. Sin él, el programa entrega resultados idénticos pero con tiempos de cálculo sensiblemente mayores. Reproducible con \texttt{tests/bench\_timing.py}.}
+\caption[Tiempos de ensamblaje y solución, y memoria de la matriz de rigidez (Cook Q9).]{Tiempo de ensamblaje y de solución del sistema disperso, y memoria de la matriz de rigidez en formato denso frente a disperso (CSR), para la membrana de Cook Q9 a refinamientos crecientes. Medido en un equipo de escritorio con procesador Intel (microarquitectura Ivy Bridge, circa 2012) bajo Windows 10 y Python 3.13, con el motor vectorizado por lotes en NumPy puro que incorpora el ejecutable distribuido; no requiere ninguna dependencia adicional. Reproducible con \texttt{tests/bench\_timing.py}.}
 \label{tab:tiempos}
 \begin{tabular}{r r r r r}
 \hline
 GDL & $t_{\text{ensamblaje}}$ (s) & $t_{\text{solución}}$ (s) & $\bm{K}$ densa (MB) & $\bm{K}$ dispersa (MB) \\
 \hline
-578   & 0,007 & 0,010 & 3    & 0,21  \\
-2178  & 0,041 & 0,086 & 38   & 0,81  \\
-4802  & 0,069 & 0,136 & 184  & 1,81  \\
-8450  & 0,128 & 0,250 & 571  & 3,20  \\
-18818 & 0,282 & 0,741 & 2833 & 7,19  \\
-33282 & 0,561 & 2,211 & 8862 & 12,77 \\
+578   & 0,004 & 0,007 & 3    & 0,21  \\
+2178  & 0,013 & 0,029 & 38   & 0,81  \\
+4802  & 0,029 & 0,063 & 184  & 1,81  \\
+8450  & 0,054 & 0,202 & 571  & 3,20  \\
+18818 & 0,116 & 0,365 & 2833 & 7,19  \\
+33282 & 0,199 & 0,731 & 8862 & 12,77 \\
 \hline
 \end{tabular}
 \end{table}
 
-Las mediciones evidencian que la malla más exigente de las validaciones (8450~GDL) se ensambla y resuelve en torno a un cuarto de segundo, y que el motor procesa problemas de más de 33\,000~GDL en alrededor de dos segundos, todo ello sobre hardware de más de una década de antigüedad. El contraste de memoria es igualmente ilustrativo: a 33\,282~GDL la matriz densa requeriría cerca de 8{,}9~GB, mientras que su representación dispersa ocupa menos de 13~MB --un ahorro de casi tres órdenes de magnitud que es justamente lo que hace viable el cálculo en equipos modestos--. La limitación de escalabilidad, por tanto, no reside en el almacenamiento ni en el rango de tamaños propio del uso educativo bidimensional, sino que aparece solo en el extremo de mallas masivas: el tiempo de solución crece más rápido que el de ensamblaje a medida que el llenado (\emph{fill-in}) de la factorización directa se vuelve dominante. Persisten, en consecuencia, oportunidades de optimización para problemas de gran porte —reordenaciones que reduzcan el llenado, factorizaciones especializadas para sistemas definidos positivos, ensamblaje vectorizado por lotes y solucionadores iterativos—, que se plantean como línea de trabajo futuro y se detallan entre las recomendaciones. Finalmente, la validación presentada se apoya en tres casos cuidadosamente seleccionados por su valor canónico; una batería más amplia de casos de referencia reforzaría la confianza en el comportamiento del software ante geometrías y condiciones de carga más diversas.
+Las mediciones evidencian que la malla más exigente de las validaciones (8450~GDL) se ensambla y resuelve en torno a dos décimas de segundo, y que el motor procesa problemas de más de 33\,000~GDL en menos de un segundo, todo ello sobre hardware de más de una década de antigüedad. El contraste de memoria es igualmente ilustrativo: a 33\,282~GDL la matriz densa requeriría cerca de 8{,}9~GB, mientras que su representación dispersa ocupa menos de 13~MB --un ahorro de casi tres órdenes de magnitud que es justamente lo que hace viable el cálculo en equipos modestos--. La limitación de escalabilidad, por tanto, no reside en el almacenamiento ni en el rango de tamaños propio del uso educativo bidimensional, sino que aparece solo en el extremo de mallas masivas: el tiempo de solución crece más rápido que el de ensamblaje a medida que el llenado (\emph{fill-in}) de la factorización directa se vuelve dominante. El ensamblaje ya se realiza vectorizado por lotes y la factorización aplica un ordenamiento de mínimo grado que reduce el llenado, de modo que las oportunidades de optimización que persisten para problemas de gran porte —factorizaciones especializadas para sistemas definidos positivos y solucionadores iterativos precondicionados— se plantean como línea de trabajo futuro y se detallan entre las recomendaciones. Finalmente, la validación presentada se apoya en tres casos cuidadosamente seleccionados por su valor canónico; una batería más amplia de casos de referencia reforzaría la confianza en el comportamiento del software ante geometrías y condiciones de carga más diversas.
 
 \section{Validación de la hipótesis}
 \label{sec:validacion-hipotesis}

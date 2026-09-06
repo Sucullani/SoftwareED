@@ -1,14 +1,14 @@
 """
 Matriz de deformación-desplazamiento B.
 Relaciona desplazamientos nodales con deformaciones: ε = B · u
+
+Version legible para un punto (ξ, η); el motor productivo arma la B de
+todos los elementos y puntos a la vez en `fem/batch.py`.
 """
 
 import numpy as np
 
-from fem._numba_compat import njit
 
-
-@njit(cache=True)
 def compute_b_matrix(dN_phys):
     """
     Construye la matriz B a partir de las derivadas físicas de N.

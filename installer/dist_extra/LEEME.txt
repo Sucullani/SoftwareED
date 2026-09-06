@@ -1,6 +1,6 @@
 ============================================================
   EduFEM - Software Educativo de Elementos Finitos
-  Guia de uso y notas de distribucion
+  Guia de uso, instalacion y distribucion
   Version 1.0.0
 ============================================================
 
@@ -8,11 +8,15 @@ EduFEM es una aplicacion educativa de analisis por el Metodo de
 Elementos Finitos (MEF) en 2D (tension plana / deformacion plana),
 con elementos cuadrilateros Q4 y Q9.
 
-En esta carpeta hay estos archivos:
-  - EduFEM.exe                       ->  el programa.
-  - Iniciar EduFEM.bat               ->  lanzador recomendado (seccion 3).
-  - Crear acceso directo EduFEM.bat  ->  crea el icono en el Escritorio.
-  - LEEME.txt                        ->  esta guia.
+Este archivo cubre las DOS formas en que se entrega EduFEM:
+  (A) INSTALADO  ->  con "EduFEM-Setup.exe" (icono en el Escritorio
+                     y en el menu Inicio).
+  (B) PORTABLE   ->  una carpeta con estos archivos:
+        - EduFEM.exe                       ->  el programa.
+        - Iniciar EduFEM.bat               ->  lanzador recomendado.
+        - Crear acceso directo EduFEM.bat  ->  crea el icono en el
+                                               Escritorio.
+        - LEEME.txt                        ->  esta guia.
 
 
 ------------------------------------------------------------
@@ -40,43 +44,48 @@ En esta carpeta hay estos archivos:
 - Memoria RAM: 4 GB recomendado (2 GB minimo).
 - Disco: unos 300 MB libres (programa + extraccion temporal).
 - No requiere conexion a internet ni tarjeta grafica dedicada.
-- No requiere instalacion: es portable. Manten SIEMPRE juntos
-  "EduFEM.exe" y "Iniciar EduFEM.bat" en la misma carpeta.
+- En la version PORTABLE no hace falta instalar nada: manten
+  SIEMPRE juntos "EduFEM.exe" y "Iniciar EduFEM.bat" en la misma
+  carpeta.
 
 
 ------------------------------------------------------------
-3. COMO EJECUTAR  (recomendado: el lanzador)
+3. COMO ABRIR EL PROGRAMA
 ------------------------------------------------------------
-RECOMENDADO:
-  Hace doble clic en  ->  "Iniciar EduFEM.bat"
-  Abre EduFEM sin el aviso de seguridad de Windows. No requiere
-  instalacion, permisos de administrador ni configuracion: solo
-  manten ese archivo junto a EduFEM.exe.
-  (Puede verse por un instante una ventana negra: es normal, se
-  cierra sola.)
+(A) SI LO INSTALASTE con "EduFEM-Setup.exe":
+  Hace doble clic en el icono "EduFEM" del Escritorio, o buscalo
+  en el menu Inicio. No aparece ningun aviso de seguridad.
 
-ICONO EN EL ESCRITORIO (opcional, recomendado):
-  Hace doble clic UNA VEZ en "Crear acceso directo EduFEM.bat".
-  Aparece el icono "EduFEM" en tu Escritorio; desde ahi abris el
-  programa con un clic, como cualquier aplicacion, sin avisos.
+(B) SI TENES LA CARPETA PORTABLE:
+  RECOMENDADO:
+    Hace doble clic en  ->  "Iniciar EduFEM.bat"
+    Abre EduFEM sin el aviso de seguridad de Windows. No requiere
+    instalacion, permisos de administrador ni configuracion.
+    (Puede verse por un instante una ventana negra: es normal, se
+    cierra sola.)
 
-ALTERNATIVA:
-  Tambien podes hacer doble clic directo en "EduFEM.exe". En ese
-  caso Windows puede mostrar el aviso "Windows protegio su PC"
-  -> ver la seccion 4.
+  ICONO EN EL ESCRITORIO (opcional, recomendado):
+    Hace doble clic UNA VEZ en "Crear acceso directo EduFEM.bat".
+    Aparece el icono "EduFEM" en tu Escritorio; desde ahi abris el
+    programa con un clic, como cualquier aplicacion, sin avisos.
 
-IMPORTANTE (en cualquiera de las dos formas): el PRIMER arranque
-es mas lento (puede tardar entre 10 y 40 segundos), porque la
-primera vez el programa descomprime sus componentes a una carpeta
-temporal. Espera a que aparezca la ventana; no hagas doble clic
-varias veces.
+  ALTERNATIVA:
+    Tambien podes hacer doble clic directo en "EduFEM.exe". En ese
+    caso Windows puede mostrar el aviso "Windows protegio su PC"
+    ->  ver la seccion 4.
+
+IMPORTANTE (en cualquiera de las formas): el PRIMER arranque es
+mas lento (puede tardar entre 10 y 40 segundos), porque la primera
+vez el programa descomprime sus componentes a una carpeta temporal.
+Espera a que aparezca la ventana; no hagas doble clic varias veces.
 
 
 ------------------------------------------------------------
 4. SI APARECE "Windows protegio su PC" (SmartScreen)
 ------------------------------------------------------------
 Esto solo aparece si abris "EduFEM.exe" directamente. Con el
-lanzador "Iniciar EduFEM.bat" normalmente NO aparece.
+instalador, o con el lanzador "Iniciar EduFEM.bat", normalmente NO
+aparece.
 
 Es un aviso NORMAL de Windows ante programas nuevos sin firma
 comercial. EduFEM NO es un virus: es una aplicacion propia,
@@ -123,34 +132,7 @@ MiKTeX -- usan un modo de respaldo automatico.
 
 
 ------------------------------------------------------------
-7. MAS VELOCIDAD  (opcional -- libreria numba)
-------------------------------------------------------------
-EduFEM ejecuta los calculos en NumPy puro, lo cual es suficiente
-para los modelos educativos. Si trabajas con mallas MUY grandes y
-queres mas velocidad, podes usar la libreria "numba" (compilacion
-JIT que acelera el calculo). numba NO viene incluida en el .exe;
-para aprovecharla hay que ejecutar el programa desde el codigo
-fuente (repositorio del proyecto):
-
-  1) Descarga el repositorio de EduFEM (ver SOPORTE, mas abajo).
-  2) Crea un entorno virtual e instala las dependencias:
-
-        python -m venv .venv
-        .\.venv\Scripts\python.exe -m pip install -r requirements.txt
-        .\.venv\Scripts\python.exe -m pip install numba
-
-     (numba puede requerir una version de numpy compatible; si pip
-     propone cambiar numpy, revisalo antes de aceptar.)
-
-  3) Ejecuta el programa:
-
-        .\.venv\Scripts\python.exe main.py
-
-Para el uso normal de la tesis NO hace falta: el .exe alcanza.
-
-
-------------------------------------------------------------
-8. SOLUCION DE PROBLEMAS
+7. SOLUCION DE PROBLEMAS
 ------------------------------------------------------------
 - El primer arranque tarda 10-40 s: es normal (se descomprimen los
   componentes la primera vez). Espera a que aparezca la ventana.
@@ -161,6 +143,18 @@ Para el uso normal de la tesis NO hace falta: el .exe alcanza.
   instalalo y reinicia EduFEM.
 - El lanzador no encuentra el programa: asegurate de que
   "Iniciar EduFEM.bat" este en la MISMA carpeta que "EduFEM.exe".
+- El programa no abre: verifica que el sistema sea Windows de 64
+  bits y volve a instalar desde el instalador.
+
+
+------------------------------------------------------------
+8. DESINSTALAR
+------------------------------------------------------------
+- Version INSTALADA: Configuracion de Windows -> Aplicaciones ->
+  EduFEM -> Desinstalar, o el acceso "Desinstalar EduFEM" del
+  menu Inicio.
+- Version PORTABLE: borra la carpeta (y el acceso directo del
+  Escritorio, si lo creaste). No deja nada en el sistema.
 
 
 ------------------------------------------------------------

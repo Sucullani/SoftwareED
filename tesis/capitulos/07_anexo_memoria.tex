@@ -179,7 +179,7 @@ Repetida la operación en los cuatro puntos de Gauss, cada componente cartesiana
 \sigxNodal=\Eextrap\,\sigxGauss .
 \]
 }%
-Las tablas siguientes reúnen las cuatro componentes en los puntos de Gauss y, ya extrapoladas, en los nodos del elemento E\showId{}:
+Las tablas siguientes reúnen las cuatro componentes en los puntos de Gauss y, ya extrapoladas, en los nodos del elemento E\showId{}. La extrapolación se aplica únicamente a las componentes cartesianas: la tensión de von Mises de cada nodo se recalcula con la \autoref{eq:principales-vm} a partir de las componentes ya extrapoladas, por ser una función no lineal de ellas.
 
 \noindent
 \begin{minipage}[t]{0.49\linewidth}
@@ -211,7 +211,7 @@ Nodo & $\sigma_x$ & $\sigma_y$ & $\tau_{xy}$ & $\sigma_{\mathrm{VM}}$ \\
 \end{minipage}
 
 \medskip
-\noindent El campo nodal final (\autoref{tab:mem-resultados}) promedia, en cada nodo, las contribuciones de los elementos que lo comparten.
+\noindent El campo nodal final (\autoref{tab:mem-resultados}) promedia, en cada nodo, las contribuciones de los elementos que lo comparten. El promedio recae sobre las componentes cartesianas; las tensiones principales y la de von Mises del nodo se obtienen después, a partir de esas componentes promediadas, de modo que cada fila de la tabla es consistente consigo misma.
 
 \section{Resultados}
 

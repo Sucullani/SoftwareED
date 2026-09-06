@@ -1,229 +1,165 @@
 """
-Ensamblaje de la matriz de rigidez global K y vector de fuerzas F.
+Ensamblaje de la matriz de rigidez global K y del vector de fuerzas F.
 
-Desde 2026-05 soporta body forces f(x,y) arbitrarias via `body_force_fn`,
-necesarias para el Método de Soluciones Manufacturadas (MMS) y para
-conectar la gravedad existente (que estaba como variable del project pero
-no se ensamblaba). Backward-compat: `body_force_fn=None` y sin gravedad
-activa reproduce el comportamiento previo bit-a-bit.
+Camino productivo vectorizado por lotes (`fem/batch.py`): la geometria
+(J, det J, B) y la rigidez ke de TODOS los elementos se calculan de una vez
+con `einsum` / `matmul`, y K se arma como tripletes COO -> CSR (la suma de
+duplicados de `coo_matrix` es exactamente el scatter local -> global del
+MEF). K nunca se materializa densa: memoria O(nnz).
+
+La formulacion legible elemento a elemento vive en `fem/stiffness.py`
+(`element_stiffness`, con todos los intermedios J, B y ke por punto de
+Gauss) y es el oraculo de `tests/test_solver_regression.py`.
+
+Fuerzas de cuerpo: `body_force_fn(x, y) -> (bx, by)` arbitraria (MMS) o la
+gravedad del proyecto (rho * g por material). Con `body_force_fn=None` y sin
+gravedad activa, F solo contiene cargas nodales y superficiales.
 """
 
 import warnings
 
 import numpy as np
-from scipy.sparse import coo_matrix
 
 from config.settings import ELEMENT_Q9
-from fem.stiffness import element_stiffness_fast
-from fem.shape_functions import get_shape_functions
-from fem.gauss_quadrature import get_dN_at_gauss_points
+from fem.batch import (
+    assemble_sparse, body_force_batch, gather_elements, geometry_at_points,
+    physical_coords, stiffness_batch,
+)
 from fem.equivalent_forces import (
     surface_load_to_nodal_forces,
     surface_load_to_nodal_forces_q9,
 )
-from fem._numba_compat import njit
+from fem.gauss_quadrature import get_dN_at_gauss_points
 from models.mesh_utils import find_edge_midnode
 
 
-@njit(cache=True)
-def _assemble_body_force_njit(N_at_gps, det_J_at_gps, gauss_wts,
-                                bx_vals, by_vals, thickness):
-    """Acumula fe_body = sum_gp [ N_i(gp) * b(gp) * |det J| * t * w ].
+class ElementData(dict):
+    """Datos por elemento del ensamblaje: `dict {elem_id: {...}}` mas el lote.
 
-    Recibe las coords de los Gauss points YA EVALUADAS por el caller
-    (bx_vals, by_vals) porque la funcion body force es una callable
-    Python — Numba no la puede inlinear, pero si puede operar sobre
-    arrays precomputados.
-
-    Retorna fe_body: (2*n_nodes,) — fuerzas equivalentes nodales.
+    Cada entrada tiene `ke`, `dof_indices`, `node_coords`, `B` y `det_J` como
+    VISTAS de los arrays del lote (sin copias): las consumen la memoria de
+    calculo (`ke`, `dof_indices`) y los scripts de la tesis. El post-proceso
+    vectorizado (`fem.stress.compute_all_stresses`,
+    `fem.probe_query.compute_raw_grids`) lee directamente el atributo
+    `batch` (un `fem.batch.ElementBatch`).
     """
-    n_gp = N_at_gps.shape[0]
-    n_nodes = N_at_gps.shape[1]
-    fe_body = np.zeros(2 * n_nodes)
 
-    for gp in range(n_gp):
-        factor = abs(det_J_at_gps[gp]) * thickness * gauss_wts[gp]
-        bx_w = bx_vals[gp] * factor
-        by_w = by_vals[gp] * factor
-        for i in range(n_nodes):
-            N_i = N_at_gps[gp, i]
-            fe_body[2 * i]     += N_i * bx_w
-            fe_body[2 * i + 1] += N_i * by_w
+    __slots__ = ("batch",)
 
-    return fe_body
+    def __init__(self, batch):
+        super().__init__()
+        self.batch = batch
+        for i, eid in enumerate(batch.elem_ids):
+            self[int(eid)] = {
+                "ke": batch.ke[i],
+                "dof_indices": batch.dofs[i],
+                "node_coords": batch.coords[i],
+                "B": batch.B[i],
+                "det_J": batch.det_J[i],
+            }
 
 
-def _resolve_body_force_fn(project, body_force_fn):
-    """Decide la fuente de body force a usar en el ensamblaje.
+def _body_force_at_gauss_points(project, batch, N_at_gps, body_force_fn):
+    """Fuerza de cuerpo b(x, y) evaluada en los puntos de Gauss: (e, p, 2).
 
-    Prioridad: si el caller pasa `body_force_fn` explicito, gana. Si no, y
-    el project tiene gravedad activa con materiales de densidad > 0, se
-    compone un callback que retorna (rho*gx, rho*gy) por elemento. Si
-    ninguna fuente aplica, retorna None (skip total del loop, comportamiento
-    legacy).
-
-    Retorna: dict {elem_id: callable(x,y)->(bx,by)} | None.
-    Es un dict por-elemento porque la densidad puede variar por material.
+    Prioridad: si el caller pasa `body_force_fn`, gana (se avisa si ademas
+    hay gravedad activa). Si no, y el proyecto tiene gravedad activa con
+    materiales de densidad > 0, b = rho * g por elemento. Si ninguna fuente
+    aplica retorna None (F sin fuerzas de cuerpo, comportamiento clasico).
     """
+    if batch.n_elements == 0:
+        return None
+
     if body_force_fn is not None:
-        # Callback global del usuario: misma funcion para todos los elementos.
         if project.include_gravity:
             warnings.warn(
                 "body_force_fn pasado explicito; include_gravity sera ignorado.",
                 stacklevel=3,
             )
-        return {eid: body_force_fn for eid in project.elements}
+        # El callable es Python arbitrario (MMS): se evalua punto a punto
+        # sobre las coordenadas fisicas de los GP. Son n_elem * n_gp
+        # llamadas (~37 000 para 4096 Q9), despreciable frente al solve.
+        xy = physical_coords(N_at_gps, batch.coords)                  # (e, p, 2)
+        b = np.empty_like(xy)
+        for e in range(xy.shape[0]):
+            for g in range(xy.shape[1]):
+                b[e, g] = body_force_fn(float(xy[e, g, 0]), float(xy[e, g, 1]))
+        return b
 
     if not project.include_gravity:
         return None
-
     gx, gy = project.gravity_x, project.gravity_y
     if gx == 0.0 and gy == 0.0:
         return None
-
-    out = {}
-    for eid, elem in project.elements.items():
-        mat = project.materials.get(elem.material_name)
-        if mat is None or mat.density <= 0.0:
-            continue
-        rho = mat.density
-        # Capturar rho por valor (default-arg) para evitar late binding.
-        out[eid] = lambda x, y, _rho=rho, _gx=gx, _gy=gy: (_rho * _gx, _rho * _gy)
-    return out if out else None
+    rho = np.maximum(batch.density, 0.0)                              # (e,)
+    if not np.any(rho > 0.0):
+        return None
+    b = np.empty((batch.n_elements, N_at_gps.shape[0], 2))
+    b[..., 0] = (rho * gx)[:, None]
+    b[..., 1] = (rho * gy)[:, None]
+    return b
 
 
 def assemble_global_system(project, *, body_force_fn=None):
     """
     Ensambla la matriz de rigidez global K y el vector de fuerzas F.
 
-    Parámetros:
+    Parametros:
         project: ProjectModel con nodos, elementos, cargas, etc.
         body_force_fn: callable (x: float, y: float) -> (bx, by). Si no es
-            None, se ensambla ∫ N_i · b dΩ en cada elemento. Si es None,
-            se compone desde gravedad del project (si include_gravity).
+            None, se ensambla la integral de N_i b sobre cada elemento. Si
+            es None, se compone desde la gravedad del project (si esta
+            activa).
 
     Retorna:
-        K: array (n_dof, n_dof) - Matriz de rigidez global.
+        K: scipy.sparse CSR (n_dof, n_dof) - Matriz de rigidez global.
         F: array (n_dof,) - Vector de fuerzas global.
-        element_data: dict {elem_id: {ke, gauss_data, dof_indices}}
+        element_data: ElementData {elem_id: {ke, dof_indices, node_coords,
+            B, det_J}} con el lote de arrays en `.batch`.
     """
     n_dof = project.total_dof
     F = np.zeros(n_dof)
     idx_map = project.node_index_map
 
-    element_data = {}
-
-    # Acumuladores COO para el ensamblaje sparse de K.
-    # Usar listas Python para el loop (cada elemento agrega n_e^2 entradas);
-    # al final se construye la CSR con sum_duplicates automatica de coo_matrix.
-    # Para mallas grandes (500+ nodos) K sparse ahorra 90-99% de memoria vs
-    # la version densa y acelera spsolve 10-100x (vs scipy.linalg.solve denso).
-    coo_rows = []
-    coo_cols = []
-    coo_data = []
-
-    # Resolver fuente de body forces UNA VEZ antes del loop.
-    bf_by_elem = _resolve_body_force_fn(project, body_force_fn)
-    # Precomputar dN_at_gps + N_at_gps + gauss_pts/wts una sola vez por
-    # tipo de elemento (cacheado dentro de get_dN_at_gauss_points). Era un
-    # hotspot oculto en el flow anterior: se computaban en cada elemento.
-    dN_at_gps, gauss_pts, gauss_wts, N_at_gps = get_dN_at_gauss_points(
+    # Lote de elementos + geometria y rigidez de todos a la vez.
+    batch = gather_elements(project)
+    dN_at_gps, _gauss_pts, gauss_wts, N_at_gps = get_dN_at_gauss_points(
         project.element_type
     )
-    n_gp = len(gauss_pts)
+    n_gp, _, n_nodes = dN_at_gps.shape
+    if batch.n_elements:
+        _J, det_J, B = geometry_at_points(batch.coords, dN_at_gps, batch.elem_ids)
+        ke = stiffness_batch(B, det_J, gauss_wts, batch.thickness, batch.D)
+    else:
+        det_J = np.zeros((0, n_gp))
+        B = np.zeros((0, n_gp, 3, 2 * n_nodes))
+        ke = np.zeros((0, 2 * n_nodes, 2 * n_nodes))
+    batch.B, batch.det_J, batch.ke = B, det_J, ke
 
-    for elem_id, elem in project.elements.items():
-        # Obtener coordenadas de los nodos del elemento
-        node_coords = np.array([
-            [project.nodes[nid].x, project.nodes[nid].y]
-            for nid in elem.node_ids
-        ])
+    K = assemble_sparse(batch.dofs, ke, n_dof)
 
-        # Material del elemento
-        material = project.materials.get(elem.material_name)
-        if material is None:
-            # Fallback: primer material por orden de inserción, sin materializar
-            # la lista completa por cada elemento huérfano de material.
-            material = next(iter(project.materials.values()))
+    # Fuerzas de cuerpo (gravedad o callable) integradas con N en los GP.
+    b_at_gps = _body_force_at_gauss_points(project, batch, N_at_gps, body_force_fn)
+    if b_at_gps is not None:
+        fe = body_force_batch(N_at_gps, det_J, gauss_wts, batch.thickness, b_at_gps)
+        np.add.at(F, batch.dofs, fe)
 
-        # Calcular matriz de rigidez via kernel JIT.
-        # Retorna ke + B + det_J por GP, sin dict gauss_data — armamos el
-        # gauss_data minimal abajo desde los arrays (mucho mas rapido).
-        ke, B_at_gps, det_J_at_gps, _wts = element_stiffness_fast(
-            node_coords,
-            material.E,
-            material.nu,
-            elem.thickness,
-            project.analysis_type,
-            project.element_type,
-        )
-
-        # gauss_data minimal: solo los campos que stress.py necesita para
-        # `_gauss_stresses_from_precomputed` (xi, eta, B). Los modulos
-        # educativos que requieren J, dN_phys, etc. siguen llamando a la
-        # version no-JIT `element_stiffness(...)` directamente, no pasan
-        # por este assembly path.
-        gauss_data = [
-            {
-                "xi": float(gauss_pts[i, 0]),
-                "eta": float(gauss_pts[i, 1]),
-                "weight": float(gauss_wts[i]),
-                "det_J": float(det_J_at_gps[i]),
-                "B": B_at_gps[i],
-            }
-            for i in range(n_gp)
-        ]
-
-        # Índices de GDL del elemento
-        dof_indices = elem.get_dof_indices(project)
-
-        # Acumular triplete COO: cada entrada ke[i,j] → K[gi, gj].
-        # repeat/tile evita el overhead de broadcast_arrays que meshgrid genera
-        # internamente (~0.27s/run ahorrado en mallas de 4800 elem).
-        idx = np.asarray(dof_indices, dtype=np.intp)
-        n_e = len(idx)
-        coo_rows.append(np.repeat(idx, n_e))   # [i0,i0,...,i1,i1,...] (n_e²)
-        coo_cols.append(np.tile(idx, n_e))     # [j0,j1,...,j0,j1,...] (n_e²)
-        coo_data.append(ke.ravel())
-
-        # Ensamblar body force del elemento si corresponde.
-        # Estrategia: evaluar bf(x, y) en cada GP por Python (porque bf es
-        # una callable que Numba no puede inlinear), despues delegar la
-        # cuadratura al kernel JIT `_assemble_body_force_njit`.
-        if bf_by_elem is not None and elem_id in bf_by_elem:
-            bf = bf_by_elem[elem_id]
-            # Coords fisicas (x,y) en cada GP: vectorizado con N_at_gps.
-            x_gps = N_at_gps @ node_coords[:, 0]
-            y_gps = N_at_gps @ node_coords[:, 1]
-            bx_vals = np.empty(n_gp)
-            by_vals = np.empty(n_gp)
-            for i in range(n_gp):
-                bx_vals[i], by_vals[i] = bf(x_gps[i], y_gps[i])
-            fe_body = _assemble_body_force_njit(
-                N_at_gps, det_J_at_gps, gauss_wts,
-                bx_vals, by_vals, elem.thickness,
-            )
-            for i_local, i_global in enumerate(dof_indices):
-                F[i_global] += fe_body[i_local]
-
-        # Guardar datos del elemento
-        element_data[elem_id] = {
-            "ke": ke,
-            "gauss_data": gauss_data,
-            "dof_indices": dof_indices,
-            "node_coords": node_coords,
-        }
-
-    # Ensamblar vector de fuerzas nodales puntuales
+    # Cargas nodales puntuales.
     for load in project.nodal_loads.values():
-        base = 2 * idx_map[load.node_id]
+        idx = idx_map.get(load.node_id)
+        if idx is None:
+            # Carga sobre un node_id inexistente (p. ej. .edufem editado a
+            # mano: from_dict no valida). Se ignora en vez de romper el solve
+            # con un KeyError crudo; el validador de salud ya la reporta.
+            continue
+        base = 2 * idx
         F[base]     += load.fx
         F[base + 1] += load.fy
 
-    # Ensamblar contribucion de cargas superficiales (trapezoidales lineales).
-    # Q4: arista de 2 nodos → integración lineal.
-    # Q9: arista de 3 nodos → se localiza el nodo medio en el elemento dueño
-    # y la carga se reparte en los 3 nodos con funciones de forma cuadráticas.
+    # Cargas superficiales (trapezoidales lineales), fuente unica:
+    # fem/equivalent_forces. Q4: arista de 2 nodos, integracion lineal.
+    # Q9: arista de 3 nodos; se localiza el nodo medio en el elemento dueno
+    # y la carga se reparte en los 3 nodos con funciones de forma cuadraticas.
     for sl in project.surface_loads:
         n_a = project.nodes.get(sl.node_start)
         n_b = project.nodes.get(sl.node_end)
@@ -273,21 +209,4 @@ def assemble_global_system(project, *, body_force_fn=None):
         F[base_b]     += fx_b
         F[base_b + 1] += fy_b
 
-    # Construir K sparse CSR desde los acumuladores COO.
-    # coo_matrix suma automaticamente entradas duplicadas en el mismo (i,j)
-    # — exactamente el scatter de la suma local→global del MEF.
-    # Mallas de 500 nodos: K es 1000×1000 = 10^6 entradas densas vs ~10^4
-    # no-nulas (99% sparsity para Q4 estructurado). El factor de memoria
-    # y tiempo de factorizacion mejora 10-100× con spsolve vs solve denso.
-    if coo_rows:
-        rows_arr = np.concatenate(coo_rows)
-        cols_arr = np.concatenate(coo_cols)
-        data_arr = np.concatenate(coo_data)
-    else:
-        rows_arr = np.array([], dtype=np.intp)
-        cols_arr = np.array([], dtype=np.intp)
-        data_arr = np.array([], dtype=float)
-    K = coo_matrix((data_arr, (rows_arr, cols_arr)),
-                   shape=(n_dof, n_dof)).tocsr()
-
-    return K, F, element_data
+    return K, F, ElementData(batch)

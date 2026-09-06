@@ -213,6 +213,8 @@ class DxfImportDialog:
     # CARGA DEL DXF
     # ------------------------------------------------------------------
     def _load_dxf(self):
+        if not self.dialog.winfo_exists():
+            return  # el dialogo se cerro dentro de los 50 ms del after()
         try:
             layers = list_dxf_layers(self._filepath)
         except ImportError as exc:
@@ -409,7 +411,6 @@ class DxfImportDialog:
                 self.main_window._refresh_all_tabs()
                 self.main_window._update_status_info()
                 self.main_window._update_title()
-                self.main_window._refresh_menu_state()
                 self.main_window.root.after(
                     100, self.main_window.mesh_canvas.fit_view
                 )

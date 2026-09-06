@@ -206,12 +206,19 @@ class ElementTypeDialog:
 
     # ─── Ciclo de vida del video ────────────────────────────────────────
     def _load_video(self):
+        if not self.dialog.winfo_exists():
+            return  # el dialogo se cerro dentro de los 120 ms del after()
         if not os.path.exists(VIDEO_PATH):
             self._show_missing_video()
             return
         try:
             self._video.load(VIDEO_PATH)
-            self.dialog.after(80, self._video.play)
+            # Guard de existencia: cerrar el dialogo antes de los 80 ms
+            # disparaba el callback sobre widgets ya destruidos (TclError).
+            self.dialog.after(
+                80,
+                lambda: self._video.play() if self.dialog.winfo_exists() else None,
+            )
         except Exception as exc:
             self._show_missing_video(exc=exc)
 
@@ -244,19 +251,23 @@ class ElementTypeDialog:
             self._on_cancel()
             return
 
-        # Snapshot para undo antes de mutar.
-        try:
-            stack = getattr(self.main_window, "undo_stack", None)
-            if stack is not None:
-                stack.capture("cambio de tipo de elemento")
-        except Exception:
-            pass
+        def _capture_undo():
+            # El snapshot va DESPUES de cualquier confirmacion: capturarlo
+            # antes del askyesno dejaba un nivel de undo no-op cuando el
+            # usuario cancelaba.
+            try:
+                stack = getattr(self.main_window, "undo_stack", None)
+                if stack is not None:
+                    stack.capture("cambio de tipo de elemento")
+            except Exception:
+                pass
 
         has_q4 = any(e.num_nodes == 4 for e in self.project.elements.values())
         has_q9 = any(e.num_nodes == 9 for e in self.project.elements.values())
         mids = centers = 0
 
         if new_et == ELEMENT_Q9 and has_q4:
+            _capture_undo()
             mids, centers = expand_q4_to_q9(self.project)
         elif new_et == ELEMENT_Q4 and has_q9:
             resp = messagebox.askyesno(
@@ -270,8 +281,10 @@ class ElementTypeDialog:
             )
             if not resp:
                 return
+            _capture_undo()
             shrink_q9_to_q4(self.project)
         else:
+            _capture_undo()
             self.project.element_type = new_et
 
         self.project.is_modified = True
@@ -282,7 +295,6 @@ class ElementTypeDialog:
                 self.main_window.element_type_var.set(self.project.element_type)
                 self.main_window._refresh_all_tabs()
                 self.main_window._update_status_info()
-                self.main_window._refresh_menu_state()
                 self.main_window._update_title()
                 extra = ""
                 if mids or centers:

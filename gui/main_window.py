@@ -109,35 +109,6 @@ class MainWindow:
         # mucho antes de que el usuario abra un modulo educativo.
         self.root.after_idle(self._init_matplotlib_style)
 
-        # ─── Cold-start de Numba (JIT) ──────────────────────────────────
-        # El primer `solve_system` paga la compilacion JIT de los kernels
-        # @njit del motor FEM (~2-6s), congelando el loop de Tk justo cuando
-        # el alumno cambia a Post-Proceso. Disparamos un solve dummy en un
-        # thread daemon al boot (no toca Tk: solo NumPy/Numba puro) para que
-        # la compilacion ocurra en background y el primer solve real sea
-        # cache-hit. Mismo patron que el warmup de mathtext.
-        self.root.after_idle(self._warmup_numba)
-
-    def _warmup_numba(self):
-        """Fuerza la compilacion JIT de Numba en un thread daemon resolviendo
-        un modelo de ejemplo. No toca Tk (solo el motor FEM puro), por eso es
-        seguro fuera del hilo principal."""
-        def _worker():
-            try:
-                from models.example_library import load_example_project
-                from fem.solver import solve_system
-                from fem.stress import compute_all_stresses
-                proj = load_example_project()
-                sol = solve_system(proj)
-                compute_all_stresses(proj, sol)
-            except Exception:
-                pass
-
-        import threading
-        threading.Thread(
-            target=_worker, name="EduFEM-NumbaWarmup", daemon=True
-        ).start()
-
     def _init_matplotlib_style(self):
         """Configura mathtext (CM) y calienta el cache de fuentes.
 
@@ -255,7 +226,7 @@ class MainWindow:
             self.root.after(100, self._set_initial_sash)
 
     # ═════════════════════════════════════════════════════════════════════
-    # BARRA DE MENU — 4 menús: Archivo, Modelo, Educación, Ayuda
+    # BARRA DE MENU — 3 menús: Archivo, Modelo, Ayuda
     # ═════════════════════════════════════════════════════════════════════
 
     def _build_menu_bar(self):
@@ -851,7 +822,7 @@ class MainWindow:
             "canon_q4" / "canon_q9" -- cuadrado de validacion (9 nodos, 4 elems)
             "timoshenko_q4" / "timoshenko_q9" -- viga simple apoyada
                                                  (docs/vyv/, comparable con
-                                                 docs/Timoshenko,sap2000.pdf)
+                                                 tesis/anexos/validacion_sap2000.pdf)
             "cook_q4" / "cook_q9" -- membrana trapezoidal de Cook (1974)
         """
         if self.project.is_modified:
@@ -1014,6 +985,15 @@ class MainWindow:
         except Exception:
             element_stresses = None
 
+        # Snapshot inmutable del modelo: el progress dialog NO hace grab_set,
+        # asi que el usuario puede seguir editando mientras el worker genera
+        # el PDF. Sin la copia, el thread leeria un project mutandose (PDF
+        # inconsistente o excepcion espuria).
+        try:
+            project_snapshot = ProjectModel.from_dict(self.project.to_dict())
+        except Exception:
+            project_snapshot = self.project
+
         # Dialog de progreso (no bloqueante para la GUI; el thread worker
         # llama root.after(0, ...) para actualizarlo desde el otro hilo).
         progress = _PDFProgressDialog(self.root)
@@ -1027,8 +1007,9 @@ class MainWindow:
         def _worker():
             try:
                 path = generate_memoria_calculo(
-                    self.project, solution, element_stresses, nodal_stresses,
-                    filepath, style=style, progress_callback=_on_progress,
+                    project_snapshot, solution, element_stresses,
+                    nodal_stresses, filepath, style=style,
+                    progress_callback=_on_progress,
                 )
                 result_state["path"] = path
             except Exception as e:

@@ -13,12 +13,3 @@ ezdxf>=1.0,<2
 # documento. Sin pdflatex la app sigue funcionando (las fórmulas caen al
 # fallback mathtext). Instalá MiKTeX/TeX Live aparte si querés el PDF.
 #
-# ─── Opcional: JIT con numba (perf) ────────────────────────────────────────
-# @njit acelera los hot paths (FEM core + rasterizado del campo). fem/_numba_compat.py
-# provee un fallback que convierte @njit en no-op si numba NO esta instalado: el
-# codigo corre igual, solo mas lento. numba se desfasa respecto de numpy (las
-# versiones recientes tardan en soportar el ultimo numpy), por eso NO se fija como
-# dependencia dura — instalalo aparte si queres el JIT, con una version compatible
-# con tu numpy instalado:
-#     pip install "numba>=0.60"
-# Pesa ~30 MB (incluye LLVM); excluirlo del bundle PyInstaller lo aliviana.

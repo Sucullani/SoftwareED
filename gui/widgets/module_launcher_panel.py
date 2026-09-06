@@ -193,7 +193,7 @@ def render_module_buttons(parent, modules, on_open, *, bootstyle="info-outline",
         # callsite que retorne `None` (Pre/Proc/Post legacy) NO marca — el
         # callsite debe retornar `ok` del launcher para optar in. Si lo
         # marcaramos siempre, el chip ✓ aparecería incluso cuando el
-        # usuario cancela el simpledialog de seleccion de elemento.
+        # modulo se abre sin elemento y el alumno nunca llega a elegir uno.
         def _click(k=mod_key):
             opened = False
             try:

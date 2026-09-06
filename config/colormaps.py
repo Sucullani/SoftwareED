@@ -1,6 +1,6 @@
 """Colormaps perceptualmente uniformes para el canvas FEM (numpy puro).
 
-Auditoria UX 2026-05 (docs/auditoria_canvas_ux.md, hallazgo R1): el canvas
+Auditoria UX 2026-05 (docs/auditorias/historico/2026-05-30_auditoria_canvas_ux.md, hallazgo R1): el canvas
 interactivo usaba JET inline en el kernel de rasterizado. JET no es
 perceptualmente uniforme — crea bandas falsas (el amarillo aparenta un
 maximo donde no lo hay), problema documentado en visualizacion cientifica,
@@ -27,7 +27,7 @@ canvas 2D, Vista 3D, mini-paneles M9, Memoria de Calculo):
     campos de resultado.
 
 Los LUT son ndarray (256, 3) uint8 — indexables directo por `int(t*255)` en
-el kernel Numba (mas rapido que el branching de JET) y convertibles a hex
+el rasterizador vectorizado (mas rapido que el branching de JET) y convertibles a hex
 para los items vectoriales (colorbar, fallback de poligonos sin PIL).
 """
 

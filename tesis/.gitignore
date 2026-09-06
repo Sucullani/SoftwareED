@@ -42,3 +42,7 @@ main.pdf
 *.sublime-*
 
 # Las figuras (figuras/) SI se versionan: no estan ignoradas.
+
+# Logs de compilacion LaTeX (regenerables)
+compile_out.txt
+compile_run.txt

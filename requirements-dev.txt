@@ -8,3 +8,9 @@
 # salto de major de PyInstaller (que suele cambiar el formato del .spec y
 # los hooks) no rompa el build de forma silenciosa.
 PyInstaller>=6.0,<7
+
+# Render de los videos .webp de resources/videos/ (tools/render_*_manim/).
+# NO se instala por defecto: es pesado (LaTeX + cairo + ffmpeg) y solo hace
+# falta para regenerar los assets, que estan versionados. Instalarlo a mano
+# cuando haga falta:  pip install manim
+# manim>=0.18

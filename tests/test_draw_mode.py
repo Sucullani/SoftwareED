@@ -26,8 +26,19 @@ if hasattr(sys.stdout, "reconfigure"):
 from models.project import ProjectModel
 from models.material import Material
 from models.mesh_utils import auto_expand_if_q9
-from gui.preprocessing.mesh_canvas import MeshCanvas
 import config.settings as cfg
+
+# MeshCanvas arrastra tkinter. La logica que se testea aca es pura
+# (shoelace + snap + commit), asi que en un entorno headless se omiten solo
+# los checks que necesitan el canvas en vez de abortar el modulo entero.
+try:
+    from gui.preprocessing.mesh_canvas import MeshCanvas
+    HAS_TK = True
+except Exception as _exc:  # ImportError o TclError sin display
+    MeshCanvas = None
+    HAS_TK = False
+    print(f"[SKIP] MeshCanvas no disponible ({_exc}); "
+          f"se corren solo los checks de logica pura.")
 
 
 def _new_project():

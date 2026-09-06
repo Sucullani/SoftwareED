@@ -243,7 +243,10 @@ class EquivalentForcesModule(CanvasOverlayModule):
         delta = 16.0 / _ANIM_DURATION_MS
         self._anim_t = min(1.0, self._anim_t + delta)
         try:
-            self._mesh.redraw()
+            # Regla de oro 5 de overlays: en el loop va redraw_overlays_only()
+            # (~1 ms). Un redraw() completo rasteriza toda la malla por frame
+            # (80-200 ms) y a 60 fps convierte la animacion en un tiron.
+            self._mesh.redraw_overlays_only()
         except Exception:
             pass
         if self._anim_t < 1.0:

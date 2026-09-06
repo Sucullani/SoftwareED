@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from config.settings import NUMERICAL_TOLERANCE
 from fem.shape_functions import get_shape_functions
 from fem.jacobian import compute_jacobian
 
@@ -25,7 +26,7 @@ def _physical_to_natural(
     y: float,
     node_coords: np.ndarray,
     element_type: str = "Q4",
-    tol: float = 1e-10,
+    tol: float = NUMERICAL_TOLERANCE,
     max_iter: int = 50,
 ):
     """Newton-Raphson para invertir el mapeo isoparamétrico.
@@ -73,7 +74,7 @@ def iso_inverse_map(
     y: float,
     node_coords: np.ndarray,
     element_type: str = "Q4",
-    tol: float = 1e-10,
+    tol: float = NUMERICAL_TOLERANCE,
     max_iter: int = 50,
 ):
     """Mapea un punto físico (x, y) al dominio natural (xi, eta).

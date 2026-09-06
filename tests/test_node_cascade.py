@@ -179,6 +179,38 @@ def test_legacy_no_cleanup():
     print("[OK] legacy mode (cleanup_orphans=False): comportamiento clasico")
 
 
+def test_change_element_id_actualiza_indice_inverso():
+    """Regresion (auditoria 2026-06-10, P0-1): `change_element_id` reasignaba
+    la clave en `elements` pero dejaba `_node_to_elements` con el id viejo.
+    Renombrar un elemento y despues borrar uno de sus nodos crasheaba
+    `preview_node_cascade` con KeyError, y ademas rompia `is_node_referenced`
+    y el auto-cleanup (los huerfanos no se limpiaban nunca).
+    """
+    p = _new_project_with_material()
+    p.add_node(0, 0, 1)
+    p.add_node(1, 0, 2)
+    p.add_node(1, 1, 3)
+    p.add_node(0, 1, 4)
+    p.add_element([1, 2, 3, 4], 1.0, "acero", elem_id=10)
+
+    p.change_element_id(10, 77)
+
+    refs = p._node_to_elements.get(1, set())
+    assert 77 in refs, f"el indice inverso no conoce el id nuevo: {refs}"
+    assert 10 not in refs, f"el indice inverso retiene el id viejo: {refs}"
+    assert p.is_node_referenced(1), "is_node_referenced quedo roto"
+
+    # Antes del fix esto explotaba con KeyError.
+    prev = p.preview_node_cascade(1)
+    assert prev["elements_to_delete"] == [77], prev
+
+    result = p.remove_node_with_cascade(1)
+    assert result["elements_deleted"] == [77], result
+    assert p.elements == {}, "el elemento renombrado no se borro"
+    print("[OK] I. change_element_id sincroniza _node_to_elements "
+          "(preview + cascade sin KeyError)")
+
+
 if __name__ == "__main__":
     test_isolated_node_no_data()
     test_isolated_node_with_user_data()
@@ -188,4 +220,5 @@ if __name__ == "__main__":
     test_q9_vertex_shared_midnode_preserved()
     test_preview_matches_cascade()
     test_legacy_no_cleanup()
+    test_change_element_id_actualiza_indice_inverso()
     print("\nTodos los tests del cascade de nodos pasan.")

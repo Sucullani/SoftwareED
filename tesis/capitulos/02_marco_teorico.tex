@@ -293,7 +293,7 @@ que preserva la simetría del bloque libre. Un modelo bien restringido —al men
 \section{Resolución del sistema y recuperación de tensiones}
 \label{sec:resolucion-tensiones}
 
-El sistema reducido de \autoref{eq:dirichlet-no-homogeneo} se resuelve por factorización LU directa sobre la matriz dispersa \autocite{virtanen2020scipy}. Opcionalmente se aplica una reordenación de tipo Cuthill-McKee inverso antes de factorizar para reducir el llenado (\emph{fill-in}) en mallas estructuradas. Conocido el vector $\bm{u}$, las reacciones en los GDL restringidos se recuperan como $\bm{R} = \bm{K}_{rf}\,\bm{u}_f + \bm{K}_{rr}\,\bm{u}_r - \bm{F}_r$.
+El sistema reducido de \autoref{eq:dirichlet-no-homogeneo} se resuelve por factorización LU directa sobre la matriz dispersa \autocite{virtanen2020scipy}, con un ordenamiento de columnas de mínimo grado que aprovecha la simetría de la matriz para reducir el llenado (\emph{fill-in}). Conocido el vector $\bm{u}$, las reacciones en los GDL restringidos se recuperan como $\bm{R} = \bm{K}_{rf}\,\bm{u}_f + \bm{K}_{rr}\,\bm{u}_r - \bm{F}_r$.
 
 Las tensiones se calculan primero en los puntos de Gauss, evaluando $\bm{\sigma}_p = \bm{D}\,\bm{B}_p\,\bm{u}_e$. A partir de las componentes cartesianas se obtienen las tensiones principales y la equivalente de von Mises:
 

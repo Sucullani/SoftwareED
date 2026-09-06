@@ -3,7 +3,7 @@ vv_timoshenko.py - Validacion del solver EduFEM contra:
   (a) la solucion analitica de Timoshenko & Goodier para una viga
       simplemente apoyada bajo carga uniforme,
   (b) la cross-validation con el modelo Shell de SAP2000 documentado en
-      docs/Timoshenko,sap2000.pdf.
+      tesis/anexos/validacion_sap2000.pdf.
 
 Configuracion del problema (verbatim del PDF):
     L = 14 m, H = 1.20 m, b = 0.40 m, c = H/2 = 0.6 m

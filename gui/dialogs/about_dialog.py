@@ -68,8 +68,5 @@ class AboutDialog:
             command=self.dialog.destroy, width=12
         ).pack()
 
-        # Centrar
-        self.dialog.update_idletasks()
-        x = parent.winfo_x() + (parent.winfo_width() - 450) // 2
-        y = parent.winfo_y() + (parent.winfo_height() - 350) // 2
-        self.dialog.geometry(f"+{x}+{y}")
+        # Centrar (helper compartido: nada de dimensiones hardcodeadas)
+        center_dialog(self.dialog, parent)

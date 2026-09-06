@@ -881,10 +881,11 @@ class MemoriaCalculo:
         """Recalcula la formulación COMPLETA del elemento (con todos los
         intermedios J, B, dN, etc.) vía `fem.stiffness.element_stiffness`.
 
-        El element_data del solve productivo usa el kernel JIT y guarda un
-        gauss_data mínimo (xi, eta, weight, det_J, B) — sin J ni índice. Para
-        el paso-a-paso necesitamos la versión completa, que se recalcula aquí
-        solo para este único elemento (costo despreciable).
+        El element_data del solve productivo viene del motor por lotes
+        (`fem/batch.py`) y guarda por elemento solo ke, dof_indices,
+        node_coords, B y det_J — sin J, inv_J ni dN. Para el paso-a-paso
+        necesitamos la versión completa, que se recalcula aquí solo para
+        este único elemento (costo despreciable).
 
         Retorna (ke, gauss_data_completo, material, node_coords) o None.
         """

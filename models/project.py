@@ -497,6 +497,15 @@ class ProjectModel:
         elem = self.elements.pop(old_id)
         elem.id = new_id
         self.elements[new_id] = elem
+        # Sincronizar el indice inverso nodo->elementos. Sin esto los sets
+        # conservan el id viejo y preview_node_cascade explota con KeyError
+        # al borrar un nodo del elemento renombrado (modal de pre_tab y
+        # canvas), ademas de romper is_node_referenced y el auto-cleanup.
+        for nid in elem.node_ids:
+            s = self._node_to_elements.get(nid)
+            if s is not None:
+                s.discard(old_id)
+                s.add(new_id)
         for sl in self.surface_loads:
             if sl.element_id == old_id:
                 sl.element_id = new_id

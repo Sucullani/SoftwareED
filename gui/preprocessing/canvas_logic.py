@@ -1,6 +1,6 @@
 """Logica pura del MeshCanvas (sin Tk) — testeable headless.
 
-Auditoria UX 2026-05 (docs/auditoria_canvas_ux.md): el canvas no decidia
+Auditoria UX 2026-05 (docs/auditorias/historico/2026-05-30_auditoria_canvas_ux.md): el canvas no decidia
 *cuanto* dibujar segun la escala. Aqui viven las decisiones puras de
 visibilidad progresiva (LOD por zoom) y de culling por viewport, separadas
 del widget Tk para poder testearlas sin display.

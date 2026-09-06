@@ -11,7 +11,7 @@ elegir la columna izquierda de lo que el alumno está viendo, y
 viceversa. No hace falta explicarlo con texto — la disposición lo dice.
 
 NO contiene la matriz constitutiva D — eso vive en el módulo educativo
-M3 (Proceso > Educación), porque D depende del material asignado a cada
+M4 (Proceso > Educación), porque D depende del material asignado a cada
 elemento.
 
 Aceptar guarda `project.analysis_type` con captura undo previa.
@@ -130,12 +130,19 @@ class AnalysisTypeDialog:
     def _load_video(self):
         """Carga el único asset TP+DP. Si falla, reemplaza el container
         por un mensaje informativo sin romper el diálogo."""
+        if not self.dialog.winfo_exists():
+            return  # el dialogo se cerro dentro de los 120 ms del after()
         if not os.path.exists(VIDEO_PATH):
             self._show_missing_video()
             return
         try:
             self._video.load(VIDEO_PATH)
-            self.dialog.after(80, self._video.play)
+            # Guard de existencia: cerrar el dialogo antes de los 80 ms
+            # disparaba el callback sobre widgets ya destruidos (TclError).
+            self.dialog.after(
+                80,
+                lambda: self._video.play() if self.dialog.winfo_exists() else None,
+            )
         except Exception as exc:
             self._show_missing_video(exc=exc)
 
@@ -177,7 +184,6 @@ class AnalysisTypeDialog:
                 self.main_window.analysis_type_var.set(self.project.analysis_type)
                 self.main_window._refresh_all_tabs()
                 self.main_window._update_status_info()
-                self.main_window._refresh_menu_state()
                 self.main_window._update_title()
                 self.main_window.set_status(
                     f"Tipo de análisis: {self.project.analysis_type}"

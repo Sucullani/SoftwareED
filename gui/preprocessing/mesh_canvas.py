@@ -1,7 +1,7 @@
 """
 MeshCanvas: Canvas interactivo compartido para visualizar la malla FEM.
 Soporta zoom, pan, nodos, elementos, cargas, restricciones,
-visualizacion de resultados con gradiente suave (viridis/coolwarm) e isolineas.
+visualizacion de resultados con gradiente suave (jet) e isolineas.
 """
 
 import math
@@ -16,7 +16,10 @@ try:
 except ImportError:
     HAS_PIL = False
 
-from fem._numba_compat import njit
+from gui.preprocessing.canvas_raster import (
+    element_grid_points, element_grid_values, grid_triangles,
+    marching_squares_batch, rasterize_triangles,
+)
 
 # Padding del raster del gradient como fraccion del viewport visible.
 # Al rasterizar 50% extra por lado, el bitmap final es 2x ancho * 2x alto
@@ -26,230 +29,8 @@ from fem._numba_compat import njit
 _GRADIENT_PAD_FRAC = 0.5
 
 
-# Tabla marching squares como ndarray int8 (en vez de dict). Cada fila es un
-# caso (0-15); columnas (ea1, eb1, ea2, eb2). -1 indica "sin segmento".
-_MARCHING_SEG_TABLE = np.array([
-    [-1, -1, -1, -1],   # 0:  todos abajo
-    [ 0,  3, -1, -1],   # 1:  v00 arriba
-    [ 0,  1, -1, -1],   # 2:  v10 arriba
-    [ 1,  3, -1, -1],   # 3:  v00 + v10 arriba
-    [ 1,  2, -1, -1],   # 4:  v11 arriba
-    [ 0,  3,  1,  2],   # 5:  v00 + v11 — ambiguo, 2 segmentos
-    [ 0,  2, -1, -1],   # 6:  v10 + v11
-    [ 2,  3, -1, -1],   # 7
-    [ 2,  3, -1, -1],   # 8:  v01 arriba
-    [ 0,  2, -1, -1],   # 9
-    [ 0,  1,  2,  3],   # 10: v10 + v01 — ambiguo
-    [ 1,  2, -1, -1],   # 11
-    [ 1,  3, -1, -1],   # 12
-    [ 0,  1, -1, -1],   # 13
-    [ 0,  3, -1, -1],   # 14
-    [-1, -1, -1, -1],   # 15: todos arriba
-], dtype=np.int32)
-
-
-@njit(cache=True)
-def _marching_squares_njit(gx, gy, gv, levels, seg_table):
-    """Genera segmentos de isolinea en coords mundo via marching squares.
-
-    Parametros:
-        gx, gy: (n_grid, n_grid) — coords mundo (x, y) de la grilla.
-        gv: (n_grid, n_grid) — valores del campo en la grilla.
-        levels: (n_levels,) — niveles a contornear.
-        seg_table: (16, 4) — lookup table (ver _MARCHING_SEG_TABLE).
-
-    Retorna: (segs, count). `segs` es (M, 4) con (x1, y1, x2, y2) en mundo
-    por fila; `count` es cuantas filas estan llenas (resto = garbage).
-    """
-    n_grid = gx.shape[0]
-    n_levels = len(levels)
-    max_segments = (n_grid - 1) * (n_grid - 1) * 2 * n_levels
-    segs = np.empty((max_segments, 4))
-    count = 0
-
-    for li in range(n_levels):
-        level = levels[li]
-        for ci in range(n_grid - 1):
-            for cj in range(n_grid - 1):
-                v00 = gv[cj, ci]
-                v10 = gv[cj, ci + 1]
-                v11 = gv[cj + 1, ci + 1]
-                v01 = gv[cj + 1, ci]
-
-                case = 0
-                if v00 >= level:
-                    case |= 1
-                if v10 >= level:
-                    case |= 2
-                if v11 >= level:
-                    case |= 4
-                if v01 >= level:
-                    case |= 8
-
-                if case == 0 or case == 15:
-                    continue
-
-                # Cruces por arista (hasta 4 candidatos).
-                ept_x = np.empty(4)
-                ept_y = np.empty(4)
-                ept_valid = np.zeros(4, dtype=np.bool_)
-
-                # Edge 0: v00 → v10
-                if (v00 >= level) != (v10 >= level):
-                    dv = v10 - v00
-                    t = (level - v00) / dv if abs(dv) > 1e-15 else 0.5
-                    if t < 0.0: t = 0.0
-                    elif t > 1.0: t = 1.0
-                    ept_x[0] = gx[cj, ci] + t * (gx[cj, ci + 1] - gx[cj, ci])
-                    ept_y[0] = gy[cj, ci] + t * (gy[cj, ci + 1] - gy[cj, ci])
-                    ept_valid[0] = True
-
-                # Edge 1: v10 → v11
-                if (v10 >= level) != (v11 >= level):
-                    dv = v11 - v10
-                    t = (level - v10) / dv if abs(dv) > 1e-15 else 0.5
-                    if t < 0.0: t = 0.0
-                    elif t > 1.0: t = 1.0
-                    ept_x[1] = gx[cj, ci + 1] + t * (gx[cj + 1, ci + 1] - gx[cj, ci + 1])
-                    ept_y[1] = gy[cj, ci + 1] + t * (gy[cj + 1, ci + 1] - gy[cj, ci + 1])
-                    ept_valid[1] = True
-
-                # Edge 2: v11 → v01
-                if (v11 >= level) != (v01 >= level):
-                    dv = v01 - v11
-                    t = (level - v11) / dv if abs(dv) > 1e-15 else 0.5
-                    if t < 0.0: t = 0.0
-                    elif t > 1.0: t = 1.0
-                    ept_x[2] = gx[cj + 1, ci + 1] + t * (gx[cj + 1, ci] - gx[cj + 1, ci + 1])
-                    ept_y[2] = gy[cj + 1, ci + 1] + t * (gy[cj + 1, ci] - gy[cj + 1, ci + 1])
-                    ept_valid[2] = True
-
-                # Edge 3: v01 → v00
-                if (v01 >= level) != (v00 >= level):
-                    dv = v00 - v01
-                    t = (level - v01) / dv if abs(dv) > 1e-15 else 0.5
-                    if t < 0.0: t = 0.0
-                    elif t > 1.0: t = 1.0
-                    ept_x[3] = gx[cj + 1, ci] + t * (gx[cj, ci] - gx[cj + 1, ci])
-                    ept_y[3] = gy[cj + 1, ci] + t * (gy[cj, ci] - gy[cj + 1, ci])
-                    ept_valid[3] = True
-
-                # Hasta 2 segmentos por caso (ambiguos 5 y 10).
-                for s in range(2):
-                    ea = seg_table[case, 2 * s]
-                    eb = seg_table[case, 2 * s + 1]
-                    if ea < 0 or eb < 0:
-                        continue
-                    if not ept_valid[ea] or not ept_valid[eb]:
-                        continue
-                    segs[count, 0] = ept_x[ea]
-                    segs[count, 1] = ept_y[ea]
-                    segs[count, 2] = ept_x[eb]
-                    segs[count, 3] = ept_y[eb]
-                    count += 1
-
-    return segs, count
-
-
-@njit(cache=True)
-def _build_gxgy_q4_njit(nc, n_grid):
-    """Construye gx, gy (mapping bilineal Q4 a la grilla n_grid x n_grid).
-
-    Reemplaza el doble loop Python que estaba en _draw_isolines.
-    """
-    gx = np.empty((n_grid, n_grid))
-    gy = np.empty((n_grid, n_grid))
-    for ci in range(n_grid):
-        xi = -1.0 + 2.0 * ci / (n_grid - 1)
-        for cj in range(n_grid):
-            eta = -1.0 + 2.0 * cj / (n_grid - 1)
-            N0 = (1.0 - xi) * (1.0 - eta) * 0.25
-            N1 = (1.0 + xi) * (1.0 - eta) * 0.25
-            N2 = (1.0 + xi) * (1.0 + eta) * 0.25
-            N3 = (1.0 - xi) * (1.0 + eta) * 0.25
-            # cj=eta_idx, ci=xi_idx (ver comentario en _draw_isolines original).
-            gx[cj, ci] = (N0 * nc[0, 0] + N1 * nc[1, 0]
-                          + N2 * nc[2, 0] + N3 * nc[3, 0])
-            gy[cj, ci] = (N0 * nc[0, 1] + N1 * nc[1, 1]
-                          + N2 * nc[2, 1] + N3 * nc[3, 1])
-    return gx, gy
-
-
-@njit(cache=True, fastmath=True)
-def _rasterize_triangle_njit(img, W, H,
-                              sx0, sy0, v0,
-                              sx1, sy1, v1,
-                              sx2, sy2, v2,
-                              vmin, vmax, lut):
-    """Rasteriza un triangulo con interpolacion baricentrica + LUT de color.
-
-    Implementacion JIT (Numba): loops explicitos pixel-a-pixel SIN crear
-    arrays intermedios (lam0/lam1/lam2, mascaras booleanas, indexing).
-    En la version NumPy original el costo dominante eran las allocations
-    y el masking; aqui Numba compila a maquina y opera sobre los pixeles
-    directamente en cache L1. Speedup: 15-30x vs version NumPy en triangulos
-    chicos (lo tipico para el campo de tensiones, ~20-50 px de lado).
-
-    `lut`: ndarray (256, 3) uint8 (JET para todos los campos — pedido del
-    usuario 2026-05-31, look ANSYS/SAP2000; ver config/colormaps). Indexar el
-    LUT precomputado por `int(t*255)` es mas rapido que recalcular el color por
-    pixel.
-
-    `fastmath=True`: permitido aqui porque solo afecta visualizacion (el
-    pipeline FEM en `fem/` NO usa fastmath para preservar bit-reproducibilidad
-    de V&V).
-    """
-    min_x = max(0, int(min(sx0, sx1, sx2)))
-    max_x = min(W - 1, int(max(sx0, sx1, sx2)) + 1)
-    min_y = max(0, int(min(sy0, sy1, sy2)))
-    max_y = min(H - 1, int(max(sy0, sy1, sy2)) + 1)
-    if min_x >= max_x or min_y >= max_y:
-        return
-
-    denom = (sy1 - sy2) * (sx0 - sx2) + (sx2 - sx1) * (sy0 - sy2)
-    if abs(denom) < 1e-6:
-        return  # triangulo degenerado
-
-    inv_denom = 1.0 / denom
-    vrange = vmax - vmin
-    if vrange < 1e-15:
-        vrange = 1e-15
-    inv_vrange = 1.0 / vrange
-
-    for iy in range(min_y, max_y + 1):
-        py = float(iy)
-        for ix in range(min_x, max_x + 1):
-            px = float(ix)
-            lam0 = ((sy1 - sy2) * (px - sx2)
-                    + (sx2 - sx1) * (py - sy2)) * inv_denom
-            lam1 = ((sy2 - sy0) * (px - sx2)
-                    + (sx0 - sx2) * (py - sy2)) * inv_denom
-            lam2 = 1.0 - lam0 - lam1
-            # Discard pixeles fuera del triangulo (tolerancia para no
-            # dejar gaps entre triangulos adyacentes en cells del quad).
-            if lam0 < -0.001 or lam1 < -0.001 or lam2 < -0.001:
-                continue
-
-            val = lam0 * v0 + lam1 * v1 + lam2 * v2
-            t = (val - vmin) * inv_vrange
-            if t < 0.0:
-                t = 0.0
-            elif t > 1.0:
-                t = 1.0
-
-            # Color via LUT JET precomputado (config/colormaps): indexar por
-            # int(t*255) es mas rapido que recalcular el color por pixel.
-            idx = int(t * 255.0)
-            if idx < 0:
-                idx = 0
-            elif idx > 255:
-                idx = 255
-            img[iy, ix, 0] = lut[idx, 0]
-            img[iy, ix, 1] = lut[idx, 1]
-            img[iy, ix, 2] = lut[idx, 2]
-            img[iy, ix, 3] = 255
-
 from config.settings import (
+    NUMERICAL_TOLERANCE,
     CANVAS_BG_COLOR, CANVAS_GRID_COLOR, CANVAS_NODE_COLOR,
     CANVAS_ELEMENT_COLOR, CANVAS_LOAD_COLOR, CANVAS_CONSTRAINT_COLOR,
     CANVAS_SELECTED_COLOR, CANVAS_NODE_RADIUS, CANVAS_FONT_SIZE,
@@ -629,7 +410,7 @@ class MeshCanvas(ttk.Frame):
         (VM, |u|) como campos con signo (sigma_x/sigma_y/tau_xy/Ux/Uy) usan jet.
         Para campos con signo se re-centra vmin/vmax simetricamente para que el
         cero fisico caiga en el medio del arcoiris (verde) — azul = compresion,
-        rojo = traccion. Unificado con la Vista 3D, los mini-paneles M9 y la
+        rojo = traccion. Unificado con la Vista 3D del Post y la
         Memoria de Calculo.
         """
         self._active_lut = JET_LUT
@@ -941,7 +722,7 @@ class MeshCanvas(ttk.Frame):
         # canvas.scale para escalar las isolineas existentes con la malla.
         # En el flujo de redraw normal (cambio de resultado, fit_view,
         # release-de-pan), regeneramos las isolineas con el marching
-        # squares JIT (Fase 7).
+        # squares vectorizado por lotes (canvas_raster).
         if self.result_values or self.element_result_grid:
             if self.show_isolines:
                 self._draw_isolines()
@@ -1201,50 +982,27 @@ class MeshCanvas(ttk.Frame):
         H = h + 2 * pad_y
 
         img = np.zeros((H, W, 4), dtype=np.uint8)
-        n = 6  # subdivisiones por arista (36 celdas/elemento)
+        n = 6  # subdivisiones por arista (36 celdas = 72 triangulos/elemento)
 
-        for elem in self.project.elements.values():
-            nids = elem.node_ids[:4]
-            if not all(nid in self.project.nodes for nid in nids):
-                continue
-            grid, ok = self._get_grid_values(elem, n)
-            if not ok:
-                continue
-
-            nc = []
-            for nid in nids:
-                x, y = self._get_node_world_deformed(nid)
-                nc.append((x, y))
-
-            # Generar grilla de puntos en coords pantalla SHIFTADAS por
-            # (pad_x, pad_y) — el bitmap ocupa (0..W, 0..H), y el viewport
-            # visible corresponde a (pad_x..pad_x+w, pad_y..pad_y+h).
-            pts_grid = {}  # (i,j) -> (sx, sy, val)
-            for i in range(n + 1):
-                xi = -1 + 2 * i / n
-                for j in range(n + 1):
-                    eta = -1 + 2 * j / n
-                    N0 = (1 - xi) * (1 - eta) * 0.25
-                    N1 = (1 + xi) * (1 - eta) * 0.25
-                    N2 = (1 + xi) * (1 + eta) * 0.25
-                    N3 = (1 - xi) * (1 + eta) * 0.25
-                    wx = (N0*nc[0][0] + N1*nc[1][0]
-                          + N2*nc[2][0] + N3*nc[3][0])
-                    wy = (N0*nc[0][1] + N1*nc[1][1]
-                          + N2*nc[2][1] + N3*nc[3][1])
-                    sx, sy = self.world_to_screen(wx, wy)
-                    pts_grid[(i, j)] = (sx + pad_x, sy + pad_y,
-                                        float(grid[i, j]))
-
-            # Subdividir en triangulos y rasterizar cada uno contra (W, H)
-            for i in range(n):
-                for j in range(n):
-                    p00 = pts_grid[(i, j)]
-                    p10 = pts_grid[(i + 1, j)]
-                    p11 = pts_grid[(i + 1, j + 1)]
-                    p01 = pts_grid[(i, j + 1)]
-                    self._rasterize_triangle(img, W, H, p00, p10, p11)
-                    self._rasterize_triangle(img, W, H, p00, p11, p01)
+        # Vectorizado por lotes (gui/preprocessing/canvas_raster.py): puntos
+        # de grilla, valores y triangulos de TODOS los elementos a la vez, y
+        # un unico rasterizado con baricentricas + LUT. Mismos pixeles que el
+        # loop por triangulo que habia antes.
+        nodes = self.project.nodes
+        elems = [elem for elem in self.project.elements.values()
+                 if all(nid in nodes for nid in elem.node_ids[:4])]
+        elems, vals = self._grid_values_batch(elems, n)
+        if elems:
+            corners = self._corner_coords_deformed(elems)          # (e, 4, 2) mundo
+            pts = element_grid_points(corners, n)                   # (e, p, 2) mundo
+            # Coords pantalla SHIFTADAS por (pad_x, pad_y): el bitmap ocupa
+            # (0..W, 0..H) y el viewport visible es (pad_x.., pad_y..).
+            sx = pts[..., 0] * self.scale + self.offset_x + pad_x
+            sy = -pts[..., 1] * self.scale + self.offset_y + pad_y
+            P = np.stack([sx, sy, vals], axis=-1)                   # (e, p, 3)
+            tris = P[:, grid_triangles(n)].reshape(-1, 3, 3)
+            rasterize_triangles(img, tris, self.result_vmin, self.result_vmax,
+                                self._active_lut)
 
         # Mostrar imagen en el canvas. Guardamos el PIL Image (no solo el
         # PhotoImage) para poder hacer Image.resize() durante zoom suave.
@@ -1297,7 +1055,7 @@ class MeshCanvas(ttk.Frame):
             # NEAREST: ~5-10ms para bitmaps de ~10MP. BILINEAR seria
             # mas suave pero ~3x mas lento — durante interaccion priorizamos
             # latencia. El redraw final post-interaccion usa la calidad
-            # full del rasterizador baricentrico de _rasterize_triangle.
+            # full del rasterizador vectorizado (rasterize_triangles).
             scaled = pil.resize((new_w, new_h), Image.NEAREST)
             photo = ImageTk.PhotoImage(scaled)
             self._gradient_zoom_photo = photo  # ref viva para evitar GC
@@ -1325,24 +1083,52 @@ class MeshCanvas(ttk.Frame):
         self.canvas.tag_lower("grid")
         return True
 
-    def _rasterize_triangle(self, img, w, h, p0, p1, p2):
-        """Adapter al kernel JIT `_rasterize_triangle_njit`.
+    def _corner_coords_deformed(self, elems):
+        """Coords mundo (con deformacion si aplica) de los 4 corners de cada
+        elemento: array (e, 4, 2)."""
+        out = np.empty((len(elems), 4, 2))
+        for k, elem in enumerate(elems):
+            for c, nid in enumerate(elem.node_ids[:4]):
+                out[k, c] = self._get_node_world_deformed(nid)
+        return out
 
-        Desempaqueta las tuples `(sx, sy, val)` y pasa los floats por
-        separado (Numba no acepta tuples Python nativas como argumentos).
-        El kernel JIT hace todo el trabajo: barycentricas + LUT de color
-        + escritura de pixeles, sin allocations intermedias.
+    def _grid_values_batch(self, elems, n):
+        """Valores del campo activo en la grilla (n+1)x(n+1) de cada elemento,
+        para todos a la vez: retorna (elems_validos, vals (e, (n+1)^2)).
+
+        Misma semantica que `_get_grid_values`: modo CRUDO toma la grilla
+        pre-computada (resampleo por elemento solo si el tamano no coincide);
+        modo SUAVIZADO interpola bilinealmente los 4 valores nodales.
         """
-        sx0, sy0, v0 = p0
-        sx1, sy1, v1 = p1
-        sx2, sy2, v2 = p2
-        _rasterize_triangle_njit(
-            img, w, h,
-            sx0, sy0, v0,
-            sx1, sy1, v1,
-            sx2, sy2, v2,
-            self.result_vmin, self.result_vmax, self._active_lut,
-        )
+        n_pts = (n + 1) * (n + 1)
+        if self.element_result_grid is not None:
+            kept, rows = [], []
+            for elem in elems:
+                grid = self.element_result_grid.get(elem.id)
+                if grid is None:
+                    continue
+                if grid.shape != (n + 1, n + 1):
+                    grid, ok = self._get_grid_values(elem, n)
+                    if not ok:
+                        continue
+                kept.append(elem)
+                rows.append(np.asarray(grid, dtype=float).ravel())
+            vals = np.array(rows) if rows else np.zeros((0, n_pts))
+            return kept, vals
+        if self.result_values is not None:
+            nodes = self.project.nodes
+            rv = self.result_values
+            kept, nv = [], []
+            for elem in elems:
+                nids = elem.node_ids[:4]
+                if not all(nid in nodes and nid in rv for nid in nids):
+                    continue
+                kept.append(elem)
+                nv.append([float(rv[nid]) for nid in nids])
+            if not kept:
+                return [], np.zeros((0, n_pts))
+            return kept, element_grid_values(np.array(nv), n)
+        return [], np.zeros((0, n_pts))
 
     def _draw_gradient_polygons(self):
         """Fallback: gradiente con sub-poligonos si PIL no esta disponible.
@@ -1427,9 +1213,14 @@ class MeshCanvas(ttk.Frame):
         ox = self.offset_x
         oy = self.offset_y
 
+        # Vectorizado por lotes: los elementos se agrupan por tamano de grilla
+        # (modo CRUDO: la nativa de cada uno, tipicamente 7x7; suavizado: una
+        # grilla fina de 16x16 para curvas lisas) y marching squares corre
+        # sobre todos los elementos del grupo a la vez.
+        nodes = self.project.nodes
+        groups = {}
         for elem in self.project.elements.values():
-            nids = elem.node_ids[:4]
-            if not all(nid in self.project.nodes for nid in nids):
+            if not all(nid in nodes for nid in elem.node_ids[:4]):
                 continue
             if raw_mode:
                 native = self.element_result_grid.get(elem.id)
@@ -1438,37 +1229,27 @@ class MeshCanvas(ttk.Frame):
                 n_grid = native.shape[0]  # puntos nativos (n+1)
             else:
                 n_grid = default_n_grid
-            grid_vals, ok = self._get_grid_values(elem, n_grid - 1)
-            if not ok:
+            groups.setdefault(n_grid, []).append(elem)
+
+        for n_grid, group in groups.items():
+            elems, vals = self._grid_values_batch(group, n_grid - 1)
+            if not elems:
                 continue
-            # Coords mundo de los 4 corners (con deformacion si aplica).
-            nc = np.empty((4, 2))
-            for k, nid in enumerate(nids):
-                xn, yn = self._get_node_world_deformed(nid)
-                nc[k, 0] = xn
-                nc[k, 1] = yn
-
-            # Construye gx, gy (mapping bilineal) en JIT.
-            gx, gy = _build_gxgy_q4_njit(nc, n_grid)
-
-            # gv: grid_vals viene en orden (i=xi, j=eta); transponemos a
-            # (cj, ci) para coincidir con marching squares.
-            gv = np.ascontiguousarray(grid_vals.T)
-
-            # Marching squares en JIT — retorna segmentos en coords mundo.
-            segs, count = _marching_squares_njit(
-                gx, gy, gv, levels, _MARCHING_SEG_TABLE
-            )
-            if count == 0:
+            corners = self._corner_coords_deformed(elems)
+            pts = element_grid_points(corners, n_grid - 1)     # (e, p, 2) mundo
+            e = len(elems)
+            gx = pts[:, :, 0].reshape(e, n_grid, n_grid)
+            gy = pts[:, :, 1].reshape(e, n_grid, n_grid)
+            gv = vals.reshape(e, n_grid, n_grid)
+            segs = marching_squares_batch(gx, gy, gv, levels)
+            if segs.shape[0] == 0:
                 continue
-
-            # world_to_screen vectorizado sobre los segmentos validos.
-            seg_view = segs[:count]
-            sx1 = seg_view[:, 0] * scale + ox
-            sy1 = -seg_view[:, 1] * scale + oy
-            sx2 = seg_view[:, 2] * scale + ox
-            sy2 = -seg_view[:, 3] * scale + oy
-            for k in range(count):
+            # world_to_screen vectorizado sobre los segmentos.
+            sx1 = segs[:, 0] * scale + ox
+            sy1 = -segs[:, 1] * scale + oy
+            sx2 = segs[:, 2] * scale + ox
+            sy2 = -segs[:, 3] * scale + oy
+            for k in range(segs.shape[0]):
                 self.canvas.create_line(
                     sx1[k], sy1[k], sx2[k], sy2[k],
                     fill="white", width=1.2,
@@ -1771,7 +1552,7 @@ class MeshCanvas(ttk.Frame):
             lw = width * f                   # grosor del trazo, escala con zoom
             lw_shadow = lw + 3 * f
 
-            if abs(load.fx) > 1e-10:
+            if abs(load.fx) > NUMERICAL_TOLERANCE:
                 d = 1 if load.fx > 0 else -1
                 x_start = sx - d * arrow_len
                 # Sombra/glow detras de la flecha
@@ -1795,7 +1576,7 @@ class MeshCanvas(ttk.Frame):
                         tags=("world", "loads"),
                     )
 
-            if abs(load.fy) > 1e-10:
+            if abs(load.fy) > NUMERICAL_TOLERANCE:
                 d = -1 if load.fy > 0 else 1
                 y_start = sy - d * arrow_len
                 self.canvas.create_line(
@@ -2456,7 +2237,7 @@ class MeshCanvas(ttk.Frame):
 
         Se inhibe durante modos que tienen su propia semantica de cursor o
         que no quieren ruido amarillo/cian sobre la malla: modo dibujo,
-        consulta del Post (probe), overlays educativos (M0..M9), modo
+        consulta del Post (probe), overlays educativos (M0..M7), modo
         fantasma, y mientras el viewport esta en movimiento. Tambien en
         mallas enormes (> 3000 elem) para no pagar el hit-test por pixel.
         """
@@ -3049,12 +2830,6 @@ class MeshCanvas(ttk.Frame):
         self.selected_surfaces.clear()
 
     # ─── Wrappers legacy single-select (compat) ────────────────────────
-
-    def highlight_node(self, node_id):
-        self.select_node(node_id, additive=False)
-
-    def highlight_element(self, elem_id):
-        self.select_element(elem_id, additive=False)
 
     def clear_highlights(self):
         """Limpia toda la seleccion (single + multi)."""

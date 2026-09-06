@@ -628,7 +628,7 @@ def find_edge_midnode(elem, node_start, node_end):
 # Funciones puras consumidas por el MeshCanvas para la visualizacion
 # progresiva (LOD por zoom), la silueta del dominio y la atenuacion de
 # contexto al seleccionar. Viven aqui (no en el widget Tk) para ser
-# testeables headless. Ver docs/auditoria_canvas_ux.md.
+# testeables headless. Ver docs/auditorias/historico/2026-05-30_auditoria_canvas_ux.md.
 
 def median_edge_length(project, *, sample=64):
     """Mediana de la longitud de arista (corner-a-corner) del modelo.
@@ -691,7 +691,7 @@ def focus_keep_sets(project, selected_nodes, selected_elements):
 
     El resto de la malla se dibuja atenuada (gris fantasma) para que la
     seleccion destaque por contraste con el fondo — la tecnica decisiva del
-    sistema de seleccion profesional (ver docs/auditoria_canvas_ux.md, C.3).
+    sistema de seleccion profesional (ver docs/auditorias/historico/2026-05-30_auditoria_canvas_ux.md, C.3).
 
     Retorna (keep_elem_ids: set, keep_node_ids: set).
     """

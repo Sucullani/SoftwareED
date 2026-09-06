@@ -283,117 +283,58 @@ def render_pipeline_map(project):
 # Rasterizado de campo (Gouraud bilineal por triángulo) — estilo MeshCanvas
 # ---------------------------------------------------------------------------
 
-def _rasterize_triangle(img_arr, w, h, p0, p1, p2, vmin, v_range, lut):
-    """Rasteriza un triángulo con interpolación baricéntrica + LUT colormap.
-
-    Cada p es (sx, sy, valor). Misma lógica que MeshCanvas._rasterize_triangle,
-    con lookup en una LUT JET precomputada (la misma paleta que el canvas).
-    """
-    sx0, sy0, v0 = p0
-    sx1, sy1, v1 = p1
-    sx2, sy2, v2 = p2
-
-    min_x = max(0, int(min(sx0, sx1, sx2)))
-    max_x = min(w - 1, int(max(sx0, sx1, sx2)) + 1)
-    min_y = max(0, int(min(sy0, sy1, sy2)))
-    max_y = min(h - 1, int(max(sy0, sy1, sy2)) + 1)
-    if min_x >= max_x or min_y >= max_y:
-        return
-
-    px = np.arange(min_x, max_x + 1, dtype=np.float64)
-    py = np.arange(min_y, max_y + 1, dtype=np.float64)
-    PX, PY = np.meshgrid(px, py)
-
-    denom = (sy1 - sy2) * (sx0 - sx2) + (sx2 - sx1) * (sy0 - sy2)
-    if abs(denom) < 1e-6:
-        return
-
-    lam0 = ((sy1 - sy2) * (PX - sx2) + (sx2 - sx1) * (PY - sy2)) / denom
-    lam1 = ((sy2 - sy0) * (PX - sx2) + (sx0 - sx2) * (PY - sy2)) / denom
-    lam2 = 1.0 - lam0 - lam1
-
-    inside = (lam0 >= -0.001) & (lam1 >= -0.001) & (lam2 >= -0.001)
-    if not np.any(inside):
-        return
-
-    vals = lam0 * v0 + lam1 * v1 + lam2 * v2
-    t = np.clip((vals - vmin) / v_range, 0.0, 1.0)
-    idx = (t * 255).astype(np.int32)
-
-    iy = PY[inside].astype(int)
-    ix = PX[inside].astype(int)
-    valid = (iy >= 0) & (iy < h) & (ix >= 0) & (ix < w)
-    iy, ix = iy[valid], ix[valid]
-    cols = lut[idx[inside][valid]]
-    img_arr[iy, ix, 0] = cols[:, 0]
-    img_arr[iy, ix, 1] = cols[:, 1]
-    img_arr[iy, ix, 2] = cols[:, 2]
-    img_arr[iy, ix, 3] = 255
-
-
 def _fill_field(img_arr, w, h, project, view, node_values, vmin, vmax, lut,
                 *, deformed_coords=None, subdiv=6):
     """Pinta el gradiente de `node_values` sobre cada elemento (corners Q4).
 
     `deformed_coords`: dict {nid: (x, y)} con coords deformadas, o None para
     usar la geometría original.
+
+    Vectorizado: arma de una sola vez los 2·subdiv² triángulos de TODOS los
+    elementos y los pinta con `canvas_raster.rasterize_triangles`, el mismo
+    kernel por lotes que usa el canvas interactivo. Antes había un loop
+    Python por triángulo: 72 llamadas por elemento, 16,7 s en una malla de
+    1024 elementos. La paridad píxel a píxel con esa versión la verifica
+    `tests/test_canvas_raster.py` (test_figure_export_field).
+
+    El orden de los triángulos se conserva (elemento por elemento, y dentro
+    de cada uno celda por celda): el último pintado gana el píxel de borde
+    compartido, así que alterarlo cambiaría la imagen.
     """
-    v_range = max(vmax - vmin, 1e-15)
+    import numpy as _np
+    from gui.preprocessing.canvas_raster import (
+        element_grid_points, element_grid_values, grid_triangles,
+        rasterize_triangles,
+    )
+
     n = subdiv
-
-    # Matriz de funciones de forma Q4 en la grilla (n+1)^2 x 4, precomputada
-    # UNA vez (no depende del elemento). Antes se reevaluaban N0..N3 en un
-    # doble loop Python por cada punto de cada elemento; ahora las coords
-    # mundo y el valor salen de un producto matriz-vector (broadcasting).
-    npts = (n + 1) * (n + 1)
-    Nmat = np.empty((npts, 4))
-    k = 0
-    for i in range(n + 1):
-        xi = -1 + 2 * i / n
-        for j in range(n + 1):
-            eta = -1 + 2 * j / n
-            Nmat[k, 0] = (1 - xi) * (1 - eta) * 0.25
-            Nmat[k, 1] = (1 + xi) * (1 - eta) * 0.25
-            Nmat[k, 2] = (1 + xi) * (1 + eta) * 0.25
-            Nmat[k, 3] = (1 - xi) * (1 + eta) * 0.25
-            k += 1
-
-    stride = n + 1
+    corners, values = [], []
     for elem in project.elements.values():
         nids = elem.node_ids[:4]
         if not all(nid in project.nodes for nid in nids):
             continue
         if not all(nid in node_values for nid in nids):
             continue
-        nv = np.array([float(node_values[nid]) for nid in nids])
         if deformed_coords is not None:
-            nc = np.array([deformed_coords[nid] for nid in nids], dtype=float)
+            corners.append([deformed_coords[nid] for nid in nids])
         else:
-            nc = np.array(
-                [(project.nodes[nid].x, project.nodes[nid].y) for nid in nids],
-                dtype=float,
-            )
+            corners.append([(project.nodes[nid].x, project.nodes[nid].y)
+                            for nid in nids])
+        values.append([float(node_values[nid]) for nid in nids])
+    if not corners:
+        return
 
-        # world coords y valores por punto via broadcasting.
-        world = Nmat @ nc            # (npts, 2)
-        vals = Nmat @ nv             # (npts,)
-        sx = world[:, 0] * view.scale + view.offset_x
-        sy = -world[:, 1] * view.scale + view.offset_y
+    world = element_grid_points(_np.array(corners, dtype=float), n)   # (e, p, 2)
+    vals = element_grid_values(_np.array(values, dtype=float), n)     # (e, p)
+    sx = world[:, :, 0] * view.scale + view.offset_x
+    sy = -world[:, :, 1] * view.scale + view.offset_y
 
-        for i in range(n):
-            for j in range(n):
-                k00 = i * stride + j
-                k10 = (i + 1) * stride + j
-                k11 = (i + 1) * stride + (j + 1)
-                k01 = i * stride + (j + 1)
-                p00 = (sx[k00], sy[k00], vals[k00])
-                p10 = (sx[k10], sy[k10], vals[k10])
-                p11 = (sx[k11], sy[k11], vals[k11])
-                p01 = (sx[k01], sy[k01], vals[k01])
-                _rasterize_triangle(img_arr, w, h, p00, p10, p11,
-                                    vmin, v_range, lut)
-                _rasterize_triangle(img_arr, w, h, p00, p11, p01,
-                                    vmin, v_range, lut)
+    idx = grid_triangles(n)                                           # (2n², 3)
+    tris = _np.empty((sx.shape[0], idx.shape[0], 3, 3))
+    tris[:, :, :, 0] = sx[:, idx]
+    tris[:, :, :, 1] = sy[:, idx]
+    tris[:, :, :, 2] = vals[:, idx]
+    rasterize_triangles(img_arr, tris.reshape(-1, 3, 3), vmin, vmax, lut)
 
 
 def _draw_wireframe(draw, project, view, *, deformed_coords=None,
@@ -482,17 +423,23 @@ def render_mesh_diagram(project, *, width=900, height=680):
     draw = ImageDraw.Draw(img)
     font_id = _font(13)
 
-    # Relleno + aristas de elementos
+    # Relleno + aristas de elementos. El rotulo "EN" se dibuja solo si el
+    # elemento mide en pantalla al menos lo que el texto: en mallas finas los
+    # rotulos se pisan hasta volverse una mancha ilegible y ademas dominan el
+    # render (una llamada a draw.text por elemento: 8 s en 4096 elementos).
+    _, _, label_w, label_h = draw.textbbox((0, 0), "E000", font=font_id)
     for elem in project.elements.values():
         nids = elem.node_ids[:4]
         if not all(nid in project.nodes for nid in nids):
             continue
         pts = [view.w2s(project.nodes[n].x, project.nodes[n].y) for n in nids]
         draw.polygon(pts, fill=_ELEMENT_FACE, outline=_ELEMENT_EDGE)
-        cx = sum(p[0] for p in pts) / len(pts)
-        cy = sum(p[1] for p in pts) / len(pts)
-        draw.text((cx, cy), f"E{elem.id}", fill=_ELEMENT_EDGE, font=font_id,
-                  anchor="mm")
+        xs_px = [p[0] for p in pts]
+        ys_px = [p[1] for p in pts]
+        if max(xs_px) - min(xs_px) >= label_w and                 max(ys_px) - min(ys_px) >= label_h:
+            draw.text((sum(xs_px) / len(pts), sum(ys_px) / len(pts)),
+                      f"E{elem.id}", fill=_ELEMENT_EDGE, font=font_id,
+                      anchor="mm")
 
     # Clasificación de nodos por rol (Q9) — mismo código visual que el canvas.
     is_q9 = getattr(project, "element_type", None) == ELEMENT_Q9

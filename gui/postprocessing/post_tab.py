@@ -431,6 +431,11 @@ class PostProcessTab:
             self.maybe_reactivate_probe_overlay()
 
         except Exception as e:
+            # El traceback completo a stderr: el mensaje recortado del status
+            # bar convertia errores concretos (p. ej. un KeyError de
+            # ensamblaje) en "Error al resolver: 999", imposible de depurar.
+            import traceback
+            traceback.print_exc()
             self.main_window.set_status(f"✗ Error al resolver: {str(e)[:60]}")
             messagebox.showerror("Error al resolver", str(e))
 
@@ -692,17 +697,13 @@ class PostProcessTab:
         """
         if self._raw_grid_cache is not None:
             return self._raw_grid_cache
-        from fem.probe_query import compute_raw_grid
-        cache = {}
-        for elem_id in self.project.elements:
-            all_grids = compute_raw_grid(self.project, self.solution,
-                                          elem_id, n=n)
-            if all_grids is None:
-                self._raw_grid_cache = {}  # marca: crudo no disponible
-                return self._raw_grid_cache
-            cache[elem_id] = all_grids
-        self._raw_grid_cache = cache
-        return cache
+        from fem.probe_query import compute_raw_grids
+        # Una sola llamada vectorizada por lotes para todos los elementos
+        # (antes: un compute_raw_grid por elemento, ~3 s en 1024 Q9).
+        cache = compute_raw_grids(self.project, self.solution, n=n)
+        # None o {} -> marca: crudo no disponible (el caller cae a suavizado).
+        self._raw_grid_cache = cache if cache else {}
+        return self._raw_grid_cache
 
     def _compute_raw_grid(self, result_type, n=6):
         """Pre-computa la grilla (n+1, n+1) del campo de esfuerzo seleccionado

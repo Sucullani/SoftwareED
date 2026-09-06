@@ -2,23 +2,16 @@
 Cálculo del Jacobiano para elementos isoparamétricos.
 J = ∂(x,y)/∂(ξ,η)
 
-Implementacion JIT: `compute_jacobian` y `compute_dN_physical` estan
-decoradas con @njit. La constante `JACOBIAN_MIN_DETERMINANT` se inlinea
-como literal en el kernel JIT — no se puede pasar settings desde fuera.
+Version legible para un punto (ξ, η): la usan M2/M3/M5, la memoria de
+calculo, `compute_raw` y `element_stiffness`. El motor productivo calcula
+J, det J y B de todos los elementos y puntos a la vez en `fem/batch.py`.
 """
 
 import numpy as np
 
 from config.settings import JACOBIAN_MIN_DETERMINANT
-from fem._numba_compat import njit
 
 
-# Inlinear JACOBIAN_MIN_DETERMINANT como constante del modulo para que
-# Numba la trate como literal (no como acceso a un atributo de settings).
-_JAC_MIN_DET = float(JACOBIAN_MIN_DETERMINANT)
-
-
-@njit(cache=True)
 def compute_jacobian(dN_nat, node_coords):
     """
     Calcula la matriz Jacobiana en un punto (ξ, η).
@@ -32,15 +25,14 @@ def compute_jacobian(dN_nat, node_coords):
         det_J: float - Determinante del Jacobiano
         inv_J: array (2, 2) - Inversa del Jacobiano
 
-    Levanta ValueError si det(J) < JACOBIAN_MIN_DETERMINANT (Numba
-    soporta raise con literal strings desde 0.40+).
+    Levanta ValueError si |det(J)| < JACOBIAN_MIN_DETERMINANT.
     """
     # J = dN_nat · node_coords; resultado (2, 2)
     J = dN_nat @ node_coords
 
     det_J = J[0, 0] * J[1, 1] - J[0, 1] * J[1, 0]
 
-    if abs(det_J) < _JAC_MIN_DET:
+    if abs(det_J) < JACOBIAN_MIN_DETERMINANT:
         raise ValueError("Jacobiano singular (det(J) demasiado chico).")
 
     # Inversa 2×2 exacta por cofactores (evita np.linalg.inv overhead).
@@ -54,7 +46,6 @@ def compute_jacobian(dN_nat, node_coords):
     return J, det_J, inv_J
 
 
-@njit(cache=True)
 def compute_dN_physical(dN_nat, inv_J):
     """
     Convierte derivadas de coordenadas naturales a coordenadas físicas.

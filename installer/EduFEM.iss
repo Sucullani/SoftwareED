@@ -1,4 +1,4 @@
-; ============================================================
+﻿; ============================================================
 ;  Instalador de EduFEM (Inno Setup)
 ; ------------------------------------------------------------
 ;  Genera un unico EduFEM-Setup.exe que instala el programa,
@@ -53,7 +53,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 Source: "..\dist\EduFEM.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\docs\LEEME_app.txt"; DestDir: "{app}"; DestName: "LEEME.txt"; Flags: ignoreversion
+Source: "dist_extra\LEEME.txt"; DestDir: "{app}"; DestName: "LEEME.txt"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"

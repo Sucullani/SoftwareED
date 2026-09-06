@@ -43,7 +43,7 @@ python main.py
 
 \section{Dependencias}
 
-El núcleo numérico y la interfaz se apoyan en bibliotecas de código abierto: NumPy y SciPy (cálculo), \texttt{ttkbootstrap} (interfaz), \texttt{pylatex} (memoria de cálculo), \texttt{PyMuPDF} (visualización del PDF), \texttt{Pillow} (figuras) y \texttt{ezdxf} (importación DXF), además de \texttt{matplotlib} y \texttt{sympy} (módulos educativos). Dos componentes son opcionales: una distribución \LaTeX{} (\texttt{pdflatex}) para la memoria de cálculo y el compilador JIT \texttt{numba} para acelerar el cálculo en mallas grandes; sin ninguno de los dos la aplicación funciona, con menor rendimiento o sin el PDF de alta calidad. Las mediciones de tiempo de cálculo del \autoref{cap:resultados} corresponden a la ejecución con \texttt{numba} activo, por lo que reproducir esas cifras exige instalarlo.
+El núcleo numérico y la interfaz se apoyan en bibliotecas de código abierto: NumPy y SciPy (cálculo), \texttt{ttkbootstrap} (interfaz), \texttt{pylatex} (memoria de cálculo), \texttt{PyMuPDF} (visualización del PDF), \texttt{Pillow} (figuras) y \texttt{ezdxf} (importación DXF), además de \texttt{matplotlib} y \texttt{sympy} (módulos educativos). Un único componente es opcional: una distribución \LaTeX{} (\texttt{pdflatex}) para la memoria de cálculo; sin ella la aplicación funciona completa, salvo la exportación del PDF. El motor numérico está vectorizado por lotes en NumPy puro, de modo que las mediciones de tiempo del \autoref{cap:resultados} se reproducen con las dependencias listadas, sin compiladores ni aceleradores adicionales.
 
 
 \chapter{Manual de uso}
@@ -391,52 +391,44 @@ def compute_b_matrix(dN_phys):
 Relaciona tensiones y deformaciones, $\bm{\sigma} = \bm{D}\,\bm{\varepsilon}$, con las dos variantes de elasticidad plana.
 
 \begin{lstlisting}
-def _constitutive_matrix_njit(E, nu, flag):
-    """flag = 0 → Tensión plana (σz = 0).
-       flag = 1 → Deformación plana (εz = 0)."""
+def constitutive_matrix(E, nu, analysis_type):
+    """Tensión plana (σz = 0) o deformación plana (εz = 0)."""
     D = np.zeros((3, 3))
-    if flag == 0:                            # Tensión plana
+    if analysis_type == ANALYSIS_PLANE_STRESS:   # Tensión plana
         factor = E / (1.0 - nu * nu)
-        D[0, 0] = factor * 1.0
+        D[0, 0] = factor
         D[0, 1] = factor * nu
         D[1, 0] = factor * nu
-        D[1, 1] = factor * 1.0
+        D[1, 1] = factor
         D[2, 2] = factor * (1.0 - nu) / 2.0
-    else:                                    # Deformación plana
+    elif analysis_type == ANALYSIS_PLANE_STRAIN: # Deformación plana
         factor = E / ((1.0 + nu) * (1.0 - 2.0 * nu))
         D[0, 0] = factor * (1.0 - nu)
         D[0, 1] = factor * nu
         D[1, 0] = factor * nu
         D[1, 1] = factor * (1.0 - nu)
         D[2, 2] = factor * (1.0 - 2.0 * nu) / 2.0
+    else:
+        raise ValueError(f"Tipo de análisis no reconocido: {analysis_type}")
     return D
 \end{lstlisting}
 
 \section{Ensamblaje disperso de la matriz de rigidez global}
 
-El núcleo de la escalabilidad analizada en el \autoref{cap:resultados}: la rigidez se acumula por tripletes en formato COO y se convierte a filas comprimidas CSR para el solucionador disperso.
+El núcleo de la escalabilidad analizada en el \autoref{cap:resultados}: las rigideces elementales de todos los elementos se calculan de una vez, vectorizadas por lotes, y la rigidez global se acumula por tripletes en formato COO que se convierten a filas comprimidas CSR para el solucionador disperso.
 
 \begin{lstlisting}
-# Acumuladores COO para el ensamblaje disperso de K.
-coo_rows, coo_cols, coo_data = [], [], []
-
-for elem_id, elem in project.elements.items():
-    # ... cálculo de la rigidez elemental ke (3x3 D, B en cada punto de Gauss) ...
-    dof_indices = elem.get_dof_indices(project)
-    idx = np.asarray(dof_indices, dtype=np.intp)
-    n_e = len(idx)
-    # cada entrada ke[i,j] → K[gi, gj]: scatter local → global del MEF.
-    coo_rows.append(np.repeat(idx, n_e))
-    coo_cols.append(np.tile(idx, n_e))
-    coo_data.append(ke.ravel())
+# Lote de elementos: dofs (e, 2n) con los GDL globales de cada uno
+# (vía node_index_map) y ke (e, 2n, 2n) con las rigideces elementales,
+# ambas calculadas de una sola vez para toda la malla.
+n_e = dofs.shape[1]
+# cada entrada ke[i, j] → K[gi, gj]: scatter local → global del MEF.
+rows = np.repeat(dofs, n_e, axis=1).ravel()   # [i0, i0, ..., i1, i1, ...]
+cols = np.tile(dofs, (1, n_e)).ravel()        # [j0, j1, ..., j0, j1, ...]
 
 # coo_matrix suma automáticamente las entradas duplicadas en el mismo (i, j),
 # que es exactamente el ensamblaje del MEF. El resultado se entrega en CSR.
-K = coo_matrix(
-    (np.concatenate(coo_data),
-     (np.concatenate(coo_rows), np.concatenate(coo_cols))),
-    shape=(n_dof, n_dof),
-).tocsr()
+K = coo_matrix((ke.ravel(), (rows, cols)), shape=(n_dof, n_dof)).tocsr()
 \end{lstlisting}
 
 

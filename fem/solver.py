@@ -68,29 +68,21 @@ def apply_boundary_conditions(K, F, restrained_dofs, u_prescribed=None):
 
 
 def _solve_reduced(K_red, F_red):
-    """Resuelve K_red · u = F_red.
+    """Resuelve K_red · u = F_red con la factorizacion LU dispersa de SuperLU.
 
-    Si `SOLVER_USE_RCM` esta activo y K_red es sparse, aplica el
-    reordenamiento Reverse Cuthill-McKee antes de factorizar (reduce el
-    fill-in en mallas estructuradas) y despermuta la solucion. Con el flag
-    en False resuelve directo — output bit-a-bit identico al solver clasico.
+    El ordenamiento de columnas es `SOLVER_PERMC_SPEC` (config/settings):
+    "MMD_AT_PLUS_A" aprovecha la simetria de K y reduce el llenado frente al
+    default "COLAMD" (2,1x menos tiempo a 33 k GDL). Se factoriza en CSC,
+    el formato nativo de SuperLU, para evitar la transposicion implicita.
+
+    Tolera K densa (tests de backward-compat): spsolve la convierte.
     """
-    from config.settings import SOLVER_USE_RCM
+    from config.settings import SOLVER_PERMC_SPEC
 
-    if SOLVER_USE_RCM and hasattr(K_red, "tocsr"):
-        from scipy.sparse.csgraph import reverse_cuthill_mckee
-        K_csr = K_red.tocsr()
-        perm = reverse_cuthill_mckee(K_csr, symmetric_mode=True)
-        # Permutar filas y columnas: K_p = K[perm][:, perm], F_p = F[perm].
-        K_perm = K_csr[perm, :][:, perm]
-        F_perm = F_red[perm]
-        u_perm = spsolve(K_perm, F_perm)
-        # Despermutar: u[perm[i]] = u_perm[i].
-        u_free = np.empty_like(u_perm)
-        u_free[perm] = u_perm
-        return u_free
+    if not hasattr(K_red, "tocsc"):
+        return spsolve(K_red, F_red)
 
-    return spsolve(K_red, F_red)
+    return spsolve(K_red.tocsc(), F_red, permc_spec=SOLVER_PERMC_SPEC)
 
 
 def solve_system(project, *, body_force_fn=None):

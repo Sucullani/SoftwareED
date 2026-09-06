@@ -2,21 +2,15 @@
 Funciones de forma para elementos isoparamétricos Q4 y Q9.
 En coordenadas naturales (ξ, η) ∈ [-1, 1] × [-1, 1].
 
-Implementacion JIT (Numba): cada funcion esta decorada con @njit(cache=True)
-para compilar a maquina via LLVM. Speedup tipico: 5-10x vs NumPy puro,
-porque los arrays son chicos (4 o 9 elementos) — el overhead de allocation
-y dispatch de NumPy domina sobre la aritmetica.
-
-Cuando Numba NO esta instalado, `fem._numba_compat.njit` se convierte en
-no-op y las funciones corren en Python puro sin perdida de funcionalidad.
+Version legible, punto a punto: la usan los modulos educativos (M1..M5),
+la memoria de calculo y las caches de `fem/gauss_quadrature.py` /
+`fem/probe_query.py`, que las evaluan una sola vez por punto y reutilizan
+los arrays resultantes en el motor vectorizado por lotes (`fem/batch.py`).
 """
 
 import numpy as np
 
-from fem._numba_compat import njit
 
-
-@njit(cache=True)
 def shape_functions_q4(xi, eta):
     """
     Funciones de forma para elemento Q4 (4 nodos).
@@ -35,7 +29,6 @@ def shape_functions_q4(xi, eta):
     return N
 
 
-@njit(cache=True)
 def shape_functions_q9(xi, eta):
     """
     Funciones de forma para elemento Q9 (9 nodos).
@@ -66,7 +59,6 @@ def shape_functions_q9(xi, eta):
     return N
 
 
-@njit(cache=True)
 def dshape_functions_q4(xi, eta):
     """
     Derivadas de funciones de forma Q4 respecto a coordenadas naturales.
@@ -89,7 +81,6 @@ def dshape_functions_q4(xi, eta):
     return dN
 
 
-@njit(cache=True)
 def dshape_functions_q9(xi, eta):
     """
     Derivadas de funciones de forma Q9 respecto a coordenadas naturales.

@@ -398,7 +398,6 @@ class MaterialDialog:
             try:
                 self.main_window._refresh_all_tabs()
                 self.main_window._update_title()
-                self.main_window._refresh_menu_state()
             except Exception:
                 pass
 
