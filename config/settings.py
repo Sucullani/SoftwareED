@@ -219,8 +219,20 @@ MOHR_AXIS_COLOR              = "#bdbdbd"   # ejes σ / τ del Mohr
 MOHR_BG                      = "#2c2c2c"   # fondo del axes Mohr (= EDU_AXES_BG, neutro)
 MOHR_FG                      = "#dfdfdf"   # texto / ticks del Mohr
 MOHR_GRID_COLOR              = "#404055"   # grilla tenue del Mohr (DetailsPanel)
+MOHR_MARKER_EDGE_COLOR       = "#ffffff"   # borde de los marcadores del Mohr (σ1, σ2, (σx,τxy)
+                                           # y el punto del estado isotropo): blanco fino que los
+                                           # despega del circulo y del fondo oscuro
 SURFACE_3D_DEFAULT_GRID      = 8           # sub-grid por elemento en plot_surface
 SURFACE_3D_DISC_THRESHOLD    = 0.10        # >10% del rango => arista discontinua
+
+# Curvas de nivel del contorno del Post (Spinbox "Numero de niveles"). El
+# Spinbox es editable, asi que el rango tambien se valida en
+# `post_tab._leer_niveles_isolineas`: pocas isolineas no dicen nada del
+# campo, y muchas se superponen hasta ser ilegibles (ademas de encarecer el
+# marching squares en cada repintado).
+ISOLINE_COUNT_MIN            = 3
+ISOLINE_COUNT_MAX            = 30
+ISOLINE_COUNT_DEFAULT        = 10
 
 # ─── tk.Menu (barra de menus principal) ────────────────────────────────────
 # Foreground del estado disabled. En tk.Menu nativo de Windows con tema
@@ -387,6 +399,28 @@ def fmt(value, kind="length"):
         return f"{float(value):.{n}f}"
     except (TypeError, ValueError):
         return str(value)
+
+
+def fmt_escala(value):
+    """Formatea un valor de una escala de color (colorbar) de forma
+    profesional: notacion cientifica para magnitudes grandes o chicas (un
+    esfuerzo de 25 MPa en Pa es `2.5e+07`, ilegible como `25000000.00`),
+    decimal compacto en el medio.
+
+    Fuente unica de las tres escalas de resultados: la colorbar del lienzo
+    (`MeshCanvas._fmt_colorbar_value` delega aca) y la de la vista 3D del
+    Post (`Surface3DViewer._draw_colorbar`). Es distinto de `fmt`, que fija
+    los decimales por magnitud fisica: una escala necesita ticks cortos y
+    comparables entre si, no la precision de un valor puntual.
+    """
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return str(value)
+    a = abs(v)
+    if a != 0.0 and (a >= 1e5 or a < 1e-3):
+        return f"{v:.2e}"
+    return f"{v:.4g}"
 
 
 # === Constantes migradas del barrido de hex (auditoria 2026-05) ============

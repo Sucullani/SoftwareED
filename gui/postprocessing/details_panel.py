@@ -36,7 +36,7 @@ from config.settings import (
     PROBE_PIN_COLOR, GAUSS_SNAP_COLOR, PROBE_NODE_SNAP_COLOR,
     PRINCIPAL_TENSION_COLOR, PRINCIPAL_COMPRESSION_COLOR,
     MOHR_CIRCLE_COLOR, MOHR_POINT_COLOR, MOHR_AXIS_COLOR,
-    MOHR_BG, MOHR_FG, MOHR_GRID_COLOR, fmt,
+    MOHR_BG, MOHR_FG, MOHR_GRID_COLOR, MOHR_MARKER_EDGE_COLOR, fmt,
     OVERLAY_TITLE_FG, DETAILS_NAT_FG_COLOR,
 )
 from fem.probe_query import principal_and_vm, principal_angle
@@ -258,7 +258,7 @@ class DetailsPanel(tk.Toplevel):
         if R < 1e-12:
             # Estado isotropo (σx=σy, τxy=0): Mohr degenera a un punto
             ax.scatter([sigma_avg], [0], s=50, c=MOHR_POINT_COLOR,
-                        edgecolors="white", linewidths=1.0, zorder=5)
+                        edgecolors=MOHR_MARKER_EDGE_COLOR, linewidths=1.0, zorder=5)
             ax.text(0.5, 0.5, "Estado isótropo\n(σ₁ = σ₂)",
                      ha="center", va="center", color=MOHR_FG,
                      fontsize=8, transform=ax.transAxes,
@@ -277,11 +277,11 @@ class DetailsPanel(tk.Toplevel):
         ax.scatter([s1], [0], s=60,
                     c=(PRINCIPAL_TENSION_COLOR if s1 >= 0
                        else PRINCIPAL_COMPRESSION_COLOR),
-                    edgecolors="white", linewidths=1.0, zorder=6)
+                    edgecolors=MOHR_MARKER_EDGE_COLOR, linewidths=1.0, zorder=6)
         ax.scatter([s2], [0], s=60,
                     c=(PRINCIPAL_TENSION_COLOR if s2 >= 0
                        else PRINCIPAL_COMPRESSION_COLOR),
-                    edgecolors="white", linewidths=1.0, zorder=6)
+                    edgecolors=MOHR_MARKER_EDGE_COLOR, linewidths=1.0, zorder=6)
         ax.annotate("σ₁", (s1, 0), textcoords="offset points",
                      xytext=(6, 5), fontsize=8, fontweight="bold",
                      color=(PRINCIPAL_TENSION_COLOR if s1 >= 0
@@ -293,9 +293,9 @@ class DetailsPanel(tk.Toplevel):
 
         # (σx, τxy) y (σy, -τxy) sobre el circulo + linea diametral
         ax.scatter([sx], [txy], s=55, c=MOHR_POINT_COLOR,
-                    edgecolors="white", linewidths=1.0, zorder=7)
+                    edgecolors=MOHR_MARKER_EDGE_COLOR, linewidths=1.0, zorder=7)
         ax.scatter([sy], [-txy], s=40, c=MOHR_POINT_COLOR,
-                    edgecolors="white", linewidths=0.8, zorder=6,
+                    edgecolors=MOHR_MARKER_EDGE_COLOR, linewidths=0.8, zorder=6,
                     alpha=0.7)
         ax.plot([sx, sy], [txy, -txy], color=MOHR_POINT_COLOR,
                  lw=0.8, ls="--", alpha=0.6, zorder=4)
@@ -330,7 +330,11 @@ class DetailsPanel(tk.Toplevel):
                 self._on_close_cb()
                 return
             except Exception:
-                pass
+                # El callback es quien sincroniza el flag `_details_open` del
+                # probe: si falla en silencio, el overlay cree que el panel
+                # sigue abierto y deja el hover pausado para siempre.
+                import traceback
+                traceback.print_exc()
         self.destroy()
 
     def _on_escape(self, _event=None):

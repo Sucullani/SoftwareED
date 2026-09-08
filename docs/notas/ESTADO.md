@@ -34,7 +34,10 @@ tesis** (`tesis/`, 130 páginas, compila limpio).
   canónico Q4 y con Cook 32×32 Q9 (gradiente, isolíneas, crudo, probe, 3D) y generar una
   Memoria de Cálculo. **Todas las tensiones nodales Q4 cambian** (el VM máximo del ejemplo
   canónico pasa de 977,46 a 864,70); Q9 no cambia. El diagrama de malla ya no rotula elementos
-  demasiado chicos para el texto.
+  demasiado chicos para el texto. **Sumar a esa validación** (rutina, sesión 04, 2026-09-08):
+  la **Vista 3D en modo Crudo** —que hasta ahora dibujaba el campo transpuesto dentro de cada
+  elemento— y su **nueva escala de color**. El detalle de qué mirar está en
+  [../rutina/BACKLOG.md](../rutina/BACKLOG.md), *Pendientes visuales*.
 - **Tesis, párrafo sobre el defecto corregido**: `04_resultados.tex` (§MMS, análisis) declara
   que la matriz E_Q4 estuvo mal hasta la revisión final y que por eso se agregó la prueba de
   reproducción polinómica. Es honestidad de V&V; el autor decide si lo conserva.

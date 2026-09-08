@@ -5,6 +5,7 @@ Radio buttons actualizan la visualizacion en tiempo real.
 Usa el MeshCanvas compartido con gradiente e isolineas.
 """
 
+import math
 import tkinter as tk
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
@@ -15,7 +16,9 @@ from config.settings import (
     DECIMALS_FORCE, DECIMALS_STRESS, DECIMALS_DISPLACEMENT, fmt,
     PHASE_POST_COLOR, PHASE_POST_BOOTSTYLE,
     CANVAS_SELECTED_COLOR, RESULT_CELL_HIGHLIGHT_FG,
+    ISOLINE_COUNT_MIN, ISOLINE_COUNT_MAX, ISOLINE_COUNT_DEFAULT,
 )
+from gui.preprocessing._table_helpers import to_float_flex
 from gui.widgets.phase_banner import build_phase_banner
 from models.model_health import validate_project
 
@@ -37,6 +40,10 @@ class PostProcessTab:
 
         # Vistas avanzadas (lazy, dependen de is_solved)
         self.surface_3d_viewer = None      # Toplevel 3D del campo
+
+        # Aviso de un control numerico rechazado, pendiente de mostrarse al
+        # final del repintado (ver `_encolar_aviso`).
+        self._aviso_pendiente = None
 
         # Cache de las grillas crudas D·B·uₑ por elemento (TODOS los campos
         # σx/σy/τxy/σ1/σ2/VM evaluados en la grilla). Se computa una vez tras
@@ -137,10 +144,21 @@ class PostProcessTab:
         scale_row = ttk.Frame(deform_frame)
         scale_row.pack(fill=X, padx=15, pady=(0, 5))
         ttk.Label(scale_row, text="Factor de escala:").pack(side=LEFT)
-        self.scale_var = tk.DoubleVar(value=1.0)
+        self.scale_var = tk.StringVar(value="1")
+        # StringVar y no DoubleVar: con un DoubleVar, tipear `2,5` (la coma
+        # decimal de un Excel en español) o cualquier texto hacia que
+        # `.get()` levantara TclError DENTRO del callback de Tk — el
+        # traceback iba a la consola, el alumno no veia nada y la deformada
+        # se quedaba como estaba. Ahora el texto crudo se valida en
+        # `_leer_factor_escala` con la misma tolerancia que los editores de
+        # celda del Pre-Proceso (`to_float_flex`).
+        self._ultimo_factor_escala = 1.0
         scale_entry = ttk.Entry(scale_row, textvariable=self.scale_var, width=8)
         scale_entry.pack(side=LEFT, padx=5)
         scale_entry.bind("<Return>", lambda e: self._on_result_changed())
+        # Al perder el foco tambien se aplica: el alumno que tipea el factor
+        # y clickea el lienzo esperaba ver el cambio (antes solo Enter).
+        scale_entry.bind("<FocusOut>", lambda e: self._on_result_changed())
 
         # ─── Opciones de Isolineas ───────────────────────────────────────
         iso_frame = ttk.Labelframe(container, text="Isolíneas / Curvas de Nivel",
@@ -157,14 +175,18 @@ class PostProcessTab:
         count_row = ttk.Frame(iso_frame)
         count_row.pack(fill=X, padx=15, pady=(0, 5))
         ttk.Label(count_row, text="Número de niveles:").pack(side=LEFT)
-        self.isoline_count_var = tk.IntVar(value=10)
+        # StringVar por el mismo motivo que el factor de escala: el Spinbox
+        # es editable, y un IntVar con texto tipeado levantaba TclError.
+        self.isoline_count_var = tk.StringVar(value=str(ISOLINE_COUNT_DEFAULT))
+        self._ultimos_niveles = ISOLINE_COUNT_DEFAULT
         iso_spin = ttk.Spinbox(
-            count_row, from_=3, to=30, width=5,
+            count_row, from_=ISOLINE_COUNT_MIN, to=ISOLINE_COUNT_MAX, width=5,
             textvariable=self.isoline_count_var,
             command=self._on_result_changed,
         )
         iso_spin.pack(side=LEFT, padx=5)
         iso_spin.bind("<Return>", lambda e: self._on_result_changed())
+        iso_spin.bind("<FocusOut>", lambda e: self._on_result_changed())
 
         # ─── Inspeccion del campo (probe + Gauss + Vista 3D) ─────────────
         # Conjunto de herramientas para inspeccionar el campo de resultados
@@ -394,7 +416,10 @@ class PostProcessTab:
                         "Corrija los errores antes de resolver"
                     )
                 except Exception:
-                    pass
+                    # Sin traza, un fallo al volver al Pre-Proceso dejaba al
+                    # alumno en un Post vacio, sin resultados ni motivo.
+                    import traceback
+                    traceback.print_exc()
                 return
 
         # Chequeos de pre-requisitos minimos (redundantes con el
@@ -467,6 +492,120 @@ class PostProcessTab:
             messagebox.showerror("Error al resolver", str(e))
         finally:
             self._set_busy_cursor(False)
+
+    # ═════════════════════════════════════════════════════════════════════
+    # LECTURA VALIDADA DE LOS CONTROLES NUMERICOS
+    # ═════════════════════════════════════════════════════════════════════
+    #
+    # Los dos controles editables del panel (factor de escala de la
+    # deformada y numero de niveles de isolineas) se leen por aca. Reglas
+    # comunes, tomadas de los editores de celda del Pre-Proceso:
+    #   - se tolera la coma decimal (`to_float_flex`): un Excel en español
+    #     escribe `2,5` y el proyecto usa el punto;
+    #   - lo invalido NO se traga en silencio ni revienta el callback de Tk:
+    #     se avisa en la barra de estado nombrando el valor rechazado y el
+    #     formato aceptado, y el control vuelve al ultimo valor bueno para
+    #     que lo que se ve sea lo que se esta usando.
+
+    def _leer_factor_escala(self) -> float:
+        """Factor de amplificación de la deformada, validado.
+
+        Devuelve el último valor válido si el texto no es un número
+        positivo. Antes esto era `DoubleVar.get()` directo: `2,5` o `x2`
+        levantaban `TclError` dentro del handler de `<Return>`, la excepción
+        moría en la consola y el alumno se quedaba mirando una deformada que
+        no cambiaba, sin ningún mensaje.
+        """
+        texto = ""
+        try:
+            texto = str(self.scale_var.get()).strip()
+        except tk.TclError:
+            import traceback
+            traceback.print_exc()
+        try:
+            valor = to_float_flex(texto)
+        except (ValueError, AttributeError):
+            valor = None
+        if valor is None or not math.isfinite(valor) or valor <= 0:
+            self._avisar_valor_rechazado(
+                "Factor de escala", texto, self._ultimo_factor_escala,
+                "un número positivo (por ejemplo 1 o 2,5)",
+            )
+            self.scale_var.set(self._formato_numero(self._ultimo_factor_escala))
+            return self._ultimo_factor_escala
+        self._ultimo_factor_escala = valor
+        return valor
+
+    def _leer_niveles_isolineas(self) -> int:
+        """Número de curvas de nivel, validado y acotado al rango del control.
+
+        El Spinbox es editable, así que su rango 3–30 no era una garantía:
+        se podía tipear `abc` (TclError silencioso) o `500` (isolíneas
+        ilegibles y un marching squares carísimo).
+        """
+        texto = ""
+        try:
+            texto = str(self.isoline_count_var.get()).strip()
+        except tk.TclError:
+            import traceback
+            traceback.print_exc()
+        try:
+            valor = int(round(to_float_flex(texto)))
+        except (ValueError, AttributeError, OverflowError):
+            valor = None
+        if valor is None:
+            self._avisar_valor_rechazado(
+                "Número de niveles", texto, self._ultimos_niveles,
+                f"un entero entre {ISOLINE_COUNT_MIN} y {ISOLINE_COUNT_MAX}",
+            )
+            self.isoline_count_var.set(str(self._ultimos_niveles))
+            return self._ultimos_niveles
+        acotado = max(ISOLINE_COUNT_MIN, min(ISOLINE_COUNT_MAX, valor))
+        if acotado != valor:
+            self._encolar_aviso(
+                f"Número de niveles fuera de rango — {valor} ajustado a "
+                f"{acotado} (el control admite de {ISOLINE_COUNT_MIN} a "
+                f"{ISOLINE_COUNT_MAX})"
+            )
+            self.isoline_count_var.set(str(acotado))
+        self._ultimos_niveles = acotado
+        return acotado
+
+    def _avisar_valor_rechazado(self, campo, texto, anterior, formato):
+        """Mensaje único de valor inválido: nombra el campo, el texto que se
+        rechazó, el formato que se espera y a qué valor se volvió."""
+        visto = texto if texto else "(vacío)"
+        self._encolar_aviso(
+            f"{campo}: valor inválido — «{visto}» no es {formato}. "
+            f"Se mantiene {self._formato_numero(anterior)}"
+        )
+
+    def _encolar_aviso(self, mensaje):
+        """Deja el aviso pendiente para el FINAL de `_on_result_changed`.
+
+        Los lectores corren al principio del repintado y el repintado
+        termina siempre con un `Visualizando: …`, así que un `set_status`
+        directo acá quedaba tapado en el mismo instante: el alumno tipeaba
+        `abc`, el valor se rechazaba de verdad y el aviso no llegaba a
+        verse. Un valor rechazado importa más que el nombre del campo que
+        se está mostrando, así que gana el aviso.
+        """
+        self._aviso_pendiente = mensaje
+        self.main_window.set_status(mensaje)
+
+    def _estado_visualizacion(self, texto):
+        """Cierre de `_on_result_changed`: el aviso pendiente (si lo hay)
+        tiene prioridad sobre el `Visualizando: …`."""
+        pendiente = getattr(self, "_aviso_pendiente", None)
+        self._aviso_pendiente = None
+        self.main_window.set_status(pendiente or texto)
+
+    @staticmethod
+    def _formato_numero(valor):
+        """Texto compacto del valor que vuelve al control (`1` y no `1.0`)."""
+        if isinstance(valor, int) or float(valor).is_integer():
+            return str(int(valor))
+        return f"{valor:g}"
 
     def _set_busy_cursor(self, activo: bool) -> None:
         """Pone (o saca) el cursor de espera en la ventana principal.
@@ -560,7 +699,12 @@ class PostProcessTab:
                     self.solution, self.nodal_stresses,
                 )
             except Exception:
-                pass
+                # Si el refresco falla, la Vista 3D sigue mostrando la
+                # solucion ANTERIOR sin avisarlo: una vista que miente es
+                # peor que una cerrada.
+                import traceback
+                traceback.print_exc()
+                self._avisar_3d_desactualizada()
 
     # ═════════════════════════════════════════════════════════════════════
     # VISUALIZACION AVANZADA (Vista 3D)
@@ -586,13 +730,23 @@ class PostProcessTab:
                 self.surface_3d_viewer.focus_force()
                 self.surface_3d_viewer.refresh()
             except Exception:
-                pass
+                import traceback
+                traceback.print_exc()
+                self._avisar_3d_desactualizada()
             return
         from gui.postprocessing.surface_3d_viewer import Surface3DViewer
         self.surface_3d_viewer = Surface3DViewer(
             self.frame.winfo_toplevel(),
             self.project, self.solution, self.nodal_stresses,
             self, self.main_window,
+        )
+
+    def _avisar_3d_desactualizada(self):
+        """La Vista 3D no pudo repintarse: decirlo en vez de dejar en
+        pantalla una superficie que ya no corresponde al campo activo."""
+        self.main_window.set_status(
+            "⚠ La Vista 3D no pudo actualizarse — cerrala y volvé a abrirla "
+            "con 🧊 Vista 3D"
         )
 
     def deactivate_advanced_views(self):
@@ -657,10 +811,11 @@ class PostProcessTab:
         # Configurar isolineas y deformada antes (no dependen del modo).
         canvas.set_isolines(
             self.show_isolines_var.get(),
-            self.isoline_count_var.get()
+            self._leer_niveles_isolineas(),
         )
         if self.show_deformed_var.get():
             canvas.displacements = u
+            factor_usuario = self._leer_factor_escala()
             max_disp = np.max(np.abs(u))
             if max_disp > 0:
                 coords = np.array([
@@ -672,7 +827,7 @@ class PostProcessTab:
                     coords[:, 1].max() - coords[:, 1].min()
                 )
                 canvas.deform_scale = (
-                    model_size * 0.1 / max_disp * self.scale_var.get()
+                    model_size * 0.1 / max_disp * factor_usuario
                 )
             canvas.show_deformed = True
         else:
@@ -688,7 +843,7 @@ class PostProcessTab:
             element_grids = self._compute_raw_grid(result_type, n=6)
             if element_grids:
                 canvas.set_element_result_grid(element_grids, label, unit, kind)
-                self.main_window.set_status(
+                self._estado_visualizacion(
                     f"Visualizando: {label} (crudo, D·B·uₑ por punto)"
                 )
                 return
@@ -721,7 +876,7 @@ class PostProcessTab:
         suffix = (
             " (suavizado, Σ Nᵢ·σᵢ̄)" if (is_stress and not raw_mode) else ""
         )
-        self.main_window.set_status(f"Visualizando: {label}{suffix}")
+        self._estado_visualizacion(f"Visualizando: {label}{suffix}")
 
         # Sincronizar Surface3DViewer si esta abierto. Cambiar VM↔σx en el
         # post repinta el 3D automaticamente -- el usuario no pierde
@@ -732,7 +887,11 @@ class PostProcessTab:
             try:
                 self.surface_3d_viewer.refresh()
             except Exception:
-                pass
+                # El 3D quedaria mostrando OTRO campo que el que dice el
+                # panel (p. ej. VM cuando el alumno ya paso a σx).
+                import traceback
+                traceback.print_exc()
+                self._avisar_3d_desactualizada()
 
     def _get_raw_grids(self, n=6):
         """Devuelve {elem_id: all_grids_dict} con TODOS los campos crudos

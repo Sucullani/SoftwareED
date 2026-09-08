@@ -15,6 +15,11 @@ Diseno visual (rediseno 2026-05):
     fondo. Solo la superficie 3D + un plano de referencia gris suave en
     z=0 que sirve de "horizonte" -- los valores positivos sobresalen, los
     negativos hunden bajo el plano.
+  - **Escala de color graduada** al costado (`_draw_colorbar`), con el
+    campo y la unidad del proyecto (`Von Mises [Pa]`) y los mismos ticks
+    que la colorbar del lienzo 2D (`config.settings.fmt_escala`). Los ejes
+    van limpios, pero la escala NO es ruido: sin ella el arcoiris no tenia
+    referencia numerica y era la unica vista de resultados sin ella.
   - **Toggle binario Crudo/Suavizado** (no slider): el alumno alterna
     entre las dos vistas conceptuales sin "estados intermedios" que
     confundian (la transicion continua era visualmente ambigua).
@@ -52,7 +57,7 @@ from config.settings import (
     CANVAS_ELEMENT_COLOR, HEALTH_ERROR_COLOR,
     SURFACE_3D_EDGE_RAW_COLOR, SURFACE_3D_EDGE_SMOOTH_COLOR,
     SURFACE_3D_MODE_RAW_COLOR, SURFACE_3D_Z0_PLANE_COLOR,
-    SURFACE_3D_Z0_EDGE_COLOR,
+    SURFACE_3D_Z0_EDGE_COLOR, fmt, fmt_escala,
 )
 from fem.probe_query import compute_raw_grids
 from fem.shape_functions import get_shape_functions
@@ -94,6 +99,71 @@ def _build_lut_cmap(lut):
         np.ones(256),
     ])
     return ListedColormap(rgba)
+
+
+# ── Grilla natural del elemento maestro ───────────────────────────────────
+# Convencion de indices: `G[i, j]` es el punto (ξ_i, η_j), es decir
+# `np.meshgrid(..., indexing="ij")`. Es la MISMA que usan
+# `fem.probe_query.compute_raw_grids` (de donde sale la Z del modo crudo) y
+# `gui/preprocessing/canvas_raster.py` (el contorno 2D). Con el `indexing`
+# por defecto ("xy") la geometria queda indexada [η, ξ] y el campo crudo
+# [ξ, η]: la superficie se dibujaba con el campo TRANSPUESTO dentro de cada
+# elemento — invisible en un campo simetrico, un error grosero en cualquier
+# otro. El modo suavizado no lo sufria (X, Y y Z salian del mismo meshgrid).
+
+_N_AT_GRID_CACHE: dict = {}
+
+
+def natural_grid(n: int):
+    """(XI, ETA) de la grilla (n+1)×(n+1) del elemento maestro, indexada
+    [i_ξ, j_η] (ver la nota de convencion de arriba)."""
+    xs = np.linspace(-1.0, 1.0, n + 1)
+    return np.meshgrid(xs, xs, indexing="ij")
+
+
+def shape_matrix_at_grid(element_type: str, n: int) -> np.ndarray:
+    """Matriz `(n+1)² × n_nodos` con N evaluada en cada punto de la grilla,
+    en orden C sobre [i_ξ, j_η]. Cacheada por (tipo de elemento, n).
+
+    Es la MISMA para todos los elementos —las coordenadas naturales no
+    dependen del elemento—, asi que se evalua una vez por malla en lugar de
+    (n+1)² veces por elemento: en Cook 32×32 Q9 eran ~83 000 llamadas a las
+    funciones de forma por repintado.
+    """
+    key = (element_type, n)
+    cached = _N_AT_GRID_CACHE.get(key)
+    if cached is not None:
+        return cached
+    N_func, _ = get_shape_functions(element_type)
+    XI, ETA = natural_grid(n)
+    rows = [N_func(float(xi), float(eta))
+            for xi, eta in zip(XI.ravel(), ETA.ravel())]
+    mat = np.asarray(rows, dtype=float)
+    _N_AT_GRID_CACHE[key] = mat
+    return mat
+
+
+def element_grid_xy(project, elem, n: int):
+    """(X, Y) fisicas de la grilla natural del elemento, indexadas [i_ξ, j_η].
+
+    Funcion pura (sin Tk): la comparte el visor 3D con
+    `tests/test_post_3d_grid.py`, que verifica que geometria y campo crudo
+    comparten la convencion de indices.
+    """
+    n_nodes_elem = elem.num_nodes
+    pts = np.array(
+        [[project.nodes[nid].x, project.nodes[nid].y]
+         for nid in elem.node_ids[:n_nodes_elem]],
+        dtype=float,
+    )
+    N_grid = shape_matrix_at_grid(project.element_type, n)
+    # Defensivo (mismo criterio que probe_query.compute_raw_grids): un
+    # proyecto Q9 con elementos de 4 nodos usa los nodos en comun.
+    n_use = min(N_grid.shape[1], pts.shape[0])
+    side = n + 1
+    X = (N_grid[:, :n_use] @ pts[:n_use, 0]).reshape(side, side)
+    Y = (N_grid[:, :n_use] @ pts[:n_use, 1]).reshape(side, side)
+    return X, Y
 
 
 _JET_CMAP = None       # inicializado en primera apertura del visor
@@ -145,6 +215,7 @@ class Surface3DViewer(tk.Toplevel):
         self._ax: Optional = None
         self._mpl_canvas: Optional[FigureCanvasTkAgg] = None
         self._info_label: Optional[ttk.Label] = None
+        self._cbar = None   # escala de color; se recrea en cada repintado
 
         self.protocol("WM_DELETE_WINDOW", self._on_close)
         self.bind("<Escape>", lambda _e: self._on_close())
@@ -281,13 +352,16 @@ class Surface3DViewer(tk.Toplevel):
     def _render_stress(self, rtype: str):
         """Render del campo de esfuerzos en modo crudo o suavizado (binario)."""
         key, label = _STRESS_KEY[rtype]
+        unidad = self._unidad_activa(is_stress=True)
         ax = self._ax
         ax.clear()
+        self._clear_colorbar()
         self._setup_clean_axes(ax)
 
         is_raw = (self._mode_var is not None and self._mode_var.get() == "raw")
         n = SURFACE_3D_DEFAULT_GRID
-        N_func, _ = get_shape_functions(self.project.element_type)
+        N_grid = shape_matrix_at_grid(self.project.element_type, n)
+        side = n + 1
 
         elem_data = []
         all_z = []
@@ -295,11 +369,23 @@ class Surface3DViewer(tk.Toplevel):
         # Modo crudo: grillas (n+1, n+1) de todos los elementos en una sola
         # llamada vectorizada por lotes.
         raw_grids = None
+        crudo_no_disponible = False
         if is_raw:
             try:
                 raw_grids = compute_raw_grids(self.project, self.solution, n=n)
             except Exception:
+                # Sin traza, un fallo de ensamblaje aqui se veia como un
+                # visor vacio y "(sin datos)" — indepurable.
+                import traceback
+                traceback.print_exc()
                 raw_grids = None
+            if not raw_grids:
+                # El contorno 2D ya cae a suavizado cuando el crudo no esta
+                # disponible (post_tab._on_result_changed); el 3D mostraba
+                # "(sin datos para el campo activo)" y dejaba al alumno sin
+                # superficie ni explicacion. Misma politica en las dos vistas.
+                is_raw = False
+                crudo_no_disponible = True
 
         for eid, elem in self.project.elements.items():
             n_nodes_elem = elem.num_nodes
@@ -308,35 +394,21 @@ class Surface3DViewer(tk.Toplevel):
                 for nid in elem.node_ids[:n_nodes_elem]
             ])
 
-            # Pre-computar geometria X, Y sobre la grilla (n+1, n+1)
-            xi = np.linspace(-1, 1, n + 1)
-            eta = np.linspace(-1, 1, n + 1)
-            XI, ETA = np.meshgrid(xi, eta)
-            X = np.zeros_like(XI)
-            Y = np.zeros_like(XI)
-            Z_smooth = np.zeros_like(XI)
-            pts = np.array([
-                [self.project.nodes[nid].x, self.project.nodes[nid].y]
-                for nid in elem.node_ids[:n_nodes_elem]
-            ])
-            for r in range(n + 1):
-                for c in range(n + 1):
-                    Ns = N_func(XI[r, c], ETA[r, c])
-                    X[r, c] = Ns @ pts[:, 0]
-                    Y[r, c] = Ns @ pts[:, 1]
-                    # Z_smooth solo se usa en modo suavizado; en crudo se
-                    # descarta (Z viene de compute_raw_grid) -> no lo computamos.
-                    if not is_raw:
-                        Z_smooth[r, c] = Ns @ v_nodes_smooth
+            # Geometria X, Y sobre la grilla (n+1, n+1), indexada [i_ξ, j_η]
+            # igual que las grillas crudas de probe_query (ver la nota de
+            # convencion arriba del modulo).
+            X, Y = element_grid_xy(self.project, elem, n)
 
-            # Modo crudo: usar la grilla pre-computada por lotes (raw_grids)
             if is_raw:
-                grids = raw_grids.get(eid) if raw_grids else None
+                grids = raw_grids.get(eid)
                 if grids is None:
                     continue
                 Z = np.asarray(grids[key])
             else:
-                Z = Z_smooth
+                # Z_smooth = Σ Nᵢ(ξ,η)·σᵢ̄ vectorizado sobre toda la grilla.
+                n_use = min(N_grid.shape[1], len(v_nodes_smooth))
+                Z = (N_grid[:, :n_use] @ v_nodes_smooth[:n_use]).reshape(
+                    side, side)
 
             elem_data.append((X, Y, Z, elem, v_nodes_smooth))
             all_z.append(Z)
@@ -404,6 +476,9 @@ class Surface3DViewer(tk.Toplevel):
         if is_raw:
             mode_lbl = "CRUDO  σ = D·B(ξ,η)·uₑ  (discontinuo C⁰)"
             mode_color = SURFACE_3D_MODE_RAW_COLOR
+        elif crudo_no_disponible:
+            mode_lbl = "SUAVIZADO  σ = Σ Nᵢ·σᵢ̄  (sin datos crudos disponibles)"
+            mode_color = SURFACE_3D_MODE_RAW_COLOR
         else:
             mode_lbl = "SUAVIZADO  σ = Σ Nᵢ·σᵢ̄  (continuo)"
             mode_color = CANVAS_ELEMENT_COLOR
@@ -412,15 +487,14 @@ class Surface3DViewer(tk.Toplevel):
             f"{label}  ·  {mode_lbl}",
             color=mode_color, fontsize=11, pad=8, fontweight="bold",
         )
+        if crudo_no_disponible:
+            self._avisar(
+                f"Modo crudo no disponible para {label} — mostrando el campo "
+                f"suavizado. Volvé a resolver (F5) si acabás de editar la malla."
+            )
 
-        if self._info_label is not None:
-            try:
-                self._info_label.configure(
-                    text=f"Mostrando: {label}  ·  rango: [{vmin:.3g}, {vmax:.3g}]"
-                )
-            except tk.TclError:
-                pass
-
+        self._draw_colorbar(ax, cmap, c_vmin, c_vmax, label, unidad)
+        self._set_info(label, vmin, vmax, "stress")
         self._finalize_view(ax, vmin, vmax)
 
     # ── Render: desplazamientos ────────────────────────────────────────
@@ -430,14 +504,17 @@ class Surface3DViewer(tk.Toplevel):
         shape functions a partir de los valores nodales.
         """
         label = _DISPLACEMENT_LABEL.get(rtype, rtype)
+        unidad = self._unidad_activa(is_stress=False)
         ax = self._ax
         ax.clear()
+        self._clear_colorbar()
         self._setup_clean_axes(ax)
 
         u = self.solution["u"]
         idx_map = self.project.node_index_map
-        N_func, _ = get_shape_functions(self.project.element_type)
         n = SURFACE_3D_DEFAULT_GRID
+        N_grid = shape_matrix_at_grid(self.project.element_type, n)
+        side = n + 1
 
         elem_data = []
         all_z = []
@@ -456,22 +533,9 @@ class Surface3DViewer(tk.Toplevel):
                     v_nodes.append(math.hypot(ux, uy))
             v_nodes = np.array(v_nodes)
 
-            pts = np.array([
-                [self.project.nodes[nid].x, self.project.nodes[nid].y]
-                for nid in elem.node_ids[:n_nodes_elem]
-            ])
-            xi = np.linspace(-1, 1, n + 1)
-            eta = np.linspace(-1, 1, n + 1)
-            XI, ETA = np.meshgrid(xi, eta)
-            X = np.zeros_like(XI)
-            Y = np.zeros_like(XI)
-            Z = np.zeros_like(XI)
-            for r in range(n + 1):
-                for c in range(n + 1):
-                    Ns = N_func(XI[r, c], ETA[r, c])
-                    X[r, c] = Ns @ pts[:, 0]
-                    Y[r, c] = Ns @ pts[:, 1]
-                    Z[r, c] = Ns @ v_nodes
+            X, Y = element_grid_xy(self.project, elem, n)
+            n_use = min(N_grid.shape[1], len(v_nodes))
+            Z = (N_grid[:, :n_use] @ v_nodes[:n_use]).reshape(side, side)
             elem_data.append((X, Y, Z, elem, v_nodes))
             all_z.append(Z)
 
@@ -509,15 +573,105 @@ class Surface3DViewer(tk.Toplevel):
             color=MOHR_FG, fontsize=11, pad=8, fontweight="bold",
         )
 
-        if self._info_label is not None:
-            try:
-                self._info_label.configure(
-                    text=f"Mostrando: {label}  ·  rango: [{vmin:.3e}, {vmax:.3e}]"
-                )
-            except tk.TclError:
-                pass
-
+        self._draw_colorbar(ax, cmap, c_vmin, c_vmax, label, unidad)
+        self._set_info(label, vmin, vmax, "displacement")
         self._finalize_view(ax, vmin, vmax)
+
+    # ── Escala de color, unidades y avisos ─────────────────────────────
+    def _unidad_activa(self, is_stress: bool) -> str:
+        """Unidad del sistema del proyecto para el campo activo.
+
+        Misma fuente que la colorbar del lienzo 2D y que los encabezados de
+        la tabla de resultados (`post_tab._get_units`), para que el alumno
+        lea la misma unidad en las tres vistas.
+        """
+        try:
+            unidades = self.post_tab._get_units()
+        except Exception:
+            import traceback
+            traceback.print_exc()
+            return ""
+        return unidades.get("esfuerzo" if is_stress else "longitud", "")
+
+    def _clear_colorbar(self):
+        """Quita la colorbar previa. `ax.clear()` no la borra: sin esto cada
+        repintado apilaba un eje nuevo y la superficie se iba achicando."""
+        if self._cbar is None:
+            return
+        try:
+            self._cbar.remove()
+        except Exception:
+            import traceback
+            traceback.print_exc()
+        self._cbar = None
+
+    def _draw_colorbar(self, ax, cmap, c_vmin, c_vmax, label, unidad):
+        """Escala de color graduada, con la misma lectura que la colorbar del
+        lienzo 2D: `<campo> [<unidad>]` y ticks en notacion cientifica para
+        magnitudes grandes o chicas.
+
+        Sin ella la superficie 3D era la unica vista de resultados sin
+        referencia numerica del color: el alumno veia el arcoiris y no podia
+        decir cuanto vale el rojo. La tesis apoya la eleccion de la paleta
+        jet justamente en que «se compensa con la escala numerica graduada
+        junto al contorno» (03_diseno_implementacion).
+        """
+        from matplotlib.cm import ScalarMappable
+        from matplotlib.colors import Normalize
+        from matplotlib.ticker import FuncFormatter
+
+        sm = ScalarMappable(norm=Normalize(vmin=c_vmin, vmax=c_vmax),
+                            cmap=cmap)
+        sm.set_array([])
+        try:
+            self._cbar = self._fig.colorbar(
+                sm, ax=ax, shrink=0.62, pad=0.02, fraction=0.045,
+            )
+        except Exception:
+            import traceback
+            traceback.print_exc()
+            self._cbar = None
+            return
+        titulo = f"{label} [{unidad}]" if unidad else label
+        self._cbar.set_label(titulo, color=MOHR_FG, fontsize=9)
+        self._cbar.ax.tick_params(colors=MOHR_FG, labelsize=7)
+        self._cbar.ax.yaxis.set_major_formatter(
+            FuncFormatter(lambda v, _p: fmt_escala(v))
+        )
+        try:
+            self._cbar.outline.set_edgecolor(MOHR_FG)
+        except Exception:
+            pass
+
+    def _set_info(self, label, vmin, vmax, kind):
+        """Lectura del rango en el header, con la unidad del proyecto.
+
+        Usa `fmt_escala` —el mismo formateador de los ticks de la colorbar
+        que tiene al lado y de la del lienzo 2D— y no `fmt`: los extremos de
+        una escala se leen comparandolos entre si. Con los decimales fijos de
+        `fmt(valor, "displacement")` un rango de 1e-7 m se mostraba como
+        `[0.00000, 0.00000]`. Antes era `{v:.3g}` inline y sin unidad
+        (incumplia la regla dura 8 y no decia en que unidad estaba).
+        """
+        if self._info_label is None:
+            return
+        unidad = self._unidad_activa(is_stress=(kind == "stress"))
+        sufijo = f" {unidad}" if unidad else ""
+        try:
+            self._info_label.configure(
+                text=(f"Mostrando: {label}  ·  rango: "
+                      f"[{fmt_escala(vmin)}, {fmt_escala(vmax)}]{sufijo}")
+            )
+        except tk.TclError:
+            pass
+
+    def _avisar(self, mensaje: str):
+        """Mensaje a la barra de estado de la ventana principal."""
+        try:
+            self.main_window.set_status(mensaje)
+        except Exception:
+            import traceback
+            traceback.print_exc()
 
     # ── Helpers de render ──────────────────────────────────────────────
     def _draw_z0_plane(self, ax, elem_data):

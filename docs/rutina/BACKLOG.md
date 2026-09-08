@@ -11,14 +11,15 @@ Reglas del archivo, en [RUTINA.md](RUTINA.md) §4 y §9. Historial de lo hecho, 
 
 ## Área siguiente
 
-> **4 — Post-Proceso** (`gui/postprocessing/*`: panel de detalles, probe, vista 3D).
-> Capítulo a leer antes:
-> [../convenciones/canvas-preproceso.md](../convenciones/canvas-preproceso.md) (sección de
-> Post-Proceso: probe, contorno, vista 3D) y siempre
+> **5 — Diálogos** (`gui/dialogs/*`). Capítulo a leer antes:
+> [../convenciones/arquitectura.md](../convenciones/arquitectura.md) (sección de diálogos:
+> `center_dialog`, modales vs. no modales, el `HealthReportDialog`) y siempre
 > [../convenciones/no-reintroducir.md](../convenciones/no-reintroducir.md). Ítems del BACKLOG
-> que le pertenecen y hay que drenar primero: los **5 literales `"white"`/`"black"` de
-> `details_panel.py`** y el realce/hit-test de arista sobre malla deformada (compartido con el
-> área 1).
+> que le pertenecen y hay que drenar primero: **ninguno específico** — el área arranca
+> buscando material nuevo. Ojo con dos vecinos ya conocidos: el `HealthReportDialog` **no es
+> modal** y su `wait_window()` corre el event loop (fue la causa de los dos diálogos apilados
+> de la sesión 03), y el `pdflatex_missing_dialog` sigue siendo correcto para la versión
+> portable sin `texlive/`.
 
 Al cerrar la sesión, reemplazá esta línea por el área que sigue en la rotación de
 [RUTINA.md](RUTINA.md) §4 (1 → 2 → … → 14 → 1).
@@ -52,6 +53,18 @@ Formato: `[área Nº] descripción — evidencia — quién decide`.
   filas nuevas y una palabra; es el caso "tesis desactualizada" de [RUTINA.md](RUTINA.md) §6.
   **No se hizo en la sesión 01 porque el sandbox no tenía `pdflatex` ni `latexmk`** y §6 exige
   compilar antes de pushear. Verificar que haya LaTeX (o el `vendor/texlive`) antes de tomarlo.
+
+- **[14] El pie de la `fig:vista3d` del Anexo A describe un control que no existe.**
+  `tesis/capitulos/06_anexos.tex:121` dice que «El control **Crudo** ↔ **Suavizado**
+  *interpola* entre los valores por punto de Gauss y el campo nodal promediado». Es falso por
+  partida doble: (a) es un **toggle binario**, no un interpolador — el slider continuo se
+  eliminó a propósito («los estados intermedios confundían», documentado en el docstring de
+  `gui/postprocessing/surface_3d_viewer.py`); (b) el modo crudo no son «los valores por punto
+  de Gauss» sino σ = D·B(ξ,η)·uₑ evaluado en una grilla por elemento. Es el caso «tesis
+  desactualizada» de [RUTINA.md](RUTINA.md) §6: son dos frases del pie de figura, sin tocar el
+  resto del Anexo A. **No se hizo en la sesión 04 porque el sandbox no tenía `pdflatex` ni
+  `latexmk`** y §6 exige compilar antes de pushear. Verificar que haya LaTeX (o el
+  `vendor/texlive`) antes de tomarlo, junto con las otras dos correcciones del Anexo A.
 
 - **[14] Barrido pendiente, capítulo por capítulo.** Nadie contrastó todavía `tesis/` contra
   el software de forma sistemática. Cada vez que toque el área 14, tomá **una** sección que no
@@ -94,24 +107,35 @@ Formato: `[área Nº] descripción — evidencia — quién decide`.
   cambia lo que puede hacer. Sesión 03, los 3 de `gui/processing/proc_tab.py` (los 3 pasaron a
   dejar traza: eslabón previo de la cadena de selección, estado inicial del chip,
   `_current_selected_element`) más los 2 de `education/module_launcher.py` que se comían el
-  traceback de un módulo que no abre. **Revisados: 42 de 274.**
+  traceback de un módulo que no abre. Sesión 04, los 35 de `gui/postprocessing/` (los 4
+  archivos): 8 pasaron a dejar traza —los 3 refrescos de la Vista 3D en `post_tab` (que además
+  avisan con `_avisar_3d_desactualizada`: si fallan mudos, el visor sigue mostrando la solución
+  o el campo **anteriores**), el retorno al Pre-Proceso al cancelar el reporte de salud, el
+  `compute_raw_grids` del visor, el `_copy_values_tsv`, el callback de cierre del
+  `DetailsPanel` y `_get_units` visto desde el 3D— y 27 quedaron mudos por legítimos
+  (`after_cancel`, `destroy`/`unbind` de teardown, `tooltip.hide`, `set_status`, sondeo de la
+  API privada de matplotlib para los paneles 3D, `tight_layout`). **Revisados: 77 de 274.**
 
-- **[transversal] 17 literales de color con NOMBRE (`"white"` / `"black"`) fuera de
+- **[transversal] Quedan 12 literales de color con NOMBRE (`"white"` / `"black"`) fuera de
   `config/`.** Esquivan la auditoría de hex de `run_gates` (busca `#RRGGBB`) pero incumplen
   igual la regla dura 2: son colores decididos en `gui/` y `education/`. Reparto por área:
-  **[4]** `gui/postprocessing/details_panel.py` (5) · **[7]** `education/mod01_iso_mapping.py`
-  (7), `mod02_jacobian.py` (2), `mod03_b_matrix.py` (1) · **[8]** `mod05_stiffness.py` (1),
-  `mod06_equivalent_forces.py` (1). Cada área cierra los suyos en su turno, con una constante
-  en `config/settings.py` y su comentario. Los del canvas ya se cerraron (sesión 01:
-  `CANVAS_ISOLINE_COLOR`, `CANVAS_COLORBAR_TEXT_COLOR`). *Propuesta para una sesión futura*:
-  ampliar el patrón de `run_gates.gate_hex` para que también los detecte — hoy no los ve.
+  **[7]** `education/mod01_iso_mapping.py` (7), `mod02_jacobian.py` (2), `mod03_b_matrix.py`
+  (1) · **[8]** `mod05_stiffness.py` (1), `mod06_equivalent_forces.py` (1). Cada área cierra
+  los suyos en su turno, con una constante en `config/settings.py` y su comentario. Cerrados:
+  los del canvas (sesión 01: `CANVAS_ISOLINE_COLOR`, `CANVAS_COLORBAR_TEXT_COLOR`) y los **5
+  de `details_panel.py`** (sesión 04: `MOHR_MARKER_EDGE_COLOR`). *Propuesta para una sesión
+  futura*: ampliar el patrón de `run_gates.gate_hex` para que también los detecte — hoy no los
+  ve.
 
-- **[1 / 4] Realce de arista y hit-test de arista no siguen la malla deformada.**
-  `mesh_canvas._draw_highlight` y `_hit_test_potential_edge` usan `world_to_screen` sobre las
-  coordenadas sin deformar, mientras el resto del canvas usa `_get_node_screen_pos` (que sí
-  aplica `deform_scale·u`). Hoy es **inocuo**: la deformada solo existe en el Post, donde no
-  hay selección y `MainWindow._on_tab_changed` llama `clear_highlights()` al entrar. Si
-  alguna vez el Post recupera la selección de aristas, esto se vuelve un bug visible.
+- **[4 / 2] El mismo desplazamiento se lee distinto en la tabla del Post y en el lienzo.**
+  `post_tab._update_table` formatea los desplazamientos en notación científica
+  (`f"{ux:.{DECIMALS_DISPLACEMENT}e}"` → `5.12345e-04`, decisión documentada en el código por
+  el ancho de columna), mientras las etiquetas de nodo del lienzo usan `fmt(v,
+  "displacement")` (`0.00051`) y el header de la vista 3D usa `fmt_escala` (`5.12e-04`). Tres
+  formatos para la misma magnitud en la misma fase; además el de la tabla es el único que no
+  pasa por `fmt` (roza la regla dura 8, aunque el motivo está escrito). Unificar exige decidir
+  cuál gana y tiene impacto visual en toda la tabla: **decide el autor** o una sesión del área
+  4 que gaste un pendiente visual en esto.
 
 - **[1 / 2] Las tres tablas con selección "compuesta" manipulan los sets del canvas a mano.**
   `pre_tab._on_load_select` / `_on_constraint_select` / `_on_surface_select` hacen
@@ -208,6 +232,20 @@ Lo que el gate no puede juzgar. Cada ítem dice qué abrir, qué mirar y cómo r
   seleccionado: «③ Matriz B (Deformacion) abierto sobre el elemento #N» (antes: «Modulo educativo
   abierto: mod03»); sin selección, «… clickeá un elemento en el lienzo…». El subtítulo del panel
   pasó a 2 renglones: verificar que no empuje los botones fuera del panel en 1080p.
+- **Vista 3D en modo Crudo** (sesión 04, **el más importante**). `Ctrl+E` → `F5` → **🧊 Vista
+  3D** → campo **σx** (no von Mises, casi simétrico) → **Crudo**: el relieve debe coincidir con
+  el contorno 2D de σx del lienzo (rojos donde el lienzo tiene rojos). Antes el campo se
+  dibujaba **transpuesto dentro de cada elemento**. Comparar las dos ventanas lado a lado es lo
+  más rápido. Revertir: `git revert` del commit de la sesión 04.
+- **Escala de color de la Vista 3D** (sesión 04). En esa misma ventana debe aparecer una
+  colorbar a la derecha, con `σx [MPa]` (la unidad del proyecto) y ticks con el mismo formato
+  que la del lienzo (`2.50e+07` en magnitudes grandes). Al cambiar de campo o de modo la
+  superficie **no debe achicarse**: si se encoge en cada cambio, `_clear_colorbar` no está
+  retirando la anterior.
+- **Los dos campos numéricos del panel del Post** (sesión 04). Con la deformada activa, tipear
+  `2,5` en *Factor de escala* + Enter → se amplifica (antes no pasaba nada). Tipear `abc` → la
+  barra de estado lo explica y el campo **vuelve solo** al último valor bueno. En *Número de
+  niveles*, `500` → queda en `30` y lo avisa.
 - **Tests que necesitan un Tk real**: `run_gates --con-gui` (`test_draw_mode`,
   `test_selection_integration`) **ya corre en Linux** desde la sesión 01, con
   `xvfb-run -a python -m tests.run_gates --con-gui` (antes moría en `root.state("zoomed")`).
@@ -258,6 +296,32 @@ futura reabra algo ya decidido.
   la sesión 03: «Archivo ▸ Cargar Ejemplo» (los ejemplos viven en **Ayuda**) y «menú Educación»
   (la barra tiene 3 menús). Además la barra de estado mostraba la key interna `mod03` en vez de
   la etiqueta del botón (nuevo `module_launcher.module_label`).
+- **[4] La vista 3D dibujaba el campo CRUDO transpuesto dentro de cada elemento** — cerrado por
+  la sesión 04. `surface_3d_viewer` armaba su geometría con `np.meshgrid` por defecto
+  (`indexing="xy"` → `[j_η, i_ξ]`) mientras la Z venía de `compute_raw_grids`, que indexa
+  `[i_ξ, j_η]` igual que el rasterizador del contorno 2D. El modo suavizado no lo sufría (X, Y
+  y Z salían del mismo `meshgrid`), por eso pasó desapercibido. Hasta 19 % del rango del
+  elemento en el ejemplo Cook. Convención documentada en `canvas-preproceso.md` y regresión en
+  `tests/test_post_inspection.py` (que además verifica que la transpuesta *sí* difiera en el
+  modelo elegido).
+- **[4] `Factor de escala` y `Número de niveles` levantaban `TclError` dentro del callback de
+  Tk** — cerrado por la sesión 04. Eran `DoubleVar`/`IntVar`: `2,5`, `abc` o vacío mataban el
+  handler, el traceback iba a la consola y el alumno no veía nada. Ahora son `StringVar` leídas
+  por `_leer_factor_escala` / `_leer_niveles_isolineas`, con `to_float_flex` (la misma
+  tolerancia a la coma decimal que los editores de celda del Pre), acotado al rango del
+  Spinbox, aviso en la barra de estado y reversión del control al último valor bueno.
+- **[4] La Vista 3D no tenía escala de color** — cerrado por la sesión 04
+  (`_draw_colorbar` + `fmt_escala` como fuente única con la colorbar del lienzo). Era la única
+  vista de resultados sin referencia numérica del color, y la tesis apoya la elección de *jet*
+  justamente en esa escala graduada.
+- **[4] El `Ctrl+C` del probe copiaba encabezados en inglés y sin unidades**, y era mudo
+  cuando no había nada que copiar — cerrado por la sesión 04 (`tsv_headers` + los tres
+  mensajes que faltaban).
+- **[4] Tres `except Exception: pass` dejaban la Vista 3D mostrando la solución anterior** —
+  cerrado por la sesión 04: dejan traza y avisan con `_avisar_3d_desactualizada`.
+- **[1 / 4] Realce y hit-test de arista no seguían la malla deformada** — cerrado por la
+  sesión 04: `_draw_highlight` y `_hit_test_potential_edge` usan `_get_node_screen_pos` como
+  el resto del lienzo.
 - **[2] Docstrings de `pre_tab.py` / `_table_helpers.py` que anunciaban features eliminadas**
   (fill-down `Ctrl+D`, navegación Tab/flechas, menú contextual, `on_commit(text, direction)`)
   más 8 encabezados de sección vacíos — cerrado por la sesión 02. Eran una trampa: invitaban a

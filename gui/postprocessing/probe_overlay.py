@@ -52,6 +52,7 @@ from config.settings import (
     PROBE_NODE_RING_PX, PROBE_THROTTLE_MS, PROBE_PIN_RADIUS_PX,
     PROBE_PIN_DELETE_PX, fmt,
 )
+from config.units import get_unit_labels
 from fem.probe_query import (
     inverse_iso_map_NR, compute_raw, compute_smooth,
     crude_values_at_node, gauss_physical_coords, displacement_at,
@@ -687,11 +688,23 @@ class ProbeOverlay:
         no tiene foco o el mouse nunca se movio sobre el, no hace nada
         (no consume el evento -- propaga al binding nativo).
         """
-        if not self.active or self._last_motion_xy is None:
+        if not self.active:
+            return None
+        if self._last_motion_xy is None:
+            self.main_window.set_status(
+                "Ctrl+C copia el punto bajo el cursor — movelo sobre la "
+                "malla y volvé a intentar"
+            )
             return None
         sx, sy = self._last_motion_xy
         target = self._resolve_target_at(int(sx), int(sy))
         if target is None:
+            # Antes era mudo: el alumno leia en la barra "Ctrl+C: copiar",
+            # apretaba fuera de la malla y no pasaba nada ni sabia por que.
+            self.main_window.set_status(
+                "Ctrl+C: el cursor no está sobre la malla — no hay punto "
+                "que copiar"
+            )
             return None
         self._copy_values_tsv(target)
         return "break"  # consume el evento -- no propaga
@@ -787,23 +800,52 @@ class ProbeOverlay:
         """Helper: interpola (ux, uy) usando las shape functions."""
         return displacement_at(self.project, self.solution, elem_id, xi, eta)
 
+    def tsv_headers(self, kind: str) -> list:
+        """Encabezados del TSV que copia `Ctrl+C` sobre el lienzo.
+
+        En español y con la unidad del sistema activo entre corchetes, igual
+        que los encabezados de la tabla de resultados del panel (que también
+        se copia con `Ctrl+C`). Antes eran las claves internas en inglés y
+        sin unidades (`x`, `sigma_x`, `von_mises`): el alumno pegaba en su
+        informe una planilla que no decía en qué unidad estaba ni usaba el
+        vocabulario del resto del programa — dos vías para lo mismo con
+        nombres distintos.
+        """
+        u = get_unit_labels(self.project.unit_system)
+        L = u.get("longitud", "-")
+        S = u.get("esfuerzo", "-")
+        headers = [
+            f"x [{L}]", f"y [{L}]", "Elemento", "ξ", "η",
+            f"ux [{L}]", f"uy [{L}]",
+            f"σx [{S}]", f"σy [{S}]", f"τxy [{S}]",
+            f"σ1 [{S}]", f"σ2 [{S}]", f"Von Mises [{S}]",
+        ]
+        if kind == "node":
+            headers.insert(0, "Nodo")
+        return headers
+
     def _copy_values_tsv(self, target):
         """Copia los valores del target al portapapeles en formato TSV.
 
         Header + 1 fila. Pegable en Excel/Word/Google Sheets para uso en
         informes, validacion cruzada o debugging del solver.
+
+        Los NUMEROS van con toda la precision disponible (no con `fmt`, que
+        redondea a los decimales de lectura en pantalla): lo que se pega en
+        una planilla se usa para recalcular, no solo para leer.
         """
         vals = self._gather_full_values(target)
         if vals is None:
+            # Antes esto retornaba mudo y `_on_ctrl_copy` igual consumia el
+            # evento: el alumno apretaba Ctrl+C y no pasaba absolutamente
+            # nada, ni copia ni explicacion.
+            self.main_window.set_status(
+                "Sin valores en ese punto — resolvé el modelo (F5) y "
+                "posicioná el cursor sobre la malla antes de copiar"
+            )
             return
-        headers = ["x", "y", "Elem", "xi", "eta",
-                   "ux", "uy", "sigma_x", "sigma_y", "tau_xy",
-                   "sigma_1", "sigma_2", "von_mises"]
-        if target["kind"] == "node":
-            headers.insert(0, "Nodo")
-            row = [str(target["node_id"])]
-        else:
-            row = []
+        headers = self.tsv_headers(target["kind"])
+        row = [str(target["node_id"])] if target["kind"] == "node" else []
         row.extend([
             f"{target['world_x']:.6f}",
             f"{target['world_y']:.6f}",
@@ -825,10 +867,28 @@ class ProbeOverlay:
             canvas.clipboard_clear()
             canvas.clipboard_append(text)
             self.main_window.set_status(
-                "Valores copiados al portapapeles (TSV) - pegable en Excel"
+                f"{self._nombre_target(target)} copiado al portapapeles "
+                f"(TSV) — pegable en Excel"
             )
         except Exception:
-            self.main_window.set_status("Error al copiar al portapapeles")
+            # Sin traza, un portapapeles que falla (foco perdido, sesion sin
+            # X11) era un "Error al copiar" sin ninguna pista de la causa.
+            import traceback
+            traceback.print_exc()
+            self.main_window.set_status(
+                "No se pudo copiar al portapapeles — reintentá con el "
+                "cursor sobre el lienzo"
+            )
+
+    @staticmethod
+    def _nombre_target(target) -> str:
+        """Nombre legible del punto consultado, para los mensajes de estado."""
+        kind = target.get("kind")
+        if kind == "node":
+            return f"Nodo N{target['node_id']}"
+        if kind == "gauss":
+            return f"Punto de Gauss PG#{target['gp_idx'] + 1}"
+        return f"Punto del elemento #{target['elem_id']}"
 
     def _show_details_persistent(self, target, sx, sy):
         """Panel persistente con TODOS los valores + circulo de Mohr.

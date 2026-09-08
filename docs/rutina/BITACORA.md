@@ -150,7 +150,7 @@ además `xvfb-run … run_gates --con-gui` verde (17/17), que hasta hoy no corr�
   `TclError` y **mataba la app en el constructor**; por eso `run_gates --con-gui` solo podía
   correrse en Windows. Con el guard, `test_draw_mode` y `test_selection_integration` corren
   en el sandbox bajo `xvfb-run` y quedaron verdes — el gate de GUI dejó de ser una promesa.
-- `tests/test_canvas_delete.py` — nuevo (10 casos, sin display: instancia el canvas con
+- `tests/test_canvas_delete.py` — nuevo (11 casos, sin display: instancia el canvas con
   `object.__new__` y le monta el estado mínimo, así ejercita el código real y no una copia).
   Sumado a `run_gates`. Cubre el borrado múltiple de los 5 tipos, el snapshot único, la
   cancelación del modal, la prioridad carga > nodo, el aviso sin selección y
@@ -506,3 +506,204 @@ Ninguna.
 ### Área siguiente
 
 4 — Post-Proceso (`gui/postprocessing/*`: panel de detalles, probe, vista 3D).
+
+---
+
+## Sesión 04 — 2026-09-08 22:40 UTC — Área: 4 — Post-Proceso
+
+**Commit**: (este) · **Gates**: `run_gates` verde (97/97 módulos, 0 hex, **18**/18 tests) y
+también `run_gates --con-gui` bajo `xvfb` (20/20, por el cambio en `mesh_canvas`) · además
+smoke con Tk real del panel del Post, la Vista 3D (los 3 campos × los 2 modos, más la caída a
+suavizado) y el `Ctrl+C` del probe
+
+> Nota de entorno: igual que la sesión 03, el sandbox vino **sin el stack y sin `tkinter`**.
+> Gate corrido con un venv de `python3.12` del sistema + `pip install -r requirements.txt`,
+> según la receta de [RUTINA.md](RUTINA.md) §8. Sin tocar `requirements.txt`. **Tampoco hay
+> `pdflatex` ni `latexmk`**, así que las correcciones de `tesis/` siguen sin poder tomarse
+> (§6 exige compilar antes de pushear); se sumó una tercera al BACKLOG del área 14.
+
+### Qué se hizo y por qué
+
+El hallazgo central es un **error numérico visible**: la vista 3D dibujaba el campo crudo
+transpuesto dentro de cada elemento.
+
+- `gui/postprocessing/surface_3d_viewer.py` — **la grilla del visor se armaba con
+  `np.meshgrid(xi, eta)`**, es decir el `indexing="xy"` por defecto, que indexa `[j_η, i_ξ]`.
+  Pero la Z del **modo crudo** sale de `fem/probe_query.py::compute_raw_grids`, que indexa
+  `[i_ξ, j_η]` (su `_get_dN_at_grid` llena `dN_at_grid[i, j]` con `i`→ξ y `j`→η), igual que
+  el rasterizador del contorno 2D (`canvas_raster` usa `indexing="ij"` explícito).
+  Resultado: en **Crudo** la superficie 3D mostraba el campo **transpuesto respecto de la
+  geometría** dentro de cada elemento. Verificado en el ejemplo Cook Q4: los valores de la
+  grilla coinciden con `compute_raw(ξ_i, η_j)` con error 2e-17, y con la convención vieja el
+  desvío llegaba al 19 % del rango del elemento. El modo **suavizado no lo sufría** (X, Y y Z
+  salían del mismo `meshgrid`), por eso pasaba desapercibido: hay que estar en crudo y con un
+  campo no simétrico para verlo.
+  **Por qué importa**: es justo el modo que la tesis destaca en el pie de la
+  `\autoref{fig:vista3d}` y el que materializa la discontinuidad C⁰ del MEF — el alumno estaba
+  mirando un campo que no era el de esa geometría.
+  Arreglo: `natural_grid(n)` (`indexing="ij"`, con la convención documentada arriba del
+  módulo), y toda la geometría pasa por `element_grid_xy`.
+- `surface_3d_viewer` — **la N de la grilla se evalúa una vez por malla**
+  (`shape_matrix_at_grid`, cacheada por `(tipo, n)`) en lugar de `(n+1)²` veces **por
+  elemento**: las coordenadas naturales son las mismas para todos los elementos. El doble
+  bucle Python `for r: for c: N_func(...)` desapareció de los dos renders.
+  **Medido** en Cook 16×16 Q9 (256 elementos, n=8): **0,156 s → 0,003 s** por repintado solo
+  en armar la geometría; en Cook 32×32 son ~83 000 llamadas a las funciones de forma que ya no
+  se hacen. La versión legible elemento a elemento de `fem/` no se tocó (esto es `gui/`).
+- `surface_3d_viewer::_draw_colorbar` — **escala de color graduada** al costado de la
+  superficie, con `<campo> [<unidad del proyecto>]` y los ticks de `fmt_escala`.
+  **Por qué**: el 3D era la **única** vista de resultados sin referencia numérica del color —
+  el alumno veía el arcoíris y no podía decir cuánto vale el rojo. La tesis apoya la elección
+  de *jet* precisamente en que «se compensa con la escala numérica graduada junto al contorno»
+  (`03_diseno_implementacion`), así que la vista lo estaba incumpliendo. La decisión de **ejes
+  limpios** sigue intacta: vale para el cubo 3D, no para la leyenda (por eso NO es una decisión
+  congelada revertida). `_clear_colorbar` la retira antes de cada repintado: `ax.clear()` no la
+  borra y cada refresco apilaba un eje nuevo, achicando la superficie.
+- `config/settings.py::fmt_escala` — nuevo, y `MeshCanvas._fmt_colorbar_value` **delega** ahí.
+  **Por qué**: la colorbar del lienzo y la del 3D formateaban el mismo número con reglas
+  distintas si cada una traía la suya. Ahora es fuente única, al lado de `fmt` (la casa de los
+  formatos numéricos, regla dura 8). El readout de rango del header del 3D pasó de
+  `{v:.3g}` **sin unidad** a `fmt_escala` **con unidad**.
+- `surface_3d_viewer` — **modo crudo sin datos ahora cae a suavizado y lo dice**. Antes
+  mostraba «(sin datos para el campo activo)» sobre un visor vacío, mientras el contorno 2D
+  —ante exactamente el mismo fallo— ya caía a suavizado (`post_tab._on_result_changed`). Dos
+  respuestas distintas al mismo problema en la misma pantalla. Ahora el título dice
+  «SUAVIZADO … (sin datos crudos disponibles)» y la barra de estado explica el siguiente paso.
+- `gui/postprocessing/post_tab.py` — **`Factor de escala` y `Número de niveles` ya no revientan
+  el callback**. Eran un `DoubleVar` y un `IntVar`: tipear `2,5` (la coma decimal de un Excel
+  en español), `abc` o dejar el campo vacío hace que `.get()` levante `TclError` **dentro del
+  handler de Tk** — el traceback iba a la consola, el alumno no veía nada, la deformada no
+  cambiaba y el campo se quedaba mostrando un valor que no se estaba usando. Ahora son
+  `StringVar` y se leen con `_leer_factor_escala` / `_leer_niveles_isolineas`: toleran la coma
+  (`to_float_flex`, la **misma vía** que los editores de celda del Pre-Proceso desde la sesión
+  02), acotan los niveles al rango del Spinbox (que era editable, así que `500` pasaba), avisan
+  nombrando el valor rechazado y el formato aceptado, y **devuelven el control al último valor
+  bueno**. Los dos controles se aplican además con `<FocusOut>`, no solo con Enter.
+  **Por qué**: eran dos callejones sin salida con excepción tragada, en el único par de campos
+  de texto de la fase, y contradecían la regla que la sesión 02 fijó para el resto del programa.
+- `post_tab::_encolar_aviso` / `_estado_visualizacion` — el aviso de un control rechazado se
+  emite al **final** del repintado, no en el lector. **Por qué**: los lectores corren al
+  principio de `_on_result_changed` y el método **siempre** termina con un `Visualizando: …`,
+  así que el `set_status` del aviso quedaba tapado en el mismo instante — el arreglo de arriba
+  habría sido invisible en el flujo real. Detectado probando con Tk real, no leyendo el
+  código: en el test unitario el lector se llama suelto y el aviso "se veía". Un valor
+  rechazado importa más que el nombre del campo que se muestra, así que gana el aviso, y no se
+  pega al repintado siguiente.
+- `config/settings.py` — `ISOLINE_COUNT_MIN/MAX/DEFAULT`: el rango del control estaba escrito
+  a mano en el `Spinbox` y el validador necesitaba la misma fuente.
+- `gui/postprocessing/probe_overlay.py::tsv_headers` — el `Ctrl+C` del lienzo copiaba
+  encabezados con las **claves internas en inglés y sin unidades** (`x`, `sigma_x`,
+  `von_mises`), mientras la tabla de resultados —el otro `Ctrl+C` del Post— copia encabezados
+  en español con la unidad del proyecto. Ahora dice `σx [MPa]`, `Von Mises [MPa]`, `Elemento`,
+  `ξ`, `η`. Los **números** siguen con toda la precisión (no `fmt`): lo que se pega en una
+  planilla se usa para recalcular.
+- `probe_overlay` — **`Ctrl+C` dejó de ser mudo** cuando no hay nada que copiar: fuera de la
+  malla, sin haber movido el cursor sobre el lienzo, o sin valores en el punto. La barra de
+  estado anuncia «Ctrl+C: copiar» desde que se activa el probe, así que una tecla anunciada que
+  no hace nada ni explica por qué es un callejón sin salida (RUTINA §7). El mensaje de éxito
+  además nombra qué se copió (`Nodo N7` / `Punto de Gauss PG#3` / `Punto del elemento #4`).
+- `gui/postprocessing/details_panel.py` — los **5 literales `"white"`** del círculo de Mohr
+  (bordes de los marcadores de σ1, σ2, (σx,τxy) y del estado isótropo) pasaron a
+  `MOHR_MARKER_EDGE_COLOR` en `config/settings.py`. Eran ítem del BACKLOG del área: esquivaban
+  la auditoría de hex de `run_gates` (que busca `#RRGGBB`) pero incumplían igual la regla dura 2.
+- **`except Exception` del área: revisados los 35, cambiados 8.** Dejan traza con
+  `traceback.print_exc()` (convención de `undo_stack` / `post_tab` / `mesh_canvas`): los **3**
+  del refresco de la Vista 3D en `post_tab` (`update_solution` tras re-solve, `refresh` al
+  cambiar de campo, y el `lift`+`refresh` al reabrirla) — si fallaban en silencio, el visor
+  seguía mostrando **la solución o el campo anteriores** sin decirlo, que es peor que estar
+  cerrado, así que además avisan con `_avisar_3d_desactualizada`; el retorno al Pre-Proceso
+  cuando se cancela el reporte de salud; el `compute_raw_grids` del visor; el
+  `_copy_values_tsv`; el callback de cierre del `DetailsPanel` (es quien sincroniza
+  `_details_open`: si falla mudo, el probe cree que el panel sigue abierto y deja el hover
+  pausado para siempre); y `post_tab._get_units` visto desde el 3D. Los otros 27 son legítimos
+  (`after_cancel`, `destroy`/`unbind` de teardown, `tooltip.hide`, `set_status` en tests
+  headless, sondeo de la API privada de matplotlib para los paneles 3D, `tight_layout`).
+- `gui/preprocessing/mesh_canvas.py::_draw_highlight` / `_hit_test_potential_edge` — el
+  segundo ítem del BACKLOG que le tocaba al área (compartido con el área 1): los dos usaban
+  `world_to_screen(node.x, node.y)` sobre las coordenadas **sin deformar** mientras el resto
+  del lienzo usa `_get_node_screen_pos` (que aplica `deform_scale·u`). Ahora los dos usan
+  `_get_node_screen_pos`. **Por qué**: hoy es inocuo —el Post no tiene selección y
+  `_on_tab_changed` llama `clear_highlights()` al entrar— pero dejar dos criterios de
+  posicionamiento conviviendo en el mismo archivo es la trampa que produjo el bug de la grilla
+  transpuesta de esta misma sesión: una convención divergente que nadie ve hasta que alguien la
+  consume. Cerrado, no anotado.
+- `tests/test_post_inspection.py` — nuevo (11 casos, sin display: `PostProcessTab` y
+  `ProbeOverlay` con `object.__new__` y dobles de las variables de Tk, como las sesiones 01–03).
+  Sumado a `run_gates`. Cubre la convención de índices contra el motor real, el cacheo de la N
+  por tipo de elemento, las dos lecturas validadas, los encabezados del TSV y la delegación de
+  `fmt_escala`. Verificado que **falla sin el arreglo**: con `indexing="xy"` la comparación
+  geometría↔campo se va a 1.2e+01 de error. El test además comprueba que la **transpuesta sí
+  difiere** en el modelo elegido — si no, no distinguiría el bug del arreglo.
+
+### Errores encontrados y corregidos
+
+- **Campo crudo transpuesto en la vista 3D** (el principal, arriba). Error numérico visible,
+  no cosmético: hasta 19 % del rango del elemento en el ejemplo Cook.
+- **`TclError` tragado en los dos campos numéricos del Post**: `2,5`, `abc` o vacío mataban el
+  callback sin ningún mensaje, y el control quedaba mintiendo sobre el valor en uso.
+- **`500` niveles de isolíneas aceptados** por un Spinbox editable cuyo rango 3–30 no se
+  validaba: isolíneas ilegibles y un marching squares carísimo en cada repintado.
+- **La Vista 3D podía quedar mostrando la solución anterior** (o un campo distinto del que
+  dice el panel) si un refresco fallaba: tres `except Exception: pass`.
+- **`Ctrl+C` mudo** en el lienzo del Post cuando no había punto bajo el cursor, con la barra de
+  estado anunciando ese mismo atajo.
+- **La Vista 3D en crudo sin datos** mostraba «(sin datos)» donde el contorno 2D, ante el mismo
+  fallo, ya caía a suavizado.
+- **La colorbar del 3D no existía** y el rango se mostraba sin unidad y con formato propio.
+- Verificado todo con Tk real bajo `xvfb`: los 3 tipos de campo × los 2 modos del visor, la
+  caída a suavizado forzada, que la figura queda en 2 ejes tras 6 repintados (la colorbar no se
+  apila), el cierre limpio del Toplevel, y los mensajes de los dos controles.
+
+### DECISIÓN CONGELADA REVERTIDA
+
+Ninguna. La colorbar del 3D **no** revierte la decisión de «ejes sin ruido visual»: esa regla
+es sobre el cubo 3D (ticks, números, paneles de fondo, que siguen ocultos), no sobre la
+leyenda del campo. `no-reintroducir.md` no tiene ninguna fila sobre la escala de color del
+visor, y la tesis pide explícitamente esa escala graduada como contrapeso de *jet*. El
+capítulo [canvas-preproceso.md](../convenciones/canvas-preproceso.md) lo deja escrito.
+
+### Pendientes visuales para el autor
+
+1. **Vista 3D en modo Crudo** (lo más importante de la sesión). `Ctrl+E` → `F5` → **🧊 Vista
+   3D** → **σx** (no von Mises, que es casi simétrico) → **Crudo**: la superficie debería
+   coincidir con el contorno 2D de σx del lienzo (mismos rojos donde el lienzo tiene rojos).
+   Antes el relieve estaba **transpuesto dentro de cada elemento** respecto del contorno 2D.
+   Comparar los dos lado a lado es la forma más rápida de verlo. Revertir: `git revert` de este
+   commit.
+2. **Escala de color de la Vista 3D**. En la misma ventana: a la derecha de la superficie debe
+   aparecer una colorbar con `σx [MPa]` (la unidad del proyecto) y los ticks con el **mismo
+   formato** que la colorbar del lienzo (`2.50e+07` para magnitudes grandes). Al cambiar de
+   campo (VM ↔ σx ↔ Ux) o de modo, la superficie **no debe achicarse**: si se encoge un poco en
+   cada cambio, `_clear_colorbar` no está retirando la anterior. El header dice ahora
+   «rango: [-106.8, 160.8] MPa».
+3. **Los dos campos numéricos del panel del Post**. Con la deformada activa, tipear `2,5` en
+   *Factor de escala* y Enter → la deformada se amplifica (antes: «valor inválido» invisible y
+   nada se movía). Tipear `abc` → la barra de estado dice «Factor de escala: valor inválido —
+   «abc» no es un número positivo…» y el campo **vuelve solo** al último valor bueno. En
+   *Número de niveles*, tipear `500` → queda en `30` y lo avisa.
+
+### Descartado
+
+- **Unificar el formato de los desplazamientos entre la tabla del Post y las etiquetas del
+  lienzo.** La tabla usa notación científica (`5.12345e-04`, decisión documentada en el código
+  por el ancho de columna) y el lienzo `fmt(v, "displacement")` (`0.00051`): el mismo número se
+  lee distinto en dos vistas de la misma fase. Cambiar cualquiera de los dos es una decisión de
+  presentación con impacto visual en toda la tabla, y ya gasté los 3 pendientes visuales. Al
+  BACKLOG.
+- **Corregir el pie de la `\autoref{fig:vista3d}` del Anexo A**, que dice que el control
+  Crudo↔Suavizado «**interpola** entre los valores por punto de Gauss y el campo nodal
+  promediado». Es falso: es un **toggle binario**, y el slider continuo fue eliminado a
+  propósito («los estados intermedios confundían», documentado en el docstring del visor). Es
+  el caso «tesis desactualizada» de §6, pero este sandbox no tiene `pdflatex` ni `latexmk` y §6
+  exige compilar antes de pushear. Al BACKLOG del área 14, junto a las otras dos.
+- **Cerrar la Vista 3D cuando un refresco falla.** Sería lo más honesto (una vista que miente
+  es peor que una cerrada), pero cerrarle al alumno una ventana que abrió a propósito, por un
+  fallo que puede ser transitorio, es peor UX que avisarle. Se avisa y se deja la decisión en
+  sus manos.
+- **Un `Ctrl+C` que copie el punto pinneado en vez del que está bajo el cursor.** Es el
+  comportamiento documentado y hay un pin visible; cambiarlo sería una vía distinta para lo
+  mismo. Solo se agregaron los mensajes que faltaban.
+
+### Área siguiente
+
+5 — Diálogos (`gui/dialogs/*`).

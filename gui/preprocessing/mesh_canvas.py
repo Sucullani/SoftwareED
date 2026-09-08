@@ -44,7 +44,7 @@ from config.settings import (
     CANVAS_HOVER_COLOR, CANVAS_BOUNDARY_COLOR,
     CANVAS_BOUNDARY_MIN_ELEMENTS, CANVAS_FOCUS_MIN_ELEMENTS,
     DECORATION_SCALE_MIN_FACTOR, DECORATION_SCALE_MAX_FACTOR,
-    DECIMALS_LENGTH, DECIMALS_FORCE, DECIMALS_STRESS, fmt,
+    DECIMALS_LENGTH, DECIMALS_FORCE, DECIMALS_STRESS, fmt, fmt_escala,
     SHADOW_LOAD, SHADOW_SURFACE, SHADOW_CONSTRAINT, LABEL_BG, LABEL_FG,
     FONT_MONO_SMALL, TEXT_MUTED_FG,
     CANVAS_AXIS_X_COLOR, CANVAS_AXIS_Y_COLOR, CANVAS_DEFORM_GHOST_COLOR,
@@ -1814,10 +1814,15 @@ class MeshCanvas(ttk.Frame):
                 continue
             if n1 not in self.project.nodes or n2 not in self.project.nodes:
                 continue
-            x1, y1 = self.world_to_screen(
-                self.project.nodes[n1].x, self.project.nodes[n1].y)
-            x2, y2 = self.world_to_screen(
-                self.project.nodes[n2].x, self.project.nodes[n2].y)
+            # `_get_node_screen_pos` y no `world_to_screen(node.x, node.y)`:
+            # el resto del canvas dibuja sobre la malla DEFORMADA cuando
+            # `show_deformed` esta activa, y el realce de arista se quedaba
+            # sobre la geometria sin deformar (arista amarilla despegada de
+            # la malla visible). Hoy no se ve —el Post no tiene seleccion y
+            # `_on_tab_changed` llama `clear_highlights()` al entrar— pero
+            # dejarlo divergente era una trampa para el dia que cambie.
+            x1, y1 = self._get_node_screen_pos(n1)
+            x2, y2 = self._get_node_screen_pos(n2)
             # Halo claro mas ancho debajo + linea de seleccion encima (afinados:
             # antes 8/4, ahora 6/2.5 — menos "fuerte", pedido del usuario).
             self.canvas.create_line(
@@ -2026,14 +2031,11 @@ class MeshCanvas(ttk.Frame):
 
     @staticmethod
     def _fmt_colorbar_value(val):
-        """Formatea un valor de la colorbar de forma profesional: notacion
-        cientifica para magnitudes grandes/chicas (un esfuerzo de 25 MPa en Pa
-        es 2.5e7, ilegible como '25000000.00'), decimal compacto en el medio.
+        """Formato de los ticks de la colorbar. Delega en
+        `config.settings.fmt_escala`, que comparte con la escala de color de
+        la vista 3D del Post: la misma tension debe leerse igual en las dos.
         """
-        a = abs(val)
-        if a != 0.0 and (a >= 1e5 or a < 1e-3):
-            return f"{val:.2e}"
-        return f"{val:.4g}"
+        return fmt_escala(val)
 
     # ═════════════════════════════════════════════════════════════════════
     # EVENTOS — control de interaccion (pan/zoom/resize)
@@ -2409,10 +2411,10 @@ class MeshCanvas(ttk.Frame):
                 if edge in seen_edges:
                     continue
                 seen_edges.add(edge)
-                ax, ay = self.world_to_screen(
-                    self.project.nodes[a].x, self.project.nodes[a].y)
-                bx, by = self.world_to_screen(
-                    self.project.nodes[b].x, self.project.nodes[b].y)
+                # Misma razon que en `_draw_highlight`: el hit-test tiene que
+                # enganchar la arista que el alumno VE, no la sin deformar.
+                ax, ay = self._get_node_screen_pos(a)
+                bx, by = self._get_node_screen_pos(b)
                 d = self._point_segment_distance(sx, sy, ax, ay, bx, by)
                 if d < tol_px and d < best_d:
                     best_d = d
