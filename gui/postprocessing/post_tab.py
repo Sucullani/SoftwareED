@@ -29,6 +29,7 @@ class PostProcessTab:
         self.frame = ttk.Frame(parent)
 
         # Estado de resultados
+        self._solving = False          # guard de reentrancia de auto_solve
         self.solution = None
         self.nodal_stresses = None
         self.element_stresses = None   # consumido por ProbeOverlay
@@ -330,7 +331,28 @@ class PostProcessTab:
             reflejan en el badge ⚠ del status bar global, y el usuario
             puede clickearlo para abrir el HealthReportDialog en modo
             consulta.
+
+        **Guard de reentrancia** (`_solving`): el `HealthReportDialog` es
+        NO modal y su `wait_window()` corre el event loop, asi que mientras
+        esta abierto se siguen despachando eventos que vuelven a entrar
+        aca — el `<<NotebookTabChanged>>` que Tk encola al cambiar a
+        Post-Proceso (F5 lo dispara y Tk lo entrega *despues* del
+        `select()`, no durante) o un cambio de pestaña del propio alumno.
+        Sin el guard, cada reentrada apilaba OTRO diálogo de salud sobre
+        el primero: el alumno veia dos (o mas) copias del mismo reporte y
+        tenia que cerrarlas una por una.
         """
+        if self._solving:
+            return
+
+        self._solving = True
+        try:
+            self._auto_solve()
+        finally:
+            self._solving = False
+
+    def _auto_solve(self):
+        """Cuerpo real de `auto_solve` (ver su docstring y el guard)."""
         # Si ya esta resuelto, solo actualizar display (no re-validar para
         # evitar abrir el modal en cada cambio de tab post-solve). Hace
         # falta repintar porque el cambio Pre/Proc -> Post pasa por
@@ -393,6 +415,11 @@ class PostProcessTab:
             return
 
         self.main_window.set_status("Resolviendo...")
+        # Cursor de espera: el solve es sincrono y en mallas grandes
+        # (Cook 32x32 Q9, 8450 GDL) se lleva ~1 s entre solve y tensiones,
+        # y hasta varios en 33 k GDL. Sin esta señal la ventana parece
+        # colgada: el texto de la barra de estado es facil de no ver.
+        self._set_busy_cursor(True)
         self.frame.update_idletasks()
 
         try:
@@ -438,6 +465,23 @@ class PostProcessTab:
             traceback.print_exc()
             self.main_window.set_status(f"✗ Error al resolver: {str(e)[:60]}")
             messagebox.showerror("Error al resolver", str(e))
+        finally:
+            self._set_busy_cursor(False)
+
+    def _set_busy_cursor(self, activo: bool) -> None:
+        """Pone (o saca) el cursor de espera en la ventana principal.
+
+        Se aplica al Toplevel: los hijos que no fijan cursor propio lo
+        heredan, incluido el `MeshCanvas` (solo se pisa a si mismo en modo
+        dibujo, que no existe en el Post). Silencioso ante `TclError`:
+        que el cursor no cambie nunca debe abortar un solve.
+        """
+        try:
+            self.frame.winfo_toplevel().configure(
+                cursor="watch" if activo else ""
+            )
+        except tk.TclError:
+            pass
 
     # ═════════════════════════════════════════════════════════════════════
     # CONSULTA INTERACTIVA (probe overlay)

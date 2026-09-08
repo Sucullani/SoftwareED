@@ -187,6 +187,22 @@ Instalar `requirements.txt` **no es** "agregar una dependencia": es preparar el 
 obligatorio si el sandbox arranca sin el stack. Lo prohibido es sumar una librería que hoy no
 está en ese archivo, o editarlo. Si el intérprete se llama `python3`, usá `python3`.
 
+**Trampa del sandbox de claude.ai (visto el 2026-09-08)**: el `python` por defecto es un
+`python3.11` **sin `tkinter`** (es un módulo del sistema, no de pip, y su paquete
+`python3.11-tk` vive en un PPA que el proxy bloquea). Sin `tkinter` el gate de imports muere en
+`ttkbootstrap` y no corre nada. La salida más rápida es el `python3.12` del sistema, que sí lo
+trae:
+
+```bash
+apt-get install -y python3-tk                 # provee tkinter para el 3.12 del sistema
+/usr/bin/python3.12 -m venv --system-site-packages /tmp/venv312
+/tmp/venv312/bin/pip install -r requirements.txt
+/tmp/venv312/bin/python -m tests.run_gates    # `run_gates` usa sys.executable para la suite
+```
+
+Es preparar el entorno, no cambiar el intérprete del proyecto: no se toca `requirements.txt`
+ni se commitea nada de esto.
+
 `run_gates` importa los 97 módulos del proyecto, audita los hex literales de `gui/` y
 `education/` (regla dura 2) y corre la suite headless, incluida la regresión numérica que
 exige la regla dura 21. **Sale 0 o no se pushea.**

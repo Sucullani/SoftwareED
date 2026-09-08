@@ -11,6 +11,8 @@ un chip `#N` con el id del elemento. Tras abrir un modulo, queda un ✓
 permanente en la sesion como indicador de progreso.
 """
 
+import traceback
+
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 
@@ -50,12 +52,13 @@ class ProcessTab:
     def _build_education_tab(self):
         """Lista de modulos educativos de la fase de calculo."""
         from education.module_launcher import (
-            list_modules_for_phase, open_module, GLOBAL_MODULES,
+            list_modules_for_phase, open_module, module_label, GLOBAL_MODULES,
         )
 
         def _on_open(mod_key):
-            # Si el modulo es por-elemento y hay UN elemento seleccionado en
-            # el canvas, lo pasamos directo y evitamos el dialog del launcher.
+            # Si hay UN elemento seleccionado en el canvas lo pasamos
+            # directo; si no, el modulo se abre igual y espera el click del
+            # alumno sobre el lienzo (no hay dialogo intermedio).
             elem_id = self._current_selected_element()
             ok = open_module(
                 parent_tk=self.frame.winfo_toplevel(),
@@ -65,7 +68,21 @@ class ProcessTab:
                 elem_id=elem_id,
             )
             if ok:
-                self.main_window.set_status(f"Modulo educativo abierto: {mod_key}")
+                # `open_module` puede haber elegido el elemento por su
+                # cuenta (auto-pick cuando la malla tiene uno solo) y en
+                # ese caso lo deja seleccionado en el canvas: releerlo de
+                # ahi evita duplicar esa regla.
+                target = self._current_selected_element()
+                label = module_label(mod_key)
+                if target is None:
+                    self.main_window.set_status(
+                        f"{label} abierto — clickeá un elemento en el "
+                        f"lienzo para verlo sobre él"
+                    )
+                else:
+                    self.main_window.set_status(
+                        f"{label} abierto sobre el elemento #{target}"
+                    )
             return ok  # el panel marca ✓ solo si realmente abrio
 
         self._panel = render_module_buttons(
@@ -75,9 +92,12 @@ class ProcessTab:
             bootstyle=f"{PHASE_PROC_BOOTSTYLE}-outline",
             header_text="Modulos Educativos MEF",
             header_color=PHASE_PROC_COLOR,
-            subtitle=("Selecciona un elemento en el canvas para activar\n"
-                      "los modulos. Cada modulo opera sobre el elemento "
-                      "elegido."),
+            # El boton gris NO esta deshabilitado: abre el modulo igual y
+            # este espera el click. Decirlo evita que el alumno crea que
+            # necesita seleccionar antes de poder mirar nada.
+            subtitle=("Clickeá un elemento en el lienzo y los módulos se "
+                      "activan sobre él.\nTambién podés abrir uno primero y "
+                      "elegir el elemento después."),
             global_modules=GLOBAL_MODULES,
         )
 
@@ -106,7 +126,11 @@ class ProcessTab:
                 try:
                     _prev(sel)
                 except Exception:
-                    pass
+                    # El callback previo es el del pre_tab (filas fantasma,
+                    # tag `canvas_selected`): si falla, las tablas quedan
+                    # desincronizadas del lienzo. Traza a stderr, y seguimos
+                    # con lo nuestro para no arrastrar el chip al fallo.
+                    traceback.print_exc()
             self._on_selection_changed(sel)
 
         _chained._proc_edu_chain = True
@@ -115,7 +139,8 @@ class ProcessTab:
         try:
             self._on_selection_changed(canvas.get_selection())
         except Exception:
-            pass
+            # Sin esto el chip `#N` arranca desfasado de la seleccion real.
+            traceback.print_exc()
 
     def _on_selection_changed(self, sel: dict):
         """Refresca el chip `#N` segun la seleccion del canvas."""
@@ -131,6 +156,9 @@ class ProcessTab:
             elems = sel.get("elements", set())
             return next(iter(elems)) if len(elems) == 1 else None
         except Exception:
+            # El modulo se abriria sin elemento (esperando el click) y el
+            # motivo real quedaria invisible: dejamos traza.
+            traceback.print_exc()
             return None
 
     def refresh(self):

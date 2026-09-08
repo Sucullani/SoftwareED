@@ -330,7 +330,7 @@ class PreProcessTab:
     def _build_education_panel(self):
         """Sub-pestana con modulos educativos asociados al PRE-PROCESO."""
         from education.module_launcher import (
-            list_modules_for_phase, open_module, GLOBAL_MODULES,
+            list_modules_for_phase, open_module, module_label, GLOBAL_MODULES,
         )
 
         def _on_open(mod_key):
@@ -341,7 +341,11 @@ class PreProcessTab:
                 mesh_canvas=getattr(self.main_window, "mesh_canvas", None),
             )
             if ok:
-                self.main_window.set_status(f"Modulo educativo abierto: {mod_key}")
+                # La etiqueta que el alumno ve en el boton, no la key
+                # interna `mod00` (misma correccion que en proc_tab).
+                self.main_window.set_status(
+                    f"{module_label(mod_key)} abierto"
+                )
             return ok  # el panel marca ✓ solo si realmente abrio
 
         self._edu_panel = render_module_buttons(

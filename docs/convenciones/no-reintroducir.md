@@ -65,6 +65,10 @@ Abreviaturas de capítulo:
 | `tkvideoplayer`, `av` / `PyAV` | Migración deliberada a WebP: instalador más liviano, sin DLLs de FFmpeg | [ARQ] |
 | `FuncAnimation` sin guardar referencia persistente | El GC mata la animación y congela el Toplevel modal | [ARQ] |
 | `root.state("zoomed")` sin guard en `MainWindow.__init__` | Fuera de Windows lanza `TclError` y mata la app en el constructor (y con ella `run_gates --con-gui`) | [ARQ] |
+| Pre-chequeos propios en `_on_solve` (F5) con `messagebox.showwarning` | Cortaban antes del comprobador de salud: F5 quedaba con menos diagnóstico que el cambio de pestaña (sin hint, sin 🔧 Corregir, sin 📍 Ir al ítem) y sin cubrir el resto de los errores críticos. La validación es una sola: `validate_project` dentro de `auto_solve` | [ARQ] |
+| Llamar `post_tab._auto_solve()` salteando el guard `auto_solve` | El `HealthReportDialog` no es modal y su `wait_window()` reentra: cada reentrada apilaba otro diálogo de salud | [ARQ] |
+| Mandar al alumno a *Archivo ▸ Cargar Ejemplo* o a un *menú Educación* | Los ejemplos viven en **Ayuda** y no hay menú Educación (la barra tiene 3 menús): eran mensajes que apuntaban a donde no hay nada | [EDU] |
+| La key interna del módulo (`mod03`) en un string visible | Es `module_launcher.module_label(mod_key)`: el alumno solo vio la etiqueta del botón | [EDU] |
 
 ## Canvas, spreadsheet y Post-Proceso
 

@@ -365,3 +365,144 @@ Ninguna.
 ### Área siguiente
 
 3 — Proceso (`gui/processing/proc_tab.py`).
+
+---
+
+## Sesión 03 — 2026-09-08 21:31 UTC — Área: 3 — Proceso
+
+**Commit**: (este) · **Gates**: `run_gates` verde (97/97 módulos, 0 hex, **17**/17 tests) ·
+además smoke con Tk real bajo `xvfb` del flujo F5 (modelo sano y modelo con error crítico)
+
+> Nota de entorno: este sandbox vino **sin el stack y sin `tkinter`** (el `python3.11` de la
+> imagen no lo trae y su paquete `python3.11-tk` vive en un PPA que el proxy bloquea). El gate
+> se corrió con un venv de `python3.12` del sistema —que sí tiene `tkinter`— más
+> `pip install -r requirements.txt`. Sin tocar `requirements.txt` ni agregar librerías.
+
+### Qué se hizo y por qué
+
+El hallazgo central es de **coherencia con la tesis**, la prioridad 1 de la rutina. El Anexo A
+(`06_anexos.tex`, §*Proceso: resolución y exploración didáctica*) afirma: «La tecla F5, o el
+cambio a la pestaña de post-proceso, dispara la resolución, que antes valida el modelo con un
+comprobador de salud […] los errores críticos se reportan con sugerencias de corrección». El
+software **no lo cumplía por la vía de F5**.
+
+- `gui/main_window.py::_on_solve` — borrados los dos pre-chequeos propios (`num_elements == 0`
+  y `not boundary_conditions`) que abrían `messagebox.showwarning("Aviso", …)` y **retornaban
+  antes del comprobador de salud**. Ahora F5 invalida `is_solved` / `post_tab.solution`, navega
+  a Post y llama `post_tab.auto_solve()`: una sola vía de validación.
+  **Por qué**: los dos casos más frecuentes de modelo incompleto —justo los del alumno que
+  recién arma su malla— eran los únicos que **no** llegaban al `HealthReportDialog`. El alumno
+  veía "Defina al menos una restricción (BC) antes de resolver", que nombra el problema pero no
+  cómo resolverlo, en lugar del diálogo con el hint educativo («¿por qué?»), el botón
+  **🔧 Corregir** y el **📍 Ir al ítem**. Peor: los pre-chequeos eran más pobres que el
+  validador, así que un solo apoyo restringido en x (`insufficient_restraints`, error crítico)
+  pasaba el filtro y terminaba igual en el diálogo — dos comportamientos distintos para la misma
+  tecla según qué le faltara al modelo. Y es la regla dura 16 aplicada al flujo de resolución:
+  la GUI muestra el reporte, no valida por su cuenta.
+- `gui/postprocessing/post_tab.py::auto_solve` — **guard de reentrancia** (`_solving`): el
+  cuerpo pasó a `_auto_solve()` y `auto_solve()` es el guard.
+  **Por qué**: el `HealthReportDialog` es **no modal** y su `wait_window()` corre el event loop,
+  así que mientras está abierto Tk sigue despachando eventos. `notebook.select(2)` **encola**
+  el `<<NotebookTabChanged>>` (verificado: Tk lo entrega después del `select`, ni siquiera con
+  `update_idletasks`), de modo que el handler de pestaña llamaba `auto_solve()` **con el diálogo
+  abierto** y abría un segundo diálogo idéntico sobre el primero. El alumno tenía que cerrar dos
+  reportes de salud para volver a su modelo. Reproducido con Tk real: sin el guard se cuentan
+  dos Toplevels `⚕ Salud del modelo`; con el guard, uno.
+- `post_tab::_set_busy_cursor` — cursor `watch` en el Toplevel durante el solve, retirado en un
+  `finally`. **Por qué**: el solve es síncrono (Cook 32×32 Q9 ≈ 1 s entre solve y tensiones, y
+  varios segundos en 33 k GDL) y el único aviso era el texto "Resolviendo..." en la barra de
+  estado, fácil de no ver: la ventana parecía colgada. El `MeshCanvas` hereda el cursor (solo lo
+  fija en modo dibujo, que no existe en el Post).
+- `education/module_launcher.py` — nuevo `module_label(mod_key)` (fuente única de la etiqueta
+  visible) y los 4 mensajes reescritos: (a) el aviso sin malla mandaba a **«Archivo ▸ Cargar
+  Ejemplo»**, un menú donde los ejemplos no están (viven en **Ayuda**, decisión documentada), y
+  ahora nombra el módulo, la tecla `D` y `Ayuda ▸ Cargar Ejemplo (Ctrl+E)`; (b) el error de
+  overlay sin canvas mandaba al «menú Educación», que **no existe** (la barra tiene 3 menús);
+  (c)+(d) los dos `except Exception` que abrían `"Error al abrir modulo"` ahora dejan traza con
+  `traceback.print_exc()` — sin ella un import roto de un módulo era indepurable.
+  **Por qué**: un mensaje que manda al alumno a un menú inexistente es un callejón sin salida.
+- `gui/processing/proc_tab.py` + `gui/preprocessing/pre_tab.py` — la barra de estado decía
+  `Modulo educativo abierto: mod03`, la **key interna** del launcher, que el alumno nunca vio en
+  pantalla. Ahora dice la etiqueta del botón y, en Proceso, sobre qué elemento quedó abierto
+  (`③ Matriz B (Deformacion) abierto sobre el elemento #3`) o que está esperando el click
+  (`… abierto — clickeá un elemento en el lienzo para verlo sobre él`). El elemento efectivo se
+  relee del canvas, así no se duplica la regla de auto-pick del launcher.
+- `proc_tab` — subtítulo del panel: «Selecciona un elemento en el canvas para activar los
+  modulos» → «Clickeá un elemento en el lienzo y los módulos se activan sobre él. También podés
+  abrir uno primero y elegir el elemento después». **Por qué**: el botón gris **no** está
+  deshabilitado —abre el módulo igual—, así que el texto viejo describía una precondición falsa.
+- `gui/widgets/module_launcher_panel.py` — docstring corregido: decía que el click sin selección
+  «abre un dialog de seleccion como fallback». Ese `simpledialog.askinteger` **fue eliminado a
+  propósito** y está en `no-reintroducir.md`: el docstring invitaba a reponerlo.
+- `proc_tab` — los 3 `except Exception: pass` del área pasaron a dejar traza
+  (`traceback.print_exc()`, la convención de `undo_stack` / `post_tab` / `mesh_canvas`): el
+  eslabón previo de la cadena `on_selection_changed` (si falla, las tablas del Pre quedan
+  desincronizadas del lienzo), el estado inicial del chip y `_current_selected_element` (el
+  módulo se abriría sin elemento sin decir por qué). Revisados 3 de los 3 del área.
+- `tests/test_solve_flow.py` — nuevo (8 casos, sin display: `MainWindow` y `PostProcessTab` con
+  `object.__new__` y dobles mínimos, igual que hicieron las sesiones 01 y 02). Sumado a
+  `run_gates`. Cubre: F5 sin elementos y sin restricciones delegando en el validador (ningún
+  modal propio), F5 forzando la re-resolución, el guard de reentrancia (un solo diálogo), la
+  liberación del flag ante excepción, el cursor de espera puesto y retirado, y los mensajes del
+  launcher (menú correcto + `module_label`). Verificado que **falla sin los arreglos**: entrando
+  por `_auto_solve` se crean 2 diálogos, y el `_on_solve` viejo abría el modal y nunca llamaba a
+  `auto_solve`.
+
+### Errores encontrados y corregidos
+
+- **F5 no pasaba por el comprobador de salud** en los dos casos más comunes (el principal,
+  arriba). Incumplía la tesis y la regla dura 16.
+- **Dos diálogos de salud apilados** por reentrancia de `auto_solve` durante el `wait_window()`
+  del diálogo no modal. Reproducido y verificado con Tk real bajo `xvfb`.
+- **Mensajes que mandan a menús inexistentes**: «Archivo ▸ Cargar Ejemplo» (está en Ayuda) y
+  «menú Educación» (no existe; la barra tiene Archivo / Modelo / Ayuda).
+- **Key interna `mod03` en la barra de estado** de las dos fases con módulos.
+- **Subtítulo y docstring que describían un estado falso** (botón gris = deshabilitado, diálogo
+  de selección como fallback).
+- **Dos `except Exception` del launcher se comían el traceback** de un módulo que no abre.
+- Verificado con Tk real: F5 sobre el ejemplo canónico resuelve, deja la pestaña Post, restaura
+  el cursor y no deja `_solving` colgado; F5 sobre el mismo modelo sin restricciones abre **un**
+  reporte de salud y, al cancelar, devuelve al Pre-Proceso con el aviso.
+
+### DECISIÓN CONGELADA REVERTIDA
+
+Ninguna.
+
+### Pendientes visuales para el autor
+
+1. **F5 con un modelo incompleto.** `Ctrl+E`, borrar todas las restricciones (tabla
+   Restricciones, `Supr`) y pulsar **F5**: debe abrirse **un solo** diálogo *⚕ Salud del modelo*
+   con el error «sin restricciones», su «🎓 ¿Por qué?» y el «🔧 Corregir» (antes salía un
+   `Aviso` seco que no decía cómo arreglarlo). Al cancelar, la app vuelve al Pre-Proceso y la
+   barra dice «Corrija los errores antes de resolver». Probar también con **una sola restricción
+   en x** (error `insufficient_restraints`): antes ahí se apilaban **dos** diálogos idénticos.
+   Revertir: `git revert` de este commit.
+2. **Cursor de espera al resolver.** Cargar Cook 32×32 Q9 (Ayuda ▸ Cargar Ejemplo) y pulsar
+   `F5`: durante el cálculo el puntero debe ser el reloj de espera y volver al normal al
+   terminar. Si queda pegado en reloj, el `finally` de `auto_solve` falló.
+3. **Barra de estado y subtítulo de Proceso.** En Proceso, clickear un elemento y abrir
+   `③ Matriz B (Deformacion)`: la barra debe decir «③ Matriz B (Deformacion) abierto sobre el
+   elemento #N» (antes: «Modulo educativo abierto: mod03»). Sin selección, «… abierto — clickeá
+   un elemento en el lienzo…». El subtítulo del panel ahora ocupa 2 renglones: verificar que no
+   empuje los botones fuera del panel en 1080p.
+
+### Descartado
+
+- **Un botón «Resolver» en el panel de Proceso.** La tesis describe exactamente dos disparadores
+  (F5 y el cambio a Post) y `no-reintroducir.md` prohíbe la toolbar; agregar un tercer camino
+  sería una vía más para lo mismo, justo lo que la rutina caza.
+- **Un diálogo de progreso para el solve** (al estilo del `_PDFProgressDialog` de la Memoria).
+  El solve es una llamada sincrónica a SciPy: para acompañarlo con una barra habría que moverlo
+  a un thread y eso cambia el modelo de concurrencia de toda la fase. El cursor de espera cubre
+  el 90 % del problema a coste cero. Si alguna vez se quiere, va como propuesta al autor.
+- **Unificar el nombre de la sub-pestaña educativa** (Pre dice `🎓 Educacion`, Proceso dice
+  `🎓 Modulos Educativos`, y en Proceso el Notebook tiene **una sola** pestaña, o sea un control
+  que no controla nada). Es incoherencia real entre fases, pero es cambio puramente visual y ya
+  gasté los 3 pendientes visuales de la sesión. Al BACKLOG.
+- **Tocar el `.tex` del Anexo A**: acá la tesis tenía razón y el software estaba mal, así que no
+  hubo nada que corregir del lado del documento. Las dos correcciones pendientes del Anexo A
+  siguen en el BACKLOG para el área 14 (necesitan `pdflatex`, que este sandbox tampoco tiene).
+
+### Área siguiente
+
+4 — Post-Proceso (`gui/postprocessing/*`: panel de detalles, probe, vista 3D).

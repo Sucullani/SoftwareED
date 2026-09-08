@@ -11,8 +11,10 @@ Reglas de iluminacion (propuesta UX 2026):
     - Modulos globales (sin elemento requerido): siempre con color de
       fase. Sin chip de elemento.
     - Modulos por-elemento sin seleccion: bootstyle `secondary-outline`
-      (gris desaturado). Click sigue funcionando — abre un dialog de
-      seleccion como fallback.
+      (gris desaturado). El boton NO esta deshabilitado: el click abre el
+      modulo, que queda esperando a que el alumno clickee un elemento en
+      el lienzo. **No hay dialogo de seleccion** — el `askinteger` del
+      launcher fue eliminado a proposito (ver `no-reintroducir.md`).
     - Modulos por-elemento CON seleccion: bootstyle de fase (color),
       chip `#N` a la derecha. Click directo, sin dialog.
     - Visitado: chip muestra `✓` (queda permanente en la sesion como

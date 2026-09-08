@@ -40,6 +40,7 @@ viven donde se usan, no como modulos aislados.
 """
 
 import importlib
+import traceback
 from tkinter import messagebox
 
 
@@ -112,6 +113,18 @@ GLOBAL_MODULES = {"mod00"}
 _GLOBAL_MODULES = GLOBAL_MODULES  # alias retrocompat interno
 
 
+def module_label(mod_key):
+    """Etiqueta visible del modulo (la que ve el alumno en el boton).
+
+    Fuente unica para los mensajes de la GUI: la barra de estado decia
+    `Modulo educativo abierto: mod03`, o sea la key interna del launcher,
+    que el alumno nunca vio en pantalla. Si la key no esta en MODULE_META
+    devolvemos la key para no ocultar el problema.
+    """
+    meta = MODULE_META.get(mod_key)
+    return meta[0] if meta else mod_key
+
+
 def list_modules_for_phase(phase):
     """Devuelve [(mod_key, label, descripcion), ...] para la fase pedida."""
     out = []
@@ -147,8 +160,8 @@ def _is_overlay_module(cls) -> bool:
 def open_module(parent_tk, project, mod_key, mesh_canvas=None, elem_id=None):
     """Abre el modulo educativo identificado por mod_key.
 
-    Para modulos en _GLOBAL_MODULES (calidad, post-process) no se pide
-    seleccionar elemento — pueden trabajar sobre la malla completa.
+    Para modulos en _GLOBAL_MODULES (hoy solo M0, calidad de malla) no se
+    pide seleccionar elemento — trabajan sobre la malla completa.
 
     Despacho automatico:
         - Modo Overlay (clase con `.activate()`): pasa el main_window
@@ -166,9 +179,15 @@ def open_module(parent_tk, project, mod_key, mesh_canvas=None, elem_id=None):
     is_global = mod_key in _GLOBAL_MODULES
 
     if not project.elements:
+        # El menu que trae los ejemplos es **Ayuda**, no Archivo (los
+        # ejemplos son material didactico, no archivos del usuario): el
+        # mensaje viejo mandaba al alumno a buscarlos donde no estan.
         messagebox.showwarning(
-            "Aviso",
-            "Cargue un modelo primero (Archivo ▸ Cargar Ejemplo)."
+            "Todavía no hay malla",
+            f"«{module_label(mod_key)}» trabaja sobre la malla, y el "
+            "modelo todavía no tiene ningún elemento.\n\n"
+            "Dibujá uno con la tecla D en Pre-Proceso, o cargá un caso "
+            "listo desde Ayuda ▸ Cargar Ejemplo (Ctrl+E)."
         )
         return False
 
@@ -182,7 +201,14 @@ def open_module(parent_tk, project, mod_key, mesh_canvas=None, elem_id=None):
         mod = importlib.import_module(module_name)
         cls = getattr(mod, class_name)
     except Exception as e:
-        messagebox.showerror("Error", f"Error al cargar modulo:\n{e}")
+        # Traza a stderr (convencion de undo_stack / post_tab / mesh_canvas):
+        # el mensaje del modal es una linea y sin el traceback un import roto
+        # es indepurable.
+        traceback.print_exc()
+        messagebox.showerror(
+            "No se pudo abrir el módulo",
+            f"«{module_label(mod_key)}» no se pudo cargar:\n{e}",
+        )
         return False
 
     is_overlay = _is_overlay_module(cls)
@@ -231,11 +257,15 @@ def open_module(parent_tk, project, mod_key, mesh_canvas=None, elem_id=None):
     try:
         if is_overlay:
             if main_window is None or not hasattr(main_window, "mesh_canvas"):
+                # No nombrar menús que no existen: la barra tiene solo
+                # Archivo / Modelo / Ayuda, y los módulos se abren desde la
+                # sub-pestaña de la fase o con Ctrl+1..7.
                 messagebox.showerror(
-                    "Error",
-                    "El modo Overlay requiere un MeshCanvas activo. "
-                    "Volvé a abrir desde el menú Educación o desde la "
-                    "sub-pestaña Educación de la fase actual.",
+                    "No se pudo abrir el módulo",
+                    "Los módulos se dibujan sobre el lienzo de la malla y "
+                    "no encontré uno activo.\n\n"
+                    "Abrilo desde la sub-pestaña Educación de la fase "
+                    "(Pre-Proceso o Proceso) o con Ctrl+1 … Ctrl+7.",
                 )
                 return False
             cls.activate(main_window, project, elem_id)
@@ -244,7 +274,11 @@ def open_module(parent_tk, project, mod_key, mesh_canvas=None, elem_id=None):
             cls(parent_tk, project, elem_id)
         return True
     except Exception as e:
-        messagebox.showerror("Error", f"Error al abrir modulo:\n{e}")
+        traceback.print_exc()          # idem: sin traza no hay diagnostico
+        messagebox.showerror(
+            "No se pudo abrir el módulo",
+            f"«{module_label(mod_key)}» falló al abrirse:\n{e}",
+        )
         return False
 
 

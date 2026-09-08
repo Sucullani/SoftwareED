@@ -45,6 +45,7 @@ TESTS_RAPIDOS = [
     "tests.test_pick_ghost",
     "tests.test_canvas_delete",
     "tests.test_pre_tab_delete",
+    "tests.test_solve_flow",
     "tests.test_canvas_visualization",
     "tests.test_canvas_raster",       # el mas lento del grupo (~26 s)
     "tests.test_vv_extensions",

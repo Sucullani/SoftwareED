@@ -1337,23 +1337,35 @@ class MainWindow:
     # ═════════════════════════════════════════════════════════════════════
 
     def _on_solve(self):
-        """Resuelve el modelo (delega en post_tab.auto_solve)."""
-        if self.project.num_elements == 0:
-            messagebox.showwarning(
-                "Aviso", "Defina al menos un elemento antes de resolver."
-            )
-            return
-        if not self.project.boundary_conditions:
-            messagebox.showwarning(
-                "Aviso",
-                "Defina al menos una restricción (BC) antes de resolver.",
-            )
-            return
-        # Cambiar a post-proceso dispara auto_solve automáticamente
-        self.notebook.select(2)
-        # Si ya estaba ahí, forzar la resolución
+        """Resuelve el modelo (F5). Delega en `post_tab.auto_solve`.
+
+        **Una sola vía de validación**: acá no se chequea nada por
+        cuenta propia. `auto_solve` corre
+        `models.model_health.validate_project` y, si hay errores críticos,
+        abre el `HealthReportDialog`, que nombra la causa, explica el "¿por
+        qué?" y ofrece corrección automática y navegación al ítem
+        (regla dura 16).
+
+        Antes había dos pre-chequeos propios (sin elementos / sin
+        restricciones) que cortaban el flujo con un `showwarning` seco:
+        nombraban el problema pero no cómo resolverlo, no cubrían el resto
+        de los errores críticos (restricciones insuficientes, elemento
+        degenerado, referencia colgante) y dejaban al atajo F5 con **menos**
+        diagnóstico que el simple cambio de pestaña — al revés de lo que
+        describe la tesis (Anexo A, «Proceso: resolución y exploración
+        didáctica»), que promete el comprobador de salud detrás de F5.
+        """
+        # Forzar la re-resolución: si el proyecto ya estaba resuelto,
+        # `auto_solve` se limitaría a repintar.
         self.project.is_solved = False
         self.post_tab.solution = None
+        # Tk entrega `<<NotebookTabChanged>>` DESPUÉS del `select()` (no
+        # durante), así que resolvemos nosotros y el handler encolado
+        # encuentra el modelo ya resuelto; si ya estábamos en Post el
+        # evento no se dispara y esta llamada es la única. El guard de
+        # reentrancia de `auto_solve` cubre el caso en que el diálogo de
+        # salud quede abierto mientras se despacha el evento.
+        self.notebook.select(2)
         self.post_tab.auto_solve()
 
     def _on_fit_view(self):

@@ -74,6 +74,12 @@ UX:
 
 Hook en `post_tab.auto_solve`: corre `validate_project` antes del solve. Errores → modal; warnings → banner; sano → procede. Tras auto-fixes, re-valida.
 
+**F5 no valida por su cuenta** (2026-09-08): `MainWindow._on_solve` invalida `is_solved` / `post_tab.solution`, navega a Post y llama `post_tab.auto_solve()` — nada más. Antes hacía dos pre-chequeos propios (`num_elements == 0`, sin `boundary_conditions`) con `messagebox.showwarning` y **retornaba antes del comprobador de salud**: el atajo tenía menos diagnóstico que el simple cambio de pestaña (ni hint educativo, ni 🔧 Corregir, ni 📍 Ir al ítem), no cubría el resto de los errores críticos (`insufficient_restraints`, `degenerate_element`, `bc_orphan_node`, …) y contradecía lo que la tesis promete en el Anexo A (§*Proceso: resolución y exploración didáctica*: «La tecla F5 […] dispara la resolución, que antes valida el modelo con un comprobador de salud»). Es la regla dura 16 aplicada al flujo de resolución: una sola vía de validación.
+
+**`auto_solve` es reentrante-safe** (flag `_solving`, 2026-09-08): el `HealthReportDialog` **no** es modal y su `wait_window()` corre el event loop, así que mientras está abierto se despachan eventos que vuelven a entrar en `auto_solve` — el `<<NotebookTabChanged>>` que Tk **encola** al hacer `notebook.select(2)` (verificado: se entrega después del `select`, ni siquiera con `update_idletasks`), o un cambio de pestaña del propio alumno. Sin el guard, cada reentrada abría **otro** diálogo de salud sobre el primero. El cuerpo real vive en `post_tab._auto_solve()`; `auto_solve()` es el guard. Regresión: [tests/test_solve_flow.py](../../tests/test_solve_flow.py).
+
+**Cursor de espera durante el solve**: `auto_solve` pone `cursor="watch"` en el Toplevel (`_set_busy_cursor`) y lo saca en el `finally`. El solve es síncrono; en Cook 32×32 Q9 se lleva ~1 s y en 33 k GDL varios, y el `set_status("Resolviendo...")` solo es fácil de no ver. El `MeshCanvas` hereda el cursor salvo en modo dibujo, que no existe en el Post.
+
 **No duplicar la validación** — agregá `_check_xxx(project, report)` en `model_health.py` y un hint en `EDUCATIONAL_HINTS`.
 
 ### FEM engine — [fem/](../../fem/)

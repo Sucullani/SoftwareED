@@ -11,10 +11,14 @@ Reglas del archivo, en [RUTINA.md](RUTINA.md) §4 y §9. Historial de lo hecho, 
 
 ## Área siguiente
 
-> **3 — Proceso** (`gui/processing/proc_tab.py`). Capítulo a leer antes:
-> [../convenciones/arquitectura.md](../convenciones/arquitectura.md) (flujo de resolución,
-> `auto_solve`, validación por `models/model_health.py`), y siempre
-> [../convenciones/no-reintroducir.md](../convenciones/no-reintroducir.md).
+> **4 — Post-Proceso** (`gui/postprocessing/*`: panel de detalles, probe, vista 3D).
+> Capítulo a leer antes:
+> [../convenciones/canvas-preproceso.md](../convenciones/canvas-preproceso.md) (sección de
+> Post-Proceso: probe, contorno, vista 3D) y siempre
+> [../convenciones/no-reintroducir.md](../convenciones/no-reintroducir.md). Ítems del BACKLOG
+> que le pertenecen y hay que drenar primero: los **5 literales `"white"`/`"black"` de
+> `details_panel.py`** y el realce/hit-test de arista sobre malla deformada (compartido con el
+> área 1).
 
 Al cerrar la sesión, reemplazá esta línea por el área que sigue en la rotación de
 [RUTINA.md](RUTINA.md) §4 (1 → 2 → … → 14 → 1).
@@ -56,11 +60,29 @@ Formato: `[área Nº] descripción — evidencia — quién decide`.
 
 ### Interacción e incongruencias
 
+- **[3 / 6] La sub-pestaña educativa se llama distinto en cada fase, y en Proceso el Notebook
+  tiene una sola pestaña.** Pre-Proceso: `  🎓 Educacion  ` (`pre_tab.py:286`); Proceso:
+  `  🎓 Modulos Educativos  ` (`proc_tab.py`), y además el banner de fase ya dice «Modulos
+  educativos del calculo MEF» y el header del panel «Modulos Educativos MEF»: la misma palabra
+  tres veces en la misma pantalla, y un `ttk.Notebook` de una pestaña es un control que no
+  controla nada. Es incoherencia entre fases (RUTINA §7) pero **puramente visual**: al tomarlo,
+  decidir si el Notebook de Proceso desaparece (el panel iría directo en el frame de la fase) y
+  anotarlo como pendiente visual con criterio de reversión. No se hizo en la sesión 03 porque ya
+  había gastado los 3 pendientes visuales.
+
+- **[3] `proc_tab.wire_canvas` solo detecta su propia cadena si es el callback más externo.**
+  El guard es `getattr(prev, "_proc_edu_chain", False)` sobre `canvas.on_selection_changed`; si
+  un overlay educativo encadenó encima (`_overlay_edu_chain`), una segunda llamada a
+  `wire_canvas()` duplicaría la cadena de Proceso. Hoy es **inocuo**: `wire_canvas()` se llama
+  una sola vez (`main_window._build_main_layout`) y `_update_all_project_refs` no la reinvoca,
+  y el efecto duplicado sería idempotente (refrescar el chip dos veces). Si algún flujo futuro
+  re-cablea las pestañas, recorrer la cadena en vez de mirar solo el tope.
+
 - **[transversal] 274 `except Exception` en `gui/` + `education/`.** Algunos son legítimos
   (Tk destruyendo widgets durante el cierre, `iconbitmap` que puede no existir). Otros tragan
   un fallo en un camino que el alumno recorre y lo dejan sin saber qué pasó. **No hacer un
   barrido masivo**: cada sesión revisa los de **su** área, decide caso por caso, y anota
-  acá cuántos revisó y cuántos cambió. Revisados hasta ahora: **37 de 274**. Sesión 01, los
+  acá cuántos revisó y cuántos cambió. Sesión 01, los
   15 de `gui/preprocessing/mesh_canvas.py`: 9 pasaron a dejar traza con
   `traceback.print_exc()`, 3 quedaron mudos por legítimos (`after_cancel`, import diferido de
   `education.overlay_module`, `set_status`) y 3 se fueron al refactorizar el borrado. Sesión
@@ -69,7 +91,10 @@ Formato: `[área Nº] descripción — evidencia — quién decide`.
   expandir a Q9 y los 3 del panel de módulos educativos) y 16 quedaron mudos por legítimos
   (`set_status`, `nametowidget`, guards de widgets destruidos). La convención es la de
   `models/undo_stack.py` y `post_tab`: traza a stderr, y mensaje al alumno solo si el fallo
-  cambia lo que puede hacer.
+  cambia lo que puede hacer. Sesión 03, los 3 de `gui/processing/proc_tab.py` (los 3 pasaron a
+  dejar traza: eslabón previo de la cadena de selección, estado inicial del chip,
+  `_current_selected_element`) más los 2 de `education/module_launcher.py` que se comían el
+  traceback de un módulo que no abre. **Revisados: 42 de 274.**
 
 - **[transversal] 17 literales de color con NOMBRE (`"white"` / `"black"`) fuera de
   `config/`.** Esquivan la auditoría de hex de `run_gates` (busca `#RRGGBB`) pero incumplen
@@ -171,6 +196,18 @@ Lo que el gate no puede juzgar. Cada ítem dice qué abrir, qué mirar y cómo r
 - **Celdas numéricas con coma decimal** (sesión 02). Doble-click en X de un nodo, tipear
   `3,25`, Enter → guarda 3,25 (antes: "Valor numerico invalido"). Con `hola`, el modal debe
   decir "Y: valor invalido — «hola» no es un numero. Usá punto o coma decimal".
+- **F5 con un modelo incompleto** (sesión 03). `Ctrl+E`, borrar todas las restricciones y `F5`:
+  **un solo** diálogo *⚕ Salud del modelo* con el error, su «🎓 ¿Por qué?» y el «🔧 Corregir»
+  (antes: un `Aviso` seco). Al cancelar vuelve al Pre-Proceso. Probar también con **una sola
+  restricción en x** (`insufficient_restraints`): ahí antes se apilaban **dos** diálogos.
+  Revertir: `git revert` del commit de la sesión 03.
+- **Cursor de espera al resolver** (sesión 03). Cook 32×32 Q9 + `F5`: el puntero debe ser el
+  reloj de espera durante el cálculo y volver al normal al terminar. Si queda pegado, revisar el
+  `finally` de `auto_solve`.
+- **Barra de estado y subtítulo de Proceso** (sesión 03). Abrir `③ Matriz B` con un elemento
+  seleccionado: «③ Matriz B (Deformacion) abierto sobre el elemento #N» (antes: «Modulo educativo
+  abierto: mod03»); sin selección, «… clickeá un elemento en el lienzo…». El subtítulo del panel
+  pasó a 2 renglones: verificar que no empuje los botones fuera del panel en 1080p.
 - **Tests que necesitan un Tk real**: `run_gates --con-gui` (`test_draw_mode`,
   `test_selection_integration`) **ya corre en Linux** desde la sesión 01, con
   `xvfb-run -a python -m tests.run_gates --con-gui` (antes moría en `root.state("zoomed")`).
@@ -207,6 +244,20 @@ futura reabra algo ya decidido.
 - **[2] Los editores de celda rechazaban la coma decimal que el paste sí aceptaba** — cerrado
   por la sesión 02 con `to_float_flex` en las 4 rutas de edición numérica, más mensajes de
   error que nombran la celda y el formato aceptado.
+- **[3 / 14] F5 no pasaba por el comprobador de salud** — cerrado por la sesión 03. Los dos
+  pre-chequeos propios de `_on_solve` (sin elementos / sin restricciones) abrían un
+  `showwarning` seco y retornaban antes de `validate_project`: el atajo tenía menos diagnóstico
+  que el cambio de pestaña y contradecía el Anexo A de la tesis. Ahora F5 delega en
+  `post_tab.auto_solve()` (una sola vía, regla dura 16). Regresión en `tests/test_solve_flow.py`.
+- **[3 / 4] Dos diálogos de salud apilados al resolver con F5** — cerrado por la sesión 03 con el
+  guard `_solving` de `auto_solve`. `notebook.select(2)` encola el `<<NotebookTabChanged>>` y el
+  `wait_window()` del diálogo (que no es modal) lo despacha: el handler de pestaña reentraba y
+  abría un segundo reporte idéntico. Verificado con Tk real bajo `xvfb` (2 Toplevels sin el
+  guard, 1 con él).
+- **[3 / 7] Mensajes del launcher de módulos que apuntaban a menús inexistentes** — cerrado por
+  la sesión 03: «Archivo ▸ Cargar Ejemplo» (los ejemplos viven en **Ayuda**) y «menú Educación»
+  (la barra tiene 3 menús). Además la barra de estado mostraba la key interna `mod03` en vez de
+  la etiqueta del botón (nuevo `module_launcher.module_label`).
 - **[2] Docstrings de `pre_tab.py` / `_table_helpers.py` que anunciaban features eliminadas**
   (fill-down `Ctrl+D`, navegación Tab/flechas, menú contextual, `on_commit(text, direction)`)
   más 8 encabezados de sección vacíos — cerrado por la sesión 02. Eran una trampa: invitaban a
