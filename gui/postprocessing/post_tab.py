@@ -601,6 +601,10 @@ class PostProcessTab:
         # longitud para desplazamientos.
         units = self._get_units()
         unit = units["esfuerzo"] if is_stress else units["longitud"]
+        # Magnitud para `fmt(value, kind)` en el canvas: las etiquetas de nodo
+        # de un desplazamiento (~1e-5 m) necesitan 5 decimales, las de una
+        # tension 2. Sin esto todas las etiquetas de Ux/Uy/|U| decian "0.00".
+        kind = "stress" if is_stress else "displacement"
         raw_mode = (
             hasattr(self, "probe_smooth_var")
             and self.probe_smooth_var.get() == "raw"
@@ -639,7 +643,7 @@ class PostProcessTab:
         if is_stress and raw_mode and self.element_stresses:
             element_grids = self._compute_raw_grid(result_type, n=6)
             if element_grids:
-                canvas.set_element_result_grid(element_grids, label, unit)
+                canvas.set_element_result_grid(element_grids, label, unit, kind)
                 self.main_window.set_status(
                     f"Visualizando: {label} (crudo, D·B·uₑ por punto)"
                 )
@@ -669,7 +673,7 @@ class PostProcessTab:
                 else:
                     node_values[nid] = 0.0
 
-        canvas.set_result_values(node_values, label, unit)
+        canvas.set_result_values(node_values, label, unit, kind)
         suffix = (
             " (suavizado, Σ Nᵢ·σᵢ̄)" if (is_stress and not raw_mode) else ""
         )

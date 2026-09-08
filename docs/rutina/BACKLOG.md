@@ -11,9 +11,10 @@ Reglas del archivo, en [RUTINA.md](RUTINA.md) §4 y §9. Historial de lo hecho, 
 
 ## Área siguiente
 
-> **1 — Canvas del Pre-Proceso** (`gui/preprocessing/mesh_canvas.py`, `canvas_logic.py`,
-> `canvas_raster.py`). Capítulo a leer antes:
-> [../convenciones/canvas-preproceso.md](../convenciones/canvas-preproceso.md).
+> **2 — Spreadsheet y tablas** (`gui/preprocessing/pre_tab.py`, `_table_helpers.py`).
+> Capítulo a leer antes:
+> [../convenciones/canvas-preproceso.md](../convenciones/canvas-preproceso.md) (el mismo
+> capítulo cubre las 5 tablas: placeholder, filas fantasma, tags, copy/paste TSV).
 
 Al cerrar la sesión, reemplazá esta línea por el área que sigue en la rotación de
 [RUTINA.md](RUTINA.md) §4 (1 → 2 → … → 14 → 1).
@@ -38,6 +39,16 @@ Formato: `[área Nº] descripción — evidencia — quién decide`.
   Anexo A. Ojo: el diálogo de fallback (`gui/dialogs/pdflatex_missing_dialog.py`) sigue
   existiendo y sigue siendo correcto para la versión portable sin la carpeta `texlive/`.
 
+- **[14] `tab:atajos` del Anexo A está incompleta y una fila quedó vieja.**
+  `tesis/capitulos/06_anexos.tex` dice que la tabla "reúne los atajos de teclado de la
+  aplicación", pero omite **`F8` (ORTHO, con Shift como override)** y **`BackSpace` (borrar
+  el último vértice del elemento parcial)**, que sí figuran en la ventana `Ctrl+/` de la app
+  (`main_window._on_shortcuts`). Además la fila `Supr — Eliminar la entidad seleccionada`
+  quedó vieja: desde la sesión 01 borra **la selección completa** (multi-selección). Son 2
+  filas nuevas y una palabra; es el caso "tesis desactualizada" de [RUTINA.md](RUTINA.md) §6.
+  **No se hizo en la sesión 01 porque el sandbox no tenía `pdflatex` ni `latexmk`** y §6 exige
+  compilar antes de pushear. Verificar que haya LaTeX (o el `vendor/texlive`) antes de tomarlo.
+
 - **[14] Barrido pendiente, capítulo por capítulo.** Nadie contrastó todavía `tesis/` contra
   el software de forma sistemática. Cada vez que toque el área 14, tomá **una** sección que no
   esté marcada acá abajo, verificá cada afirmación comprobable contra el código, y anotá la
@@ -49,7 +60,38 @@ Formato: `[área Nº] descripción — evidencia — quién decide`.
   (Tk destruyendo widgets durante el cierre, `iconbitmap` que puede no existir). Otros tragan
   un fallo en un camino que el alumno recorre y lo dejan sin saber qué pasó. **No hacer un
   barrido masivo**: cada sesión revisa los de **su** área, decide caso por caso, y anota
-  acá cuántos revisó y cuántos cambió. Revisados hasta ahora: 0 de 274.
+  acá cuántos revisó y cuántos cambió. Revisados hasta ahora: **15 de 274** (sesión 01, los
+  15 de `gui/preprocessing/mesh_canvas.py`): 9 pasaron a dejar traza con
+  `traceback.print_exc()`, 3 quedaron mudos por legítimos (`after_cancel`, import diferido de
+  `education.overlay_module`, `set_status`) y 3 se fueron al refactorizar el borrado. La
+  convención es la de `models/undo_stack.py` y `post_tab`: traza a stderr, y mensaje al
+  alumno solo si el fallo cambia lo que puede hacer.
+
+- **[transversal] 17 literales de color con NOMBRE (`"white"` / `"black"`) fuera de
+  `config/`.** Esquivan la auditoría de hex de `run_gates` (busca `#RRGGBB`) pero incumplen
+  igual la regla dura 2: son colores decididos en `gui/` y `education/`. Reparto por área:
+  **[4]** `gui/postprocessing/details_panel.py` (5) · **[7]** `education/mod01_iso_mapping.py`
+  (7), `mod02_jacobian.py` (2), `mod03_b_matrix.py` (1) · **[8]** `mod05_stiffness.py` (1),
+  `mod06_equivalent_forces.py` (1). Cada área cierra los suyos en su turno, con una constante
+  en `config/settings.py` y su comentario. Los del canvas ya se cerraron (sesión 01:
+  `CANVAS_ISOLINE_COLOR`, `CANVAS_COLORBAR_TEXT_COLOR`). *Propuesta para una sesión futura*:
+  ampliar el patrón de `run_gates.gate_hex` para que también los detecte — hoy no los ve.
+
+- **[1 / 4] Realce de arista y hit-test de arista no siguen la malla deformada.**
+  `mesh_canvas._draw_highlight` y `_hit_test_potential_edge` usan `world_to_screen` sobre las
+  coordenadas sin deformar, mientras el resto del canvas usa `_get_node_screen_pos` (que sí
+  aplica `deform_scale·u`). Hoy es **inocuo**: la deformada solo existe en el Post, donde no
+  hay selección y `MainWindow._on_tab_changed` llama `clear_highlights()` al entrar. Si
+  alguna vez el Post recupera la selección de aristas, esto se vuelve un bug visible.
+
+- **[1] La cuadrícula del canvas no está anclada al mundo.** `_draw_grid` es un empapelado en
+  coordenadas de pantalla (`spacing = clamp(50·scale, 30, 200)` px, fase `offset % spacing`):
+  las líneas no caen en valores redondos de X/Y, así que no ayudan a estimar una coordenada
+  ni a ubicar el origen — y el alumno tipea coordenadas en la tabla de Nodos y en el Entry del
+  modo dibujo. Propuesta para el próximo turno del área 1: paso en unidades del mundo de la
+  serie 1-2-5 elegido para que caiga entre ~40 y ~120 px, línea del origen (X=0, Y=0) más
+  marcada y el paso vigente rotulado junto al readout de coords. Es un cambio **visual**: va
+  con pendiente visual y criterio de reversión.
 
 ### Heredado de otras revisiones
 
@@ -74,9 +116,22 @@ Lo que el gate no puede juzgar. Cada ítem dice qué abrir, qué mirar y cómo r
 - **TeX Live embebido** (abierto desde el 2026-09-08). Exportar Memoria (Q4 canónico y Cook
   Q9, ambos estilos) y la Teoría MEF: deberían verse idénticas a las de MiKTeX. Probar
   `installer/Output/EduFEM-Setup.exe` en una PC **sin MiKTeX**.
-- **Tests que necesitan un Tk real**: `python -m tests.run_gates --con-gui` corre
-  `test_draw_mode` y `test_selection_integration`, que el sandbox no puede ejecutar. Conviene
-  correrlo en Windows de vez en cuando.
+- **Borrado múltiple desde el lienzo** (sesión 01). `Ctrl+E`, en Pre-Proceso seleccionar 2–3
+  nodos con **Ctrl+Click sobre el canvas** y `Supr`: un solo modal con la cuenta agregada de
+  la cascada, las 5 tablas refrescadas, y **un solo `Ctrl+Z`** que lo devuelve todo. Con nada
+  seleccionado, `Supr` debe escribir "Nada seleccionado — clickeá un nodo…" en la barra de
+  estado. Revertir: `git revert` del commit de la sesión 01.
+- **Etiquetas de nodo del Post con desplazamientos** (sesión 01). `F5` → Post → **Ux / Uy /
+  |U|**: cada nodo rotula su valor con **5 decimales** (antes todos decían `0.00`); con von
+  Mises o σx sigue en 2. Isolíneas y texto de la colorbar deben verse idénticos.
+- **Arranque maximizado en Windows** (sesión 01). `MainWindow.__init__` envolvió
+  `root.state("zoomed")` en un `try` con degradación portable. En Windows es la primera rama,
+  así que la ventana debe seguir abriéndose maximizada; si arranca chica, revisar el guard.
+- **Tests que necesitan un Tk real**: `run_gates --con-gui` (`test_draw_mode`,
+  `test_selection_integration`) **ya corre en Linux** desde la sesión 01, con
+  `xvfb-run -a python -m tests.run_gates --con-gui` (antes moría en `root.state("zoomed")`).
+  Correrlo en Windows de vez en cuando sigue valiendo: Xvfb no reproduce el gestor de
+  ventanas ni los diálogos nativos.
 
 ---
 
@@ -85,7 +140,16 @@ Lo que el gate no puede juzgar. Cada ítem dice qué abrir, qué mirar y cómo r
 Se mueve acá lo resuelto, con la sesión que lo cerró. Se conserva: evita que una sesión
 futura reabra algo ya decidido.
 
-- *(vacío — la rutina arranca el 2026-09-08)*
+- **[1] `Supr` no borraba nada con multi-selección en el canvas** — cerrado por la sesión 01.
+  El handler despachaba por `highlighted_*` (que valen `None` con >1 ítem). Ahora lee los sets
+  `selected_*`; regresión en `tests/test_canvas_delete.py`.
+- **[1] Índice stale tras borrar una carga superficial desde el canvas** — cerrado por la
+  sesión 01. Los índices son posicionales: el que quedaba en `selected_surfaces` pasaba a
+  señalar otra carga, que aparecía resaltada. Nuevo `MeshCanvas.prune_dead_selection()`.
+- **[1 / 4] Etiqueta de valor del nodo formateada siempre como tensión** — cerrado por la
+  sesión 01 con el parámetro `kind` de `set_result_values` / `set_element_result_grid`.
+- **[6] La app moría fuera de Windows en `root.state("zoomed")`** — cerrado por la sesión 01
+  con degradación portable; habilitó `run_gates --con-gui` bajo `xvfb-run`.
 
 ---
 

@@ -106,6 +106,8 @@ Pure NumPy/SciPy, sin GUI. Pipeline: `shape_functions` → `jacobian` → `b_mat
 
 Switching a Post-Proceso auto-resuelve (`post_tab.auto_solve()` en `_on_tab_changed`). `_refresh_all_tabs()` + `mesh_canvas.redraw()` es el broadcast estándar de "datos cambiaron". Post-tab llama `_refresh_menu_state()` tras solve para habilitar Exportar. **Volver de Post a Pre/Proc** llama `mesh_canvas.clear_results_overlay()` desde `_on_tab_changed` para resetear `show_deformed`, `displacements`, `result_values`, `show_isolines` — el canvas vuelve a mostrar solo geometría (no requiere status).
 
+**Arranque maximizado con degradación portable**: `MainWindow.__init__` intenta `root.state("zoomed")` (la vía de Windows, la plataforma de distribución) y, si Tk la rechaza con `TclError`, cae a `attributes("-zoomed", True)` y por último a un `geometry()` del tamaño de pantalla. Sin ese guard la app moría en el constructor fuera de Windows, y con ella los tests `run_gates --con-gui` (`test_draw_mode`, `test_selection_integration`), que ahora también corren en Linux bajo `xvfb-run`.
+
 **Trampa de orden**: las 3 pestañas se construyen **antes** que `MeshCanvas`. Cualquier wiring `*_tab → mesh_canvas` desde `__init__` falla. Solución: método público `_wire_canvas_callbacks()` invocado tardíamente desde `MainWindow._build_main_layout` tras crear el canvas.
 
 #### Barra de menús (filosofía minimalista)

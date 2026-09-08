@@ -52,7 +52,22 @@ class MainWindow:
             themename="darkly",
             minsize=(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT),
         )
-        self.root.state("zoomed")
+        # Arrancar maximizada. `state("zoomed")` es la via de Windows —la
+        # plataforma de distribucion— pero en X11 y macOS Tk la rechaza con
+        # TclError y la app moria en el constructor. Se degrada a los dos
+        # equivalentes portables para que la GUI (y con ella los tests de
+        # `run_gates --con-gui`, que hoy solo corrian en Windows) tambien
+        # levante en un Linux con Xvfb.
+        try:
+            self.root.state("zoomed")
+        except tk.TclError:
+            try:
+                self.root.attributes("-zoomed", True)     # varios WM de X11
+            except tk.TclError:
+                self.root.geometry(
+                    f"{self.root.winfo_screenwidth()}x"
+                    f"{self.root.winfo_screenheight()}+0+0"
+                )
         self._is_fullscreen = False
 
         # Icono de la app (Explorador, barra de tareas, titulo de ventana).
@@ -1239,25 +1254,11 @@ class MainWindow:
 
         # Sanear sets de seleccion: quitar IDs que no existen en el
         # modelo restaurado. Sino, los renders y filas fantasma pueden
-        # apuntar a items inexistentes.
+        # apuntar a items inexistentes. La logica vive en el canvas
+        # (`prune_dead_selection`), que es quien conoce sus seis sets y el
+        # unico que debe emitir `on_selection_changed`.
         try:
-            c = self.mesh_canvas
-            c.selected_nodes = {n for n in c.selected_nodes
-                                if n in self.project.nodes}
-            c.selected_elements = {e for e in c.selected_elements
-                                   if e in self.project.elements}
-            c.selected_loads = {n for n in c.selected_loads
-                                if n in self.project.nodal_loads}
-            c.selected_constraints = {n for n in c.selected_constraints
-                                      if n in self.project.boundary_conditions}
-            c.selected_surfaces = {idx for idx in c.selected_surfaces
-                                   if 0 <= idx < len(self.project.surface_loads)}
-            # Aristas potenciales: ambos extremos deben existir
-            c.selected_edges = {
-                e for e in c.selected_edges
-                if all(n in self.project.nodes for n in e)
-            }
-            c._emit_selection_changed()
+            self.mesh_canvas.prune_dead_selection()
         except (AttributeError, Exception):
             pass
 

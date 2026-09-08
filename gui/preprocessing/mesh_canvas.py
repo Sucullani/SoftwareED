@@ -5,6 +5,7 @@ visualizacion de resultados con gradiente suave (jet) e isolineas.
 """
 
 import math
+import traceback
 import tkinter as tk
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
@@ -48,7 +49,8 @@ from config.settings import (
     FONT_MONO_SMALL, TEXT_MUTED_FG,
     CANVAS_AXIS_X_COLOR, CANVAS_AXIS_Y_COLOR, CANVAS_DEFORM_GHOST_COLOR,
     CANVAS_ELEM_LABEL_ON_FIELD_COLOR, CANVAS_ELEM_LABEL_COLOR,
-    CANVAS_COLORBAR_BORDER_COLOR,
+    CANVAS_COLORBAR_BORDER_COLOR, CANVAS_COLORBAR_TEXT_COLOR,
+    CANVAS_ISOLINE_COLOR,
 )
 from config.colormaps import (
     JET_LUT, t_to_hex, value_to_hex,
@@ -131,6 +133,10 @@ class MeshCanvas(ttk.Frame):
         self.result_values = None
         self.result_label = ""
         self.result_unit = ""        # unidad del resultado activo (colorbar)
+        # Magnitud del resultado activo, para `fmt(value, kind)` (regla dura 8).
+        # El Post muestra tensiones (2 decimales) y desplazamientos (5): con un
+        # unico kind fijo, las etiquetas de nodo de Ux/Uy/|U| se leian "0.00".
+        self.result_kind = "stress"
         self.result_vmin = 0.0
         self.result_vmax = 1.0
 
@@ -233,6 +239,10 @@ class MeshCanvas(ttk.Frame):
         # quita en cleanup. Aisla la logica didactica (glow Gauss, cruces
         # principales, particle rain) sin contaminar el core del canvas.
         self._overlay_layers = []
+        # Capas que ya reportaron un fallo: la traza se imprime UNA vez por
+        # capa. Sin el guard, un layer roto en el loop de animacion
+        # (redraw_overlays_only, ~30 fps) inundaria stderr.
+        self._layer_error_seen = set()
         # ─── Click consumers (modulos educativos) ──────────────────────
         # Lista de callables (event) -> bool. Se invocan al INICIO de
         # _on_click, en orden de registro. Si alguno retorna True, el
@@ -741,11 +751,24 @@ class MeshCanvas(ttk.Frame):
         # tagging (usar prefijo "edu_" + nombre del modulo) para que el
         # modulo pueda limpiar sus dibujos sin tocar nada mas.
         for layer in list(self._overlay_layers):
-            try:
-                layer(self)
-            except Exception:
-                # Una capa defectuosa NO debe romper el redraw global.
-                pass
+            self._run_overlay_layer(layer)
+
+    def _run_overlay_layer(self, layer):
+        """Ejecuta una capa educativa aislando sus fallos.
+
+        Una capa defectuosa NO debe romper el redraw global (el alumno
+        perderia la malla entera por un bug de un modulo), pero tampoco
+        puede desaparecer en silencio: el sintoma seria "el modulo no
+        dibuja nada" sin ninguna pista. Se deja la traza en stderr, una
+        sola vez por capa (el loop de animacion la reejecuta a ~30 fps).
+        """
+        try:
+            layer(self)
+        except Exception:
+            key = id(layer)
+            if key not in self._layer_error_seen:
+                self._layer_error_seen.add(key)
+                traceback.print_exc()
 
     def redraw_overlays_only(self):
         """Re-ejecuta SOLO las capas educativas registradas, sin tocar la
@@ -759,11 +782,7 @@ class MeshCanvas(ttk.Frame):
         30 fps. PRECONDICION: un `redraw()` completo debe haber corrido antes
         (la base ya esta dibujada en el canvas)."""
         for layer in list(self._overlay_layers):
-            try:
-                layer(self)
-            except Exception:
-                # Una capa defectuosa NO debe romper la animacion.
-                pass
+            self._run_overlay_layer(layer)
 
     # ═════════════════════════════════════════════════════════════════════
     # GRILLA, EJES, GHOST
@@ -1252,7 +1271,7 @@ class MeshCanvas(ttk.Frame):
             for k in range(segs.shape[0]):
                 self.canvas.create_line(
                     sx1[k], sy1[k], sx2[k], sy2[k],
-                    fill="white", width=1.2,
+                    fill=CANVAS_ISOLINE_COLOR, width=1.2,
                     tags=("world", "isolines"),
                 )
 
@@ -1508,7 +1527,11 @@ class MeshCanvas(ttk.Frame):
                 ghost=self.ghost_geometry, selected=is_selected))
             if show_label:
                 if self.result_values and nid in self.result_values:
-                    label = f"{nid}: {fmt(self.result_values[nid], 'stress')}"
+                    # `result_kind` distingue tension (2 decimales) de
+                    # desplazamiento (5): con el 'stress' fijo que habia antes,
+                    # Ux/Uy/|U| —del orden de 1e-5 m— se rotulaban todos "0.00".
+                    label = (f"{nid}: "
+                             f"{fmt(self.result_values[nid], self.result_kind)}")
                 else:
                     label = str(nid)
                 self.canvas.create_text(
@@ -1985,7 +2008,7 @@ class MeshCanvas(ttk.Frame):
             yy = y0 + i * bar_h / n_labels
             self.canvas.create_text(
                 x0 - 5, yy, text=self._fmt_colorbar_value(val),
-                fill="white", font=("Consolas", 7), anchor=tk.E,
+                fill=CANVAS_COLORBAR_TEXT_COLOR, font=("Consolas", 7), anchor=tk.E,
                 tags=("screen", "colorbar"),
             )
 
@@ -1996,7 +2019,8 @@ class MeshCanvas(ttk.Frame):
             title = f"{title} [{self.result_unit}]"
         self.canvas.create_text(
             x0 + bar_w / 2, y0 - 12, text=title,
-            fill="white", font=("Segoe UI", 8, "bold"), anchor=tk.S,
+            fill=CANVAS_COLORBAR_TEXT_COLOR, font=("Segoe UI", 8, "bold"),
+            anchor=tk.S,
             tags=("screen", "colorbar"),
         )
 
@@ -2202,7 +2226,10 @@ class MeshCanvas(ttk.Frame):
                 try:
                     self.on_hover_element(elem_under, event.x, event.y)
                 except Exception:
-                    pass
+                    # Solo se emite al cambiar de elemento, asi que la traza no
+                    # inunda stderr; sin ella, el radar de M0 desaparece sin
+                    # explicacion.
+                    traceback.print_exc()
 
         # Realce de hover (pre-seleccion): outline del elemento bajo el cursor
         # en cian + su numero, aunque la numeracion global este apagada
@@ -2443,7 +2470,9 @@ class MeshCanvas(ttk.Frame):
                 if consumer(event):
                     return
             except Exception:
-                pass
+                # El modulo educativo se queda sin responder al click; que no
+                # rompa el hit-test del canvas, pero que deje traza.
+                traceback.print_exc()
 
         sx, sy = event.x, event.y
         wx, wy = self.screen_to_world(sx, sy)
@@ -2552,21 +2581,14 @@ class MeshCanvas(ttk.Frame):
             )
             return
 
-        # Prioridad 5: Arista potencial (cuando NO estamos en Carg.
-        # Superf., el hit-test de arista igual sirve para seleccionar
-        # entre 2 corners visibles si nada mas le hizo match arriba —
-        # pero solo si el contexto es coherente: por ahora, solo en
-        # surface. En otras sub-pestañas, ignoramos.
-        if active_subtab == "surface":
-            edge = self._hit_test_potential_edge(sx, sy)
-            if edge is not None and not self._edge_has_existing_surface(edge):
-                self.select_edge(edge, additive=additive)
-                self.main_window.set_status(
-                    f"Arista {tuple(sorted(edge))} seleccionada"
-                )
-                return
+        # (No hay una segunda pasada de arista potencial: era inalcanzable.
+        # Con la sub-pestaña Carg. Superf. activa, el bloque de arriba ya la
+        # resolvio; si cayo por tener una surface existente, la Prioridad 3
+        # —tolerancia 12 px sobre el mismo segmento que la arista, 10 px—
+        # siempre matchea antes. En las demas sub-pestañas el click en arista
+        # se ignora a proposito.)
 
-        # Prioridad 6: Elemento (point-in-quad)
+        # Prioridad 5: Elemento (point-in-quad)
         for elem in self.project.elements.values():
             nids = elem.node_ids[:4]
             pts = []
@@ -2673,7 +2695,9 @@ class MeshCanvas(ttk.Frame):
             try:
                 self.on_selection_changed(self.get_selection())
             except Exception:
-                pass
+                # Sin traza, un fallo aqui se manifiesta como "el spreadsheet
+                # dejo de seguir al canvas" sin ninguna pista de por que.
+                traceback.print_exc()
 
     def get_selection(self):
         """Retorna copia de todos los sets de seleccion como dict."""
@@ -2838,6 +2862,48 @@ class MeshCanvas(ttk.Frame):
         self._emit_selection_changed()
         self.redraw()
 
+    def prune_dead_selection(self):
+        """Quita de los seis sets los ids que ya no existen en el modelo y
+        devuelve True si algo cambio (en ese caso ya emitio el callback).
+
+        Hace falta despues de cualquier mutacion que borre entidades —un
+        borrado desde el canvas, un undo/redo— porque un id muerto en el set
+        no es inocuo: las filas fantasma del spreadsheet y el tag
+        `canvas_selected` se derivan de estos sets, y `highlighted_*` (su
+        espejo) se desincroniza. Fuente unica: antes esta logica vivia
+        duplicada en `MainWindow._on_state_restored`.
+
+        Los indices de `selected_surfaces` son POSICIONALES: al borrar una
+        carga superficial los posteriores se corren, asi que el saneo no
+        alcanza y el caller debe vaciar el set (ver `_delete_selected_surfaces`).
+        """
+        antes = (len(self.selected_nodes) + len(self.selected_elements)
+                 + len(self.selected_edges) + len(self.selected_loads)
+                 + len(self.selected_constraints) + len(self.selected_surfaces))
+        self.selected_nodes = {n for n in self.selected_nodes
+                               if n in self.project.nodes}
+        self.selected_elements = {e for e in self.selected_elements
+                                  if e in self.project.elements}
+        self.selected_loads = {n for n in self.selected_loads
+                               if n in self.project.nodal_loads}
+        self.selected_constraints = {n for n in self.selected_constraints
+                                     if n in self.project.boundary_conditions}
+        self.selected_surfaces = {i for i in self.selected_surfaces
+                                  if 0 <= i < len(self.project.surface_loads)}
+        # Aristas potenciales: ambos extremos deben seguir existiendo.
+        self.selected_edges = {e for e in self.selected_edges
+                               if all(n in self.project.nodes for n in e)}
+        if self._last_node_anchor not in self.project.nodes:
+            self._last_node_anchor = None
+        despues = (len(self.selected_nodes) + len(self.selected_elements)
+                   + len(self.selected_edges) + len(self.selected_loads)
+                   + len(self.selected_constraints)
+                   + len(self.selected_surfaces))
+        if antes == despues:
+            return False
+        self._emit_selection_changed()
+        return True
+
     # ═════════════════════════════════════════════════════════════════════
     # CAPA EDUCATIVA — overlay layers + hooks
     # ═════════════════════════════════════════════════════════════════════
@@ -2896,6 +2962,7 @@ class MeshCanvas(ttk.Frame):
         """Quita una capa registrada (no falla si no existia)."""
         if layer in self._overlay_layers:
             self._overlay_layers.remove(layer)
+            self._layer_error_seen.discard(id(layer))
             self.redraw()
 
     def clear_overlay_layers(self):
@@ -2903,12 +2970,16 @@ class MeshCanvas(ttk.Frame):
         multiples overlays a la vez (cambio de fase, undo/redo)."""
         if self._overlay_layers:
             self._overlay_layers.clear()
+            self._layer_error_seen.clear()
             self.redraw()
 
     def _on_delete_key(self, event=None):
-        """Handler de Supr/BackSpace sobre el canvas: elimina el item
-        actualmente highlighted, en orden de prioridad load > constraint
-        > surface > element > node (mismo orden que el hit-test del click).
+        """Handler de Supr/BackSpace sobre el canvas: elimina la seleccion
+        actual, en orden de prioridad load > constraint > surface > element
+        > node (mismo orden que el hit-test del click). Con varios items
+        seleccionados del mismo tipo los borra TODOS, con una sola
+        confirmacion y un solo snapshot de undo. Si no hay nada
+        seleccionado lo dice en la barra de estado.
 
         Caso especial AutoCAD-style: en modo dibujo con puntos pendientes,
         BackSpace pop-ea el ultimo vertice del elemento en construccion
@@ -2931,174 +3002,295 @@ class MeshCanvas(ttk.Frame):
             self.redraw()
             return "break"
 
-        from tkinter import messagebox
+        # Prioridad: lo mas especifico primero, mismo orden que el hit-test
+        # del click (carga > restriccion > superficial > elemento > nodo). Se
+        # borra TODO el conjunto seleccionado del primer tipo que tenga algo:
+        # antes el handler leia los `highlighted_*`, que valen None cuando hay
+        # mas de un item en el set, asi que con multi-seleccion Supr no hacia
+        # NADA y ademas no lo decia (el canon ya documentaba el borrado
+        # multiple; era la implementacion la que faltaba).
+        if self.selected_loads:
+            return self._delete_selected_loads()
+        if self.selected_constraints:
+            return self._delete_selected_constraints()
+        if self.selected_surfaces:
+            return self._delete_selected_surfaces()
+        if self.selected_elements:
+            return self._delete_selected_elements()
+        if self.selected_nodes:
+            return self._delete_selected_nodes()
+        # Nada seleccionado: decirlo. Una tecla que no hace nada ni explica
+        # por que es un callejon sin salida.
+        self._status(
+            "Nada seleccionado — clickeá un nodo, elemento, carga o "
+            "restricción en el lienzo y volvé a presionar Supr."
+        )
 
-        # Helper para capturar undo snapshot antes de mutar
-        def _capture(label):
-            try:
-                stack = getattr(self.main_window, "undo_stack", None)
-                if stack is not None:
-                    stack.capture(label)
-            except Exception:
-                pass
+    # ─── Borrado desde el canvas (uno o varios items) ───────────────────
+    #
+    # Cada helper: filtra los ids que siguen vivos, captura UN solo snapshot
+    # de undo (regla dura 4: una accion del usuario = un snapshot), muta,
+    # sanea los sets de seleccion y avisa una sola vez. Los previews en
+    # cascada son los mismos que usa el spreadsheet (`pre_tab._remove_*`),
+    # para que las dos vias de borrado se comporten igual.
 
-        # Prioridad: lo mas especifico primero
-        if self.highlighted_load is not None:
-            nid = self.highlighted_load
-            _capture(f"eliminar carga en nodo {nid} (canvas)")
-            self.project.remove_nodal_load(nid)
-            self.highlighted_load = None
-            self._fire_delete_callback("load", nid,
-                                       f"Carga en nodo {nid} eliminada.")
+    def _capture_undo(self, label):
+        """Snapshot de undo previo a una mutacion (regla dura 4).
+
+        Si la captura falla, la accion queda fuera del Ctrl+Z: no se puede
+        abortar el borrado por eso, pero tampoco puede pasar inadvertido —
+        se deja la traza en stderr.
+        """
+        try:
+            stack = getattr(self.main_window, "undo_stack", None)
+            if stack is not None:
+                stack.capture(label)
+        except Exception:
+            traceback.print_exc()
+
+    def _status(self, message):
+        """Mensaje en la barra de estado, tolerante a un main_window sin
+        barra (tests headless)."""
+        try:
+            self.main_window.set_status(message)
+        except Exception:
+            pass
+
+    def _delete_selected_loads(self):
+        nids = sorted(nid for nid in self.selected_loads
+                      if nid in self.project.nodal_loads)
+        if not nids:
+            self.prune_dead_selection()
             return
+        self._capture_undo(f"eliminar {len(nids)} carga(s) nodal(es) (canvas)")
+        for nid in nids:
+            self.project.remove_nodal_load(nid)
+        self.prune_dead_selection()
+        msg = (f"Carga en nodo {nids[0]} eliminada."
+               if len(nids) == 1
+               else f"{len(nids)} cargas nodales eliminadas.")
+        self._fire_delete_callback(
+            "load", nids[0] if len(nids) == 1 else list(nids), msg)
 
-        if self.highlighted_constraint is not None:
-            nid = self.highlighted_constraint
-            _capture(f"eliminar restriccion en nodo {nid} (canvas)")
+    def _delete_selected_constraints(self):
+        nids = sorted(nid for nid in self.selected_constraints
+                      if nid in self.project.boundary_conditions)
+        if not nids:
+            self.prune_dead_selection()
+            return
+        self._capture_undo(f"eliminar {len(nids)} restriccion(es) (canvas)")
+        for nid in nids:
             if hasattr(self.project, "remove_boundary_condition"):
                 self.project.remove_boundary_condition(nid)
             elif nid in self.project.boundary_conditions:
                 del self.project.boundary_conditions[nid]
                 self.project.is_modified = True
                 self.project.is_solved = False
-            self.highlighted_constraint = None
-            self._fire_delete_callback("constraint", nid,
-                                       f"Restriccion en nodo {nid} eliminada.")
+        self.prune_dead_selection()
+        msg = (f"Restriccion en nodo {nids[0]} eliminada."
+               if len(nids) == 1
+               else f"{len(nids)} restricciones eliminadas.")
+        self._fire_delete_callback(
+            "constraint", nids[0] if len(nids) == 1 else list(nids), msg)
+
+    def _delete_selected_surfaces(self):
+        idxs = sorted(i for i in self.selected_surfaces
+                      if 0 <= i < len(self.project.surface_loads))
+        if not idxs:
+            self.selected_surfaces.clear()
+            self.prune_dead_selection()
+            return
+        self._capture_undo(
+            f"eliminar {len(idxs)} carga(s) superficial(es) (canvas)")
+        # De mayor a menor: borrar por indice corre los posteriores.
+        for idx in reversed(idxs):
+            del self.project.surface_loads[idx]
+        self.project.is_modified = True
+        self.project.is_solved = False
+        # Los indices de `selected_surfaces` son POSICIONALES: tras el borrado
+        # los que quedan apuntan a otras cargas. Vaciar es lo unico correcto
+        # (antes quedaba el indice viejo y el canvas resaltaba en amarillo una
+        # carga superficial distinta de la que el alumno habia borrado).
+        self.selected_surfaces.clear()
+        self._emit_selection_changed()
+        msg = (f"Carga superficial #{idxs[0]} eliminada."
+               if len(idxs) == 1
+               else f"{len(idxs)} cargas superficiales eliminadas.")
+        self._fire_delete_callback(
+            "surface", idxs[0] if len(idxs) == 1 else list(idxs), msg)
+
+    def _delete_selected_elements(self):
+        from tkinter import messagebox
+
+        eids = sorted(eid for eid in self.selected_elements
+                      if eid in self.project.elements)
+        if not eids:
+            self.prune_dead_selection()
             return
 
-        if self.highlighted_surface is not None:
-            idx = self.highlighted_surface
-            _capture(f"eliminar carga superficial #{idx} (canvas)")
-            if 0 <= idx < len(self.project.surface_loads):
-                del self.project.surface_loads[idx]
-                self.project.is_modified = True
-                self.project.is_solved = False
-            self.highlighted_surface = None
-            self._fire_delete_callback("surface", idx,
-                                       f"Carga superficial #{idx} eliminada.")
-            return
-
-        if self.highlighted_element is not None:
-            eid = self.highlighted_element
-            elem = self.project.elements.get(eid)
-            if elem is None:
-                return
-            # Pre-calcular el efecto del auto-cleanup para mostrar en el modal
+        # Preview agregado del auto-cleanup ANTES de mutar (no muta nada).
+        nodes_del, nodes_pres = set(), set()
+        for eid in eids:
             preview = self._preview_element_cleanup(eid)
-            msg_parts = [f"¿Eliminar el elemento {eid}?"]
-            if preview["nodes_to_delete"] or preview["nodes_to_preserve"]:
+            nodes_del.update(preview["nodes_to_delete"])
+            nodes_pres.update(preview["nodes_to_preserve"])
+
+        if len(eids) == 1:
+            msg_parts = [f"¿Eliminar el elemento {eids[0]}?"]
+            if nodes_del or nodes_pres:
                 msg_parts.append("")
-                if preview["nodes_to_delete"]:
+                if nodes_del:
                     msg_parts.append(
-                        f"  • Se auto-eliminaran {len(preview['nodes_to_delete'])} "
-                        f"nodo(s) sin referencias: "
-                        f"{preview['nodes_to_delete']}"
+                        f"  • Se auto-eliminaran {len(nodes_del)} "
+                        f"nodo(s) sin referencias: {sorted(nodes_del)}"
                     )
-                if preview["nodes_to_preserve"]:
+                if nodes_pres:
                     msg_parts.append(
-                        f"  • Se preservaran {len(preview['nodes_to_preserve'])} "
+                        f"  • Se preservaran {len(nodes_pres)} "
                         f"nodo(s) huerfano(s) con cargas/restricciones: "
-                        f"{preview['nodes_to_preserve']}"
+                        f"{sorted(nodes_pres)}"
                     )
-            resp = messagebox.askyesno(
-                "Eliminar elemento", "\n".join(msg_parts), parent=self.canvas,
-            )
-            if not resp:
-                return
-            _capture(f"eliminar elemento {eid} (canvas)")
+        else:
+            msg_parts = [f"¿Eliminar {len(eids)} elementos?", ""]
+            if nodes_del:
+                msg_parts.append(
+                    f"  • Se auto-eliminaran {len(nodes_del)} nodo(s) "
+                    f"auxiliar(es) sin datos del usuario"
+                )
+            if nodes_pres:
+                msg_parts.append(
+                    f"  • Se preservaran {len(nodes_pres)} nodo(s) como "
+                    f"huerfano(s) (tienen cargas / restricciones / "
+                    f"surface refs)"
+                )
+        if not messagebox.askyesno(
+            "Eliminar elemento" if len(eids) == 1 else "Eliminar elementos",
+            "\n".join(msg_parts), parent=self.canvas,
+        ):
+            return
+
+        self._capture_undo(f"eliminar {len(eids)} elemento(s) (canvas)")
+        borrados, del_nodes, pres_nodes = [], [], []
+        for eid in eids:
+            if eid not in self.project.elements:
+                continue          # ya se fue en el cleanup de otro elemento
             summary = self.project.remove_element(eid)
-            self.highlighted_element = None
-            parts = [f"Elemento {eid} eliminado"]
-            if summary.get("nodes_deleted"):
-                parts.append(
-                    f"{len(summary['nodes_deleted'])} nodo(s) auto-eliminado(s)"
-                )
-            if summary.get("nodes_preserved"):
-                parts.append(
-                    f"{len(summary['nodes_preserved'])} nodo(s) preservado(s) "
-                    f"como huerfano(s)"
-                )
-            self._fire_delete_callback("element", eid, ". ".join(parts) + ".")
+            if summary.get("deleted"):
+                borrados.append(eid)
+                del_nodes.extend(summary.get("nodes_deleted", []))
+                pres_nodes.extend(summary.get("nodes_preserved", []))
+        self.prune_dead_selection()
+
+        if len(borrados) == 1:
+            parts = [f"Elemento {borrados[0]} eliminado"]
+        else:
+            parts = [f"{len(borrados)} elementos eliminados"]
+        if del_nodes:
+            parts.append(f"{len(del_nodes)} nodo(s) auto-eliminado(s)")
+        if pres_nodes:
+            parts.append(
+                f"{len(pres_nodes)} nodo(s) preservado(s) como huerfano(s)")
+        self._fire_delete_callback(
+            "element", borrados[0] if len(borrados) == 1 else list(borrados),
+            ". ".join(parts) + ".")
+
+    def _delete_selected_nodes(self):
+        from tkinter import messagebox
+
+        nids = sorted(nid for nid in self.selected_nodes
+                      if nid in self.project.nodes)
+        if not nids:
+            self.prune_dead_selection()
             return
 
-        if self.highlighted_node is not None:
-            nid = self.highlighted_node
-            # Cascade simetrico al de elementos: si el nodo pertenece a uno
-            # o mas elementos, mostrar preview del impacto y pedir
-            # confirmacion. Si esta huerfano y tiene datos, confirmar la
-            # perdida de esos datos. Si esta limpio, borrar directo.
+        # Cascade simetrico al de elementos: preview agregado de TODOS los
+        # nodos seleccionados antes de mutar nada.
+        elements_total, nodes_del, nodes_pres = set(), set(), set()
+        con_datos = []
+        for nid in nids:
             preview = self.project.preview_node_cascade(nid)
-            elements_to_delete = preview["elements_to_delete"]
-            nodes_to_delete = preview["nodes_to_delete"]
-            nodes_to_preserve = preview["nodes_to_preserve"]
-            has_self_data = (
-                nid in self.project.nodal_loads
-                or nid in self.project.boundary_conditions
-                or any(sl.node_start == nid or sl.node_end == nid
-                       for sl in self.project.surface_loads)
-            )
+            elements_total.update(preview["elements_to_delete"])
+            nodes_del.update(preview["nodes_to_delete"])
+            nodes_pres.update(preview["nodes_to_preserve"])
+            if (nid in self.project.nodal_loads
+                    or nid in self.project.boundary_conditions
+                    or any(sl.node_start == nid or sl.node_end == nid
+                           for sl in self.project.surface_loads)):
+                con_datos.append(nid)
 
-            if elements_to_delete:
-                # Cascade no trivial: confirmar con preview detallado.
-                lines = [
-                    f"Borrar el nodo {nid} eliminara en cascada:",
-                    f"  • {len(elements_to_delete)} elemento(s): "
-                    f"{', '.join(str(e) for e in elements_to_delete)}",
-                ]
-                if nodes_to_delete:
-                    lines.append(
-                        f"  • {len(nodes_to_delete)} nodo(s) auxiliar(es) "
-                        f"sin datos del usuario"
-                    )
-                if nodes_to_preserve:
-                    lines.append(
-                        f"  • {len(nodes_to_preserve)} nodo(s) se preservaran "
-                        f"como huerfanos (tienen cargas / restricciones / "
-                        f"surface refs)"
-                    )
-                if has_self_data:
-                    lines.append(
-                        f"  • Datos del nodo {nid} (cargas/BCs/surface) "
-                        f"se perderan"
-                    )
-                lines.append("\n¿Continuar?")
-                if not messagebox.askyesno(
-                    "Confirmar borrado en cascada",
-                    "\n".join(lines), parent=self.canvas,
-                ):
-                    return
-            elif has_self_data:
-                # Sin elementos pero con datos del usuario: confirmar perdida.
-                if not messagebox.askyesno(
-                    "Eliminar nodo",
-                    f"El nodo {nid} tiene datos asociados (carga, "
-                    f"restriccion o carga superficial). Al eliminarlo se "
-                    f"perderan esos datos.\n\n¿Continuar?",
-                    parent=self.canvas,
-                ):
-                    return
+        if elements_total:
+            cabecera = (f"Borrar el nodo {nids[0]} eliminara en cascada:"
+                        if len(nids) == 1
+                        else f"Borrar {len(nids)} nodos eliminara en cascada:")
+            lines = [
+                cabecera,
+                f"  • {len(elements_total)} elemento(s): "
+                f"{', '.join(str(e) for e in sorted(elements_total))}",
+            ]
+            if nodes_del:
+                lines.append(
+                    f"  • {len(nodes_del)} nodo(s) auxiliar(es) "
+                    f"sin datos del usuario"
+                )
+            if nodes_pres:
+                lines.append(
+                    f"  • {len(nodes_pres)} nodo(s) se preservaran "
+                    f"como huerfanos (tienen cargas / restricciones / "
+                    f"surface refs)"
+                )
+            if con_datos:
+                lines.append(
+                    f"  • Datos (cargas/restricciones/carga superficial) de "
+                    f"{len(con_datos)} nodo(s) se perderan"
+                )
+            lines.append("\n¿Continuar?")
+            if not messagebox.askyesno(
+                "Confirmar borrado en cascada", "\n".join(lines),
+                parent=self.canvas,
+            ):
+                return
+        elif con_datos:
+            detalle = (f"El nodo {con_datos[0]} tiene datos asociados"
+                       if len(con_datos) == 1
+                       else f"{len(con_datos)} nodos tienen datos asociados")
+            if not messagebox.askyesno(
+                "Eliminar nodo" if len(nids) == 1 else "Eliminar nodos",
+                f"{detalle} (carga, restriccion o carga superficial). Al "
+                f"eliminarlos se perderan esos datos.\n\n¿Continuar?",
+                parent=self.canvas,
+            ):
+                return
 
-            _capture(f"eliminar nodo {nid} (canvas)")
+        self._capture_undo(f"eliminar {len(nids)} nodo(s) (canvas)")
+        borrados, elems_del, extra_nodes, pres_nodes = [], [], [], []
+        for nid in nids:
+            if nid not in self.project.nodes:
+                continue          # ya cayo en la cascada de otro nodo
             summary = self.project.remove_node_with_cascade(nid)
-            self.highlighted_node = None
-            self.highlighted_element = None  # podria haberse borrado
-            parts = [f"Nodo {nid} eliminado"]
-            if summary.get("elements_deleted"):
-                parts.append(
-                    f"{len(summary['elements_deleted'])} elemento(s) "
-                    f"auto-eliminado(s)"
-                )
-            if summary.get("nodes_deleted") and len(summary["nodes_deleted"]) > 1:
-                # > 1 porque el target ya cuenta. Reportamos los extras.
-                extras = len(summary["nodes_deleted"]) - 1
-                parts.append(f"{extras} nodo(s) auxiliar(es) auto-eliminado(s)")
-            if summary.get("nodes_preserved"):
-                parts.append(
-                    f"{len(summary['nodes_preserved'])} nodo(s) preservado(s) "
-                    f"como huerfano(s)"
-                )
-            self._fire_delete_callback("node", nid, ". ".join(parts) + ".")
-            return
+            borrados.append(nid)
+            elems_del.extend(summary.get("elements_deleted", []))
+            # `nodes_deleted` incluye al propio target: los extras son los
+            # auxiliares que se fueron con el.
+            extra_nodes.extend(
+                n for n in summary.get("nodes_deleted", []) if n != nid)
+            pres_nodes.extend(summary.get("nodes_preserved", []))
+        self.prune_dead_selection()
+
+        if len(borrados) == 1:
+            parts = [f"Nodo {borrados[0]} eliminado"]
+        else:
+            parts = [f"{len(borrados)} nodos eliminados"]
+        if elems_del:
+            parts.append(f"{len(elems_del)} elemento(s) auto-eliminado(s)")
+        if extra_nodes:
+            parts.append(
+                f"{len(extra_nodes)} nodo(s) auxiliar(es) auto-eliminado(s)")
+        if pres_nodes:
+            parts.append(
+                f"{len(pres_nodes)} nodo(s) preservado(s) como huerfano(s)")
+        self._fire_delete_callback(
+            "node", borrados[0] if len(borrados) == 1 else list(borrados),
+            ". ".join(parts) + ".")
 
     def _preview_element_cleanup(self, elem_id):
         """Delega en `ProjectModel.preview_element_cleanup` (fuente única,
@@ -3109,29 +3301,40 @@ class MeshCanvas(ttk.Frame):
     def _fire_delete_callback(self, kind, target_id, status_msg):
         """Dispara `on_canvas_delete` (si esta registrado) y muestra el
         mensaje en la status bar del main_window. Centraliza el
-        boilerplate de los handlers de borrado."""
+        boilerplate de los handlers de borrado.
+
+        `target_id` es el id borrado, o la LISTA de ids cuando se borro mas
+        de uno. El unico consumidor (`pre_tab._on_canvas_delete`) refresca
+        todas las tablas y lo ignora; se pasa igual para no perder la
+        informacion.
+
+        Si el callback falla, las tablas del spreadsheet quedan mostrando
+        entidades que ya no existen: se deja la traza en stderr en vez de
+        tragarla."""
         if self.on_canvas_delete is not None:
             try:
                 self.on_canvas_delete(kind, target_id)
             except Exception:
-                pass
-        try:
-            self.main_window.set_status(status_msg)
-        except Exception:
-            pass
+                traceback.print_exc()
+        self._status(status_msg)
         self.redraw()
 
-    def set_result_values(self, values, label="Resultado", unit=""):
+    def set_result_values(self, values, label="Resultado", unit="",
+                          kind="stress"):
         """Modo SUAVIZADO (nodal): valores promediados por nodo.
 
         Apaga el modo crudo si estaba activo: ambos modos son mutuamente
         excluyentes en el render. `unit` es la unidad del sistema activo
         (esfuerzo o longitud segun el resultado) que se muestra en la colorbar.
+        `kind` es la magnitud para `fmt(value, kind)` — "stress" para tensiones
+        y "displacement" para Ux/Uy/|U| (regla dura 8: los decimales salen de
+        la magnitud, no de un literal).
         """
         self.result_values = values
         self.element_result_grid = None  # apagar modo crudo
         self.result_label = label
         self.result_unit = unit
+        self.result_kind = kind
         vals = list(values.values())
         self.result_vmin = min(vals) if vals else 0
         self.result_vmax = max(vals) if vals else 1
@@ -3140,7 +3343,8 @@ class MeshCanvas(ttk.Frame):
         self._select_colormap()
         self.redraw()
 
-    def set_element_result_grid(self, element_grids, label="Resultado", unit=""):
+    def set_element_result_grid(self, element_grids, label="Resultado", unit="",
+                                kind="stress"):
         """Modo CRUDO: grillas pre-computadas por elemento.
 
         element_grids: dict {elem_id: ndarray(n+1, n+1)} donde grid[i, j]
@@ -3158,6 +3362,7 @@ class MeshCanvas(ttk.Frame):
         self.result_values = None  # apagar modo suavizado
         self.result_label = label
         self.result_unit = unit
+        self.result_kind = kind
         all_vals = np.concatenate(
             [np.asarray(g).flatten() for g in element_grids.values()]
         ) if element_grids else np.array([0.0, 1.0])
@@ -3204,6 +3409,7 @@ class MeshCanvas(ttk.Frame):
         self.element_result_grid = None
         self.result_label = ""
         self.result_unit = ""
+        self.result_kind = "stress"
         self.show_deformed = False
         self.displacements = None
         self.deform_scale = 0
@@ -3323,7 +3529,9 @@ class MeshCanvas(ttk.Frame):
             try:
                 self.on_draw_mode_changed(self.draw_mode_active)
             except Exception:
-                pass
+                # El boton 'Dibujar elemento' se queda desincronizado del modo
+                # real: estado invisible, hay que poder rastrearlo.
+                traceback.print_exc()
 
     def _update_draw_status(self):
         n = len(self.draw_pending)
@@ -3431,11 +3639,7 @@ class MeshCanvas(ttk.Frame):
             return
 
         # Capturar undo del estado pre-creacion.
-        if hasattr(self.main_window, "undo_stack"):
-            try:
-                self.main_window.undo_stack.capture("dibujar elemento (canvas)")
-            except Exception:
-                pass
+        self._capture_undo("dibujar elemento (canvas)")
 
         # Crear nodos faltantes (los snap reusan el ID existente).
         final_node_ids = []
@@ -3452,11 +3656,16 @@ class MeshCanvas(ttk.Frame):
             mat_names[0],
         )
 
-        # Si proyecto Q9, generar mid-nodes / centroide automaticamente.
+        # Si proyecto Q9, generar mid-nodes / centroide automaticamente
+        # (regla dura 5). Si esto falla en un proyecto Q9, el elemento queda
+        # con 4 nodos y el solve rompe mucho despues con un mensaje que no
+        # apunta a esta causa: hay que decirlo aca y dejar la traza.
+        q9_ok = True
         try:
             auto_expand_if_q9(self.project)
         except Exception:
-            pass
+            q9_ok = False
+            traceback.print_exc()
 
         # Reset pending pero mantener modo activo.
         self.draw_pending = []
@@ -3467,17 +3676,26 @@ class MeshCanvas(ttk.Frame):
             try:
                 self.on_draw_element_created(elem.id)
             except Exception:
-                pass
+                # Las tablas de Nodos/Elementos quedan sin el elemento nuevo:
+                # sintoma confuso ("lo dibuje y no aparece"), traza obligatoria.
+                traceback.print_exc()
 
         # Status bar: hint de orientacion corregida si aplico.
-        if cw_corrected:
-            self.main_window.set_status(
+        if not q9_ok:
+            self._status(
+                f"Elemento {elem.id} creado, pero fallo la generacion "
+                f"automatica de los nodos intermedios Q9: revisá el modelo "
+                f"antes de resolver (Modelo ▸ Tipo de Elemento vuelve a "
+                f"expandirlo)."
+            )
+        elif cw_corrected:
+            self._status(
                 f"Elemento {elem.id} creado (orientacion CW corregida a CCW). "
                 f"Modo dibujo sigue activo (Esc para salir)."
             )
         else:
             self._update_draw_status()
-            self.main_window.set_status(
+            self._status(
                 f"Elemento {elem.id} creado. Modo dibujo sigue activo "
                 f"(Esc para salir)."
             )
@@ -3547,7 +3765,9 @@ class MeshCanvas(ttk.Frame):
             try:
                 self.on_ortho_changed(active)
             except Exception:
-                pass
+                # El indicador ORTHO de la barra de estado deja de reflejar el
+                # estado real del canvas.
+                traceback.print_exc()
         # Refrescar preview si el modo dibujo esta activo (la proyeccion
         # del rubber band cambia inmediatamente).
         if self.draw_mode_active:

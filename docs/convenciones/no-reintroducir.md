@@ -64,6 +64,7 @@ Abreviaturas de capítulo:
 | La matriz **D** dentro de `AnalysisTypeDialog` | D depende del material: se explora por elemento en M4 | [ARQ] |
 | `tkvideoplayer`, `av` / `PyAV` | Migración deliberada a WebP: instalador más liviano, sin DLLs de FFmpeg | [ARQ] |
 | `FuncAnimation` sin guardar referencia persistente | El GC mata la animación y congela el Toplevel modal | [ARQ] |
+| `root.state("zoomed")` sin guard en `MainWindow.__init__` | Fuera de Windows lanza `TclError` y mata la app en el constructor (y con ella `run_gates --con-gui`) | [ARQ] |
 
 ## Canvas, spreadsheet y Post-Proceso
 
@@ -88,6 +89,9 @@ Abreviaturas de capítulo:
 | `is_roller_x` como triángulo lateral sin rodillo | Era indistinguible del empotramiento | [CAN] |
 | Aristas curvas en Q9 | La GUI prioriza la claridad del polígono macro | [CAN] |
 | Setear `highlighted_*` directo | Usar `select_*` / `replace_*_selection` | [CAN] |
+| Despachar el `Supr` del canvas por `highlighted_*` | Valen `None` con >1 ítem: la tecla no borraba nada ni lo decía. Se lee `selected_*` | [CAN] |
+| Conservar `selected_surfaces` tras borrar una carga superficial | Los índices son posicionales: el que queda pasa a señalar otra carga | [CAN] |
+| Duplicar el saneo de los sets de selección fuera del canvas | Fuente única: `MeshCanvas.prune_dead_selection()` | [CAN] |
 
 ## Colores y estilo
 

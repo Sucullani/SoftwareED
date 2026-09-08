@@ -13,7 +13,8 @@ sin salida 0 no se pushea.
 Los tres niveles existen porque el entorno decide que se puede correr:
 - El gate rapido no toca Tk ni pdflatex: corre en cualquier sandbox headless.
 - --con-latex necesita el TeX Live embebido (vendor/texlive) o un pdflatex en PATH.
-- --con-gui necesita un display: en Windows siempre; en Linux, Xvfb.
+- --con-gui necesita un display: en Windows directo; en Linux,
+  `xvfb-run -a python -m tests.run_gates --con-gui`.
 Lo que el gate NO puede juzgar es como se VE la aplicacion. Eso queda para el
 autor y se anota como pendiente visual en docs/rutina/BACKLOG.md.
 """
@@ -42,6 +43,7 @@ TESTS_RAPIDOS = [
     "tests.test_q9_q4_cycle",
     "tests.test_probe_query",
     "tests.test_pick_ghost",
+    "tests.test_canvas_delete",
     "tests.test_canvas_visualization",
     "tests.test_canvas_raster",       # el mas lento del grupo (~26 s)
     "tests.test_vv_extensions",
