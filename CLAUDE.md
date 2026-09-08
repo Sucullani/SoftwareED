@@ -52,7 +52,7 @@ Tests — scripts printout, se corren sueltos con `python -m tests.<nombre>`:
 | Motor FEM | `test_solver_regression` (motor por lotes vs. versión legible, ≤ 1e-9) · `test_fem` (Q4/Q9 + cargas superficiales) · `test_vv_extensions` · `test_noncontiguous_ids` |
 | V&V | `vv_mms` (convergencia) · `vv_timoshenko` (+ SAP2000) · `vv_cook` |
 | Modelo | `test_serialization` · `test_undo_stack` · `test_node_cascade` · `test_unit_conversion` · `test_q9_q4_cycle` |
-| GUI e interacción | `test_draw_mode` · `test_pick_ghost` · `test_selection_integration` · `test_canvas_delete` (borrado multi desde el canvas, sin display) · `test_canvas_visualization` · `test_canvas_raster` (paridad píxel a píxel del rasterizado, isolíneas y contorno de la memoria) |
+| GUI e interacción | `test_draw_mode` · `test_pick_ghost` · `test_selection_integration` · `test_canvas_delete` (borrado multi desde el canvas, sin display) · `test_pre_tab_delete` (borrado y pegado desde las 5 tablas, sin display) · `test_canvas_visualization` · `test_canvas_raster` (paridad píxel a píxel del rasterizado, isolíneas y contorno de la memoria) |
 | Otros | `test_memoria_calculo` · `test_latex_runtime` (resolución del compilador, ruta ASCII, errores) · `test_probe_query` · `bench_timing` · `generate_example_dxf` |
 
 **Empaquetado**: PyInstaller en modo onefile → un `dist/EduFEM.exe` autoextraíble; el

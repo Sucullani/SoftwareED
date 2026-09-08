@@ -219,3 +219,149 @@ Ninguna.
 ### Área siguiente
 
 2 — Spreadsheet y tablas (`gui/preprocessing/pre_tab.py`, `_table_helpers.py`).
+
+---
+
+## Sesión 02 — 2026-09-08 21:00 UTC — Área: 2 — Spreadsheet y tablas
+
+**Commit**: (este) · **Gates**: `run_gates` verde (97/97 módulos, 0 hex, **16**/16 tests) ·
+además `xvfb-run … run_gates --con-gui` verde (18/18)
+
+### Qué se hizo y por qué
+
+El hallazgo central es uno solo, repetido cinco veces: **borrar desde una tabla saneaba el
+modelo pero no la selección del canvas**. Seleccionar una fila propaga la selección al canvas
+(`_on_*_select`), y de los seis sets de `MeshCanvas` salen las filas fantasma, el tag
+`canvas_selected` y el realce del lienzo. O sea que **todo** borrado desde el spreadsheet —el
+camino normal, no un caso borde— dejaba ids muertos. Es el mismo defecto que la sesión 01
+cerró para el lienzo; la vía del spreadsheet quedó abierta.
+
+- `pre_tab::_sync_selection_after_delete()` — nuevo, lo llaman los cinco `_remove_*`.
+  **Por qué**: sin él, (a) borrar un nodo dejaba una **fila fantasma azul de un nodo que ya
+  no existe** en Cargas y Restricciones, y clickearla no hacía nada ni lo decía
+  (`_commit_load_ghost` retorna temprano si el nodo no está en el modelo); (b) borrar una
+  carga o una restricción hacía **reaparecer la fila borrada como fantasma con ceros, en su
+  mismo lugar**, porque `_on_load_select` mete el nodo en `selected_nodes` para dibujar el
+  halo; (c) borrar una carga superficial dejaba su índice —posicional— en
+  `selected_surfaces`, que pasaba a señalar **otra** carga y la dejaba resaltada en amarillo.
+  Delega en `MeshCanvas.prune_dead_selection()` (fuente única) y le agrega lo que ese saneo
+  no puede saber: los nodos vivos cuya selección era el reflejo de la fila borrada, y el
+  vaciado de `selected_surfaces`.
+- `pre_tab::_nothing_selected()` — `Supr` sin filas seleccionadas ahora lo dice en la barra de
+  estado, en las 5 tablas. **Por qué**: paridad con el lienzo (sesión 01) y RUTINA §7 — una
+  tecla que no hace nada ni explica por qué es un callejón sin salida. El placeholder y las
+  fantasmas se filtran explícitamente: no son selección.
+- `_remove_load` / `_remove_constraint` / `_remove_surface_load` — ahora llaman
+  `_update_status_info()` y dan un resumen en la barra de estado. **Por qué**: el badge de
+  salud vive en `_update_status_info`; borrar la última restricción desde la tabla dejaba el
+  modelo sin resolver y el badge diciendo "✓ Modelo sano". El borrado desde el lienzo sí lo
+  refrescaba (vía `on_canvas_delete`); el de la tabla no. Y las tres eran mudas: borrabas y
+  la barra de estado no confirmaba nada.
+- `_remove_node` — el resumen pasó de `"Nodo(s) eliminado(s)."` a "Nodo 3 eliminado. 2
+  elemento(s) en cascada. 1 nodo(s) preservado(s) como huérfano(s)." **Por qué**: el genérico
+  no distinguía 1 de 30 ni decía qué se llevó puesto la cascada, que es justo lo que el
+  alumno necesita confirmar.
+- `pre_tab::_update_title()` — wrapper guardado (como `_update_status_info`) y usado en los
+  borrados y en los 5 `_paste_*`. **Por qué**: el ● de "proyecto modificado" no se actualizaba
+  en ninguna de esas vías; el título mentía hasta la próxima acción que sí lo refrescara.
+- **Números: `to_float_flex` también en los editores de celda** (X/Y, espesor, Fx/Fy, q y
+  ángulo). **Por qué**: los `_paste_*` toleran la coma decimal de Excel desde hace tiempo,
+  pero tipear `1,5` a mano daba "Valor numerico invalido". Dos vías para lo mismo con reglas
+  distintas, en un software en español.
+- `_error_numero()` / `_error_nodo_inexistente()` — nuevos. **Por qué**: los mensajes eran
+  `"Error" / "Valor invalido."` y `"El nodo 7 no existe."`, que no nombran ni la celda ni el
+  formato aceptado ni el siguiente paso. Ahora dicen `Y: valor invalido — «hola» no es un
+  numero. Usá punto o coma decimal` y, para nodos, listan los ids definidos (o explican cómo
+  crear el primero si no hay ninguno).
+- `_mensaje_pegado()` — el resumen del paste TSV dice **por qué** descartó cada fila (nodo
+  inexistente / valor no numérico / faltan columnas, agregados con `Counter`). **Por qué**:
+  los parsers descartan con un `continue` silencioso, así que un `"0/5 fila(s) pegada(s)"` no
+  le daba al alumno ninguna pista de qué estaba mal en lo que acababa de pegar.
+- `_build_loads_visual_list` / `_build_constraints_visual_list` / `_get_pick_ghost_edges` —
+  las fantasmas salen ahora de `_get_pick_ghost_node_ids` / `_get_pick_ghost_edges`, que
+  filtran los nodos inexistentes. **Por qué**: las dos primeras las recalculaban aparte
+  (`selected_nodes - project_keys`, sin chequear existencia), así que eran una segunda fuente
+  de verdad que podía proponer una fila imposible de confirmar. Defensa en profundidad sobre
+  el saneo de arriba.
+- **6 de los 22 `except Exception` del área** pasaron a dejar traza con
+  `traceback.print_exc()` (la convención de `undo_stack` / `post_tab` / `mesh_canvas`):
+  `_capture` (si el snapshot falla, la acción queda fuera del `Ctrl+Z` y nadie se entera —
+  regla dura 4), `_safe_redraw` (el lienzo se queda con el modelo viejo), el refresco tras
+  expandir a Q9 (síntoma: "los nodos internos no aparecen en la tabla"), y los 3 del panel de
+  módulos educativos. Los otros 16 son legítimos (`set_status` y `nametowidget` en tests
+  headless, guards de widgets destruidos).
+- **Docstrings mentirosos y secciones muertas**. El encabezado de `pre_tab.py` anunciaba
+  *fill-down `Ctrl+D`*, *navegación Tab/Shift-Tab/flechas en el editor*, *menú contextual con
+  Insertar/Duplicar/Centrar/Eliminar* y *toggle por click simple* — las cuatro son
+  **decisiones tomadas** que figuran en `no-reintroducir.md`. El de `_table_helpers.py` decía
+  que `on_commit` recibe `(text, direction)`. Quedaban además 8 encabezados de sección vacíos
+  (`FILL-DOWN`, `Acciones de menu contextual: …` ×5, `Navegacion teclado`, `Atajos de
+  teclado`). Un agente que lee eso "restaura lo que falta" y revierte trabajo hecho: por eso
+  se corrigieron los docstrings y se borraron los encabezados huecos.
+- `tests/test_pre_tab_delete.py` — nuevo (12 casos, sin display: `PreProcessTab` con
+  `object.__new__` y un doble mínimo de Treeview, igual que hizo la sesión 01 con el canvas).
+  Sumado a `run_gates`. Verificado que **falla sin el arreglo**: con
+  `_sync_selection_after_delete` anulado, los tres casos de selección stale rompen.
+- `DOF` → `GDL` en un comentario de `_refresh_constraints_tree` (auditoría de terminología del
+  área).
+
+### Errores encontrados y corregidos
+
+- **Selección stale tras borrar desde cualquiera de las 5 tablas** (el principal, arriba), con
+  sus tres síntomas visibles: fantasma de un nodo inexistente, fila borrada que vuelve como
+  fantasma, y carga superficial equivocada resaltada.
+- **El badge de salud no se enteraba** de que se borró la última restricción / carga /
+  superficial desde la tabla: quedaba en "✓ Modelo sano" sobre un modelo que ya no resuelve.
+- **El título nunca marcaba ●** tras borrar o pegar desde el spreadsheet.
+- **`1,5` rechazado a mano y aceptado al pegar** en las mismas celdas.
+- **`_remove_surface_load` capturaba el snapshot de undo antes de saber si había algo válido
+  que borrar**: con una selección de índices fuera de rango dejaba un snapshot vacío en la
+  pila (un `Ctrl+Z` que no deshace nada).
+- **`_remove_load` / `_remove_constraint` aceptaban filas fantasma** en la selección: el
+  `int("__ghost__4")` levantaba `ValueError` que el `except` de turno se tragaba.
+- Verificado con Tk real bajo `xvfb`: borrado de carga y de superficial desde la tabla, la
+  fantasma legítima que sí debe aparecer al seleccionar un nodo en el lienzo, el aviso de
+  `Supr` sin selección, y el editor de celda aceptando `3,25`.
+
+### DECISIÓN CONGELADA REVERTIDA
+
+Ninguna.
+
+### Pendientes visuales para el autor
+
+1. **Borrar desde las tablas del Pre-Proceso.** `Ctrl+E` (ejemplo canónico). En la sub-pestaña
+   **Cargas**, clickear la fila de una carga y `Supr`: la fila debe **desaparecer**, no
+   volverse una fila azul con `0 | 0`; la barra de estado dice "Carga en nodo N eliminada." y
+   el badge de salud se recalcula. Lo mismo en **Restricciones** y en **Carg. Superf.** (acá,
+   con 2–3 cargas superficiales, borrar la primera **no** debe dejar otra resaltada en
+   amarillo). En **Nodos**, borrar un nodo con carga no debe dejar una fila fantasma con ese
+   número en Cargas. Revertir: `git revert` de este commit.
+2. **`Supr` sin selección, en las 5 tablas.** Con el foco en una tabla y ninguna fila
+   seleccionada, `Supr` debe escribir "Nada seleccionado — elegí una o varias filas de …" en
+   la barra de estado (antes no pasaba nada).
+3. **Editar una celda numérica con coma.** Doble-click en X de un nodo, tipear `3,25`, Enter:
+   debe guardar 3,25. Con `hola`, el modal debe decir "Y: valor invalido — «hola» no es un
+   numero. Usá punto o coma decimal".
+
+### Descartado
+
+- **Darles a los `_on_load_select` / `_on_constraint_select` / `_on_surface_select` una API
+  pública en el canvas** (`replace_load_selection`, etc.). Hoy manipulan los sets a mano
+  (`_clear_all_sets_silent` + asignación + `_emit_selection_changed`), que es un patrón ya
+  establecido en este archivo pero que roza el canon ("no setear `highlighted_*` directo").
+  Agregar tres métodos a `MeshCanvas` es trabajo del área 1 y cambiar su API en la sesión del
+  área 2 arriesga romper el lienzo por una mejora de forma. Al BACKLOG.
+- **Unificar el modal de confirmación de borrado** entre `pre_tab` y `mesh_canvas`: los dos
+  arman su texto por separado a partir del mismo preview, con redacciones distintas ("Borrar N
+  nodo(s) eliminara en cascada" vs "¿Eliminar el elemento 3?"). Es una fuente doble real, pero
+  moverla implica decidir dónde vive el texto (¿`models`? ¿un helper de `gui/`?) y toca las dos
+  áreas. Al BACKLOG con la propuesta escrita.
+- **Cambiar el placeholder de Elementos para que no cree el elemento con los 4 vértices
+  iguales** (`[first_node] * 4`): es un elemento degenerado hasta que el alumno completa los
+  vértices, y el validador de salud lo marca mientras tanto. Cambiarlo implica rediseñar el
+  flujo del placeholder (que es una decisión tomada y documentada), así que no entra en una
+  sesión de pulido. Al BACKLOG como propuesta.
+
+### Área siguiente
+
+3 — Proceso (`gui/processing/proc_tab.py`).

@@ -15,13 +15,17 @@
 ### Interacción minimalista
 
 Solo 3 atajos en tablas:
-- `Delete` / `Supr` → eliminar fila
+- `Delete` / `Supr` → eliminar **la selección completa** (`selectmode="extended"`)
 - `Ctrl+C` → copiar TSV
 - `Ctrl+V` → pegar TSV
 
 **No reintroducir**: Insert, F2, Ctrl+G/R/M/L/U/I/Shift+D/D, hint `<FocusIn>`, menú contextual.
 
 **Edición de celda**: solo doble-click. `start_cell_editor` bindea Return/KP_Enter/FocusOut → commit, Escape → cancel. Sin Tab/Shift-Tab/arrow keys (`on_commit(text)` recibe un solo argumento).
+
+**Números: `to_float_flex`, no `float()`**, tanto en los `_paste_*` como en los editores de celda (X/Y, espesor, Fx/Fy, q y ángulo). Tipear `1,5` a mano daba "valor inválido" mientras que pegar `1,5` funcionaba: dos vías para lo mismo con reglas distintas. Los errores de celda salen por `_error_numero(texto, campo)` / `_error_nodo_inexistente(nid)`, que nombran la celda, el valor rechazado y el formato aceptado — **no reintroducir** los genéricos `"Valor invalido"` / `"Valor numerico invalido"`, que no decían ni qué celda ni qué se esperaba.
+
+**El paste dice qué descartó y por qué** (`_mensaje_pegado(ok, total, motivos)`): los parsers saltan filas con un `continue` silencioso, así que `"0/5 fila(s) pegada(s)"` dejaba al alumno sin ninguna pista. Cada `continue` etiqueta su motivo (nodo inexistente, valor no numérico, faltan columnas) y el resumen los agrega con `Counter`.
 
 **Cambio de ID**: doble-click en columna ID dispara cascade rename atómico (`change_node_id` / `change_element_id` / `rename_material`) que valida unicidad y propaga a `nodal_loads`, `boundary_conditions`, `element.node_ids`, `surface_loads`.
 
@@ -91,6 +95,19 @@ Confirmación:
 - **Nodo en uno o más elementos**: modal `askyesno` con preview (`preview_node_cascade` calcula sin mutar) — cuántos elementos eliminar, cuántos nodos auxiliares borrar, cuántos preservar como huérfanos. Tras aceptar, `remove_node_with_cascade` ejecuta el cascade simétrico al de elementos. **No hay jerarquía** — el usuario no necesita borrar el elemento primero.
 
 **Multi-select unificado**: cuando hay >1 ítem seleccionado de un tipo, `Delete` borra todos en el orden de prioridad del hit-test, con **una** confirmación modal agregada (cuenta de elementos/nodos en cascada) y **un** snapshot de undo. Spreadsheet también soporta multi-select para borrado masivo (ya con `selectmode="extended"`).
+
+### Delete desde el spreadsheet: el mismo cierre que el del lienzo
+
+Los cinco `pre_tab._remove_*` terminan igual que sus pares del canvas, y por el mismo motivo: eran **la misma acción del alumno por dos caminos, comportándose distinto**.
+
+- **`_sync_selection_after_delete(freed_nodes=…, surfaces_shifted=…)`** sanea la selección del canvas. Seleccionar una fila la propaga al canvas (`_on_*_select`), así que **todo** borrado desde una tabla dejaba ids muertos en los seis sets, y de esos sets salen las filas fantasma, el tag `canvas_selected` y el realce del lienzo. Se veía como: una fantasma azul de un nodo que ya no existe (y que al clickearla no hacía nada ni lo decía); la carga/restricción recién borrada **reapareciendo** como fantasma con ceros en su mismo lugar (porque `_on_load_select` mete el nodo en `selected_nodes` para el halo); y en superficiales, el índice posicional viejo resaltando **otra** carga. Delega en `MeshCanvas.prune_dead_selection()` —fuente única— y agrega lo que ese saneo no puede saber: los nodos que siguen vivos pero cuya selección era el reflejo de la fila borrada, y el vaciado de `selected_surfaces`.
+- **`_nothing_selected(tabla)`**: `Supr` sin filas seleccionadas lo dice en la barra de estado, igual que en el lienzo. El placeholder y las fantasmas no cuentan como selección.
+- **`_update_status_info()` + `_update_title()`**: el badge de salud y el ● de "modificado" se refrescan también por esta vía. Antes solo lo hacía el borrado desde el lienzo (vía `on_canvas_delete`), así que borrar la última restricción desde la tabla dejaba el badge diciendo "✓ Modelo sano".
+- **Resumen concreto en la barra de estado**: "Nodo 3 eliminado. 2 elemento(s) en cascada." en vez del viejo `"Nodo(s) eliminado(s)."`, que no distinguía 1 de 30.
+
+Regresiones en [test_pre_tab_delete.py](../../tests/test_pre_tab_delete.py) (sin display: `PreProcessTab` con `object.__new__` y un doble mínimo de Treeview).
+
+**Las filas fantasma salen siempre de `_get_pick_ghost_node_ids` / `_get_pick_ghost_edges`**, que filtran los nodos que ya no existen. `_build_loads_visual_list` y `_build_constraints_visual_list` las recalculaban aparte (`selected_nodes - project_keys`, sin chequear existencia) y por eso podían proponer una fila de un nodo borrado. **No reintroducir** el cálculo paralelo.
 
 ### Filas fantasma de pick desde canvas
 

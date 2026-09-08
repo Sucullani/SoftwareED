@@ -92,6 +92,11 @@ Abreviaturas de capítulo:
 | Despachar el `Supr` del canvas por `highlighted_*` | Valen `None` con >1 ítem: la tecla no borraba nada ni lo decía. Se lee `selected_*` | [CAN] |
 | Conservar `selected_surfaces` tras borrar una carga superficial | Los índices son posicionales: el que queda pasa a señalar otra carga | [CAN] |
 | Duplicar el saneo de los sets de selección fuera del canvas | Fuente única: `MeshCanvas.prune_dead_selection()` | [CAN] |
+| Borrar desde una tabla sin sanear la selección del canvas | Seleccionar la fila la propaga al canvas: el id muerto dejaba fantasmas de entidades inexistentes, devolvía la fila borrada como fantasma con ceros y resaltaba otra carga superficial | [CAN] |
+| Calcular las filas fantasma fuera de `_get_pick_ghost_node_ids` / `_get_pick_ghost_edges` | El cálculo paralelo no filtraba los nodos borrados y proponía filas imposibles de confirmar | [CAN] |
+| `float(text)` en los editores de celda del spreadsheet | Es `to_float_flex`: tipear `1,5` fallaba y pegar `1,5` funcionaba | [CAN] |
+| Los errores de celda genéricos `"Valor invalido"` / `"Valor numerico invalido"` | No nombran la celda ni el formato aceptado: usar `_error_numero` / `_error_nodo_inexistente` | [CAN] |
+| El resumen de paste sin motivos (`"0/5 fila(s) pegada(s)"` a secas) | Los `continue` de los parsers son silenciosos: el alumno no sabía qué estaba mal | [CAN] |
 
 ## Colores y estilo
 

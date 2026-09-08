@@ -6,22 +6,32 @@ Cargas Superficiales. El canvas de malla es compartido en main_window.
 
 Caracteristicas:
 - Tipografia coherente con `config.settings` (Segoe UI / Consolas).
-- Edicion in-place con Entry/Combobox de alto contraste (helpers).
+- Edicion in-place con Entry/Combobox de alto contraste (helpers). La UNICA
+  via de edicion es el doble-click; el editor confirma con Enter o al perder
+  el foco y cancela con Escape.
 - Edicion de IDs con renombrado en cascada (`project.change_node_id`,
   `change_element_id`).
 - Encabezados con la unidad activa del proyecto.
-- Fila placeholder atenuada al final: doble-click crea registro pendiente
-  que el usuario debe completar antes de cambiar de fila/pestana.
-- Copy/Paste TSV compatible con Excel (Ctrl+C / Ctrl+V).
-- Fill-down (Ctrl+D) tipo Excel.
-- Navegacion teclado en editor: Tab/Shift-Tab/Enter/flechas.
-- Sync bidireccional spreadsheet -> canvas para todas las tablas
+- Fila placeholder atenuada al final: doble-click crea el registro con
+  valores por defecto, que el usuario completa despues sin bloqueo modal.
+- Filas fantasma (azul) derivadas de la seleccion del canvas: single-click
+  las confirma con defaults.
+- Copy/Paste TSV compatible con Excel (Ctrl+C / Ctrl+V), tolerante a la
+  coma decimal.
+- Sync bidireccional spreadsheet <-> canvas para todas las tablas
   (nodos, elementos, cargas, restricciones, cargas superficiales).
-- Menu contextual con acciones de dominio (Insertar, Duplicar, Centrar
-  en canvas, Eliminar). Sin Copiar/Pegar (atajos cubren ese caso).
-- Restricciones con glyph Unicode "checkbox" en celda (toggle por click).
+- Restricciones con glyph Unicode "checkbox" en celda (toggle por
+  doble-click sobre la columna X o Y).
 - Materiales en Elementos via Combobox readonly en Toplevel overlay.
+
+Interaccion minimalista deliberada: los UNICOS atajos de las tablas son
+`Supr` (borrar la seleccion), `Ctrl+C` y `Ctrl+V`. No hay menu contextual,
+ni fill-down, ni navegacion Tab/flechas entre celdas, ni toggle por click
+simple — se quitaron a proposito; ver `docs/convenciones/no-reintroducir.md`
+antes de "devolver" cualquiera de esas cosas.
 """
+
+from collections import Counter
 
 import tkinter as tk
 import ttkbootstrap as ttk
@@ -362,7 +372,8 @@ class PreProcessTab:
             elem_id = next(iter(elems)) if len(elems) == 1 else None
             self._edu_panel.update_selection(elem_id)
         except Exception:
-            pass
+            import traceback
+            traceback.print_exc()
 
     # ─── Helpers de unidades ────────────────────────────────────────────
 
@@ -686,6 +697,100 @@ class PreProcessTab:
             if stack is not None:
                 stack.capture(label)
         except Exception:
+            # Si la captura falla, la accion queda fuera del Ctrl+Z. No se
+            # puede abortar la mutacion por eso, pero tampoco puede pasar
+            # inadvertida (misma convencion que `mesh_canvas._capture_undo`).
+            import traceback
+            traceback.print_exc()
+
+    # ─── Cierre comun de los borrados desde una tabla ───────────────────
+
+    def _sync_selection_after_delete(self, *, freed_nodes=(),
+                                     surfaces_shifted=False):
+        """Sanea la seleccion del canvas despues de borrar desde una tabla.
+
+        Los seis sets de `MeshCanvas` no son decoracion: de ellos salen el
+        tag `canvas_selected`, las **filas fantasma** y el realce del lienzo.
+        Un id muerto ahi no es inocuo — y como seleccionar una fila propaga
+        la seleccion al canvas (`_on_*_select`), el borrado desde el
+        spreadsheet SIEMPRE dejaba ids muertos:
+
+        - borrar un nodo dejaba su id en `selected_nodes` y las sub-pestanas
+          Cargas y Restricciones mostraban una fantasma azul de un nodo que
+          ya no existe (clickearla no hacia nada, ni lo decia);
+        - borrar una carga o una restriccion dejaba el nodo en
+          `selected_nodes`, asi que la fila borrada **reaparecia** como
+          fantasma con ceros, en el mismo lugar;
+        - borrar una carga superficial dejaba su indice —posicional— en
+          `selected_surfaces`, que pasaba a senalar otra carga y la dejaba
+          resaltada en amarillo (el mismo defecto que el borrado desde el
+          lienzo ya corrigio).
+
+        `prune_dead_selection()` es la fuente unica del saneo (la comparten
+        el lienzo y el undo/redo); aca ademas se sueltan los nodos que
+        siguen VIVOS pero cuya seleccion era solo el reflejo de la fila
+        borrada, y se vacia `selected_surfaces` cuando los indices se
+        corrieron.
+        """
+        canvas = getattr(self.main_window, "mesh_canvas", None)
+        if canvas is None:
+            return
+        cambio = False
+        for nid in freed_nodes:
+            if nid in canvas.selected_nodes:
+                canvas.selected_nodes.discard(nid)
+                cambio = True
+        if surfaces_shifted and canvas.selected_surfaces:
+            canvas.selected_surfaces.clear()
+            cambio = True
+        # `prune_dead_selection` emite el callback si algo cambio; si no
+        # cambio nada pero nosotros si tocamos los sets, hay que emitirlo
+        # igual para que los espejos `highlighted_*` no queden desfasados.
+        if not canvas.prune_dead_selection() and cambio:
+            canvas._emit_selection_changed()
+
+    # ─── Mensajes de error de las celdas ────────────────────────────────
+    #
+    # Todo error visible al alumno tiene que nombrar QUE esta mal y COMO se
+    # arregla. Los genericos "Valor invalido" / "Valor numerico invalido" no
+    # decian ni que celda ni que formato se esperaba.
+
+    def _error_numero(self, texto, campo, *, entero=False):
+        que = "un numero entero" if entero else "un numero"
+        ayuda = ("Escribí un entero, sin decimales." if entero else
+                 "Usá punto o coma decimal: 1.5 y 1,5 valen lo mismo.")
+        messagebox.showerror(
+            f"{campo}: valor invalido",
+            f"«{texto}» no es {que}.\n{ayuda}",
+        )
+
+    def _error_nodo_inexistente(self, nid):
+        disponibles = sorted(self.project.nodes)
+        if disponibles:
+            muestra = ", ".join(str(n) for n in disponibles[:12])
+            if len(disponibles) > 12:
+                muestra += ", …"
+            detalle = f"Nodos definidos: {muestra}."
+        else:
+            detalle = ("Todavia no hay nodos: creá uno en la pestaña Nodos "
+                       "o dibujá un elemento en el lienzo.")
+        messagebox.showerror(
+            "Nodo inexistente",
+            f"El nodo {nid} no existe.\n{detalle}",
+        )
+
+    def _nothing_selected(self, que):
+        """Mensaje de `Supr` sin seleccion, espejo del que da el lienzo.
+
+        Una tecla que no hace nada ni explica por que es un callejon sin
+        salida: la fila placeholder y las fantasma no cuentan como
+        seleccion, y el alumno no tiene como saberlo."""
+        try:
+            self.main_window.set_status(
+                f"Nada seleccionado — elegí una o varias filas de {que} "
+                f"y volvé a presionar Supr."
+            )
+        except Exception:
             pass
 
     def _ensure_q9_consistency(self, *, silent=False):
@@ -727,7 +832,10 @@ class PreProcessTab:
             self._refresh_nodes_tree()
             self._safe_redraw()
         except Exception:
-            pass
+            # Sin traza, el sintoma seria "los nodos internos Q9 no
+            # aparecen en la tabla" sin ninguna pista de por que.
+            import traceback
+            traceback.print_exc()
         if not silent:
             try:
                 if num == 1:
@@ -837,9 +945,9 @@ class PreProcessTab:
 
         def _commit(text):
             try:
-                val = float(text)
+                val = to_float_flex(text)
             except ValueError:
-                messagebox.showerror("Error", "Valor numerico invalido.")
+                self._error_numero(text, "X" if ci == 1 else "Y")
                 return
             axis = "X" if ci == 1 else "Y"
             self._capture(f"editar {axis} de nodo {node_id}")
@@ -961,12 +1069,13 @@ class PreProcessTab:
         self._refresh_nodes_tree()
         self._refresh_elements_tree()
         self._update_status_info()
-        self.main_window._update_title()
+        self._update_title()
 
     def _remove_node(self):
         selected = [iid for iid in self.nodes_tree.selection()
                     if iid and iid != PLACEHOLDER_IID]
         if not selected:
+            self._nothing_selected("la tabla de Nodos")
             return
 
         # Calcular el impacto agregado del cascade en TODOS los nodos
@@ -1012,19 +1121,38 @@ class PreProcessTab:
                 return
 
         self._capture(f"eliminar {len(node_ids)} nodo(s)")
+        borrados = []
         for nid in node_ids:
             try:
                 self.project.remove_node_with_cascade(nid)
+                borrados.append(nid)
             except (ValueError, KeyError):
-                pass
+                import traceback
+                traceback.print_exc()
+        # La seleccion del canvas (que esta fila acaba de propagar) queda con
+        # ids muertos si no se sanea: fantasmas de nodos inexistentes.
+        self._sync_selection_after_delete()
         # Borrar nodos puede invalidar elementos / cargas / BCs / surface refs
         self._refresh_all_trees()
         self._safe_redraw()
         self._update_status_info()
-        self.main_window.set_status("Nodo(s) eliminado(s).")
-
-    # ─── Acciones de menu contextual: Nodos ─────────────────────────────
-
+        self._update_title()
+        # Resumen concreto, espejo del que da el borrado desde el lienzo: el
+        # generico "Nodo(s) eliminado(s)" no distinguia 1 de 30 ni decia si
+        # algo se habia caido en cascada.
+        if not borrados:
+            self.main_window.set_status(
+                "No se pudo eliminar ningun nodo (ver la consola).")
+            return
+        partes = [f"Nodo {borrados[0]} eliminado" if len(borrados) == 1
+                  else f"{len(borrados)} nodos eliminados"]
+        if elements_total:
+            partes.append(f"{len(elements_total)} elemento(s) en cascada")
+        if nodes_pres_total:
+            partes.append(
+                f"{len(nodes_pres_total)} nodo(s) preservado(s) como "
+                f"huerfano(s)")
+        self.main_window.set_status(". ".join(partes) + ".")
 
     # ═════════════════════════════════════════════════════════════════════
     # ELEMENTOS — handlers
@@ -1165,8 +1293,7 @@ class PreProcessTab:
                 if ci in (1, 2, 3, 4):
                     val = int(text)
                     if val not in self.project.nodes:
-                        messagebox.showerror(
-                            "Error", f"El nodo {val} no existe.")
+                        self._error_nodo_inexistente(val)
                         return
                     while len(elem.node_ids) < 4:
                         elem.node_ids.append(val)
@@ -1186,14 +1313,16 @@ class PreProcessTab:
                         recompute_q9_midnodes(self.project, elem)
                         vertex_changed_on_q9 = True
                 else:
-                    new_thick = float(text)
+                    new_thick = to_float_flex(text)
                     if elem.thickness != new_thick:
                         self._capture(
                             f"editar espesor de elemento {elem.id}"
                         )
                     elem.thickness = new_thick
             except ValueError:
-                messagebox.showerror("Error", "Valor invalido.")
+                self._error_numero(
+                    text, "Espesor" if ci == 5 else f"N{ci}",
+                    entero=(ci in (1, 2, 3, 4)))
                 return
             self.project.is_modified = True
             self.project.is_solved = False
@@ -1286,6 +1415,7 @@ class PreProcessTab:
         selected = [iid for iid in self.elements_tree.selection()
                     if iid and iid != PLACEHOLDER_IID]
         if not selected:
+            self._nothing_selected("la tabla de Elementos")
             return
 
         # Calcular el impacto agregado del cleanup en TODOS los elementos
@@ -1340,7 +1470,9 @@ class PreProcessTab:
                     total_deleted_nodes.extend(summary.get("nodes_deleted", []))
                     total_preserved_nodes.extend(summary.get("nodes_preserved", []))
             except (ValueError, KeyError):
-                pass
+                import traceback
+                traceback.print_exc()
+        self._sync_selection_after_delete()
         # Refrescar TODAS las tablas porque cleanup borra nodos y los nodos
         # eliminados pueden tener cargas/BCs/surface_loads asociadas (que
         # `remove_node` interno habria limpiado) -- aunque el auto-cleanup
@@ -1350,8 +1482,12 @@ class PreProcessTab:
         self._refresh_all_trees()
         self._safe_redraw()
         self._update_status_info()
+        self._update_title()
         # Resumen contextual en status bar
-        if elem_ids_removed:
+        if not elem_ids_removed:
+            self.main_window.set_status(
+                "No se pudo eliminar ningun elemento (ver la consola).")
+        else:
             partes = [f"Elemento(s) {','.join(map(str, elem_ids_removed))} eliminado(s)"]
             if total_deleted_nodes:
                 partes.append(
@@ -1372,9 +1508,6 @@ class PreProcessTab:
         """Delega en `ProjectModel.preview_element_cleanup` (fuente única,
         antes duplicada verbatim aquí y en mesh_canvas)."""
         return self.project.preview_element_cleanup(elem_id)
-
-    # ─── Acciones de menu contextual: Elementos ─────────────────────────
-
 
     # ═════════════════════════════════════════════════════════════════════
     # CARGAS NODALES — handlers
@@ -1447,11 +1580,10 @@ class PreProcessTab:
                 try:
                     new_nid = int(text)
                 except ValueError:
-                    messagebox.showerror("Error", "Nodo invalido.")
+                    self._error_numero(text, "Nodo", entero=True)
                     return
                 if new_nid not in self.project.nodes:
-                    messagebox.showerror(
-                        "Error", f"El nodo {new_nid} no existe.")
+                    self._error_nodo_inexistente(new_nid)
                     return
                 if new_nid == load.node_id:
                     self._mark_completed(0)
@@ -1478,12 +1610,12 @@ class PreProcessTab:
         current = fmt(load.fx if ci == 1 else load.fy, "force")
 
         def _commit(text):
-            try:
-                val = float(text)
-            except ValueError:
-                messagebox.showerror("Error", "Valor numerico invalido.")
-                return
             comp = "Fx" if ci == 1 else "Fy"
+            try:
+                val = to_float_flex(text)
+            except ValueError:
+                self._error_numero(text, comp)
+                return
             self._capture(f"editar {comp} de carga en nodo {load.node_id}")
             if ci == 1:
                 load.fx = val
@@ -1531,20 +1663,35 @@ class PreProcessTab:
 
     def _remove_load(self):
         selected = [iid for iid in self.loads_tree.selection()
-                    if iid and iid != PLACEHOLDER_IID]
+                    if iid and iid != PLACEHOLDER_IID
+                    and not iid.startswith("__ghost__")]
         if not selected:
+            self._nothing_selected("la tabla de Cargas")
             return
-        self._capture(f"eliminar {len(selected)} carga(s) nodal(es)")
+        nids = []
         for iid in selected:
             try:
-                self.project.remove_nodal_load(int(iid))
-            except (ValueError, KeyError):
-                pass
+                nids.append(int(iid))
+            except ValueError:
+                continue
+        if not nids:
+            return
+        self._capture(f"eliminar {len(nids)} carga(s) nodal(es)")
+        for nid in nids:
+            self.project.remove_nodal_load(nid)
+        # `freed_nodes`: al seleccionar la fila, `_on_load_select` metio el
+        # nodo en `selected_nodes` para el halo. Si no se suelta, la fila
+        # borrada reaparece como fantasma azul con Fx=Fy=0.
+        self._sync_selection_after_delete(freed_nodes=nids)
         self._refresh_loads_tree()
         self._safe_redraw()
-
-    # ─── Acciones de menu contextual: Cargas ────────────────────────────
-
+        # El badge de salud puede haber cambiado (un modelo sin cargas no
+        # resuelve): borrar desde el lienzo ya lo refrescaba, la tabla no.
+        self._update_status_info()
+        self._update_title()
+        self.main_window.set_status(
+            f"Carga en nodo {nids[0]} eliminada." if len(nids) == 1
+            else f"{len(nids)} cargas nodales eliminadas.")
 
     # ═════════════════════════════════════════════════════════════════════
     # RESTRICCIONES — handlers
@@ -1654,11 +1801,10 @@ class PreProcessTab:
             try:
                 new_nid = int(text)
             except ValueError:
-                messagebox.showerror("Error", "Nodo invalido.")
+                self._error_numero(text, "Nodo", entero=True)
                 return
             if new_nid not in self.project.nodes:
-                messagebox.showerror(
-                    "Error", f"El nodo {new_nid} no existe.")
+                self._error_nodo_inexistente(new_nid)
                 return
             if new_nid == bc.node_id:
                 self._mark_completed(0)
@@ -1715,20 +1861,32 @@ class PreProcessTab:
 
     def _remove_constraint(self):
         selected = [iid for iid in self.constraints_tree.selection()
-                    if iid and iid != PLACEHOLDER_IID]
+                    if iid and iid != PLACEHOLDER_IID
+                    and not iid.startswith("__ghost__")]
         if not selected:
+            self._nothing_selected("la tabla de Restricciones")
             return
-        self._capture(f"eliminar {len(selected)} restriccion(es)")
+        nids = []
         for iid in selected:
             try:
-                self.project.remove_boundary_condition(int(iid))
-            except (ValueError, KeyError):
-                pass
+                nids.append(int(iid))
+            except ValueError:
+                continue
+        if not nids:
+            return
+        self._capture(f"eliminar {len(nids)} restriccion(es)")
+        for nid in nids:
+            self.project.remove_boundary_condition(nid)
+        self._sync_selection_after_delete(freed_nodes=nids)
         self._refresh_constraints_tree()
         self._safe_redraw()
-
-    # ─── Acciones de menu contextual: Restricciones ─────────────────────
-
+        # Quitar la ultima restriccion deja el modelo sin resolver: el badge
+        # de salud tiene que enterarse.
+        self._update_status_info()
+        self._update_title()
+        self.main_window.set_status(
+            f"Restriccion en nodo {nids[0]} eliminada." if len(nids) == 1
+            else f"{len(nids)} restricciones eliminadas.")
 
     # ═════════════════════════════════════════════════════════════════════
     # CARGAS SUPERFICIALES — handlers (sin columna Elem)
@@ -1817,18 +1975,20 @@ class PreProcessTab:
         kind = kind_map.get(ci)
         current = fmt(raw, kind) if kind else raw
 
+        etiqueta = {0: "N. Inicio", 1: "N. Final", 2: "q Inicio",
+                    3: "q Final", 4: "Angulo"}[ci]
+
         def _commit(text):
             try:
                 if ci in (0, 1):
                     val = int(text)
                     if val not in self.project.nodes:
-                        messagebox.showerror(
-                            "Error", f"El nodo {val} no existe.")
+                        self._error_nodo_inexistente(val)
                         return
                 else:
-                    val = float(text)
+                    val = to_float_flex(text)
             except ValueError:
-                messagebox.showerror("Error", "Valor invalido.")
+                self._error_numero(text, etiqueta, entero=(ci in (0, 1)))
                 return
             old_val = getattr(sl, attr)
             if old_val != val:
@@ -1874,26 +2034,39 @@ class PreProcessTab:
 
     def _remove_surface_load(self):
         selected = [iid for iid in self.surface_tree.selection()
-                    if iid and iid != PLACEHOLDER_IID]
+                    if iid and iid != PLACEHOLDER_IID
+                    and not iid.startswith("__ghost__")]
         if not selected:
+            self._nothing_selected("la tabla de Cargas Superficiales")
             return
-        self._capture(f"eliminar {len(selected)} carga(s) superficial(es)")
         indices = []
         for iid in selected:
             try:
-                indices.append(int(iid))
+                idx = int(iid)
             except ValueError:
-                pass
-        for idx in sorted(indices, reverse=True):
+                continue
             if 0 <= idx < len(self.project.surface_loads):
-                del self.project.surface_loads[idx]
-                self.project.is_modified = True
-                self.project.is_solved = False
+                indices.append(idx)
+        if not indices:
+            return
+        self._capture(f"eliminar {len(indices)} carga(s) superficial(es)")
+        # De mayor a menor: borrar por indice corre los posteriores.
+        for idx in sorted(indices, reverse=True):
+            del self.project.surface_loads[idx]
+        self.project.is_modified = True
+        self.project.is_solved = False
+        # Los indices de `selected_surfaces` son POSICIONALES: tras el borrado
+        # los que quedan apuntan a OTRAS cargas, asi que el set se vacia
+        # entero (mismo criterio que el borrado desde el lienzo).
+        self._sync_selection_after_delete(surfaces_shifted=True)
         self._refresh_surface_tree()
         self._safe_redraw()
-
-    # ─── Acciones de menu contextual: Surface ───────────────────────────
-
+        self._update_status_info()
+        self._update_title()
+        idxs = sorted(indices)
+        self.main_window.set_status(
+            f"Carga superficial #{idxs[0]} eliminada." if len(idxs) == 1
+            else f"{len(idxs)} cargas superficiales eliminadas.")
 
     # ═════════════════════════════════════════════════════════════════════
     # COPY / PASTE TSV
@@ -1935,12 +2108,29 @@ class PreProcessTab:
         vals = self.surface_tree.item(iid)["values"]
         return list(vals) if vals else None
 
+    def _mensaje_pegado(self, ok, total, motivos):
+        """Resumen de un paste TSV que dice POR QUE se descarto cada fila.
+
+        Los parsers descartan con un `continue` silencioso, asi que el
+        `"0/5 fila(s) pegada(s)"` de antes dejaba al alumno sin ninguna
+        pista de que estaba mal en lo que acababa de pegar."""
+        msg = f"{ok}/{total} fila(s) pegada(s)."
+        if motivos:
+            detalle = ", ".join(f"{n} por {m}"
+                                for m, n in Counter(motivos).most_common())
+            msg += f" Descartada(s): {detalle}."
+        try:
+            self.main_window.set_status(msg)
+        except Exception:
+            pass
+
     def _paste_nodes(self, rows):
         if not self._check_pending_completion():
             return
         if rows:
             self._capture(f"pegar {len(rows)} fila(s) en Nodos")
         ok = 0
+        motivos = []
         for row in rows:
             try:
                 if len(row) >= 3:
@@ -1948,15 +2138,18 @@ class PreProcessTab:
                 elif len(row) == 2:
                     x, y = to_float_flex(row[0]), to_float_flex(row[1])
                 else:
+                    motivos.append("faltar columnas (se esperan X e Y)")
                     continue
                 self.project.add_node(x, y)
                 ok += 1
             except (ValueError, IndexError):
+                motivos.append("coordenada no numerica")
                 continue
         self._refresh_nodes_tree()
         self._safe_redraw()
         self._update_status_info()
-        self.main_window.set_status(f"{ok}/{len(rows)} fila(s) pegada(s).")
+        self._update_title()
+        self._mensaje_pegado(ok, len(rows), motivos)
 
     def _paste_elements(self, rows):
         if not self._check_pending_completion():
@@ -1964,6 +2157,7 @@ class PreProcessTab:
         if rows:
             self._capture(f"pegar {len(rows)} fila(s) en Elementos")
         ok = 0
+        motivos = []
         mat_default = next(iter(self.project.materials), "Acero")
         for row in rows:
             try:
@@ -1978,15 +2172,18 @@ class PreProcessTab:
                 if material not in self.project.materials:
                     material = mat_default
                 if any(n not in self.project.nodes for n in (n1, n2, n3, n4)):
+                    motivos.append("referir a un nodo inexistente")
                     continue
                 self.project.add_element([n1, n2, n3, n4], thickness, material)
                 ok += 1
             except (ValueError, IndexError):
+                motivos.append("valor invalido o falta de columnas")
                 continue
         self._refresh_elements_tree()
         self._safe_redraw()
         self._update_status_info()
-        self.main_window.set_status(f"{ok}/{len(rows)} fila(s) pegada(s).")
+        self._update_title()
+        self._mensaje_pegado(ok, len(rows), motivos)
         # Safety net: en proyecto Q9, expandir los nuevos elementos Q4 pegados
         # (con vertices distintos validos). Idempotente.
         self._ensure_q9_consistency()
@@ -1997,22 +2194,28 @@ class PreProcessTab:
         if rows:
             self._capture(f"pegar {len(rows)} fila(s) en Cargas")
         ok = 0
+        motivos = []
         for row in rows:
             try:
                 if len(row) < 3:
+                    motivos.append("faltar columnas (se esperan Nodo, Fx, Fy)")
                     continue
                 nid = int(row[0])
                 fx = to_float_flex(row[1])
                 fy = to_float_flex(row[2])
                 if nid not in self.project.nodes:
+                    motivos.append("referir a un nodo inexistente")
                     continue
                 self.project.set_nodal_load(nid, fx, fy)
                 ok += 1
             except (ValueError, IndexError):
+                motivos.append("valor no numerico")
                 continue
         self._refresh_loads_tree()
         self._safe_redraw()
-        self.main_window.set_status(f"{ok}/{len(rows)} fila(s) pegada(s).")
+        self._update_status_info()
+        self._update_title()
+        self._mensaje_pegado(ok, len(rows), motivos)
 
     def _paste_constraints(self, rows):
         if not self._check_pending_completion():
@@ -2020,22 +2223,28 @@ class PreProcessTab:
         if rows:
             self._capture(f"pegar {len(rows)} fila(s) en Restricciones")
         ok = 0
+        motivos = []
         for row in rows:
             try:
                 if len(row) < 3:
+                    motivos.append("faltar columnas (se esperan Nodo, X, Y)")
                     continue
                 nid = int(row[0])
                 rx = _parse_bool(row[1])
                 ry = _parse_bool(row[2])
                 if nid not in self.project.nodes:
+                    motivos.append("referir a un nodo inexistente")
                     continue
                 self.project.set_boundary_condition(nid, rx, ry)
                 ok += 1
             except (ValueError, IndexError):
+                motivos.append("nodo no numerico")
                 continue
         self._refresh_constraints_tree()
         self._safe_redraw()
-        self.main_window.set_status(f"{ok}/{len(rows)} fila(s) pegada(s).")
+        self._update_status_info()
+        self._update_title()
+        self._mensaje_pegado(ok, len(rows), motivos)
 
     def _paste_surface_loads(self, rows):
         if not self._check_pending_completion():
@@ -2043,9 +2252,13 @@ class PreProcessTab:
         if rows:
             self._capture(f"pegar {len(rows)} fila(s) en Cargas Superf.")
         ok = 0
+        motivos = []
         for row in rows:
             try:
                 if len(row) < 5:
+                    motivos.append(
+                        "faltar columnas (se esperan N. Inicio, N. Final, "
+                        "q Inicio, q Final y Angulo)")
                     continue
                 ns = int(row[0])
                 ne = int(row[1])
@@ -2053,19 +2266,18 @@ class PreProcessTab:
                 qe = to_float_flex(row[3])
                 ang = to_float_flex(row[4])
                 if ns not in self.project.nodes or ne not in self.project.nodes:
+                    motivos.append("referir a un nodo inexistente")
                     continue
                 self.project.add_surface_load(ns, ne, qs, qe, ang)
                 ok += 1
             except (ValueError, IndexError):
+                motivos.append("valor no numerico")
                 continue
         self._refresh_surface_tree()
         self._safe_redraw()
-        self.main_window.set_status(f"{ok}/{len(rows)} fila(s) pegada(s).")
-
-    # ═════════════════════════════════════════════════════════════════════
-    # FILL-DOWN: get/set por columna
-    # ═════════════════════════════════════════════════════════════════════
-
+        self._update_status_info()
+        self._update_title()
+        self._mensaje_pegado(ok, len(rows), motivos)
 
     # ═════════════════════════════════════════════════════════════════════
     # ORDEN VISUAL UNIFICADO (reales + fantasmas interleaved)
@@ -2075,11 +2287,15 @@ class PreProcessTab:
         """Sincroniza `_loads_visual_order` con el estado actual y
         retorna la lista de tuplas a renderizar. Preserva posiciones
         previas (clave para que el commit de un ghost no genere jump
-        visual)."""
-        canvas = getattr(self.main_window, "mesh_canvas", None)
-        selected = getattr(canvas, "selected_nodes", set()) if canvas else set()
+        visual).
+
+        Las fantasmas salen de `_get_pick_ghost_node_ids` —fuente unica, y
+        la que filtra los nodos que ya no existen: calcularlas aparte hacia
+        que un id muerto en `selected_nodes` dibujara una fila de un nodo
+        inexistente."""
         project_keys = set(self.project.nodal_loads.keys())
-        ghost_nids = selected - project_keys
+        ghost_orden = self._get_pick_ghost_node_ids("load")
+        ghost_nids = set(ghost_orden)
 
         new_order = []
         seen = set()
@@ -2096,17 +2312,17 @@ class PreProcessTab:
             if ("real", nid) not in seen:
                 new_order.append(("real", nid)); seen.add(("real", nid))
         # Ghosts nuevas (canvas selecciono nodos sin carga)
-        for nid in ghost_nids:
+        for nid in ghost_orden:
             if ("ghost", nid) not in seen:
                 new_order.append(("ghost", nid)); seen.add(("ghost", nid))
         self._loads_visual_order = new_order
         return new_order
 
     def _build_constraints_visual_list(self):
-        canvas = getattr(self.main_window, "mesh_canvas", None)
-        selected = getattr(canvas, "selected_nodes", set()) if canvas else set()
+        """Idem `_build_loads_visual_list`, para restricciones."""
         project_keys = set(self.project.boundary_conditions.keys())
-        ghost_nids = selected - project_keys
+        ghost_orden = self._get_pick_ghost_node_ids("constraint")
+        ghost_nids = set(ghost_orden)
 
         new_order = []
         seen = set()
@@ -2121,7 +2337,7 @@ class PreProcessTab:
         for nid in self.project.boundary_conditions:
             if ("real", nid) not in seen:
                 new_order.append(("real", nid)); seen.add(("real", nid))
-        for nid in ghost_nids:
+        for nid in ghost_orden:
             if ("ghost", nid) not in seen:
                 new_order.append(("ghost", nid)); seen.add(("ghost", nid))
         self._constraints_visual_order = new_order
@@ -2299,7 +2515,7 @@ class PreProcessTab:
                     rx = GLYPH_ON if bc.restrain_x else GLYPH_OFF
                     ry = GLYPH_ON if bc.restrain_y else GLYPH_OFF
                     tags = []
-                    # BC sobre nodo huerfano: DOF colgante restringido —
+                    # BC sobre nodo huerfano: GDL colgante restringido —
                     # error critico (K_red singular).
                     if orphan_status.get(bc.node_id) == "orphan":
                         tags.append("orphan_node")
@@ -2406,7 +2622,10 @@ class PreProcessTab:
             try:
                 canvas.redraw()
             except Exception:
-                pass
+                # El lienzo se queda mostrando el modelo viejo: hay que
+                # poder verlo en la consola, no solo sufrirlo en pantalla.
+                import traceback
+                traceback.print_exc()
 
     # ─── Filas fantasma de pick desde canvas ────────────────────────────
 
@@ -2437,8 +2656,11 @@ class PreProcessTab:
             return []
         existing_edges = {frozenset({sl.node_start, sl.node_end})
                           for sl in self.project.surface_loads}
+        # Ambos extremos tienen que seguir existiendo: una arista con un
+        # nodo borrado dibujaria una fantasma que no se puede confirmar.
         ghosts = [edge for edge in canvas.selected_edges
-                  if edge not in existing_edges]
+                  if edge not in existing_edges
+                  and all(n in self.project.nodes for n in edge)]
         return sorted(ghosts, key=lambda e: tuple(sorted(e)))
 
     def _commit_load_ghost(self, node_id):
@@ -2471,7 +2693,7 @@ class PreProcessTab:
             f"Carga en nodo {node_id} creada (Fx=Fy=0). "
             f"Edita los valores en el spreadsheet."
         )
-        self.main_window._update_title()
+        self._update_title()
 
     def _commit_constraint_ghost(self, node_id):
         """Confirma la fila fantasma de restriccion: crea BC(nid, True, True)
@@ -2497,7 +2719,7 @@ class PreProcessTab:
             f"Restriccion en nodo {node_id} creada (empotramiento). "
             f"Edita los flags X/Y en el spreadsheet."
         )
-        self.main_window._update_title()
+        self._update_title()
 
     def _commit_surface_ghost(self, edge):
         """Confirma la fila fantasma de carga superficial: crea
@@ -2534,7 +2756,7 @@ class PreProcessTab:
             f"Carga superficial en arista {n1}-{n2} creada (q=0). "
             f"Edita q_start/q_end/angle en el spreadsheet."
         )
-        self.main_window._update_title()
+        self._update_title()
 
     def _on_canvas_selection_changed(self, _selection_dict):
         """Callback registrado en `mesh_canvas.on_selection_changed`.
@@ -2589,7 +2811,10 @@ class PreProcessTab:
                     eid = next(iter(elems)) if len(elems) == 1 else None
                     self._edu_panel.update_selection(eid)
                 except Exception:
-                    pass
+                    # El panel de modulos deja de seguir la seleccion: el
+                    # alumno ve botones deshabilitados sin motivo visible.
+                    import traceback
+                    traceback.print_exc()
             return
 
         # Guard: si la seleccion no cambio (mismo conjunto de ids en todos los
@@ -2619,7 +2844,8 @@ class PreProcessTab:
                 elem_id = next(iter(elems)) if len(elems) == 1 else None
                 self._edu_panel.update_selection(elem_id)
             except Exception:
-                pass
+                import traceback
+                traceback.print_exc()
 
     def _apply_canvas_selected_tags(self, tree, ids):
         """Togglea el tag `canvas_selected` en filas existentes sin
@@ -2728,11 +2954,14 @@ class PreProcessTab:
             except Exception:
                 pass
 
-    # Navegacion teclado: resuelve siguiente celda editable. Devuelve
-    # (next_iid, next_ci) o None si no hay siguiente. PLACEHOLDER_IID se
-    # devuelve sin filtrar (el caller decide si triggear creacion).
+    def _update_title(self):
+        """Refresca el indicador ● de "proyecto modificado" en el titulo.
 
-
-    # ─── Atajos de teclado: hint y edicion de celda activa ──────────────
-
+        Guardado igual que `_update_status_info`: en los tests headless el
+        `main_window` es un doble sin ventana."""
+        if hasattr(self.main_window, "_update_title"):
+            try:
+                self.main_window._update_title()
+            except Exception:
+                pass
 

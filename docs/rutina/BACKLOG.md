@@ -11,10 +11,10 @@ Reglas del archivo, en [RUTINA.md](RUTINA.md) §4 y §9. Historial de lo hecho, 
 
 ## Área siguiente
 
-> **2 — Spreadsheet y tablas** (`gui/preprocessing/pre_tab.py`, `_table_helpers.py`).
-> Capítulo a leer antes:
-> [../convenciones/canvas-preproceso.md](../convenciones/canvas-preproceso.md) (el mismo
-> capítulo cubre las 5 tablas: placeholder, filas fantasma, tags, copy/paste TSV).
+> **3 — Proceso** (`gui/processing/proc_tab.py`). Capítulo a leer antes:
+> [../convenciones/arquitectura.md](../convenciones/arquitectura.md) (flujo de resolución,
+> `auto_solve`, validación por `models/model_health.py`), y siempre
+> [../convenciones/no-reintroducir.md](../convenciones/no-reintroducir.md).
 
 Al cerrar la sesión, reemplazá esta línea por el área que sigue en la rotación de
 [RUTINA.md](RUTINA.md) §4 (1 → 2 → … → 14 → 1).
@@ -60,12 +60,16 @@ Formato: `[área Nº] descripción — evidencia — quién decide`.
   (Tk destruyendo widgets durante el cierre, `iconbitmap` que puede no existir). Otros tragan
   un fallo en un camino que el alumno recorre y lo dejan sin saber qué pasó. **No hacer un
   barrido masivo**: cada sesión revisa los de **su** área, decide caso por caso, y anota
-  acá cuántos revisó y cuántos cambió. Revisados hasta ahora: **15 de 274** (sesión 01, los
-  15 de `gui/preprocessing/mesh_canvas.py`): 9 pasaron a dejar traza con
+  acá cuántos revisó y cuántos cambió. Revisados hasta ahora: **37 de 274**. Sesión 01, los
+  15 de `gui/preprocessing/mesh_canvas.py`: 9 pasaron a dejar traza con
   `traceback.print_exc()`, 3 quedaron mudos por legítimos (`after_cancel`, import diferido de
-  `education.overlay_module`, `set_status`) y 3 se fueron al refactorizar el borrado. La
-  convención es la de `models/undo_stack.py` y `post_tab`: traza a stderr, y mensaje al
-  alumno solo si el fallo cambia lo que puede hacer.
+  `education.overlay_module`, `set_status`) y 3 se fueron al refactorizar el borrado. Sesión
+  02, los 22 de `gui/preprocessing/pre_tab.py`: 6 pasaron a dejar traza (`_capture` —si el
+  snapshot falla la acción queda fuera del `Ctrl+Z`—, `_safe_redraw`, el refresco tras
+  expandir a Q9 y los 3 del panel de módulos educativos) y 16 quedaron mudos por legítimos
+  (`set_status`, `nametowidget`, guards de widgets destruidos). La convención es la de
+  `models/undo_stack.py` y `post_tab`: traza a stderr, y mensaje al alumno solo si el fallo
+  cambia lo que puede hacer.
 
 - **[transversal] 17 literales de color con NOMBRE (`"white"` / `"black"`) fuera de
   `config/`.** Esquivan la auditoría de hex de `run_gates` (busca `#RRGGBB`) pero incumplen
@@ -83,6 +87,33 @@ Formato: `[área Nº] descripción — evidencia — quién decide`.
   aplica `deform_scale·u`). Hoy es **inocuo**: la deformada solo existe en el Post, donde no
   hay selección y `MainWindow._on_tab_changed` llama `clear_highlights()` al entrar. Si
   alguna vez el Post recupera la selección de aristas, esto se vuelve un bug visible.
+
+- **[1 / 2] Las tres tablas con selección "compuesta" manipulan los sets del canvas a mano.**
+  `pre_tab._on_load_select` / `_on_constraint_select` / `_on_surface_select` hacen
+  `canvas._clear_all_sets_silent()` + asignación directa de los sets + `_emit_selection_changed()`
+  porque no existe un `replace_load_selection` / `replace_constraint_selection` /
+  `replace_surface_selection` en `MeshCanvas` (sí existen los de nodos y elementos). Funciona
+  —el `_emit` sincroniza los espejos `highlighted_*`— pero roza el canon ("no setear
+  `highlighted_*` directo, usar `select_*` / `replace_*_selection`") y deja la responsabilidad
+  del saneo repartida. Propuesta: agregar los tres métodos en el **área 1** (con el mismo
+  contrato que `replace_node_selection`, incluido el `selected_nodes` asociado que las cargas
+  y restricciones usan para el halo) y que el área 2 los consuma en su próximo turno.
+
+- **[1 / 2] El texto del modal de borrado en cascada está escrito dos veces.**
+  `pre_tab._remove_node` / `_remove_element` y `mesh_canvas._delete_selected_nodes` /
+  `_delete_selected_elements` arman su mensaje por separado desde el **mismo** preview
+  (`preview_node_cascade` / `preview_element_cleanup`), con redacciones distintas: "Borrar N
+  nodo(s) eliminara en cascada:" vs "¿Eliminar el elemento 3?" + la lista de ids. El alumno ve
+  dos diálogos distintos para la misma decisión según de dónde haya apretado `Supr`. Falta
+  decidir dónde vive el texto (un helper de `gui/`, no `models/`: es UI) antes de unificarlo;
+  por eso no se hizo en la sesión 02.
+
+- **[2] El placeholder de Elementos crea un elemento degenerado.** `_on_element_double_click`
+  hace `add_element([first_node] * 4, …)`: hasta que el alumno completa los 4 vértices, el
+  modelo tiene un elemento con los cuatro nodos iguales, que el validador de salud marca y el
+  canvas dibuja como un punto. El flujo del placeholder ("crear con defaults y completar
+  después, sin bloqueo modal") es una decisión tomada y documentada, así que cambiarlo es una
+  decisión de diseño, no un fix: **decide el autor**.
 
 - **[1] La cuadrícula del canvas no está anclada al mundo.** `_draw_grid` es un empapelado en
   coordenadas de pantalla (`spacing = clamp(50·scale, 30, 200)` px, fase `offset % spacing`):
@@ -127,6 +158,19 @@ Lo que el gate no puede juzgar. Cada ítem dice qué abrir, qué mirar y cómo r
 - **Arranque maximizado en Windows** (sesión 01). `MainWindow.__init__` envolvió
   `root.state("zoomed")` en un `try` con degradación portable. En Windows es la primera rama,
   así que la ventana debe seguir abriéndose maximizada; si arranca chica, revisar el guard.
+- **Borrar desde las tablas del Pre-Proceso** (sesión 02). `Ctrl+E`, sub-pestaña **Cargas**:
+  clickear la fila de una carga y `Supr` → la fila **desaparece** (antes volvía como fila azul
+  con `0 | 0`), la barra de estado dice "Carga en nodo N eliminada." y el badge de salud se
+  recalcula. Igual en **Restricciones**. En **Carg. Superf.** con 2–3 cargas, borrar la
+  primera **no** debe dejar otra resaltada en amarillo. En **Nodos**, borrar un nodo que tenía
+  carga no debe dejar una fila fantasma con ese número en Cargas. Revertir: `git revert` del
+  commit de la sesión 02.
+- **`Supr` sin selección en las 5 tablas** (sesión 02). Foco en una tabla, ninguna fila
+  seleccionada, `Supr` → "Nada seleccionado — elegí una o varias filas de …" en la barra de
+  estado (antes no pasaba nada). El placeholder gris y las filas fantasma no cuentan.
+- **Celdas numéricas con coma decimal** (sesión 02). Doble-click en X de un nodo, tipear
+  `3,25`, Enter → guarda 3,25 (antes: "Valor numerico invalido"). Con `hola`, el modal debe
+  decir "Y: valor invalido — «hola» no es un numero. Usá punto o coma decimal".
 - **Tests que necesitan un Tk real**: `run_gates --con-gui` (`test_draw_mode`,
   `test_selection_integration`) **ya corre en Linux** desde la sesión 01, con
   `xvfb-run -a python -m tests.run_gates --con-gui` (antes moría en `root.state("zoomed")`).
@@ -150,6 +194,23 @@ futura reabra algo ya decidido.
   sesión 01 con el parámetro `kind` de `set_result_values` / `set_element_result_grid`.
 - **[6] La app moría fuera de Windows en `root.state("zoomed")`** — cerrado por la sesión 01
   con degradación portable; habilitó `run_gates --con-gui` bajo `xvfb-run`.
+- **[2] Borrar desde una tabla dejaba la selección del canvas con ids muertos** — cerrado por
+  la sesión 02 con `pre_tab._sync_selection_after_delete()`, que delega en
+  `prune_dead_selection()`. Tres síntomas visibles: fantasma de un nodo inexistente, la fila
+  borrada volviendo como fantasma con ceros, y otra carga superficial resaltada. Regresiones
+  en `tests/test_pre_tab_delete.py`.
+- **[2] El badge de salud y el ● del título no se actualizaban al borrar o pegar desde el
+  spreadsheet** — cerrado por la sesión 02 (`_update_status_info` + el nuevo wrapper guardado
+  `_update_title` en los 5 `_remove_*` y los 5 `_paste_*`).
+- **[2] `Supr` sin selección en una tabla no decía nada** — cerrado por la sesión 02
+  (`_nothing_selected`), en paridad con el lienzo.
+- **[2] Los editores de celda rechazaban la coma decimal que el paste sí aceptaba** — cerrado
+  por la sesión 02 con `to_float_flex` en las 4 rutas de edición numérica, más mensajes de
+  error que nombran la celda y el formato aceptado.
+- **[2] Docstrings de `pre_tab.py` / `_table_helpers.py` que anunciaban features eliminadas**
+  (fill-down `Ctrl+D`, navegación Tab/flechas, menú contextual, `on_commit(text, direction)`)
+  más 8 encabezados de sección vacíos — cerrado por la sesión 02. Eran una trampa: invitaban a
+  "restaurar lo que falta" contra `no-reintroducir.md`.
 
 ---
 

@@ -6,9 +6,10 @@ Sin estado: cada funcion crea widgets/bindings y devuelve el widget creado
 
 Funciones:
 - start_cell_editor: Entry flotante de alto contraste sobre una celda.
-    Su `on_commit` ahora recibe (text, direction) donde direction in
-    {"none", "return", "tab", "shift-tab", "down", "up"} para soportar
-    navegacion estilo Excel (Tab/Shift-Tab/Enter/flechas).
+    `on_commit(text)` recibe UN solo argumento. La navegacion entre celdas
+    con Tab/Shift-Tab/flechas se elimino a proposito (ver
+    docs/convenciones/no-reintroducir.md): confirma con Enter o al perder
+    el foco, cancela con Escape.
 - start_combobox_editor: Combobox readonly en un Toplevel overlay para que
     el dropdown pueda desbordar el Treeview sin clipping.
 - bind_clipboard: copy/paste TSV (Ctrl+C / Ctrl+V) compatible con Excel.
@@ -42,6 +43,10 @@ def to_float_flex(value) -> float:
     esas filas en silencio. Eleva `ValueError` igual que `float()` cuando el
     texto no es un número, para que el `except` del llamador siga saltando
     la fila.
+
+    La usan también los editores de celda de `pre_tab`: escribir `1,5` a mano
+    daba "valor inválido" mientras que pegar `1,5` funcionaba — dos vías para
+    lo mismo con reglas distintas.
     """
     if isinstance(value, (int, float)):
         return float(value)
