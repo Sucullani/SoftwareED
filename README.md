@@ -31,8 +31,8 @@ Civil (Universidad Autónoma "Tomás Frías", Potosí, Bolivia).
 Descargá `EduFEM-Setup.exe` y ejecutalo: se instala por usuario, sin permisos de
 administrador. Guía completa: [installer/dist_extra/LEEME.txt](installer/dist_extra/LEEME.txt).
 
-Para generar la **Memoria de Cálculo en PDF** hace falta una distribución LaTeX
-([MiKTeX](https://miktex.org/download)). Sin ella, el resto del programa funciona normalmente.
+El instalador incluye un TeX Live recortado propio: la **Memoria de Cálculo en PDF** y la
+Teoría se generan sin instalar MiKTeX y sin conexión a internet.
 
 ### Desde el código fuente
 
@@ -43,7 +43,9 @@ python -m venv .venv
 ```
 
 Requiere **Python 3.11+**. Dependencias: NumPy, SciPy, SymPy, matplotlib, ttkbootstrap,
-pylatex, PyMuPDF, Pillow, ezdxf. Opcional: `pdflatex` (memoria en PDF).
+pylatex, PyMuPDF, Pillow, ezdxf. Para la memoria en PDF: `python tools/build_texlive.py`
+genera `vendor/texlive` (TeX Live recortado, una sola vez); si no está, se usa el `pdflatex`
+del PATH (MiKTeX o TeX Live).
 
 ## Uso rápido
 

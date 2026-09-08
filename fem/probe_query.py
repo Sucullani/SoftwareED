@@ -54,7 +54,7 @@ from fem.shape_functions import get_shape_functions
 from fem.jacobian import compute_jacobian, compute_dN_physical
 from fem.b_matrix import compute_b_matrix
 from fem.constitutive import constitutive_matrix
-from fem.batch import gather_elements, geometry_at_points, stress_at_points
+from fem.batch import gather_elements, geometry_at_points, out_of_plane_factor, stress_at_points
 from fem.stress import _STRESS_KEYS
 
 
@@ -209,27 +209,39 @@ def inverse_iso_map_NR(
 
 # ─── Calculo de campos en (xi, eta) ────────────────────────────────────────
 
-def principal_and_vm(sigma_x: float, sigma_y: float, tau_xy: float):
+def principal_and_vm(sigma_x: float, sigma_y: float, tau_xy: float,
+                     sigma_z: float = 0.0):
     """Esfuerzos principales y Von Mises desde las componentes cartesianas.
 
     Usado tanto por compute_raw como por compute_smooth (en este ultimo
     sigma_1 / sigma_2 / VM NO se interpolan: se recomputan desde las
     componentes interpoladas, para mantener coherencia).
 
-    NOTA (σz): el von Mises usa la forma 2D `sqrt(s1^2 - s1*s2 + s2^2)`, válida
-    cuando σz = 0 (TENSIÓN PLANA). En DEFORMACIÓN PLANA σz = ν·(σx+σy) ≠ 0 y el
-    von Mises "verdadero" incluiría términos con σz. La forma 2D se aplica
-    uniformemente en todas las rutas (compute_raw, compute_raw_grids, los
-    rutas por lotes de fem/batch.py). Es una simplificación deliberada y consistente; si
-    se desea el von Mises 3D correcto en DP, habría que pasar ν/analysis_type
-    a esta capa.
+    sigma_z: tension fuera del plano. 0 en TENSION PLANA; en DEFORMACION
+    PLANA vale nu (sigma_x + sigma_y) (ver `out_of_plane_factor` en
+    fem/batch.py) y es la tercera tension principal. El von Mises usa la
+    forma general con las tres principales, que con sigma_z = 0 se reduce a
+    sqrt(s1^2 - s1 s2 + s2^2). Misma formula que `principal_and_vm_batch`.
     """
     sigma_avg = 0.5 * (sigma_x + sigma_y)
     R = math.sqrt(0.25 * (sigma_x - sigma_y) ** 2 + tau_xy ** 2)
     s1 = sigma_avg + R
     s2 = sigma_avg - R
-    vm = math.sqrt(s1 * s1 - s1 * s2 + s2 * s2)
+    vm = math.sqrt(0.5 * ((s1 - s2) ** 2 + (s2 - sigma_z) ** 2
+                          + (sigma_z - s1) ** 2))
     return s1, s2, vm
+
+
+def _z_factor_for(project, elem) -> float:
+    """nu del material del elemento en deformacion plana; 0.0 en tension
+    plana (sigma_z = factor * (sigma_x + sigma_y))."""
+    from config.settings import ANALYSIS_PLANE_STRAIN
+    if project.analysis_type != ANALYSIS_PLANE_STRAIN:
+        return 0.0
+    material = project.materials.get(elem.material_name)
+    if material is None:
+        material = next(iter(project.materials.values()), None)
+    return float(material.nu) if material is not None else 0.0
 
 
 def principal_angle(sigma_x: float, sigma_y: float, tau_xy: float) -> float:
@@ -318,7 +330,8 @@ def compute_raw(project, solution, elem_id: int, xi: float, eta: float):
     B = compute_b_matrix(compute_dN_physical(dN_nat, inv_J))
     stress = D @ (B @ u_e[:2 * n_nodes])
     sx, sy, txy = float(stress[0]), float(stress[1]), float(stress[2])
-    s1, s2, vm = principal_and_vm(sx, sy, txy)
+    s1, s2, vm = principal_and_vm(sx, sy, txy,
+                                  _z_factor_for(project, elem) * (sx + sy))
     ux, uy = displacement_at(project, solution, elem_id, xi, eta)
 
     return {
@@ -365,7 +378,8 @@ def compute_smooth(
 
     # sigma_1, sigma_2, VM NO se interpolan: se recomputan desde las
     # componentes interpoladas (consistencia con compute_raw).
-    s1, s2, vm = principal_and_vm(sx, sy, txy)
+    s1, s2, vm = principal_and_vm(sx, sy, txy,
+                                  _z_factor_for(project, elem) * (sx + sy))
     ux, uy = displacement_at(project, solution, elem_id, xi, eta)
 
     return {
@@ -505,7 +519,8 @@ def compute_raw_grids(project, solution, n: int = 6, elem_ids=None,
     for start in range(0, batch.n_elements, chunk_size):
         sl = slice(start, start + chunk_size)
         _J, det_J, B = geometry_at_points(coords[sl], dN_pts, check=False)
-        sig = stress_at_points(B, u[dofs[sl]], batch.D[sl])          # (e, p, 6)
+        sig = stress_at_points(B, u[dofs[sl]], batch.D[sl],
+                               out_of_plane_factor(project, batch.elem_ids[sl]))
         singular = np.abs(det_J) < JACOBIAN_MIN_DETERMINANT
         if singular.any():
             sig[singular] = 0.0

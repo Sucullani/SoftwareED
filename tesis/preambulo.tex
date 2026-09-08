@@ -58,6 +58,10 @@
   pdfauthor={\autorTesis},
   bookmarksnumbered=true,
 }
+% \autoref{anexo:...} debe imprimir "Anexo X" (el rotulo de los capitulos del apendice)
+% tambien ANTES de \appendix (la Introduccion los enumera). babel-spanish restablece
+% los nombres de hyperref en cada seleccion de idioma, por eso se agrega a \extrasspanish.
+\addto\extrasspanish{\renewcommand{\appendixautorefname}{Anexo}}
 
 % --- Listados de codigo fuente (Anexo C) ---
 % El paquete listings con un mapeo `literate` para los simbolos unicode que
@@ -119,14 +123,13 @@
             uniquelist=false,
             maxbibnames=6,       % hasta 6 autores en la lista...
             minbibnames=6,       % ...y si hay mas, corta con "et al." (Vancouver/NLM)
-            maxcitenames=2,
             doi=true,            % mostrar DOI en articulos
             isbn=false,
             url=false]{biblatex}
 
 % Formato de nombres estilo Vancouver/NLM: "Salari K" (apellido + iniciales,
 % sin coma, sin puntos ni espacios entre iniciales) y sin "y"/"and" final.
-\DeclareNameAlias{sortname}{family-given}
+% (No hace falta redefinir "sortname": con sorting=none nunca se usa.)
 \DeclareNameAlias{default}{family-given}
 \renewcommand*{\revsdnamepunct}{}        % sin coma entre apellido e iniciales
 \renewcommand*{\bibinitperiod}{}         % sin punto tras cada inicial

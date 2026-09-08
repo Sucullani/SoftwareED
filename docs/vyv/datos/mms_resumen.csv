@@ -1,0 +1,9 @@
+config,descripcion,elemento,ndof_final,rate_L2,rate_H1,rate_stress,L2_disp_rel_final,H1_semi_rel_final,L2_stress_rel_final
+unif_tp,cuadrado unitario / tension plana,Q4,2178,1.997,1.001,1.541,1.664e-03,2.835e-02,1.156e-02
+unif_tp,cuadrado unitario / tension plana,Q9,8450,3.000,2.001,1.999,7.695e-06,3.592e-04,5.650e-04
+dist_tp,cuadrilatero distorsionado / tension plana,Q4,2178,1.997,1.001,1.546,1.325e-03,2.673e-02,9.497e-03
+dist_tp,cuadrilatero distorsionado / tension plana,Q9,8450,3.000,2.000,1.999,5.733e-06,3.170e-04,4.837e-04
+unif_dp,cuadrado unitario / deformacion plana,Q4,2178,1.997,1.002,1.530,1.745e-03,2.835e-02,1.433e-02
+unif_dp,cuadrado unitario / deformacion plana,Q9,8450,3.000,2.001,1.999,7.696e-06,3.593e-04,7.069e-04
+dist_dp,cuadrilatero distorsionado / deformacion plana,Q4,2178,1.997,1.001,1.535,1.377e-03,2.674e-02,1.177e-02
+dist_dp,cuadrilatero distorsionado / deformacion plana,Q9,8450,3.000,2.001,1.999,5.734e-06,3.170e-04,6.038e-04

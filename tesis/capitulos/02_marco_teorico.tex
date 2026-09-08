@@ -1,14 +1,14 @@
 \chapter{Marco teórico}
 \label{cap:marco_teorico}
 
-El Método de los Elementos Finitos (MEF) es el procedimiento numérico de referencia para aproximar la solución de problemas de mecánica de medios continuos formulados como ecuaciones diferenciales en derivadas parciales. Su solidez teórica está documentada en los textos clásicos de la disciplina \autocite{zienkiewicz2013fem,bathe2014fem,cook2002concepts,hughes2000fem,reddy2006introduction}. Este capítulo abre situando el trabajo en su contexto —los antecedentes y el estado del arte del software para la enseñanza del MEF, que justifican la oportunidad de EduFEM— y continúa estableciendo los fundamentos matemáticos que sustentan su motor de cálculo, restringido a problemas de elasticidad lineal plana resueltos con elementos isoparamétricos cuadriláteros de cuatro y nueve nodos. La exposición de esos fundamentos sigue el orden del propio canal de cálculo del programa: de la formulación variacional a la recuperación de tensiones, pasando por la calidad de malla y la verificación numérica.
+El Método de los Elementos Finitos (MEF) es el procedimiento numérico de referencia para aproximar la solución de problemas de mecánica de medios continuos formulados como ecuaciones diferenciales en derivadas parciales. Su solidez teórica está documentada en los textos clásicos de la disciplina \autocite{zienkiewicz2013fem,bathe2014fem,cook2002concepts}. Este capítulo abre situando el trabajo en su contexto —los antecedentes y el estado del arte del software para la enseñanza del MEF, que justifican la oportunidad de EduFEM— y continúa estableciendo los fundamentos matemáticos que sustentan su motor de cálculo, restringido a problemas de elasticidad lineal plana resueltos con elementos isoparamétricos cuadriláteros de cuatro y nueve nodos. La exposición de esos fundamentos sigue el orden del propio canal de cálculo del programa: de la formulación variacional a la recuperación de tensiones, pasando por la calidad de malla y la verificación numérica.
 
 \section{Antecedentes y estado del arte}
 \label{sec:antecedentes}
 
 El MEF se enseña tradicionalmente combinando el desarrollo analítico en pizarra con el uso de paquetes comerciales de propósito general. Esa práctica plantea una tensión pedagógica persistente: las herramientas profesionales son cajas negras optimizadas para producir resultados, no para revelar el procedimiento intermedio, mientras que el desarrollo puramente manual no escala más allá de uno o dos elementos. La investigación educativa documenta esta brecha y propone el software específicamente didáctico como puente entre ambos extremos \autocite{bishay2020teaching,lee2015interactive,perezsantiago2023fem}. Estudios con perspectiva industrial señalan, además, que la formación de grado tiende a privilegiar el manejo operativo del software comercial por encima de la comprensión de los fundamentos que ese software encapsula, y que esta carencia conceptual dificulta luego diagnosticar resultados anómalos o evaluar la calidad de una malla \autocite{perezsantiago2023fem}.
 
-Existen diversos antecedentes de software con vocación didáctica, que pueden agruparse en tres familias. La primera reúne las herramientas centradas en el análisis matricial de estructuras de barras —pórticos y reticulados planos—: Bishay propone un constructor y un analizador de reticulados con los que el estudiante arma estructuras de barras y observa el ensamblaje y la resolución del sistema, complementados con miniproyectos generados por los propios alumnos \autocite{bishay2020teaching}, en la línea de programas previos como ED-Beams y ED-Frames \autocite{suarez1998edelas2d}; estas herramientas, sin embargo, no abordan el continuo elástico bidimensional. La segunda familia la integran los simuladores que profundizan en un eslabón aislado del método: Lee desarrolla simuladores interactivos del procesamiento de las ecuaciones de elementos finitos \autocite{lee2015interactive} y de la visualización de los modos propios de vibración \autocite{lee2015eigenmodes}. La tercera reúne las herramientas de cálculo de propósito general: por un lado, las bibliotecas en código —orientadas a la programación científica más que a la visualización guiada— y, por otro, los paquetes comerciales de análisis estructural que, pese a su potencia, operan desde la perspectiva del estudiante como cajas negras; algunos, como VisualFEA, incorporan una orientación didáctica explícita, pero permanecen cerrados, en inglés y de pago.
+Existen diversos antecedentes de software con vocación didáctica, que pueden agruparse en tres familias. La primera reúne las herramientas centradas en el análisis matricial de estructuras de barras —pórticos y reticulados planos—: Bishay propone un constructor y un analizador de reticulados con los que el estudiante arma estructuras de barras y observa el ensamblaje y la resolución del sistema, complementados con miniproyectos generados por los propios alumnos \autocite{bishay2020teaching}, en la línea de programas previos como ED-Beams y ED-Frames \autocite{suarez1998edelas2d}; estas herramientas, sin embargo, no abordan el continuo elástico bidimensional. La segunda familia la integran los simuladores que profundizan en un eslabón aislado del método: Lee desarrolla simuladores interactivos del procesamiento de las ecuaciones de elementos finitos \autocite{lee2015interactive} y de la visualización de los modos propios de vibración \autocite{lee2015eigenmodes}. La tercera reúne las herramientas de cálculo de propósito general, que no fueron concebidas como material didáctico y que dejan el procedimiento fuera del alcance visual del estudiante, aunque por motivos opuestos. Por un lado, las bibliotecas de programación —CALFEM o FEniCS, entre otras—: en ellas el cálculo es enteramente inspeccionable, pero en el código fuente y no en una representación gráfica, de modo que exigen una competencia de programación previa y no ofrecen visualización guiada sobre el modelo. Por otro, los paquetes comerciales de análisis estructural \autocite{csi2017sap2000}, que operan desde la perspectiva del estudiante como cajas negras: entregan resultados sin exponer las matrices intermedias que los produjeron. Para estas dos categorías, la comparación de la \autoref{tab:comparativa} se restringe deliberadamente a atributos que se desprenden de su propia naturaleza —presencia o ausencia de interfaz gráfica, régimen de licencia y exposición del cálculo intermedio— y no a juicios sobre la calidad didáctica de cada producto. Existen además productos comerciales con orientación didáctica declarada, de los cuales VisualFEA es el más mencionado; al ser cerrados y de pago no se los pudo examinar de primera mano, y se los consigna aquí para no presentar el vacío como más amplio de lo que esta revisión permite sostener.
 
 El antecedente más directo de este trabajo es ED-Elas2D, un programa educativo desarrollado en la Universitat Politècnica de Catalunya para el adiestramiento asistido por computadora en el análisis de sólidos bidimensionales por el MEF \autocite{suarez1998edelas2d}. Desarrollado en una institución española y disponible en español, ED-Elas2D comparte con EduFEM no solo el dominio —elasticidad plana en tensión y deformación plana— y la organización en pre-proceso, proceso y post-proceso, sino también el idioma e, incluso, una biblioteca de elementos triangulares y cuadriláteros que incluye los elementos Q4, Q8 y Q9. Su existencia confirma la pertinencia de un entorno educativo de esta clase y, a la vez, ayuda a delimitar el aporte del presente trabajo, que no reside en la lengua sino en la concepción y la tecnología. Frente a aquel programa de finales de la década de 1990 —software académico cerrado, ligado a la plataforma y a las posibilidades de su época—, EduFEM se distribuye como software libre y de código abierto, expone de forma interactiva cada matriz del cálculo ($\bm{N}$, $\bm{J}$, $\bm{B}$, $\bm{D}$ y $\bm{k}_e$) sobre el elemento que el alumno selecciona en el lienzo, genera de manera automática una memoria de cálculo con sustitución numérica paso a paso, trazable al modelo del usuario, e incorpora una batería de verificación y validación documentada.
 
@@ -28,8 +28,8 @@ EduFEM (este trabajo) & Español & 2D & Alta, interactivo sobre el modelo & Libr
 ED-Elas2D \autocite{suarez1998edelas2d} & Español & 2D & Media (pre/proc/post) & Académico & Triángulos y cuadriláteros (Q4/Q8/Q9) & Sí \\
 Constructor y analizador de reticulados \autocite{bishay2020teaching} & Inglés & 1D/2D & Media-alta & Libre & Barras (reticulado) & Parcial (solo barras) \\
 Simuladores interactivos \autocite{lee2015interactive,lee2015eigenmodes} & Inglés & 2D & Media-alta, en un eslabón & Libre & Continuo & Parcial (un eslabón) \\
-Bibliotecas de cálculo (FEniCS, CALFEM) & Inglés & 2D/3D & Baja (programación, sin visualización guiada) & Libre & Diversos & No (biblioteca) \\
-Software comercial (SAP2000, ANSYS, Abaqus) & Inglés & 2D/3D & Baja (caja negra) & Comercial & Amplios & No (no didáctico) \\
+Bibliotecas de programación (CALFEM, FEniCS) & Inglés & 2D/3D & Visible en el código, sin interfaz gráfica ni visualización guiada & Libre & Diversos & Parcial (por programación) \\
+Software comercial (SAP2000 \autocite{csi2017sap2000}, ANSYS, Abaqus) & Inglés (localización parcial en algunos productos) & 2D/3D & Baja (caja negra) & Comercial & Amplios & No (no didáctico) \\
 \bottomrule
 \end{tabular}}
 \end{table}
@@ -46,7 +46,7 @@ Sea un dominio bidimensional $\Omega \subset \mathbb{R}^2$ con frontera $\Gamma 
 \label{eq:equilibrio-fuerte}
 \end{equation}
 
-donde $\bm{\sigma}$ es el tensor de tensiones y $\bm{b}$ la fuerza por unidad de volumen. La forma fuerte exige continuidad de segundo orden del campo de desplazamientos $\bm{u}$, requisito difícil de satisfacer de manera global. El MEF parte por ello de la \emph{forma débil} o variacional, obtenida multiplicando \autoref{eq:equilibrio-fuerte} por un campo de desplazamientos virtuales $\delta\bm{u}$ admisible (nulo sobre $\Gamma_u$) e integrando por partes mediante el teorema de la divergencia. Esto conduce al principio de los trabajos virtuales \autocite{zienkiewicz2013fem,hughes2000fem}:
+donde $\bm{\sigma}$ es el tensor de tensiones y $\bm{b}$ la fuerza por unidad de volumen. La forma fuerte exige continuidad de segundo orden del campo de desplazamientos $\bm{u}$, requisito difícil de satisfacer de manera global. El MEF parte por ello de la \emph{forma débil} o variacional, obtenida multiplicando la \autoref{eq:equilibrio-fuerte} por un campo de desplazamientos virtuales $\delta\bm{u}$ admisible (nulo sobre $\Gamma_u$) e integrando por partes mediante el teorema de la divergencia. Esto conduce al principio de los trabajos virtuales \autocite{zienkiewicz2013fem,hughes2000fem,reddy2006introduction}:
 
 \begin{equation}
 \int_\Omega \delta\bm{\varepsilon}^{T} \bm{\sigma} \, d\Omega
@@ -55,14 +55,14 @@ donde $\bm{\sigma}$ es el tensor de tensiones y $\bm{b}$ la fuerza por unidad de
 \label{eq:trabajos-virtuales}
 \end{equation}
 
-con $\delta\bm{\varepsilon}$ las deformaciones virtuales y $\bm{t}$ las tracciones de borde. La formulación débil rebaja el requisito de continuidad a primer orden, lo que habilita aproximaciones polinómicas a trozos. El campo continuo se discretiza interpolando los valores nodales mediante funciones de forma: dentro de cada elemento, $\bm{u} \approx \bm{N}\,\bm{u}_e$, donde $\bm{N}$ agrupa las funciones de forma y $\bm{u}_e$ los desplazamientos de los nodos del elemento. Sustituyendo esta aproximación en \autoref{eq:trabajos-virtuales} y aprovechando la arbitrariedad de $\delta\bm{u}$ se obtiene el sistema algebraico de equilibrio
+con $\delta\bm{\varepsilon}$ las deformaciones virtuales y $\bm{t}$ las tracciones de borde. La formulación débil rebaja el requisito de continuidad a primer orden, lo que habilita aproximaciones polinómicas a trozos. El campo continuo se discretiza interpolando los valores nodales mediante funciones de forma: dentro de cada elemento, $\bm{u} \approx \bm{N}\,\bm{u}_e$, donde $\bm{N}$ agrupa las funciones de forma y $\bm{u}_e$ los desplazamientos de los nodos del elemento. Sustituyendo esta aproximación en la \autoref{eq:trabajos-virtuales} y aprovechando la arbitrariedad de $\delta\bm{u}$ se obtiene el sistema algebraico de equilibrio
 
 \begin{equation}
 \bm{K}\,\bm{u} = \bm{F},
 \label{eq:sistema-global}
 \end{equation}
 
-donde $\bm{K}$ es la matriz de rigidez global, $\bm{u}$ el vector de desplazamientos nodales y $\bm{F}$ el vector de cargas. El resto del capítulo desarrolla cada pieza de \autoref{eq:sistema-global}.
+donde $\bm{K}$ es la matriz de rigidez global, $\bm{u}$ el vector de desplazamientos nodales y $\bm{F}$ el vector de cargas. El resto del capítulo desarrolla cada pieza de la \autoref{eq:sistema-global}.
 
 \section{Elasticidad plana: tensión plana y deformación plana}
 \label{sec:elasticidad-plana}
@@ -143,19 +143,19 @@ con $n = 4$ para Q4 y $n = 9$ para Q9. El elemento Q9, de orden superior, captur
 \section{Jacobiano del mapeo}
 \label{sec:jacobiano}
 
-El mapeo de \autoref{eq:mapeo-iso} relaciona los dos espacios mediante la matriz Jacobiana, que transforma derivadas respecto de las coordenadas naturales en derivadas respecto de las físicas:
+El mapeo de la \autoref{eq:mapeo-iso} relaciona los dos espacios mediante la matriz Jacobiana, que transforma derivadas respecto de las coordenadas naturales en derivadas respecto de las físicas:
 
 \begin{equation}
-\bm{J} = \frac{\partial(x,y)}{\partial(\xi,\eta)} =
+\bm{J} =
 \begin{bmatrix}
-\dfrac{\partial x}{\partial \xi} & \dfrac{\partial x}{\partial \eta} \\[6pt]
-\dfrac{\partial y}{\partial \xi} & \dfrac{\partial y}{\partial \eta}
+\dfrac{\partial x}{\partial \xi} & \dfrac{\partial y}{\partial \xi} \\[6pt]
+\dfrac{\partial x}{\partial \eta} & \dfrac{\partial y}{\partial \eta}
 \end{bmatrix}
 = \frac{\partial \bm{N}}{\partial(\xi,\eta)}\,\bm{X}_e,
 \label{eq:jacobiano}
 \end{equation}
 
-donde $\bm{X}_e$ reúne las coordenadas nodales del elemento. Su determinante mide el factor local de cambio de área entre ambos espacios, $dx\,dy = |\det\bm{J}|\,d\xi\,d\eta$, y por tanto es central en la integración numérica. Para una matriz $2\times2$ se calcula de forma explícita,
+donde $\partial\bm{N}/\partial(\xi,\eta)$ es la matriz $2\times n$ cuyas filas son las derivadas $\partial N_i/\partial\xi$ y $\partial N_i/\partial\eta$, y $\bm{X}_e$ ($n\times 2$) reúne las coordenadas nodales del elemento. Con esta convención —la de Bathe, y la que implementa el motor— cada fila de $\bm{J}$ es el vector tangente a una línea de coordenada natural ($\partial\bm{x}/\partial\xi$ y $\partial\bm{x}/\partial\eta$), y la regla de la cadena de la \autoref{eq:fisica-natural} emplea $\bm{J}^{-1}$ directamente; la convención transpuesta, también frecuente en la literatura, exigiría $\bm{J}^{-\mathsf{T}}$. Su determinante mide el factor local de cambio de área entre ambos espacios, $dx\,dy = |\det\bm{J}|\,d\xi\,d\eta$, y por tanto es central en la integración numérica. Para una matriz $2\times2$ se calcula de forma explícita,
 
 \begin{equation}
 \det\bm{J} = J_{11}J_{22} - J_{12}J_{21},
@@ -239,7 +239,7 @@ El integrando no es polinómico: como $\bm{B}$ depende de $\bm{J}^{-1}$, que es 
 \label{eq:ke-gauss}
 \end{equation}
 
-donde los puntos $(\xi_p,\eta_p)$ y pesos $w_p$ surgen del producto tensorial de la regla unidimensional. La regla de $m$ puntos integra exactamente polinomios de grado $2m-1$. EduFEM usa cuadratura $2\times2$ para Q4 (cuatro puntos en $\xi = \pm 1/\sqrt{3}$) y $3\times3$ para Q9 (puntos en $\xi = \pm\sqrt{3/5},\,0$ con pesos $5/9,\,8/9,\,5/9$), órdenes que integran exactamente la rigidez de los respectivos elementos no distorsionados.
+donde los puntos $(\xi_p,\eta_p)$ y pesos $w_p$ surgen del producto tensorial de la regla unidimensional. La regla de $m$ puntos integra exactamente polinomios de grado $2m-1$ \autocite{hughes2000fem,zienkiewicz2013fem}. EduFEM usa cuadratura $2\times2$ para Q4 (cuatro puntos en $\xi = \pm 1/\sqrt{3}$) y $3\times3$ para Q9 (puntos en $\xi = \pm\sqrt{3/5},\,0$ con pesos $5/9,\,8/9,\,5/9$), órdenes que integran exactamente la rigidez de los respectivos elementos no distorsionados.
 
 El orden de integración no es arbitrario. Una \emph{subintegración} puede dejar la matriz de rigidez con rango deficiente y admitir modos de deformación de energía nula: los modos espurios (\emph{hourglass}), patrones de deformación no físicos que el elemento no puede resistir \autocite{cook2002concepts,bathe2014fem}. Una \emph{sobreintegración} (por ejemplo $3\times3$ en Q4) no aporta precisión adicional y solo encarece el cálculo. La elección $2\times2$/$3\times3$ equilibra exactitud y estabilidad para esta familia de elementos.
 
@@ -288,26 +288,31 @@ Para \emph{restricciones homogéneas} ($\bm{u}_r = \bm{0}$) basta resolver el bl
 \label{eq:dirichlet-no-homogeneo}
 \end{equation}
 
-que preserva la simetría del bloque libre. Un modelo bien restringido —al menos tres GDL que impidan los movimientos de cuerpo rígido— hace que $\bm{K}_{ff}$ sea definida positiva y, por tanto, no singular.
+que preserva la simetría del bloque libre. Un modelo bien restringido —al menos tres GDL que impidan los movimientos de cuerpo rígido— hace que $\bm{K}_{ff}$ sea definida positiva y, por tanto, no singular \autocite{bathe2014fem}.
 
 \section{Resolución del sistema y recuperación de tensiones}
 \label{sec:resolucion-tensiones}
 
-El sistema reducido de \autoref{eq:dirichlet-no-homogeneo} se resuelve por factorización LU directa sobre la matriz dispersa \autocite{virtanen2020scipy}, con un ordenamiento de columnas de mínimo grado que aprovecha la simetría de la matriz para reducir el llenado (\emph{fill-in}). Conocido el vector $\bm{u}$, las reacciones en los GDL restringidos se recuperan como $\bm{R} = \bm{K}_{rf}\,\bm{u}_f + \bm{K}_{rr}\,\bm{u}_r - \bm{F}_r$.
+El sistema reducido de la \autoref{eq:dirichlet-no-homogeneo} se resuelve por factorización LU directa sobre la matriz dispersa \autocite{virtanen2020scipy}, con un ordenamiento de columnas de mínimo grado que aprovecha la simetría de la matriz para reducir el llenado (\emph{fill-in}). Conocido el vector $\bm{u}$, las reacciones en los GDL restringidos se recuperan como $\bm{R} = \bm{K}_{rf}\,\bm{u}_f + \bm{K}_{rr}\,\bm{u}_r - \bm{F}_r$.
 
-Las tensiones se calculan primero en los puntos de Gauss, evaluando $\bm{\sigma}_p = \bm{D}\,\bm{B}_p\,\bm{u}_e$. A partir de las componentes cartesianas se obtienen las tensiones principales y la equivalente de von Mises:
+Las tensiones se calculan primero en los puntos de Gauss, evaluando $\bm{\sigma}_p = \bm{D}\,\bm{B}_p\,\bm{u}_e$. A partir de las componentes cartesianas se obtienen las tensiones principales y la equivalente de von Mises, la medida escalar con que habitualmente se resume un estado tensional biaxial \autocite{timoshenko1970elasticity,cook2002concepts}:
 
 \begin{equation}
 \begin{aligned}
 \sigma_{1,2} &= \frac{\sigma_x + \sigma_y}{2} \pm \sqrt{\left(\frac{\sigma_x - \sigma_y}{2}\right)^2 + \tau_{xy}^2}, \\
-\sigma_{\mathrm{VM}} &= \sqrt{\sigma_1^2 - \sigma_1\sigma_2 + \sigma_2^2}.
+\sigma_{\mathrm{VM}} &= \sqrt{\tfrac{1}{2}\left[(\sigma_1-\sigma_2)^2 + (\sigma_2-\sigma_z)^2 + (\sigma_z-\sigma_1)^2\right]}, \\
+\sigma_z &=
+\begin{cases}
+0 & \text{tensión plana,}\\
+\nu\,(\sigma_x+\sigma_y) & \text{deformación plana.}
+\end{cases}
 \end{aligned}
 \label{eq:principales-vm}
 \end{equation}
 
-La forma de von Mises de \autoref{eq:principales-vm} corresponde al caso plano ($\sigma_3 = 0$), exacta en tensión plana. En deformación plana, la tensión fuera de plano $\sigma_z = \nu(\sigma_x + \sigma_y)$ no es nula y constituye una tercera tensión principal; EduFEM emplea la misma forma plana en ambos estados, una convención habitual del postproceso bidimensional que, en deformación plana, puede subestimar la tensión equivalente real.
+En tensión plana $\sigma_z = 0$ y la \autoref{eq:principales-vm} se reduce a la forma plana $\sigma_{\mathrm{VM}} = \sqrt{\sigma_1^2 - \sigma_1\sigma_2 + \sigma_2^2}$. En deformación plana la tensión fuera del plano no es nula y es la tercera tensión principal: omitirla —simplificación a la que invita el carácter bidimensional del planteo— subestima la tensión equivalente, por lo que EduFEM la incorpora en todas sus rutas de cálculo (puntos de Gauss, nodos extrapolados, promedio nodal, sonda y memoria de cálculo), con la $\nu$ del material de cada elemento.
 
-Los puntos de Gauss son además los \emph{puntos de Barlow}, ubicaciones donde las tensiones convergen con un orden superior al del resto del elemento (superconvergencia) \autocite{cook2002concepts,zienkiewicz2013fem}. Por ello las tensiones nodales se obtienen extrapolando desde los puntos de Gauss mediante una matriz precalculada, $\bm{\sigma}_{\text{nodos}} = \bm{E}\,\bm{\sigma}_{\text{Gauss}}$, en lugar de evaluar $\bm{B}$ directamente en los nodos.
+En el elemento Q4 los puntos de la regla $2\times2$ coinciden con los \emph{puntos de Barlow}, ubicaciones donde las tensiones convergen con un orden superior al del resto del elemento (superconvergencia) \autocite{cook2002concepts,zienkiewicz2013fem}; en el Q9 los puntos óptimos son también los de la regla $2\times2$, y no los nueve de la regla $3\times3$ con que se integra su rigidez. EduFEM evalúa las tensiones en los puntos de la cuadratura de rigidez de cada elemento y las lleva a los nodos mediante una matriz precalculada, $\bm{\sigma}_{\text{nodos}} = \bm{E}\,\bm{\sigma}_{\text{Gauss}}$, en lugar de evaluar $\bm{B}$ directamente en los nodos. Para el Q4 esa elección aprovecha la superconvergencia; para el Q9 privilegia que la matriz $\bm{M}$ definida a continuación sea cuadrada con los nueve nodos del elemento, a costa de no muestrear en los puntos óptimos, y la verificación del \autoref{cap:resultados} muestra que el campo recuperado converge de todos modos a $\mathcal{O}(h^{2})$.
 
 La matriz de extrapolación $\bm{E}$ se deduce de la propia interpolación isoparamétrica. Dentro del elemento, el campo de tensiones se aproxima con las mismas funciones de forma que la geometría, de modo que el valor en un punto de Gauss es la interpolación de los valores nodales,
 
@@ -316,22 +321,22 @@ La matriz de extrapolación $\bm{E}$ se deduce de la propia interpolación isopa
 \label{eq:interp-tension}
 \end{equation}
 
-Evaluando \autoref{eq:interp-tension} en los puntos de Gauss del elemento se obtiene el sistema $\bm{\sigma}_{\text{Gauss}} = \bm{M}\,\bm{\sigma}_{\text{nodos}}$, donde $M_{ji} = N_i(\xi_j^{G},\eta_j^{G})$ reúne las funciones de forma evaluadas en cada punto de Gauss. Cuando el número de puntos de Gauss iguala al de nodos del elemento —cuadratura $2\times2$ para Q4 y $3\times3$ para Q9—, la matriz $\bm{M}$ es cuadrada e invertible, y la extrapolación es su inversa,
+Evaluando la \autoref{eq:interp-tension} en los puntos de Gauss del elemento se obtiene el sistema $\bm{\sigma}_{\text{Gauss}} = \bm{M}\,\bm{\sigma}_{\text{nodos}}$, donde $M_{ji} = N_i(\xi_j^{G},\eta_j^{G})$ reúne las funciones de forma evaluadas en cada punto de Gauss. Cuando el número de puntos de Gauss iguala al de nodos del elemento —cuadratura $2\times2$ para Q4 y $3\times3$ para Q9—, la matriz $\bm{M}$ es cuadrada e invertible, y la extrapolación es su inversa,
 
 \begin{equation}
 \bm{\sigma}_{\text{nodos}} = \bm{M}^{-1}\,\bm{\sigma}_{\text{Gauss}} = \bm{E}\,\bm{\sigma}_{\text{Gauss}}.
 \label{eq:extrap-inversa}
 \end{equation}
 
-Para el elemento Q4 esta inversa admite forma cerrada. Como los cuatro puntos de Gauss se ubican en $(\pm 1/\sqrt{3},\,\pm 1/\sqrt{3})$ y los nodos en $(\pm 1,\,\pm 1)$, extrapolar equivale a evaluar la interpolación bilineal en coordenadas escaladas por $\sqrt{3}$, con entradas de la forma $\tfrac{1}{4}(1\pm\sqrt{3})(1\pm\sqrt{3})$:
+Para el elemento Q4 esta inversa admite forma cerrada. Como los cuatro puntos de Gauss se ubican en $(\pm 1/\sqrt{3},\,\pm 1/\sqrt{3})$ y los nodos en $(\pm 1,\,\pm 1)$, extrapolar equivale a evaluar la interpolación bilineal en coordenadas escaladas por $\sqrt{3}$, con entradas de la forma $\tfrac{1}{4}(1\pm\sqrt{3})(1\pm\sqrt{3})$. Con los puntos de Gauss numerados en el orden que produce el motor —$(-,-)$, $(-,+)$, $(+,-)$, $(+,+)$ en $(\xi,\eta)$— y los nodos en sentido antihorario desde $(-1,-1)$, resulta
 
 \begin{equation}
 \bm{E}_{\text{Q4}} =
 \begin{bmatrix}
-a & b & c & b \\
-b & a & b & c \\
-c & b & a & b \\
-b & c & b & a
+a & b & b & c \\
+b & c & a & b \\
+c & b & b & a \\
+b & a & c & b
 \end{bmatrix},
 \qquad
 a = 1+\frac{\sqrt{3}}{2},\quad
@@ -340,7 +345,7 @@ c = 1-\frac{\sqrt{3}}{2},
 \label{eq:extrap-q4}
 \end{equation}
 
-con $a \approx 1{,}866$ y $c \approx 0{,}134$; el orden exacto de las entradas depende de la convención de numeración de puntos de Gauss y nodos. Para el Q9, $\bm{M}$ es de $9\times9$ y su inversa se obtiene numéricamente. La extrapolación se aplica a las componentes cartesianas $(\sigma_x,\sigma_y,\tau_{xy})$; las tensiones principales y la de von Mises, al ser funciones no lineales de ellas, se recalculan a partir de las componentes ya extrapoladas en lugar de extrapolarse de forma directa \autocite{cook2002concepts}.
+con $a \approx 1{,}866$ y $c \approx 0{,}134$: cada nodo recibe el peso $a$ del punto de Gauss más próximo, $c$ del diagonalmente opuesto y $b$ de los otros dos. La numeración no es un detalle menor: permutar los puntos de Gauss permuta las columnas de $\bm{E}$, y una matriz escrita para otra numeración corrompe las tensiones nodales sin alterar los desplazamientos, de modo que una verificación basada solo en desplazamientos no lo detecta. Por eso el motor construye $\bm{E}$ invirtiendo numéricamente $\bm{M}$ con sus propios puntos de Gauss, para Q4 igual que para Q9, y una prueba de regresión comprueba que $\bm{E}$ reproduce exactamente cualquier campo bilineal (o bicuadrático) muestreado en esos puntos. Para el Q9, $\bm{M}$ es de $9\times9$ y su inversa no admite forma cerrada simple. La extrapolación se aplica a las componentes cartesianas $(\sigma_x,\sigma_y,\tau_{xy})$; las tensiones principales y la de von Mises, al ser funciones no lineales de ellas, se recalculan a partir de las componentes ya extrapoladas en lugar de extrapolarse de forma directa \autocite{cook2002concepts}.
 
 Finalmente, como un nodo compartido recibe valores distintos desde cada elemento adyacente, se aplica un \emph{promediado nodal}
 
@@ -349,31 +354,44 @@ Finalmente, como un nodo compartido recibe valores distintos desde cada elemento
 \label{eq:promediado}
 \end{equation}
 
-que suaviza el campo y produce un contorno continuo. El salto entre los valores sin promediar es, además, un indicador útil del error de discretización: cuanto mayor la dispersión entre elementos, más gruesa es la malla en esa zona.
+que suaviza el campo y produce un contorno continuo. El salto entre los valores sin promediar es, además, un indicador útil del error de discretización —es el principio en que se apoyan los estimadores de error por recuperación \autocite{zienkiewicz2013fem}—: cuanto mayor la dispersión entre elementos, más gruesa es la malla en esa zona.
 
 \section{Calidad de malla}
 \label{sec:calidad-malla}
 
-La precisión del resultado depende de la calidad geométrica de los elementos. EduFEM evalúa dos métricas ortogonales tomadas de la biblioteca de calidad geométrica Verdict \autocite{stimpson2007verdict}. El \textbf{Jacobiano escalado} mide la distorsión angular normalizando el determinante del Jacobiano por las normas de las columnas de $\bm{J}$,
+La precisión del resultado depende de la calidad geométrica de los elementos. EduFEM evalúa dos métricas ortogonales tomadas de la biblioteca de calidad geométrica Verdict \autocite{stimpson2007verdict}. El \textbf{Jacobiano escalado} mide la distorsión angular normalizando el determinante del Jacobiano por las normas de sus filas —los vectores tangentes a las líneas $\xi$ y $\eta$—,
 
 \begin{equation}
-q_{SJ} = \min_g \frac{\det\bm{J}_g}{\|\bm{J}_{:,1}\|_g\,\|\bm{J}_{:,2}\|_g},
+q_{SJ} = \min_g \frac{\det\bm{J}_g}{\|\bm{J}_{1,:}\|_g\,\|\bm{J}_{2,:}\|_g},
 \label{eq:scaled-jacobian}
 \end{equation}
 
-cantidad que equivale al seno del ángulo local y vive en el rango $[-1, 1]$: vale $1$ en un mapeo ortogonal, indica baja calidad cerca de $0$ y delata inversión cuando $q_{SJ} \le 0$. La \textbf{compacidad} o \emph{stretch} mide la proporción del elemento relacionando su arista más corta $L_{\min}$ con su diagonal más larga $D_{\max}$,
+cantidad que equivale al seno del ángulo local entre ambas tangentes y vive en el rango $[-1, 1]$: vale $1$ en un mapeo ortogonal, indica baja calidad cerca de $0$ y delata inversión cuando $q_{SJ} \le 0$. El validador de salud y la memoria de cálculo la evalúan en los puntos de Gauss del elemento; el módulo M0 emplea la forma por vértices de Verdict —el seno del ángulo interior en cada esquina, tomando el peor—, que coincide con la fórmula que el alumno deriva a mano. La \textbf{compacidad} o \emph{stretch} mide la proporción del elemento relacionando su arista más corta $L_{\min}$ con su diagonal más larga $D_{\max}$,
 
 \begin{equation}
 Q = \sqrt{2}\,\frac{L_{\min}}{D_{\max}} \in [0, 1],
 \label{eq:stretch}
 \end{equation}
 
-que vale $1$ para un cuadrado perfecto y disminuye al alargarse o aplastarse el elemento. Siguiendo los umbrales de la documentación de Verdict, EduFEM clasifica como aceptable $q_{SJ} \ge 0{,}50$ y $Q \ge 0{,}25$, y como buena $q_{SJ} \ge 0{,}80$ y $Q \ge 0{,}50$. Las dos métricas son complementarias: un rectángulo muy alargado puede tener $q_{SJ} = 1$ (ángulos rectos) y, aun así, una compacidad inadmisible que degrada la precisión.
+que vale $1$ para un cuadrado perfecto y disminuye al alargarse o aplastarse el elemento. De la documentación de Verdict provienen los mínimos admisibles, $q_{SJ} \ge 0{,}50$ y $Q \ge 0{,}25$; el corte superior con que el módulo M0 distingue los elementos «buenos», $q_{SJ} \ge 0{,}80$ y $Q \ge 0{,}50$, es una convención de la interfaz de EduFEM. El validador de salud y la memoria de cálculo asignan además a cada elemento un estado global (buena, aceptable o mala) combinando cuatro métricas. Las dos primeras salen del propio Jacobiano: $q_{SJ}$ evaluado en los puntos de Gauss y la razón $R_J = \min_g \det\bm{J}_g / \max_g \det\bm{J}_g$ entre el menor y el mayor de sus determinantes. Las dos restantes se construyen sobre una descomposición bilineal del cuadrilátero, equivalente a la que Verdict emplea para sus métricas de forma \autocite{stimpson2007verdict}, que reduce las coordenadas de las cuatro esquinas $\bm{r}_1,\dots,\bm{r}_4$ a tres vectores característicos:
+
+\begin{equation}
+\begin{aligned}
+\bm{X}_1 &= \tfrac{1}{4}\left(-\bm{r}_1 + \bm{r}_2 + \bm{r}_3 - \bm{r}_4\right), \qquad
+\bm{X}_2 = \tfrac{1}{4}\left(-\bm{r}_1 - \bm{r}_2 + \bm{r}_3 + \bm{r}_4\right), \\[2pt]
+\bm{X}_3 &= \tfrac{1}{4}\left(\bm{r}_1 - \bm{r}_2 + \bm{r}_3 - \bm{r}_4\right), \\[4pt]
+AR &= \frac{\max(\|\bm{X}_1\|, \|\bm{X}_2\|)}{\min(\|\bm{X}_1\|, \|\bm{X}_2\|)}, \qquad
+T_R = \max\left(\frac{|\bm{X}_3 \cdot \bm{X}_1|}{\|\bm{X}_1\|^2},\; \frac{|\bm{X}_3 \cdot \bm{X}_2|}{\|\bm{X}_2\|^2}\right).
+\end{aligned}
+\label{eq:descomposicion-bilineal}
+\end{equation}
+
+Los dos primeros vectores unen los puntos medios de las aristas opuestas en cada dirección natural y miden la extensión del elemento; el tercero recoge su parte propiamente bilineal. De ellos se derivan la \textbf{relación de aspecto} $AR$, que vale $1$ en un cuadrado o un rombo y crece al alargarse el elemento, y el \textbf{estrechamiento} (\emph{taper}) $T_R$, que es nulo en todo paralelogramo y crece con la trapecialidad: precisamente el modo de distorsión ante el que el Q4 es más sensible, como muestra el caso de Cook del \autoref{cap:resultados}. En el Q9 la cuarta métrica no es el estrechamiento, sino la desviación de los nodos de arista y central respecto de su posición ideal sobre el elemento macro. Los cortes con que se asigna el estado global son convención de EduFEM y no umbrales bibliográficos: se exige $q_{SJ} \ge 0{,}7$, $R_J \ge 0{,}5$, $AR \le 3$ y $T_R \le 0{,}3$ —o desviación $\le 0{,}10$ en el Q9— para «buena», y $0{,}3$, $0{,}2$, $5$ y $0{,}5$ —o $0{,}25$ en el Q9— para «aceptable». Las dos métricas de M0 son complementarias: un rectángulo muy alargado puede tener $q_{SJ} = 1$ (ángulos rectos) y, aun así, una compacidad inadmisible que degrada la precisión.
 
 \section{Verificación y validación}
 \label{sec:verificacion-validacion}
 
-Un programa de cálculo debe distinguir entre \emph{verificación} —comprobar que las ecuaciones se resuelven correctamente— y \emph{validación} —comprobar que las ecuaciones representan la realidad física \autocite{roache1998verification,oberkampf2010verification}. EduFEM incorpora ambas estrategias.
+Un programa de cálculo debe distinguir entre \emph{verificación} —comprobar que las ecuaciones se resuelven correctamente— y \emph{validación} —comprobar que las ecuaciones representan la realidad física \autocite{roache1998verification}. EduFEM incorpora ambas estrategias.
 
 La verificación de código se realiza con el \textbf{Método de las Soluciones Manufacturadas} (MMS): se elige a priori un campo de desplazamientos exacto $\bm{u}_M$, se sustituye en las ecuaciones de equilibrio para deducir la fuerza de cuerpo $\bm{b} = -\nabla\cdot\bm{\sigma}(\bm{u}_M)$ que lo produce, y se inyectan esa carga y las restricciones de Dirichlet no homogéneas correspondientes \autocite{salari2000mms,roache1998verification}. El error de la solución numérica frente a la exacta se cuantifica con las normas $L^2$ del desplazamiento y $H^1$ de su gradiente:
 
@@ -385,6 +403,6 @@ La verificación de código se realiza con el \textbf{Método de las Soluciones 
 \label{eq:normas-error}
 \end{equation}
 
-Al refinar la malla, estas normas deben decrecer con las tasas asintóticas teóricas ($\mathcal{O}(h^{p+1})$ en $L^2$ y $\mathcal{O}(h^p)$ en $H^1$, con $p$ el orden polinómico del elemento) que establece la teoría de aproximación del MEF \autocite{strang2008analysis,hughes2000fem}, lo que confirma la correcta implementación. Las integrales de error se evalúan con cuadratura de orden $p+1$ —un orden por encima del usado para la rigidez— para no subestimar artificialmente el error \autocite{salari2000mms}.
+Al refinar la malla, estas normas deben decrecer con las tasas asintóticas teóricas ($\mathcal{O}(h^{p+1})$ en $L^2$ y $\mathcal{O}(h^p)$ en $H^1$, con $p$ el orden polinómico del elemento) que establece la teoría de aproximación del MEF \autocite{strang2008analysis,hughes2000fem}, lo que confirma la correcta implementación. Las integrales de error se evalúan con un punto de Gauss más por dirección que la rigidez ($3\times3$ para Q4, $4\times4$ para Q9) para no subestimar artificialmente el error \autocite{salari2000mms}. Como esas normas dependen solo del campo de desplazamientos, no ejercitan la cadena de recuperación de tensiones (evaluación en los puntos de Gauss, extrapolación a los nodos y promediado); por ello se mide además la norma $L^2$ del campo de tensiones recuperado $\bm{\sigma}^*_h$ frente a $\bm{\sigma}(\bm{u}_M)=\bm{D}\,\bm{\varepsilon}(\bm{u}_M)$, y se comprueba de forma independiente que la matriz de extrapolación reproduce exactamente los campos polinómicos de su espacio de interpolación.
 
-La validación contrasta el motor contra problemas de referencia con solución conocida. La \textbf{viga de Timoshenko} simplemente apoyada admite solución analítica de la teoría de la elasticidad \autocite{timoshenko1970elasticity}, y EduFEM la reproduce con errores muy reducidos —inferiores al $0{,}05\,\%$ en tensiones—, que el \autoref{cap:resultados} cuantifica en detalle, comparando además contra un modelo de cáscara de SAP2000 \autocite{csi2017sap2000}. La \textbf{membrana de Cook}, un trapecio en voladizo con carga de corte \autocite{cook1974membrane}, es el banco clásico para evaluar la sensibilidad a la distorsión: el desplazamiento del extremo converge al valor de referencia $\approx 23{,}9$, pero el elemento Q4 lo subestima sensiblemente ($u_y \approx 22$) por el bloqueo por cortante (\emph{shear-locking}) descrito en la \autoref{sec:locking}; el elemento Q9, de orden superior, lo evita y converge con rapidez \autocite{cook2002concepts,hughes2000fem}. Estos contrastes muestran por qué la elección del tipo de elemento condiciona la calidad del resultado.
+La validación contrasta el motor contra problemas de referencia con solución conocida. La \textbf{viga de Timoshenko} simplemente apoyada admite solución analítica de la teoría de la elasticidad \autocite{timoshenko1970elasticity}, y EduFEM la reproduce con un error del $0{,}04\,\%$ en la tensión normal $\sigma_x$, del $0{,}26\,\%$ en la flecha y de hasta el $2{,}9\,\%$ en la tensión cortante, que el \autoref{cap:resultados} cuantifica en detalle, comparando además contra un modelo de cáscara de SAP2000 \autocite{csi2017sap2000}. La \textbf{membrana de Cook}, un trapecio en voladizo con carga de corte \autocite{cook1974membrane}, es el banco clásico para evaluar la sensibilidad a la distorsión: el desplazamiento del extremo converge al valor de referencia $23{,}96$, pero el elemento Q4 lo subestima sensiblemente —con una malla de $8\times8$ elementos da $u_y = 22{,}08$, un $7{,}9\,\%$ por debajo— por el bloqueo por cortante (\emph{shear-locking}) descrito en la \autoref{sec:locking}; el elemento Q9, de orden superior, lo evita y converge con rapidez \autocite{cook2002concepts,hughes2000fem}. Estos contrastes muestran por qué la elección del tipo de elemento condiciona la calidad del resultado.

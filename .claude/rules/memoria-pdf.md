@@ -4,6 +4,8 @@ paths:
   - "file_io/figure_export.py"
   - "gui/dialogs/theory_hub_dialog.py"
   - "education/components/theory_builder.py"
+  - "education/components/theory_viewer.py"
+  - "education/components/latex_runtime.py"
 ---
 
 # Memoria de cálculo (PDF) y figuras
@@ -11,8 +13,9 @@ paths:
 Canon completo: **[docs/convenciones/memoria-calculo.md](../../docs/convenciones/memoria-calculo.md)**.
 
 - **Los strings del `.tex` van en ASCII**: `\sigma`, `\to`, `\le`, `\mathbf{k}_e` — un σ, →,
-  ε o ≤ literal aborta la compilación con `'charmap' codec can't encode` (pylatex escribe con
-  la codificación del sistema, cp1252 en Windows). Los acentos españoles sí entran.
+  ε o ≤ literal aborta la compilación (`LaTeX Error: Unicode character σ (U+03C3) not set up
+  for use with LaTeX`: el `.tex` se escribe en UTF-8, pero esos símbolos no tienen definición
+  con `inputenc`). Los acentos españoles sí entran.
 - **Regla de oro del pipeline compartido**: las **fórmulas, matrices y ecuaciones se emiten
   siempre**; solo los párrafos narrativos y las cajas pedagógicas van detrás de
   `if self._prose:`. Una `td.equation` o `td.matrix` gateada desaparece del estilo `directo`,
@@ -25,5 +28,11 @@ Canon completo: **[docs/convenciones/memoria-calculo.md](../../docs/convenciones
   "factorización LU directa" en abstracto.
 - Los umbrales `_COMPACT_MAX_ELEMENTS_Q4 = 2` / `_Q9 = 1` gobiernan si se desarrollan todos
   los elementos o solo el de máxima energía. Subirlos desborda la página.
-- `pdflatex` es obligatorio y **no tiene fallback**: si falta, `memoria_calculo.compile` eleva
+- **Compilación solo vía `latex_runtime.compile_document`** (`TheoryDoc.compile_to` y
+  `TheoryViewer` ya pasan por ahí): resuelve el TeX Live embebido antes que el PATH, compila en
+  un temporal con ruta ASCII sin ventana de consola y mueve el PDF al destino. No volver a
+  llamar `Document.generate_pdf` de pylatex ni a `latexmk`.
+- **Las figuras de la Memoria se referencian por nombre relativo** (`_save_figure` devuelve
+  `nombre.png` y se compila en ese mismo `workdir`): ninguna ruta absoluta entra al `.tex`.
+- `pdflatex` sigue sin fallback: si no hay ni bundle ni PATH, `memoria_calculo.compile` eleva
   `PdflatexNotFoundError` y la GUI abre el diálogo con botón de descarga.

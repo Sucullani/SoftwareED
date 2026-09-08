@@ -5,7 +5,6 @@ utilidades para secciones, ecuaciones, matrices y tablas de valores.
 
 from __future__ import annotations
 
-import os
 from typing import Optional
 
 import numpy as np
@@ -467,8 +466,11 @@ class TheoryDoc:
                width: str = r"0.85\textwidth") -> None:
         """Inserta una figura con caption y label opcionales.
 
-        `image_path` debe ser absoluto. Se normaliza a forward-slash porque
-        pdflatex bajo Windows interpreta backslash como inicio de macro.
+        `image_path` es absoluto o relativo al `workdir` de `compile_to`
+        (la Memoria guarda sus figuras en ese directorio y las referencia
+        por nombre: asi el .tex no lleva rutas con tildes ni espacios). Se
+        normaliza a forward-slash porque pdflatex bajo Windows interpreta
+        backslash como inicio de macro.
         """
         self.package("graphicx")
         self.package("float")
@@ -481,58 +483,27 @@ class TheoryDoc:
             self.doc.append(NoEscape(rf"\label{{{label}}}"))
         self.doc.append(NoEscape(r"\end{figure}"))
 
-    def compile_to(self, filepath_no_ext: str, *, keep_tex: bool = False) -> None:
+    def compile_to(self, filepath_no_ext: str, *, keep_tex: bool = False,
+                   workdir: Optional[str] = None) -> None:
         """Compila el documento a PDF.
 
-        `filepath_no_ext` no debe llevar la extension `.pdf` (pylatex la
-        agrega). Si la compilacion falla, propaga la excepcion (el caller
-        debe atrapar `pylatex.errors.CompilerError` o `FileNotFoundError`
-        si el compilador no esta en el PATH).
+        `filepath_no_ext` no debe llevar la extension `.pdf`. El compilador lo
+        resuelve `latex_runtime.find_latex_runtime` (TeX Live embebido →
+        PATH); si no hay ninguno eleva `FileNotFoundError`, y si pdflatex
+        falla, `latex_runtime.LatexCompileError` (con las ultimas lineas del
+        log en `.log_tail`).
 
-        El documento usa `\\tableofcontents`, que requiere DOS pasadas de
-        pdflatex (la primera escribe el .toc, la segunda lo inserta) — una
-        sola pasada deja el indice vacio. Por eso se prefiere `latexmk`, que
-        gestiona las pasadas automaticamente. Si latexmk no esta disponible,
-        se cae a una doble pasada manual de pdflatex.
+        `workdir` es el directorio donde se compila; las figuras incluidas
+        por ruta relativa (`figure(nombre)`) deben estar ahi. Por defecto se
+        usa un temporal con ruta ASCII (TeX Live en Windows no resuelve
+        rutas con tildes). El documento usa `\\tableofcontents`, que
+        requiere DOS pasadas de pdflatex (la primera escribe el .toc, la
+        segunda lo inserta); `compile_document` las hace.
         """
-        import shutil
+        from .latex_runtime import compile_document
 
-        if shutil.which("latexmk") is not None:
-            self.doc.generate_pdf(
-                filepath_no_ext,
-                clean_tex=not keep_tex,
-                compiler="latexmk",
-                compiler_args=["-pdf", "-interaction=nonstopmode",
-                               "-halt-on-error"],
-            )
-            return
-
-        # Fallback sin latexmk: doble pasada de pdflatex sobre el .tex
-        # generado. La primera pasada (clean_tex=False) deja el .tex y el
-        # .toc; la segunda lo recompila para poblar el indice.
-        pdflatex_args = ["-interaction=nonstopmode", "-halt-on-error"]
-        self.doc.generate_pdf(
-            filepath_no_ext,
-            clean_tex=False,
-            compiler="pdflatex",
-            compiler_args=pdflatex_args,
-        )
-        try:
-            self.doc.generate_pdf(
-                filepath_no_ext,
-                clean_tex=not keep_tex,
-                compiler="pdflatex",
-                compiler_args=pdflatex_args,
-            )
-        finally:
-            # Si keep_tex es False, limpiar los auxiliares que pylatex no
-            # borra cuando clean_tex no aplica a esta segunda pasada.
-            if not keep_tex:
-                for ext in (".tex", ".toc", ".aux", ".log", ".out"):
-                    try:
-                        os.remove(filepath_no_ext + ext)
-                    except OSError:
-                        pass
+        compile_document(self.doc, filepath_no_ext + ".pdf",
+                         workdir=workdir, keep_tex=keep_tex)
 
     @staticmethod
     def escape(s) -> str:

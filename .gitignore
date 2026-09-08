@@ -33,6 +33,10 @@ ENV/
 # Inno Setup: el instalador generado (installer/EduFEM.iss SI se versiona)
 installer/Output/
 
+# TeX Live recortado que embebe el instalador (lo genera tools/build_texlive.py;
+# ~50 MB, reproducible desde el script) y la descarga de TinyTeX-0
+vendor/
+
 # IDEs
 .vscode/
 .idea/

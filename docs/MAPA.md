@@ -36,13 +36,16 @@ SoftwareED/
 │  └─ videos/           .webp animados de los diálogos
 │
 ├─ tools/               scripts de build y de generación de recursos
-│  ├─ build_all.ps1     icono → .exe → instalador
+│  ├─ build_all.ps1     TeX embebido (si falta) → icono → .exe → instalador
+│  ├─ build_texlive.py  genera vendor/texlive (TeX Live recortado para la Memoria/Teoría)
 │  ├─ make_icon.py      genera resources/icons/edufem.ico
 │  ├─ render_q4q9_manim/     escena Manim → cantilever_q4_q9.webp
 │  └─ render_tp_dp_manim/    escena Manim → tension_deformacion_plana.webp
 │
+├─ vendor/              ⚠ generado, no versionado — texlive/ (lo embebe el instalador)
+│
 ├─ installer/
-│  ├─ EduFEM.iss        Inno Setup → EduFEM-Setup.exe
+│  ├─ EduFEM.iss        Inno Setup → EduFEM-Setup.exe (incluye vendor/texlive como {app}\texlive)
 │  └─ dist_extra/       lanzadores .bat + LEEME.txt que acompañan al .exe
 │
 ├─ docs/                ver §2
@@ -50,7 +53,7 @@ SoftwareED/
 ```
 
 **Generado, no versionado** (`.gitignore`): `build/`, `dist/`, `installer/Output/`,
-`.venv/`, `__pycache__/`, `tools/**/media/`, artefactos LaTeX de `tesis/`.
+`vendor/`, `.venv/`, `__pycache__/`, `tools/**/media/`, artefactos LaTeX de `tesis/`.
 
 ## 2. Qué hay en `docs/`
 
@@ -70,7 +73,8 @@ SoftwareED/
 | `resources/icons/edufem.ico` | `tools/make_icon.py` lo **escribe** (`../resources/icons`), `main_window` lo lee, el instalador lo usa | Salida fija del generador |
 | `docs/vyv/datos/`, `docs/vyv/figuras/` | `tests/vv_mms.py`, `vv_timoshenko.py`, `vv_cook.py` **escriben** ahí; `tesis/figuras/generar_figuras.py` copia desde ahí; `tesis/capitulos/06_anexos.tex` las cita | Rutas literales en los scripts |
 | `resources/examples/ejemplo_geometria.dxf` | `tests/generate_example_dxf.py` lo escribe | Ruta literal |
-| `tools/make_icon.py`, `tools/build_all.ps1` | `build_all.ps1` invoca a `make_icon.py` por ruta relativa a `$PSScriptRoot` | Deben quedar hermanos en `tools/` |
+| `tools/make_icon.py`, `tools/build_texlive.py`, `tools/build_all.ps1` | `build_all.ps1` invoca a los `.py` por ruta relativa a `$PSScriptRoot` | Deben quedar hermanos en `tools/` |
+| `vendor/texlive/` | `tools/build_texlive.py` lo **escribe**; `education/components/latex_runtime.py` (`DEV_BUNDLE_RELPATH`) lo lee en dev; `installer/EduFEM.iss` lo copia a `{app}\texlive`, que la app busca como carpeta `texlive` hermana del `.exe` | Rutas literales en los tres |
 | `tools/render_q4q9_manim/`, `tools/render_tp_dp_manim/` | Mensajes de la GUI los nombran cuando falta el `.webp` (`analysis_type_dialog`, `element_type_dialog`) | Solo strings, pero visibles al usuario |
 | `education/mod*.py` | `build.spec` los recoge por **glob** para `hiddenimports`; `module_launcher` los carga con `importlib` | Sin el prefijo `mod`, el `.exe` falla al abrir el módulo |
 | `~/.edufem/recent.json` | `config/recent_files.py` | Fuera del repo (perfil del usuario) |
@@ -88,6 +92,8 @@ Si movés un documento citado desde un comentario del código, actualizá tambi�
 | Diálogo (pop-up) | `gui/dialogs/` | Firma `(parent, project, main_window=None)` + `center_dialog` |
 | Constante, color, tolerancia, decimales | `config/settings.py` | **Nunca** un literal en el sitio de uso |
 | Script de test / validación | `tests/test_*.py` o `tests/vv_*.py` | Tipo printout, se corre con `python -m tests.X` |
+| Script de build / empaquetado | `tools/` | No se importa desde la app; `build_all.ps1` lo encadena |
+| Paquete LaTeX nuevo en la Memoria o el Hub | `PACKAGES` de `tools/build_texlive.py` | Rehacer `vendor/texlive` (`--force`); si no, compila en dev y falla en el instalador |
 | Video de un diálogo | Escena Manim en `tools/render_*_manim/` → `.webp` en `resources/videos/` | El `.webp` sí se versiona; `tools/**/media/` no |
 | Informe de auditoría | `docs/auditorias/AAAA-MM-DD_tema.md` | Y una línea en `ESTADO_AUDITORIAS.md` |
 | Documento teórico LaTeX | `docs/teoria/<tema>/` | `.tex` + `.pdf` compilado |

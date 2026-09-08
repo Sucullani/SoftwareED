@@ -128,6 +128,11 @@ class TheoryViewer(ttk.Toplevel):
                     pdf_path = self._compile(td, key)
                     _PDF_CACHE[key] = pdf_path
                 self.after(0, lambda: self._render_pdf(pdf_path))
+            except FileNotFoundError:
+                msg = ("No se encontró pdflatex: falta la carpeta 'texlive' que "
+                       "acompaña a EduFEM (reinstalá con el instalador completo "
+                       "o instalá MiKTeX).")
+                self.after(0, lambda: self._status.configure(text=msg))
             except Exception as e:
                 msg = f"Error al compilar LaTeX: {e}"
                 self.after(0, lambda: self._status.configure(text=msg))
@@ -142,27 +147,13 @@ class TheoryViewer(ttk.Toplevel):
         tmp_dir = Path(USER_CONFIG_DIR) / "theory_cache"
         tmp_dir.mkdir(parents=True, exist_ok=True)
         out_base = tmp_dir / key
-        try:
-            td.document().generate_pdf(
-                str(out_base),
-                clean=False,
-                clean_tex=False,
-                compiler="pdflatex",
-                silent=True,
-            )
-        except Exception:
-            # Windows puede dar PermissionError en el cleanup aunque el PDF
-            # se haya generado correctamente.
-            pass
+        # compile_to resuelve el compilador (TeX Live embebido → PATH),
+        # compila en un temporal con ruta ASCII y mueve el PDF al cache
+        # (que sí puede llevar el nombre del usuario con tildes).
+        td.compile_to(str(out_base))
         pdf = tmp_dir / f"{key}.pdf"
         if not pdf.exists():
             raise FileNotFoundError(f"No se generó el PDF en {pdf}")
-        for ext in ("aux", "log", "out", "toc", "fls", "fdb_latexmk",
-                     "synctex.gz", "tex"):
-            try:
-                (tmp_dir / f"{key}.{ext}").unlink(missing_ok=True)
-            except (PermissionError, OSError):
-                pass
         return pdf
 
     def _render_pdf(self, pdf_path: Path) -> None:

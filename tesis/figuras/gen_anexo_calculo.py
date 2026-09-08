@@ -304,15 +304,12 @@ def main():
     M["sigTwoA"] = es(s2_0, 3)
     M["vmA"] = es(vm0, 2)
 
-    # Extrapolacion Q4: matriz constante 4x4 (basada en +/- sqrt 3) que lleva
-    # los 4 PG a los 4 nodos. Misma matriz que fem.stress._build_q4_extrap.
-    sq = np.sqrt(3.0)
-    Eex = 0.25 * np.array([
-        [(1+sq)*(1+sq), (1-sq)*(1+sq), (1-sq)*(1-sq), (1+sq)*(1-sq)],
-        [(1+sq)*(1-sq), (1-sq)*(1-sq), (1-sq)*(1+sq), (1+sq)*(1+sq)],
-        [(1-sq)*(1-sq), (1+sq)*(1-sq), (1+sq)*(1+sq), (1-sq)*(1+sq)],
-        [(1-sq)*(1+sq), (1+sq)*(1+sq), (1+sq)*(1-sq), (1-sq)*(1-sq)],
-    ])
+    # Extrapolacion Q4: E = M^-1 con M_ji = N_i(xi_j, eta_j) en los 4 puntos
+    # de Gauss reales del motor. Se toma de fem.stress (fuente unica): una
+    # copia a mano de esta matriz fue el origen del bug corregido el
+    # 2026-09-07 (columnas de los PG 3 y 4 intercambiadas).
+    from fem.stress import extrapolation_matrix
+    Eex = extrapolation_matrix(4)
     sigx_g = np.array([float(g["sigma_x"]) for g in gs])      # PG: orden 1..4
     sigx_n = Eex @ sigx_g                                     # nodos: orden 4,5,8,7
     M["Eextrap"] = bmat(Eex, 4)

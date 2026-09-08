@@ -27,8 +27,10 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from config.settings import ANALYSIS_PLANE_STRESS, ELEMENT_Q9
+from scipy.sparse.linalg import spsolve
+
 from fem.assembly import assemble_global_system
-from fem.solver import solve_system
+from fem.solver import apply_boundary_conditions, solve_system
 from models.material import Material
 from models.mesh_utils import boundary_node_ids, generate_structured_quad_mesh
 
@@ -82,14 +84,24 @@ def time_case(N, element_type, repeats=3):
     t_asm = _best(lambda: assemble_global_system(project), repeats)
     t_solve = _best(lambda: solve_system(project), repeats)
 
-    K, _F, _ed = assemble_global_system(project)
+    K, F, _ed = assemble_global_system(project)
     nnz = int(K.nnz)
     dense_mb = ndof * ndof * 8 / 1e6
     sparse_mb = (K.data.nbytes + K.indices.nbytes + K.indptr.nbytes) / 1e6
+
+    # Ordenamiento de columnas de SuperLU: el generico COLAMD frente al
+    # MMD_AT_PLUS_A que usa el motor (aprovecha la simetria estructural de K).
+    # Evidencia de la afirmacion de las conclusiones de la tesis.
+    K_red, F_red, _free = apply_boundary_conditions(
+        K, F, project.get_restrained_dofs())
+    K_csc = K_red.tocsc()
+    t_colamd = _best(lambda: spsolve(K_csc, F_red, permc_spec="COLAMD"), repeats)
+    t_mmd = _best(lambda: spsolve(K_csc, F_red, permc_spec="MMD_AT_PLUS_A"), repeats)
     return {
         "N": N, "n_elem": n_elem, "ndof": ndof, "nnz": nnz,
         "t_asm": t_asm, "t_solve": t_solve,
         "dense_mb": dense_mb, "sparse_mb": sparse_mb,
+        "t_colamd": t_colamd, "t_mmd": t_mmd,
     }
 
 
@@ -119,6 +131,11 @@ def main():
     for r in rows:
         print(f"  {r['ndof']} & {r['t_asm']:.3f} & {r['t_solve']:.3f} & "
               f"{r['dense_mb']:.0f} & {r['sparse_mb']:.2f} \\\\")
+    print("\nOrdenamiento de columnas (solo factorizacion + solucion del sistema reducido):")
+    print(f"{'GDL':>7} {'COLAMD[s]':>10} {'MMD_AT+A[s]':>12} {'ratio':>6}")
+    for r in rows:
+        ratio = r["t_colamd"] / r["t_mmd"] if r["t_mmd"] > 0 else float("nan")
+        print(f"{r['ndof']:>7} {r['t_colamd']:>10.3f} {r['t_mmd']:>12.3f} {ratio:>6.2f}")
 
 
 if __name__ == "__main__":

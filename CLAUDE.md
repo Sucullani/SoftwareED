@@ -35,6 +35,7 @@ paths ni logs. Casos borde en
 ```bash
 python main.py                        # GUI
 pip install -r requirements.txt
+python tools/build_texlive.py         # -> vendor/texlive (TeX Live recortado, una vez; internet)
 pyinstaller --noconfirm build.spec    # -> dist/EduFEM.exe (onefile, ~101 MB)
 ```
 
@@ -46,14 +47,18 @@ Tests — scripts printout, se corren sueltos con `python -m tests.<nombre>`:
 | V&V | `vv_mms` (convergencia) · `vv_timoshenko` (+ SAP2000) · `vv_cook` |
 | Modelo | `test_serialization` · `test_undo_stack` · `test_node_cascade` · `test_unit_conversion` · `test_q9_q4_cycle` |
 | GUI e interacción | `test_draw_mode` · `test_pick_ghost` · `test_selection_integration` · `test_canvas_visualization` · `test_canvas_raster` (paridad píxel a píxel del rasterizado, isolíneas y contorno de la memoria) |
-| Otros | `test_memoria_calculo` · `test_probe_query` · `bench_timing` · `generate_example_dxf` |
+| Otros | `test_memoria_calculo` · `test_latex_runtime` (resolución del compilador, ruta ASCII, errores) · `test_probe_query` · `bench_timing` · `generate_example_dxf` |
 
 **Empaquetado**: PyInstaller en modo onefile → un `dist/EduFEM.exe` autoextraíble; el
 bootloader descomprime a `sys._MEIPASS` y lanza la app como proceso hijo. Bundlea
 `resources/`, los datos de matplotlib y los hidden imports (pylatex, fitz, ezdxf,
-scipy.sparse, TkAgg y `education/mod*.py` por glob). No bundlea MiKTeX: la Memoria PDF exige
-`pdflatex` y, si falta, abre un diálogo con botón de descarga. Detalle —
-[convenciones/arquitectura.md](docs/convenciones/arquitectura.md).
+scipy.sparse, TkAgg y `education/mod*.py` por glob). **LaTeX embebido**: el instalador lleva
+un TeX Live recortado (`vendor/texlive`, generado por `tools/build_texlive.py`) como carpeta
+`texlive/` hermana del `.exe`; `education/components/latex_runtime.py` lo resuelve antes que
+el `pdflatex` del PATH, así la Memoria PDF y la Teoría compilan sin MiKTeX, sin internet y sin
+diálogos. Si no hay ninguno, abre un diálogo con botón de descarga. Detalle —
+[convenciones/arquitectura.md](docs/convenciones/arquitectura.md) y
+[convenciones/memoria-calculo.md](docs/convenciones/memoria-calculo.md).
 
 ## Mapa del repositorio
 
@@ -67,7 +72,8 @@ gui/         tkinter + ttkbootstrap (pre / proc / post + canvas compartido)
 education/   módulos M0..M7 (overlays sobre el canvas real)
 tests/       scripts printout: test_* (regresión) y vv_* (verificación y validación)
 resources/   videos .webp, iconos, fuentes, DXF de ejemplo   → RUTAS DURAS, no mover
-tools/       scripts de build: icono, instalador, render Manim de los videos
+tools/       scripts de build: icono, TeX Live recortado, instalador, render Manim de los videos
+vendor/      texlive/ generado por tools/build_texlive.py (gitignored; lo embebe el instalador)
 installer/   EduFEM.iss (Inno Setup) + dist_extra/ (lanzadores .bat + LEEME)
 docs/        documentación del proyecto → ver docs/README.md
 tesis/       fuente LaTeX de la tesis   → ver tesis/README.md

@@ -22,12 +22,14 @@ que reportan el probe (`fem.probe_query.compute_smooth`) y el modo crudo.
 
 import numpy as np
 
-from fem.shape_functions import get_shape_functions, shape_functions_q9
+from fem.shape_functions import (get_shape_functions, shape_functions_q4,
+                                 shape_functions_q9)
 from fem.gauss_quadrature import get_gauss_points_for_element, get_gauss_points_2d
 from fem.jacobian import compute_jacobian, compute_dN_physical
 from fem.b_matrix import compute_b_matrix
 from fem.constitutive import constitutive_matrix
-from fem.batch import principal_and_vm_batch, stress_at_points
+from fem.batch import (out_of_plane_factor, principal_and_vm_batch,
+                       sigma_z_from, stress_at_points)
 
 
 # Orden canonico de las componentes en todos los arrays y dicts de salida.
@@ -48,6 +50,10 @@ def compute_element_stresses(node_coords, u_elem, E, nu, thickness,
     D = constitutive_matrix(E, nu, analysis_type)
     _, dN_func = get_shape_functions(element_type)
     gauss_pts, _ = get_gauss_points_for_element(element_type)
+    # Deformacion plana: sigma_z = nu (sigma_x + sigma_y) es la tercera
+    # tension principal y entra en el von Mises. Tension plana: sigma_z = 0.
+    from config.settings import ANALYSIS_PLANE_STRAIN
+    z_factor = float(nu) if analysis_type == ANALYSIS_PLANE_STRAIN else 0.0
 
     gauss_stresses = []
 
@@ -73,8 +79,12 @@ def compute_element_stresses(node_coords, u_elem, E, nu, thickness,
         sigma_1 = sigma_avg + R
         sigma_2 = sigma_avg - R
 
-        # Von Mises
-        von_mises = np.sqrt(sigma_1**2 - sigma_1 * sigma_2 + sigma_2**2)
+        # Von Mises (forma general con sigma_z; en tension plana sigma_z = 0
+        # y se reduce a sqrt(s1^2 - s1 s2 + s2^2))
+        sigma_z = z_factor * (sigma_x + sigma_y)
+        von_mises = np.sqrt(0.5 * ((sigma_1 - sigma_2)**2
+                                   + (sigma_2 - sigma_z)**2
+                                   + (sigma_z - sigma_1)**2))
 
         gauss_stresses.append({
             "xi": xi,
@@ -94,19 +104,34 @@ def compute_element_stresses(node_coords, u_elem, E, nu, thickness,
 
 # ─── Matrices de extrapolación (constantes de módulo) ──────────────────────
 # Proyectan los valores en los puntos de Gauss a los nodos del elemento.
-# Se construyen una sola vez.
+# Se construyen una sola vez, SIEMPRE por la misma vía: M_ji = N_i(ξ_j, η_j)
+# con el orden real de puntos de Gauss de `get_gauss_points_2d`, y E = M⁻¹.
+#
+# Historia: hasta 2026-09-07 la matriz Q4 estaba escrita a mano con entradas
+# ¼(1±√3)(1±√3) pero en un orden de puntos de Gauss distinto del que produce
+# `get_gauss_points_2d(2)` ((-,-), (-,+), (+,-), (+,+)): las columnas de los
+# puntos 3 y 4 estaban intercambiadas, de modo que ni siquiera recuperaba un
+# campo lineal. Ninguna prueba lo detectaba (el MMS mide desplazamientos y la
+# validación de tensiones de Timoshenko usa Q9). Ahora Q4 y Q9 se construyen
+# igual, y `tests/test_vv_extensions` comprueba que E reproduce exactamente
+# un campo lineal en ambos elementos.
 
-def _build_q4_extrap():
-    s = np.sqrt(3.0)
-    return 0.25 * np.array([
-        [(1 + s) * (1 + s), (1 - s) * (1 + s), (1 - s) * (1 - s), (1 + s) * (1 - s)],
-        [(1 + s) * (1 - s), (1 - s) * (1 - s), (1 - s) * (1 + s), (1 + s) * (1 + s)],
-        [(1 - s) * (1 - s), (1 + s) * (1 - s), (1 + s) * (1 + s), (1 - s) * (1 + s)],
-        [(1 - s) * (1 + s), (1 + s) * (1 + s), (1 + s) * (1 - s), (1 - s) * (1 - s)],
-    ])
+def _build_extrapolation_matrix(n_gauss_1d: int, shape_fn) -> np.ndarray:
+    """E = M⁻¹ con M_ji = N_i(ξ_j, η_j) evaluada en los puntos de Gauss reales.
+
+    `shape_fn(xi, eta)` devuelve el vector de funciones de forma del elemento
+    (4 para Q4, 9 para Q9). El número de puntos de Gauss (n_gauss_1d²) debe
+    igualar al de nodos para que M sea cuadrada e invertible.
+    """
+    gauss_pts, _ = get_gauss_points_2d(n_gauss_1d)
+    n = len(gauss_pts)
+    M = np.zeros((n, n))
+    for j, (xi, eta) in enumerate(gauss_pts):
+        M[j, :] = shape_fn(xi, eta)
+    return np.linalg.inv(M)
 
 
-_Q4_EXTRAP: np.ndarray = _build_q4_extrap()   # (4, 4) — computado una sola vez
+_Q4_EXTRAP: np.ndarray = _build_extrapolation_matrix(2, shape_functions_q4)
 _Q9_EXTRAP_MATRIX: np.ndarray | None = None   # lazy: se construye al primer uso
 
 
@@ -119,11 +144,7 @@ def _q9_extrapolation_matrix() -> np.ndarray:
     global _Q9_EXTRAP_MATRIX
     if _Q9_EXTRAP_MATRIX is not None:
         return _Q9_EXTRAP_MATRIX
-    gauss_pts, _ = get_gauss_points_2d(3)
-    M = np.zeros((9, 9))
-    for j, (xi, eta) in enumerate(gauss_pts):
-        M[j, :] = shape_functions_q9(xi, eta)
-    _Q9_EXTRAP_MATRIX = np.linalg.inv(M)
+    _Q9_EXTRAP_MATRIX = _build_extrapolation_matrix(3, shape_functions_q9)
     return _Q9_EXTRAP_MATRIX
 
 
@@ -136,28 +157,35 @@ def extrapolation_matrix(n_nodes: int) -> np.ndarray:
     raise ValueError(f"Elemento de {n_nodes} nodos: solo se soportan Q4 y Q9.")
 
 
-def _extrapolate_list(gauss_stresses: list, M: np.ndarray) -> list:
+def _extrapolate_list(gauss_stresses: list, M: np.ndarray,
+                      sigma_z_factor=None) -> list:
     # (n_gp, 3): fila = punto de Gauss, columna = componente cartesiana.
     gauss_mat = np.array([[gs[k] for k in _STRESS_KEYS[:3]]
                           for gs in gauss_stresses])
-    nodal_mat = principal_and_vm_batch(M @ gauss_mat)
+    nodal_comp = M @ gauss_mat
+    nodal_mat = principal_and_vm_batch(
+        nodal_comp, sigma_z_from(nodal_comp, sigma_z_factor))
     return [dict(zip(_STRESS_KEYS, nodal_mat[i])) for i in range(M.shape[0])]
 
 
-def extrapolate_to_nodes_q4(gauss_stresses: list) -> list:
+def extrapolate_to_nodes_q4(gauss_stresses: list, *, sigma_z_factor=None) -> list:
     """Extrapola esfuerzos de 4 puntos de Gauss (2×2) a los 4 nodos del Q4.
 
     Un unico matmul (4,4)@(4,3) sobre las componentes cartesianas;
     σ1, σ2 y von Mises se recomputan desde las componentes ya
     extrapoladas: son no lineales y extrapolarlas por separado no es
     consistente con el probe ni con el modo crudo.
+
+    sigma_z_factor: nu del elemento en deformacion plana (sigma_z entra en
+    el von Mises); None en tension plana.
     """
-    return _extrapolate_list(gauss_stresses, _Q4_EXTRAP)
+    return _extrapolate_list(gauss_stresses, _Q4_EXTRAP, sigma_z_factor)
 
 
-def extrapolate_to_nodes_q9(gauss_stresses: list) -> list:
+def extrapolate_to_nodes_q9(gauss_stresses: list, *, sigma_z_factor=None) -> list:
     """Extrapola esfuerzos de 9 puntos de Gauss (3×3) a los 9 nodos del Q9."""
-    return _extrapolate_list(gauss_stresses, _q9_extrapolation_matrix())
+    return _extrapolate_list(gauss_stresses, _q9_extrapolation_matrix(),
+                             sigma_z_factor)
 
 
 def compute_all_stresses(project, solution):
@@ -190,22 +218,37 @@ def compute_all_stresses(project, solution):
     if batch.n_elements == 0:
         return {}, {}
 
+    # Deformacion plana: sigma_z = nu_e (sigma_x + sigma_y) entra en el von
+    # Mises en todas las etapas (Gauss, nodos, promedio). Tension plana: None.
+    z_factor = out_of_plane_factor(project, batch.elem_ids)
+
     # σ en los puntos de Gauss: (e, p, 6).
-    gauss = stress_at_points(batch.B, u[batch.dofs], batch.D)
+    gauss = stress_at_points(batch.B, u[batch.dofs], batch.D, z_factor)
 
     # Extrapolacion a nodos de las 3 componentes cartesianas: (e, n, 3).
-    # Las invariantes se recomputan desde ellas, no se extrapolan.
+    # Las invariantes se recomputan desde ellas, no se extrapolan. sigma_z es
+    # lineal en (sigma_x + sigma_y), asi que extrapolarla equivale a
+    # recomputarla desde las componentes extrapoladas.
     M = extrapolation_matrix(batch.n_nodes)
     nodal_comp = np.matmul(M, gauss[..., :3])
-    nodal = principal_and_vm_batch(nodal_comp)                     # (e, n, 6)
+    sz_nodal = sigma_z_from(nodal_comp, z_factor)                   # (e, n) | None
+    nodal = principal_and_vm_batch(nodal_comp, sz_nodal)            # (e, n, 6)
 
     # Promedio nodal: acumular las componentes por ordinal de nodo, dividir
     # por el conteo y recien ahi calcular sigma_1 / sigma_2 / VM del promedio.
+    # sigma_z se acumula como una componente mas (puede diferir nu entre los
+    # elementos que comparten el nodo).
     conn_flat = batch.conn.ravel()
     accum = np.zeros((n_nodes_total, 3))
     np.add.at(accum, conn_flat, nodal_comp.reshape(-1, 3))
     count = np.bincount(conn_flat, minlength=n_nodes_total)
-    nodal_avg = principal_and_vm_batch(accum / np.maximum(count, 1)[:, None])
+    denom = np.maximum(count, 1)
+    sz_avg = None
+    if sz_nodal is not None:
+        accum_z = np.zeros(n_nodes_total)
+        np.add.at(accum_z, conn_flat, sz_nodal.ravel())
+        sz_avg = accum_z / denom
+    nodal_avg = principal_and_vm_batch(accum / denom[:, None], sz_avg)
 
     # Reconstruir los dicts (API compatible con probe, 3D, memoria, tests).
     gauss_pts, _ = get_gauss_points_for_element(project.element_type)

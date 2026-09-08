@@ -29,7 +29,8 @@ from __future__ import annotations
 import numpy as np
 from scipy.sparse import coo_matrix
 
-from config.settings import ELEMENT_Q4, JACOBIAN_MIN_DETERMINANT
+from config.settings import (ANALYSIS_PLANE_STRAIN, ELEMENT_Q4,
+                             JACOBIAN_MIN_DETERMINANT)
 from fem.constitutive import constitutive_matrix
 
 
@@ -268,13 +269,50 @@ def body_force_batch(N_at_pts, det_J, weights, thickness, b_at_pts):
     return fe.reshape(fe.shape[0], -1)
 
 
-def principal_and_vm_batch(stress):
+def out_of_plane_factor(project, elem_ids):
+    """Factor nu_e por elemento tal que sigma_z = nu_e (sigma_x + sigma_y).
+
+    En deformacion plana (eps_z = 0) la tension fuera del plano no es nula y
+    es la tercera tension principal: entra en el von Mises. Retorna un array
+    (e,) alineado con `elem_ids`, o None en tension plana (sigma_z = 0).
+    Fallback al primer material del proyecto, como `gather_elements`.
+    """
+    if project.analysis_type != ANALYSIS_PLANE_STRAIN:
+        return None
+    fallback = next(iter(project.materials.values()), None)
+    out = np.empty(len(elem_ids), dtype=float)
+    for i, eid in enumerate(elem_ids):
+        elem = project.elements[int(eid)]
+        mat = project.materials.get(elem.material_name) or fallback
+        out[i] = float(mat.nu) if mat is not None else 0.0
+    return out
+
+
+def sigma_z_from(stress, factor):
+    """sigma_z = factor * (sigma_x + sigma_y) con `factor` de forma (e,) o
+    escalar, difundido sobre los ejes posteriores de `stress` (..., 3).
+    None si `factor` es None (tension plana)."""
+    if factor is None:
+        return None
+    stress = np.asarray(stress, dtype=float)
+    f = np.asarray(factor, dtype=float)
+    while f.ndim < stress.ndim - 1:
+        f = f[..., None]
+    return f * (stress[..., 0] + stress[..., 1])
+
+
+def principal_and_vm_batch(stress, sigma_z=None):
     """Agrega sigma_1, sigma_2 y von Mises a un array (..., 3) de componentes
     cartesianas. Retorna (..., 6) en el orden
     [sigma_x, sigma_y, tau_xy, sigma_1, sigma_2, von_mises].
 
-    Von Mises en su forma 2D sqrt(s1^2 - s1 s2 + s2^2) (sigma_z = 0), igual
-    que en `fem.probe_query.principal_and_vm`.
+    sigma_z: None (tension plana: sigma_z = 0) o array difundible a
+        stress[..., 0] con la tension fuera del plano (deformacion plana:
+        sigma_z = nu (sigma_x + sigma_y), ver `sigma_z_from`). El von Mises
+        usa la forma general con las tres tensiones principales
+        (sigma_1, sigma_2, sigma_z); con sigma_z = 0 se reduce a la forma
+        plana sqrt(s1^2 - s1 s2 + s2^2). Igual que
+        `fem.probe_query.principal_and_vm`.
     """
     stress = np.asarray(stress, dtype=float)
     sx, sy, txy = stress[..., 0], stress[..., 1], stress[..., 2]
@@ -282,15 +320,21 @@ def principal_and_vm_batch(stress):
     R = np.sqrt(((sx - sy) / 2.0) ** 2 + txy ** 2)
     s1 = avg + R
     s2 = avg - R
-    vm = np.sqrt(s1 ** 2 - s1 * s2 + s2 ** 2)
+    if sigma_z is None:
+        vm = np.sqrt(s1 ** 2 - s1 * s2 + s2 ** 2)
+    else:
+        sz = np.broadcast_to(np.asarray(sigma_z, dtype=float), s1.shape)
+        vm = np.sqrt(0.5 * ((s1 - s2) ** 2 + (s2 - sz) ** 2 + (sz - s1) ** 2))
     return np.stack([sx, sy, txy, s1, s2, vm], axis=-1)
 
 
-def stress_at_points(B, u_elem, D):
+def stress_at_points(B, u_elem, D, sigma_z_factor=None):
     """sigma = D B u_e en todos los puntos de todos los elementos.
 
     Parametros:
         B: (e, p, 3, 2n).  u_elem: (e, 2n).  D: (3, 3) o (e, 3, 3).
+        sigma_z_factor: None (tension plana) o (e,) con nu por elemento
+            (deformacion plana; ver `out_of_plane_factor`).
 
     Retorna (e, p, 6): [sigma_x, sigma_y, tau_xy, sigma_1, sigma_2, von_mises].
     """
@@ -301,4 +345,4 @@ def stress_at_points(B, u_elem, D):
         stress = strain @ D.T
     else:
         stress = np.einsum("ekl,epl->epk", D, strain)
-    return principal_and_vm_batch(stress)
+    return principal_and_vm_batch(stress, sigma_z_from(stress, sigma_z_factor))

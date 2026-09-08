@@ -2,7 +2,7 @@
 Test del generador de Memoria de Calculo (PDF/LaTeX) — reformulado 2026-05.
 
 Estilo printout (no usa pytest), consistente con el resto de tests/.
-Skip elegante si pdflatex no esta en el PATH.
+Skip elegante si no hay compilador LaTeX (ni vendor/texlive ni pdflatex en el PATH).
 
 Cobertura (sincronizada con las funciones reales; ver el bloque __main__):
   - test_memoria_minima_q4 / _q9: compila el PDF (skip sin pdflatex).
@@ -28,7 +28,6 @@ Cobertura (sincronizada con las funciones reales; ver el bloque __main__):
 from __future__ import annotations
 
 import os
-import shutil
 import sys
 import tempfile
 from pathlib import Path
@@ -50,7 +49,9 @@ from tests.example_data import load_example_project
 
 
 def _has_pdflatex() -> bool:
-    return shutil.which("pdflatex") is not None
+    """TeX Live embebido (vendor/texlive o EDUFEM_TEXLIVE_DIR) o pdflatex del PATH."""
+    from education.components.latex_runtime import find_latex_runtime
+    return find_latex_runtime() is not None
 
 
 def _solved_example():

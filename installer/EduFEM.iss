@@ -10,7 +10,15 @@
 ;  marca de internet), por lo que abrirlo desde el icono NO
 ;  dispara el aviso de SmartScreen.
 ;
-;  Compilar:
+;  Incluye un TeX Live recortado (vendor\texlive, generado por
+;  tools\build_texlive.py) como {app}\texlive: la Memoria de
+;  Calculo y la Teoria se compilan sin MiKTeX, sin internet y sin
+;  dialogos. TeX Live no resuelve rutas con tildes, asi que si el
+;  perfil del usuario las tiene (C:\Users\Jose Perez\...), la
+;  carpeta por defecto pasa a C:\ProgramData\EduFEM (escribible
+;  sin administrador; mismo criterio que TinyTeX). Ver [Code].
+;
+;  Compilar (requiere vendor\texlive; con /DNOTEX se omite el TeX):
 ;    "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\EduFEM.iss
 ;  Salida:
 ;    installer\Output\EduFEM-Setup.exe
@@ -30,7 +38,7 @@ AppVerName={#MyAppName} {#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
-DefaultDirName={autopf}\{#MyAppName}
+DefaultDirName={code:DefaultInstallDir}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
@@ -54,6 +62,18 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 [Files]
 Source: "..\dist\EduFEM.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "dist_extra\LEEME.txt"; DestDir: "{app}"; DestName: "LEEME.txt"; Flags: ignoreversion
+#ifndef NOTEX
+  #if !FileExists(SourcePath + "\..\vendor\texlive\bin\windows\pdflatex.exe")
+    #error Falta vendor\texlive (TeX Live recortado). Correr: python tools\build_texlive.py  (o compilar con /DNOTEX)
+  #endif
+; TeX Live recortado: ~50 MB, solo pdflatex + los paquetes de la Memoria/Teoria.
+Source: "..\vendor\texlive\*"; DestDir: "{app}\texlive"; Flags: ignoreversion recursesubdirs createallsubdirs
+#endif
+
+[UninstallDelete]
+; Archivos que pdflatex pueda generar dentro de la carpeta (caches) y el
+; cache de teoria del usuario no se tocan; solo lo instalado bajo {app}.
+Type: filesandordirs; Name: "{app}\texlive"
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
@@ -63,3 +83,39 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppName}}"; Flags: nowait postinstall skipifsilent
+
+[Code]
+// TeX Live (carpeta texlive) no resuelve rutas con caracteres fuera de ASCII y
+// sus scripts tampoco toleran espacios. Si el perfil del usuario los tiene, la
+// carpeta por defecto pasa a {commonappdata}\EduFEM (C:\ProgramData\EduFEM),
+// que un usuario sin privilegios puede crear. Mismo criterio que TinyTeX.
+function IsAsciiNoSpaces(const S: String): Boolean;
+var
+  I: Integer;
+begin
+  Result := True;
+  for I := 1 to Length(S) do
+    if (Ord(S[I]) > 126) or (Ord(S[I]) < 32) or (S[I] = ' ') then
+    begin
+      Result := False;
+      Exit;
+    end;
+end;
+
+function DefaultInstallDir(Param: String): String;
+begin
+  Result := ExpandConstant('{localappdata}\Programs\{#MyAppName}');
+  if not IsAsciiNoSpaces(Result) then
+    Result := ExpandConstant('{commonappdata}\{#MyAppName}');
+end;
+
+function NextButtonClick(CurPageID: Integer): Boolean;
+begin
+  Result := True;
+  if (CurPageID = wpSelectDir) and (not IsAsciiNoSpaces(WizardDirValue)) then
+    Result := MsgBox('La carpeta elegida tiene espacios o tildes:' + #13#10 +
+      WizardDirValue + #13#10 + #13#10 +
+      'La Memoria de Calculo (PDF) puede fallar en esa ruta. Se recomienda instalar en ' +
+      ExpandConstant('{commonappdata}\{#MyAppName}') + '.' + #13#10 + #13#10 +
+      'Continuar de todas formas?', mbConfirmation, MB_YESNO) = IDYES;
+end;

@@ -6,6 +6,17 @@
 
 ---
 
+### Compilación: TeX Live embebido, un solo runner (2026-09)
+
+Todo PDF (Memoria y Theory Hub) se compila con [education/components/latex_runtime.py](../../education/components/latex_runtime.py) (`compile_document`), al que llegan `TheoryDoc.compile_to` y `TheoryViewer._compile`. **No** usar `Document.generate_pdf` de pylatex ni `latexmk` (pylatex no deja ocultar la consola ni elegir el directorio de trabajo, y el `latexmk` de MiKTeX exige un Perl externo que casi nadie tiene).
+
+- **Compilador**: `find_latex_runtime()` → `EDUFEM_TEXLIVE_DIR` → `texlive/` hermana del `.exe` (instalado/portable) o `vendor/texlive` en dev → `pdflatex` del PATH. Al MiKTeX del PATH se le pasa `-enable-installer` (instala paquetes faltantes sin preguntar; sigue necesitando internet). Sin ninguno: `FileNotFoundError` → `PdflatexNotFoundError` → diálogo con botón de descarga. La búsqueda no se cachea, así que copiar la carpeta o instalar MiKTeX surte efecto sin reiniciar.
+- **Bundle**: lo genera `tools/build_texlive.py` (TinyTeX-0 + `tlmgr install` de la lista fija `PACKAGES` desde un snapshot fechado de tlnet + poda + `ls-R`), y valida compilando la Memoria Q4 educativo/directo, la Memoria Q9 y el Theory Hub. **Agregar un `\usepackage` nuevo a la Memoria o al Hub implica agregar el paquete TeX Live a `PACKAGES` y rehacer el bundle** (`--force`); si no, compila en dev con MiKTeX y falla en el instalador.
+- **Directorio de trabajo ASCII**: TeX Live en Windows no resuelve rutas con tildes. Se compila en `latex_runtime.safe_workdir_root()` (`%TEMP%` si es ASCII → su nombre corto 8.3 → `%PUBLIC%\EduFEM\tmp`) y el PDF se mueve al destino elegido por el usuario, que sí puede llevar tildes. La Memoria guarda sus figuras en ese mismo `workdir` y las referencia **por nombre relativo** (`_save_figure` devuelve `nombre.png`): ninguna ruta absoluta entra al `.tex`.
+- **Dos pasadas** de pdflatex siempre (índice y referencias), `-interaction=nonstopmode -halt-on-error -file-line-error`, sin ventana de consola (`CREATE_NO_WINDOW`). Un fallo eleva `LatexCompileError` con las últimas líneas del log (desde la primera línea `!`) en `.log_tail`; la memoria lo envuelve en `MemoriaCalculoError` y conserva el `.tex`.
+
+---
+
 ### Memoria de Cálculo — DOS estilos, pipeline único (reformulada 2026-05)
 
 `generate_memoria_calculo(..., style='educativo')` acepta **dos** valores. El default es `'educativo'`. Ver [file_io/memoria_calculo.py](../../file_io/memoria_calculo.py) (`MemoriaCalculo.STYLES = ("educativo", "directo")`). Ambos estilos comparten **un único pipeline** (`_build_pipeline`); la diferencia la gobierna la property `_prose` (True solo en `'educativo'`).
@@ -35,7 +46,7 @@
 - Heatmap de calidad: `_q_sj_colored` colorea el `q_SJ` por umbral (rojo ≤0 / ámbar <0.5 / verde) vía `\textcolor` (NO `\cellcolor`: xcolor está cargado **sin** la opción `table`).
 - `detJ ≤ 0` emite **una línea roja en negrita** (`\textcolor{red}`) en `_mostrar_jacobiano_pg` (ambos estilos); si `detJ > 0`, silencio.
 
-**Strings LaTeX = ASCII**: pylatex escribe el `.tex` con la codificación del sistema (cp1252 en Windows). Los acentos españoles (á é í ó ú ñ ¿ ×) entran, pero **NO** σ, →, ₑ, κ, ε, ≤ literales — usar LaTeX (`\sigma`, `\to`, `\mathbf{k}_e`, `\kappa`, `\le`). Romper esto aborta la compilación con `'charmap' codec can't encode`.
+**Strings LaTeX = ASCII**: el `.tex` se escribe en UTF-8 (`Document.generate_tex`) con `inputenc utf8`. Los acentos españoles (á é í ó ú ñ ¿ ×) entran, pero **NO** σ, →, ₑ, κ, ε, ≤ literales — usar LaTeX (`\sigma`, `\to`, `\mathbf{k}_e`, `\kappa`, `\le`). Romper esto aborta la compilación con `LaTeX Error: Unicode character σ (U+03C3) not set up for use with LaTeX` (`LatexCompileError`, con esa línea en `.log_tail`).
 
 **Auto-detect de formulación elemental** (sin cambios): `_compact_showcase_ids()` devuelve lista (modo compacto, desarrolla TODOS los elementos) o `None` (showcase del de máxima energía $U_e=\tfrac12 u_e^T k_e u_e$). Umbrales `_COMPACT_MAX_ELEMENTS_Q4 = 2` / `_COMPACT_MAX_ELEMENTS_Q9 = 1`. El helper `_develop_element_content(elem_id, *, use_subsections, show_motivation_box)` produce el paso a paso (toda su prosa ya gateada). En showcase con >1 elemento: el educativo muestra un teaser, el directo una tabla seca de 2 filas. **Razón de los umbrales**: Q4 con 2 elem → K 12×12 portrait; Q9 ya 18×18 apaisado. No subirlos sin re-validar `_mostrar_matriz_ke` / `_mostrar_matriz_K` (literal portrait ≤12 GDL, apaisado 13–24, sparsity Pillow por encima).
 

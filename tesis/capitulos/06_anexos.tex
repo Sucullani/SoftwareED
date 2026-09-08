@@ -11,7 +11,7 @@ EduFEM se distribuye por dos vías: un instalador para Windows —la vía recome
 
 \section{Instalación en Windows}
 
-Es la vía recomendada para el alumno. El programa se distribuye como un instalador único (\texttt{EduFEM-Setup.exe}) que copia la aplicación, crea accesos directos en el menú Inicio y en el escritorio —identificados por el icono del programa (\autoref{fig:logo-edufem})— y registra un desinstalador; la instalación se realiza por usuario, sin privilegios de administrador. El ejecutable es autocontenido: el empaquetado con \texttt{PyInstaller} incorpora el intérprete de Python y todas las dependencias, de modo que no requiere instalar Python ni bibliotecas. Requisito: Windows 10 u 11 de 64 bits. La generación de la memoria de cálculo en PDF necesita, además, una distribución \LaTeX{} instalada (MiKTeX o \TeX{} Live); sin ella la aplicación funciona igual y las fórmulas se rinden mediante un mecanismo alternativo.
+Es la vía recomendada para el alumno. El programa se distribuye como un instalador único (\texttt{EduFEM-Setup.exe}) que copia la aplicación, crea accesos directos en el menú Inicio y en el escritorio —identificados por el icono del programa (\autoref{fig:logo-edufem})— y registra un desinstalador; la instalación se realiza por usuario, sin privilegios de administrador. El ejecutable es autocontenido: el empaquetado con \texttt{PyInstaller} incorpora el intérprete de Python y todas las dependencias, de modo que no requiere instalar Python ni bibliotecas. Requisito: Windows 10 u 11 de 64 bits. La generación de la memoria de cálculo en PDF necesita, además, una distribución \LaTeX{} instalada (MiKTeX o \TeX{} Live); sin ella la aplicación funciona completa salvo esa exportación: al solicitarla, el programa abre un diálogo que explica cómo instalar MiKTeX. Las fórmulas que se muestran en pantalla no dependen de \LaTeX{}.
 
 Al no estar firmado con un certificado comercial, la primera ejecución del instalador puede mostrar el aviso de Microsoft Defender SmartScreen (\enquote{Windows protegió su PC}), habitual en aplicaciones nuevas; se continúa con \emph{Más información} y \emph{Ejecutar de todas formas}. Una vez instalado, el programa se abre desde su icono como cualquier aplicación, sin nuevos avisos.
 
@@ -285,6 +285,8 @@ no\_restraints & Error crítico & No hay ninguna restricción definida; el model
 insufficient\_restraints & Error crítico & Hay menos de tres GDL restringidos; se necesitan al menos tres (dos traslaciones y una rotación rígida en el plano) para suprimir los modos de cuerpo rígido en 2D. & No \\
 \addlinespace
 bc\_orphan\_node & Error crítico & Un nodo tiene restricción pero no pertenece a ningún elemento: es un GDL colgante restringido que deja mal condicionada la matriz reducida. & Sí \\
+\addlinespace
+orphan\_free\_node & Error crítico & Un nodo no pertenece a ningún elemento y tiene al menos un GDL libre: aporta filas y columnas nulas a $\bm{K}$ y el sistema reducido queda singular. & Sí \\
 \midrule
 
 % --- Advertencias ---
@@ -450,11 +452,11 @@ Toda la evidencia numérica del \autoref{cap:resultados} y de este anexo se gene
 \setlength{\tabcolsep}{4pt}
 \begin{tabular}{@{}>{\raggedright\arraybackslash}p{4.3cm} >{\raggedright\arraybackslash}p{5.1cm} >{\raggedright\arraybackslash}p{4.1cm}@{}}
 \toprule
-\textbf{Script} & \textbf{Qué verifica} & \textbf{Resultados (Cap.~4 / Anexo)} \\
+\textbf{Script} & \textbf{Qué verifica} & \textbf{Resultados (Cap.~3 / Anexo)} \\
 \midrule
 \texttt{python -m tests.vv\_mms} &
-Verificación por el método de soluciones manufacturadas: tasas asintóticas de convergencia en norma $L^2$ y seminorma $H^1$ para los elementos Q4 y Q9 sobre el cuadrado unitario en tensión plana. &
-\autoref{tab:mms}, \autoref{fig:convergencia}, \autoref{tab:mms-rel}, \autoref{fig:mms-campos} \\
+Verificación por el método de soluciones manufacturadas: tasas asintóticas de convergencia en norma $L^2$ y seminorma $H^1$ del desplazamiento y en norma $L^2$ del campo de tensiones recuperado, para Q4 y Q9, en cuatro configuraciones (cuadrado unitario y cuadrilátero distorsionado, tensión y deformación plana). &
+\autoref{tab:mms}, \autoref{fig:convergencia}, \autoref{fig:convergencia-tension}, \autoref{tab:mms-rel}, \autoref{tab:mms-configs}, \autoref{fig:mms-campos} \\
 \addlinespace
 \texttt{python -m tests.vv\_timoshenko} &
 Validación de la viga simplemente apoyada frente a la solución analítica de Timoshenko-Goodier y al modelo de cáscara de SAP2000: tensión normal $\sigma_x$, componentes $\sigma_y$ y $\tau_{xy}$, desplazamientos y deflexión máxima. &
@@ -472,9 +474,13 @@ Consistencia interna del motor \\
 Regresión de las extensiones del solucionador usadas en la batería de V\&V: fuerza de volumen (\texttt{body\_force\_fn}), restricciones de Dirichlet no homogéneas (\texttt{ux\_value}/\texttt{uy\_value}), malla estructurada (\texttt{generate\_structured\_quad\_mesh}) y normas de error $L^2$/$H^1$. &
 Soporte de la verificación por soluciones manufacturadas \\
 \addlinespace
+\texttt{python -m tests.test\_interop} &
+Interoperabilidad (objetivo 5): ida y vuelta CSV/ZIP del ejemplo canónico sin pérdida de entidades y con desplazamientos idénticos; importación del DXF de ejemplo (seis cuadriláteros, doce nodos compartidos, orientación antihoraria) e idempotencia de la reimportación. &
+\autoref{sec:consistencia-interna} \\
+\addlinespace
 \texttt{python -m tests.test\_q9\_q4\_cycle} &
 Regresión del ciclo de transformación de malla $\text{Q4}\rightarrow\text{Q9}\rightarrow\text{Q4}$: el campo de desplazamientos de la malla Q4 reducida coincide con el de la Q4 original sin deriva numérica. &
-\autoref{sec:medicion} (consistencia interna del modelo) \\
+\autoref{sec:consistencia-interna} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -483,7 +489,7 @@ Regresión del ciclo de transformación de malla $\text{Q4}\rightarrow\text{Q9}\
 
 \section{Método de soluciones manufacturadas: errores relativos y campos}
 
-Además de las normas absolutas reportadas en el cuerpo principal, la \autoref{tab:mms-rel} presenta los errores \emph{relativos} en norma $L^2$ y seminorma $H^1$, que confirman la misma jerarquía de convergencia con independencia de la escala del problema. Las normas de error se integraron con cuadratura de Gauss de orden $p+1$ ($3\times 3$ para Q4, $4\times 4$ para Q9) para evitar el aliasing del error con la cuadratura de la rigidez.
+Además de las normas absolutas reportadas en el cuerpo principal, la \autoref{tab:mms-rel} presenta los errores \emph{relativos} en norma $L^2$ y seminorma $H^1$ de la configuración base, que confirman la misma jerarquía de convergencia con independencia de la escala del problema. Las normas de error se integraron con un punto de Gauss más por dirección que la rigidez ($3\times 3$ para Q4, $4\times 4$ para Q9) para evitar el aliasing del error con la cuadratura de la rigidez. La \autoref{tab:mms-configs} resume las tasas asintóticas --entre las mallas $N=16$ y $N=32$-- y los errores relativos finales en las cuatro configuraciones: las tasas del desplazamiento coinciden con las teóricas en todas ellas, y las del campo de tensiones recuperado se mantienen en $\mathcal{O}(h^{1{,}5})$ para Q4 y $\mathcal{O}(h^{2})$ para Q9 con independencia del estado plano y de la distorsión de los elementos. Los datos completos de cada configuración se conservan en los archivos \texttt{mms\_\{q4,q9\}\_\{dist\_tp,unif\_dp,dist\_dp\}.csv} y el resumen en \texttt{mms\_resumen.csv}.
 
 \begin{table}[htbp]
 \centering
@@ -499,6 +505,28 @@ $N$ & $L^2$ rel. & $H^1$ rel. & $L^2$ rel. & $H^1$ rel. \\
 8  & $2{,}638\times10^{-2}$ & $1{,}139\times10^{-1}$ & $4{,}921\times10^{-4}$ & $5{,}758\times10^{-3}$ \\
 16 & $6{,}645\times10^{-3}$ & $5{,}675\times10^{-2}$ & $6{,}155\times10^{-5}$ & $1{,}438\times10^{-3}$ \\
 32 & $1{,}664\times10^{-3}$ & $2{,}835\times10^{-2}$ & $7{,}695\times10^{-6}$ & $3{,}592\times10^{-4}$ \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption[Tasas asintóticas del MMS en las cuatro configuraciones.]{Tasas asintóticas de convergencia (entre las mallas $N=16$ y $N=32$) y errores relativos en la malla más fina del MMS en las cuatro configuraciones: cuadrado unitario y cuadrilátero distorsionado, en tensión plana (TP) y deformación plana (DP). $\sigma^*$ denota el campo de tensiones recuperado. Fuente: \texttt{mms\_resumen.csv}.}
+\label{tab:mms-configs}
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{l c c c c c r r}
+\hline
+Dominio & Estado & Elem. & tasa $L^2$ & tasa $H^1$ & tasa $\sigma^*$ & $L^2$ rel. & $\sigma^*$ rel. \\
+\hline
+Unitario      & TP & Q4 & 1,997 & 1,001 & 1,541 & $1{,}664\times10^{-3}$ & $1{,}156\times10^{-2}$ \\
+Unitario      & TP & Q9 & 3,000 & 2,001 & 1,999 & $7{,}695\times10^{-6}$ & $5{,}650\times10^{-4}$ \\
+Distorsionado & TP & Q4 & 1,997 & 1,001 & 1,546 & $1{,}325\times10^{-3}$ & $9{,}497\times10^{-3}$ \\
+Distorsionado & TP & Q9 & 3,000 & 2,000 & 1,999 & $5{,}733\times10^{-6}$ & $4{,}837\times10^{-4}$ \\
+Unitario      & DP & Q4 & 1,997 & 1,002 & 1,530 & $1{,}745\times10^{-3}$ & $1{,}433\times10^{-2}$ \\
+Unitario      & DP & Q9 & 3,000 & 2,001 & 1,999 & $7{,}696\times10^{-6}$ & $7{,}069\times10^{-4}$ \\
+Distorsionado & DP & Q4 & 1,997 & 1,001 & 1,535 & $1{,}377\times10^{-3}$ & $1{,}177\times10^{-2}$ \\
+Distorsionado & DP & Q9 & 3,000 & 2,001 & 1,999 & $5{,}734\times10^{-6}$ & $6{,}038\times10^{-4}$ \\
 \hline
 \end{tabular}
 \end{table}
@@ -524,22 +552,22 @@ La \autoref{fig:mms-campos} muestra los campos discretos de desplazamiento sobre
 
 \section{Viga de Timoshenko: componentes restantes y desplazamientos}
 
-El cuerpo principal contrastó la tensión normal $\sigma_x$. El modelo de SAP2000 y la resolución analítica que originan las referencias de esta sección se reproducen, como evidencia documental, en el \autoref{anexo:sap2000}. La \autoref{tab:tim-componentes} completa el estado tensional con las componentes $\sigma_y$ y $\tau_{xy}$ en los tres puntos de referencia. La concordancia con la solución analítica es nuevamente excelente; la diferencia de signo en $\tau_{xy}$ frente a SAP2000 proviene de la convención de eje $y$ (la solución de Timoshenko-Goodier emplea $y$ hacia abajo, y el \emph{script} de validación aplica el cambio $y_{\text{FEM}} = -y_{\text{ref}}$, que invierte el signo de las componentes sensibles a la reflexión).
+El cuerpo principal contrastó la tensión normal $\sigma_x$. El modelo de SAP2000 y la resolución analítica que originan las referencias de esta sección se reproducen, como evidencia documental, en el \autoref{anexo:sap2000}. La \autoref{tab:tim-componentes} completa el estado tensional con las componentes $\sigma_y$ y $\tau_{xy}$ en los tres puntos de referencia, junto con su error relativo frente a la solución analítica. La concordancia en estas componentes secundarias es un orden de magnitud peor que en $\sigma_x$: el error llega al $2{,}9\,\%$ en $\tau_{xy}$ y al $0{,}9\,\%$ en $\sigma_y$ en el punto B, y en el punto A --donde la solución analítica de ambas componentes es nula-- el error relativo no está definido y EduFEM devuelve residuos de $0{,}0138$ y $0{,}0000$~kgf/cm$^2$. Dos factores lo explican: la recuperación de tensiones converge con un orden menor que el desplazamiento (\autoref{tab:mms}), y estas componentes son entre siete y treinta veces más pequeñas que $\sigma_x$, de modo que un mismo error absoluto pesa mucho más en términos relativos. En $\tau_{xy}$ el modelo de SAP2000 queda, en valor absoluto, más cerca de la solución analítica ($0{,}16\,\%$ en B) que EduFEM. La diferencia de signo en $\tau_{xy}$ frente a SAP2000 proviene de la convención de eje $y$ (la solución de Timoshenko-Goodier emplea $y$ hacia abajo, y el \emph{script} de validación aplica el cambio $y_{\text{FEM}} = -y_{\text{ref}}$, que invierte el signo de las componentes sensibles a la reflexión).
 
 \begin{table}[htbp]
 \centering
-\caption{Componentes $\sigma_y$ y $\tau_{xy}$ (kgf/cm$^2$) en los puntos de referencia de la viga de Timoshenko.}
+\caption{Componentes $\sigma_y$ y $\tau_{xy}$ (kgf/cm$^2$) en los puntos de referencia de la viga de Timoshenko y error relativo de EduFEM frente a la solución analítica.}
 \label{tab:tim-componentes}
-\begin{tabular}{c c r r r}
+\begin{tabular}{c c r r r c}
 \hline
-Punto & Componente & EduFEM & Analítico & SAP2000 \\
+Punto & Componente & EduFEM & Analítico & SAP2000 & Error anal.\ (\%) \\
 \hline
-A & $\sigma_y$  & $0{,}0138$  & $0{,}0000$  & $-0{,}0790$ \\
-A & $\tau_{xy}$ & $0{,}0000$  & $0{,}0000$  & $0{,}0000$ \\
-B & $\sigma_y$  & $-1{,}0646$ & $-1{,}0547$ & $-1{,}0182$ \\
-B & $\tau_{xy}$ & $5{,}4257$  & $5{,}2734$  & $-5{,}2818$ \\
-C & $\sigma_y$  & $-0{,}9256$ & $-0{,}9259$ & $-0{,}9054$ \\
-C & $\tau_{xy}$ & $4{,}9096$  & $4{,}8611$  & $-4{,}8774$ \\
+A & $\sigma_y$  & $0{,}0138$  & $0{,}0000$  & $-0{,}0790$ & --- \\
+A & $\tau_{xy}$ & $0{,}0000$  & $0{,}0000$  & $0{,}0000$  & --- \\
+B & $\sigma_y$  & $-1{,}0646$ & $-1{,}0547$ & $-1{,}0182$ & 0,94 \\
+B & $\tau_{xy}$ & $5{,}4257$  & $5{,}2734$  & $-5{,}2818$ & 2,89 \\
+C & $\sigma_y$  & $-0{,}9256$ & $-0{,}9259$ & $-0{,}9054$ & 0,03 \\
+C & $\tau_{xy}$ & $4{,}9096$  & $4{,}8611$  & $-4{,}8774$ & 1,00 \\
 \hline
 \end{tabular}
 \end{table}
@@ -687,12 +715,12 @@ Las columnas son fijas, salvo una salvedad sobre la conectividad de los elemento
 
 EduFEM importa la geometría de la malla desde archivos DXF de dibujo asistido, mediante la biblioteca \texttt{ezdxf}. La convención de intercambio es deliberadamente simple: solo se procesan las entidades que residen en la capa denominada \texttt{FEM\_ELEMENTS} (el nombre es configurable, pero ese es el valor por defecto); las demás capas se ignoran por completo. Dentro de esa capa, cada \textbf{polilínea cerrada de exactamente cuatro vértices} se convierte en un elemento cuadrilátero Q4. Una polilínea que no esté cerrada, o que tenga un número de vértices distinto de cuatro, se descarta y se registra una advertencia.
 
-Las coordenadas del DXF se toman literalmente; su significado físico (milímetros, metros, pulgadas, etcétera) lo fija el sistema de unidades del proyecto, al estilo de los programas de análisis estructural comerciales. El diálogo de importación aplica un factor de escala según la unidad que el usuario seleccione.
+Las coordenadas del DXF se toman literalmente, sin factor de escala; su significado físico (milímetros, metros, pulgadas, etcétera) lo fija el sistema de unidades del proyecto, al estilo de los programas de análisis estructural comerciales. El diálogo de importación permite elegir la unidad de longitud del proyecto antes de importar: si el usuario la cambia, el sistema de unidades del proyecto se actualiza y las coordenadas ya existentes en el modelo se reescalan a la nueva unidad, mientras que los números del DXF se interpretan directamente en ella.
 
 Al construir cada elemento, la importación impone dos reglas de consistencia con el resto del modelo:
 
 \begin{itemize}
-  \item \textbf{Orientación antihoraria forzada.} Se calcula el área con signo de la polilínea mediante la fórmula del cordón de zapato (\emph{shoelace}); si resulta negativa --orden horario--, se invierte el orden de los vértices. Sin esta corrección, el determinante del Jacobiano sería negativo y el elemento resultaría inválido.
+  \item \textbf{Orientación antihoraria forzada.} Se calcula el área con signo de la polilínea mediante la fórmula del cordón de zapato (\emph{shoelace}), $A = \tfrac{1}{2}\sum_i (x_i\,y_{i+1} - x_{i+1}\,y_i)$ sobre los vértices recorridos en orden y cerrando el ciclo; si resulta negativa --orden horario--, se invierte el orden de los vértices. Sin esta corrección, el determinante del Jacobiano sería negativo y el elemento resultaría inválido.
   \item \textbf{Compartición automática de nodos.} Los vértices de cada polilínea se deduplican contra los nodos existentes del proyecto dentro de una tolerancia numérica, de modo que dos elementos adyacentes comparten el nodo común en lugar de duplicarlo.
 \end{itemize}
 
@@ -716,7 +744,7 @@ La función \texttt{import\_dxf} muta el proyecto en su lugar y devuelve un dicc
 \end{tabular}
 \end{table}
 
-Una malla Q9 no se importa directamente desde DXF: la convención solo describe cuadriláteros de cuatro vértices, por lo que el resultado inmediato de la importación es siempre una malla de elementos Q4, que puede convertirse después a Q9 desde el menú de la aplicación.
+Una malla Q9 no se describe directamente en el DXF: la convención solo contempla cuadriláteros de cuatro vértices. En un proyecto configurado como Q4 el resultado de la importación es una malla Q4, convertible después a Q9 desde el menú de la aplicación; en un proyecto ya configurado como Q9, el diálogo de importación expande automáticamente cada cuadrilátero importado (nodos medios de arista y nodo central) y lo informa en el resumen de la operación.
 
 
 

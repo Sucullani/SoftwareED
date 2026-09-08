@@ -6,9 +6,13 @@ usuario no tiene una distribución TeX instalada, en lugar de un `showerror`
 seco se muestra este diálogo con un **botón que abre la página oficial de
 descarga** (MiKTeX en Windows, MacTeX en macOS, TeX Live en Linux).
 
-El resto de EduFEM funciona sin LaTeX — solo la exportación de la Memoria y la
-teoría en PDF lo necesitan. Tras instalar la distribución hay que **reiniciar
-EduFEM** (el PATH se lee al arrancar el proceso).
+Desde 2026-09 el instalador lleva un TeX Live recortado propio (carpeta
+``texlive/`` junto al ``.exe``, ver ``education/components/latex_runtime.py``),
+así que este diálogo solo aparece en la carpeta portable sin ``texlive/`` o
+corriendo desde el código sin ``vendor/texlive``. El resto de EduFEM funciona
+sin LaTeX — solo la exportación de la Memoria y la teoría en PDF lo necesitan.
+El compilador se busca en cada exportación: instalar la distribución (o copiar
+la carpeta) surte efecto sin reiniciar EduFEM.
 
 Uso:
     from gui.dialogs.pdflatex_missing_dialog import show_pdflatex_missing_dialog
@@ -63,10 +67,12 @@ def show_pdflatex_missing_dialog(parent: tk.Misc) -> None:
     ttk.Label(
         main,
         text=(
-            "La Memoria de Cálculo (PDF) se compila con LaTeX. Tu equipo no "
-            f"tiene una distribución TeX instalada.\n\n"
-            f"Descargá e instalá {distro} (incluye pdflatex) y luego "
-            "reiniciá EduFEM.\n\n"
+            "La Memoria de Cálculo (PDF) se compila con LaTeX. EduFEM no "
+            "encontró la carpeta 'texlive' que acompaña al programa ni una "
+            "distribución TeX instalada.\n\n"
+            "Solución recomendada: reinstalá EduFEM con el instalador "
+            f"completo. Alternativa: descargá e instalá {distro} (incluye "
+            "pdflatex) y volvé a exportar.\n\n"
             "El resto del programa funciona normalmente sin LaTeX."
         ),
         font=FONT_UI,

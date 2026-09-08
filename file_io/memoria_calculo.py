@@ -209,16 +209,17 @@ def generate_memoria_calculo(
         import platform
         _os = platform.system()
         if _os == "Windows":
-            _hint = "Instalá MiKTeX desde https://miktex.org (incluye pdflatex)"
+            _hint = ("Reinstalá EduFEM con el instalador completo (trae su "
+                     "propio TeX) o instalá MiKTeX desde https://miktex.org")
         elif _os == "Darwin":
             _hint = "Instalá MacTeX desde https://tug.org/mactex/"
         else:
             _hint = ("Instalá TeX Live (en Debian/Ubuntu: "
                      "sudo apt install texlive-latex-base texlive-latex-extra)")
         raise PdflatexNotFoundError(
-            "No se encontró pdflatex en el PATH — la Memoria de Cálculo se "
-            "compila con LaTeX.\n"
-            f"{_hint}, luego reiniciá EduFEM.\n"
+            "No se encontró pdflatex: falta la carpeta 'texlive' que acompaña "
+            "al programa y no hay una distribución TeX en el PATH.\n"
+            f"{_hint} y volvé a exportar.\n"
             f"Detalle: {e}"
         ) from e
     except Exception as e:
@@ -381,8 +382,11 @@ class MemoriaCalculo:
         return self._health_cache
 
     def compile(self, filepath_no_ext: str, *, keep_tex: bool = False) -> None:
+        """Compila en el mismo directorio temporal (ruta ASCII) donde se
+        guardaron las figuras; el PDF se mueve al destino al final."""
         try:
-            self._td.compile_to(filepath_no_ext, keep_tex=keep_tex)
+            self._td.compile_to(filepath_no_ext, keep_tex=keep_tex,
+                                workdir=self._ensure_tmpdir())
         finally:
             self._cleanup_tmpdir()
 
@@ -395,8 +399,12 @@ class MemoriaCalculo:
     # ------------------------------------------------------------------
 
     def _ensure_tmpdir(self) -> str:
+        """Directorio de trabajo con ruta ASCII (figuras + compilación).
+        Ver `latex_runtime.safe_workdir_root`: `%TEMP%` lleva el nombre del
+        usuario y TeX Live no resuelve rutas con tildes."""
         if self._tmpdir is None:
-            self._tmpdir = tempfile.TemporaryDirectory(prefix="edufem_memoria_")
+            from education.components.latex_runtime import make_workdir
+            self._tmpdir = make_workdir("edufem_memoria_")
         return self._tmpdir.name
 
     def _cleanup_tmpdir(self) -> None:
@@ -408,14 +416,17 @@ class MemoriaCalculo:
             self._tmpdir = None
 
     def _save_figure(self, img, name: str) -> Optional[str]:
-        """Guarda una imagen PIL en el tmpdir y retorna la ruta. None si falla."""
+        """Guarda una imagen PIL en el directorio de trabajo y retorna su
+        nombre de archivo (relativo: el .tex se compila en ese mismo
+        directorio, así ninguna ruta absoluta entra al documento). None si
+        falla."""
         if img is None:
             return None
         try:
             tmpdir = self._ensure_tmpdir()
-            path = os.path.join(tmpdir, f"{name}.png")
-            img.save(path)
-            return path
+            filename = f"{name}.png"
+            img.save(os.path.join(tmpdir, filename))
+            return filename
         except Exception:
             return None
 
@@ -1849,19 +1860,15 @@ class MemoriaCalculo:
         is_q9 = proj.element_type == ELEMENT_Q9
         if not is_q9:
             if self._prose:
-                td.para(r"Para Q4 (puntos de Gauss en $\pm 1/\sqrt{3}$), la "
-                        r"matriz cerrada con $s=\sqrt{3}$ es:")
-            s = np.sqrt(3.0)
-            E_q4 = 0.25 * np.array([
-                [(1 + s) * (1 + s), (1 - s) * (1 + s), (1 - s) * (1 - s),
-                 (1 + s) * (1 - s)],
-                [(1 + s) * (1 - s), (1 - s) * (1 - s), (1 - s) * (1 + s),
-                 (1 + s) * (1 + s)],
-                [(1 - s) * (1 - s), (1 + s) * (1 - s), (1 + s) * (1 + s),
-                 (1 - s) * (1 + s)],
-                [(1 - s) * (1 + s), (1 + s) * (1 + s), (1 + s) * (1 - s),
-                 (1 - s) * (1 - s)],
-            ])
+                td.para(r"Para Q4 (puntos de Gauss en $\pm 1/\sqrt{3}$, "
+                        r"numerados $(-,-)$, $(-,+)$, $(+,-)$, $(+,+)$) la "
+                        r"inversa tiene forma cerrada, con entradas "
+                        r"$\tfrac{1}{4}(1\pm\sqrt{3})(1\pm\sqrt{3})$:")
+            # Misma matriz que usa el motor (fuente unica: fem.stress). Una
+            # copia a mano de E_Q4 aqui fue parte del bug corregido el
+            # 2026-09-07.
+            from fem.stress import extrapolation_matrix
+            E_q4 = extrapolation_matrix(4)
             td.matrix(E_q4, name=r"\mathbf{E}_{Q4}", fmt="{:.4f}")
         elif self._prose:
             td.para(
@@ -1921,11 +1928,26 @@ class MemoriaCalculo:
                 r"Convierte el estado tensional 2D en un escalar comparable "
                 r"contra la fluencia uniaxial del material:"
             )
-        td.equation(
-            r"\sigma_{VM}=\sqrt{\sigma_x^{\,2}-\sigma_x\sigma_y+\sigma_y^{\,2}"
-            r"+3\tau_{xy}^{\,2}}=\sqrt{\sigma_1^{\,2}-\sigma_1\sigma_2"
-            r"+\sigma_2^{\,2}}"
-        )
+        from config.settings import ANALYSIS_PLANE_STRAIN as _DP
+        if self._project.analysis_type == _DP:
+            if self._prose:
+                td.para(
+                    r"En deformación plana la tensión fuera del plano "
+                    r"$\sigma_z=\nu(\sigma_x+\sigma_y)$ no es nula y es la "
+                    r"tercera tensión principal: entra en la forma general "
+                    r"de von Mises (omitirla subestimaría $\sigma_{VM}$)."
+                )
+            td.equation(
+                r"\sigma_z=\nu(\sigma_x+\sigma_y), \qquad "
+                r"\sigma_{VM}=\sqrt{\tfrac12\left[(\sigma_1-\sigma_2)^2"
+                r"+(\sigma_2-\sigma_z)^2+(\sigma_z-\sigma_1)^2\right]}"
+            )
+        else:
+            td.equation(
+                r"\sigma_{VM}=\sqrt{\sigma_x^{\,2}-\sigma_x\sigma_y+\sigma_y^{\,2}"
+                r"+3\tau_{xy}^{\,2}}=\sqrt{\sigma_1^{\,2}-\sigma_1\sigma_2"
+                r"+\sigma_2^{\,2}}"
+            )
         # Sustitución numérica de σ1, σ2, θp y σVM en el nodo más solicitado.
         self._sustitucion_principales_vm()
 
@@ -2096,7 +2118,19 @@ class MemoriaCalculo:
         R = float(np.hypot(0.5 * (sx - sy), txy))
         s1, s2 = avg + R, avg - R
         theta = 0.5 * float(np.degrees(np.arctan2(2.0 * txy, sx - sy)))
-        vm = float(np.sqrt(max(s1 * s1 - s1 * s2 + s2 * s2, 0.0)))
+        # Deformacion plana: sigma_z = nu (sx + sy) entra en el von Mises
+        # (nu del material del primer elemento que contiene al nodo).
+        from config.settings import ANALYSIS_PLANE_STRAIN as _DP
+        proj = self._project
+        sz = 0.0
+        if proj.analysis_type == _DP:
+            elem = next((e for e in proj.elements.values()
+                         if nid in e.node_ids), None)
+            mat = (proj.materials.get(elem.material_name) if elem else None) \
+                or next(iter(proj.materials.values()), None)
+            sz = float(mat.nu) * (sx + sy) if mat is not None else 0.0
+        vm = float(np.sqrt(max(0.5 * ((s1 - s2) ** 2 + (s2 - sz) ** 2
+                                      + (sz - s1) ** 2), 0.0)))
         td = self._td
         if self._prose:
             td.para(
@@ -2115,10 +2149,18 @@ class MemoriaCalculo:
             )
         else:
             theta_expr = rf"\theta_p={theta:.4g}^\circ"
-        td.equation(
-            theta_expr + rf",\qquad \sigma_{{VM}}=\sqrt{{({s1:.4g})^2"
-            rf"-({s1:.4g})({s2:.4g})+({s2:.4g})^2}}={vm:.4g}"
-        )
+        if proj.analysis_type == _DP:
+            td.equation(
+                theta_expr + rf",\qquad \sigma_z={sz:.4g},\qquad "
+                rf"\sigma_{{VM}}=\sqrt{{\tfrac12\left[({s1:.4g}-({s2:.4g}))^2"
+                rf"+({s2:.4g}-({sz:.4g}))^2+({sz:.4g}-({s1:.4g}))^2\right]}}"
+                rf"={vm:.4g}"
+            )
+        else:
+            td.equation(
+                theta_expr + rf",\qquad \sigma_{{VM}}=\sqrt{{({s1:.4g})^2"
+                rf"-({s1:.4g})({s2:.4g})+({s2:.4g})^2}}={vm:.4g}"
+            )
 
     def _tabla_comparacion_promedio(self) -> None:
         """Comparación sin/con promedio en el nodo más compartido: lista las

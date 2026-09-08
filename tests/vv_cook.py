@@ -55,7 +55,7 @@ F_TOTAL = 1.0
 L_RIGHT = 16.0
 Q_PER_LEN = F_TOTAL / L_RIGHT
 PROBE_X, PROBE_Y = 48.0, 52.0
-U_Y_REF = 23.95
+U_Y_REF = 23.96
 
 
 # ─── Driver ─────────────────────────────────────────────────────────────────
@@ -193,7 +193,7 @@ def main():
     print("=" * 70)
     print("  Cook membrane: convergencia Q4 vs Q9")
     print("=" * 70)
-    print(f"{'N':>4}  {'tipo':>4}  {'ndof':>6}  {'u_y':>10}  {'fy_sum':>10}  {'err_vs_23.95':>14}")
+    print(f"{'N':>4}  {'tipo':>4}  {'ndof':>6}  {'u_y':>10}  {'fy_sum':>10}  {'err_vs_ref':>14}")
 
     for et_key, et in [("q4", ELEMENT_Q4), ("q9", ELEMENT_Q9)]:
         for N in Ns:

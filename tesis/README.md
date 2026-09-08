@@ -1,7 +1,10 @@
 # Tesis — EduFEM
 
 Fuente LaTeX de la tesis sobre **EduFEM** (GUI educativa de elementos finitos 2D).
-Formato de referencias: **Vancouver** (biblatex + biber). Idioma: español (babel).
+Formato de referencias: **estilo numérico secuencial tipo Vancouver**, implementado con
+`biblatex/numeric-comp` + `sorting=none` y ajustes de formato de nombres (no existe un estilo
+`vancouver` cargado como tal). Los títulos de revista se escriben **completos**, no con la
+abreviatura ISO del NLM, por legibilidad en un documento en español. Idioma: español (babel).
 
 ## Estado y decisiones (actualizado jun. 2026)
 
@@ -14,9 +17,21 @@ Formato de referencias: **Vancouver** (biblatex + biber). Idioma: español (babe
   limitaciones* (cap. 01) como análisis tenso-deformacional de medios continuos 2D
   (elasticidad plana), excluyendo tipologías discretas (pórticos, reticulados), placas,
   cáscaras y 3D. No reintroducir el término como descriptor sin esa acotación.
-- **Metodología + Variables:** la introducción incluye *Metodología de la investigación*
-  (aplicada · cuantitativa · explicativa; desarrollo iterativo-incremental + V&V) y
-  *Variables* (tabla de operacionalización `tab:variables`).
+- **Metodología + Variables:** la introducción resume la metodología (propositiva ·
+  aplicada tecnológica · cuantitativa en V&V); el detalle vive en §2.1 con seis subsecciones
+  que siguen el diagrama del modelo de investigación del tribunal (modelo de simulación
+  numérica, variables `tab:variables`, matriz de consistencia `tab:consistencia`, casos de
+  estudio, procedimiento e instrumentos, criterios de aceptación). **No reintroducir** los
+  subtítulos de diseño experimental (sistema de control / repetición / protocolo): se
+  quitaron el 2026-09-07 a pedido del autor. La parte de software es §2.2.
+- **Objeto/campo, problema y delimitación (2026-09-08):** objeto de estudio = el análisis
+  de medios continuos en elasticidad plana por el MEF (técnico); campo de acción = su
+  enseñanza (software + memoria). El problema científico tiene VI (forma de exponer el
+  canal) y VD (observabilidad y contrastabilidad del procedimiento); el «apoyo a la
+  comprensión» es el para qué, no lo medido. Delimitación institucional (Carrera de Ing.
+  Civil UATF), espacial, temporal (gestión 2026) y disciplinar está en la Introducción. Son
+  **seis** objetivos específicos (OE1 = fundamentación teórica → Cap. 1). No volver al
+  objeto «proceso de enseñanza-aprendizaje» ni a cinco objetivos sin decisión del autor.
 - **Validación: por diseño.** El eje es la V&V numérica (MMS, Timoshenko vs. SAP2000, Cook);
   la dimensión pedagógica se fundamenta en la literatura. **No** se hace validación por
   juicio de expertos. Un **piloto con estudiantes** queda como contingencia solo si lo

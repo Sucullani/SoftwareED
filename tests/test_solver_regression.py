@@ -216,8 +216,10 @@ def _reference_stresses(project, u):
     idx_map = project.node_index_map
     n = len(idx_map)
     accum = np.zeros((n, 3))
+    accum_z = np.zeros(n)          # sigma_z acumulada (deformacion plana)
     count = np.zeros(n, dtype=int)
     gauss_ref, nodal_ref = {}, {}
+    plane_strain = project.analysis_type == ANALYSIS_PLANE_STRAIN
     for eid, elem in project.elements.items():
         coords = _node_coords(project, elem)
         mat = _material(project, elem)
@@ -226,16 +228,22 @@ def _reference_stresses(project, u):
             coords, u[dofs], mat.E, mat.nu, elem.thickness,
             project.analysis_type, project.element_type,
         )
-        ns = (extrapolate_to_nodes_q4(gs) if elem.num_nodes == 4
-              else extrapolate_to_nodes_q9(gs))
+        zf = float(mat.nu) if plane_strain else None
+        ns = (extrapolate_to_nodes_q4(gs, sigma_z_factor=zf) if elem.num_nodes == 4
+              else extrapolate_to_nodes_q9(gs, sigma_z_factor=zf))
         gauss_ref[eid] = np.array([[g[k] for k in _STRESS_KEYS] for g in gs])
         nodal_ref[eid] = np.array([[d[k] for k in _STRESS_KEYS] for d in ns])
         for i, nid in enumerate(elem.node_ids[:len(ns)]):
             accum[idx_map[nid]] += nodal_ref[eid][i, :3]
+            if plane_strain:
+                accum_z[idx_map[nid]] += mat.nu * (nodal_ref[eid][i, 0]
+                                                   + nodal_ref[eid][i, 1])
             count[idx_map[nid]] += 1
-    comp = accum / np.maximum(count, 1)[:, None]
-    avg = np.array([[sx, sy, txy, *principal_and_vm(sx, sy, txy)]
-                    for sx, sy, txy in comp])
+    denom = np.maximum(count, 1)
+    comp = accum / denom[:, None]
+    sz = accum_z / denom
+    avg = np.array([[sx, sy, txy, *principal_and_vm(sx, sy, txy, z)]
+                    for (sx, sy, txy), z in zip(comp, sz)])
     return gauss_ref, nodal_ref, avg, count
 
 

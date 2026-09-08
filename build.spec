@@ -17,9 +17,11 @@ Incluye:
     - hidden imports de pylatex / fitz / pylatex.utils (no detectados
       por autodiscover de PyInstaller en algunas versiones)
 
-NO bundlea MiKTeX. Si el usuario lo tiene instalado, las formulas se
-renderizan con calidad documento. Sin MiKTeX, EduFEM detecta y cae al
-fallback mathtext con un banner one-shot (ver MainWindow._init_latex_pipeline).
+NO mete el TeX dentro del onefile: el TeX Live recortado (vendor/texlive,
+generado por tools/build_texlive.py) va como carpeta `texlive/` HERMANA del
+.exe (la copia el instalador o se copia a mano junto al .exe portable);
+education/components/latex_runtime.py la busca en runtime. Dentro del onefile
+se re-extraeria en cada arranque. Las formulas in-app usan mathtext.
 """
 
 import os

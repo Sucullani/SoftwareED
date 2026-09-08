@@ -39,7 +39,16 @@ from config.settings import ELEMENT_Q4, ELEMENT_Q9, JACOBIAN_MIN_DETERMINANT
 # --------------------------------------------------------------------------- #
 
 def _jacobian_samples(node_coords, element_type):
-    """det(J) y normas de las columnas de J en cada punto de Gauss nativo.
+    """det(J) y normas de las FILAS de J en cada punto de Gauss nativo.
+
+    Con J = dN_nat @ coords (filas xi, eta; columnas x, y), cada fila es el
+    vector tangente a una linea de coordenada natural: fila 0 = dx/dxi,
+    fila 1 = dx/deta. det J / (|fila0| |fila1|) es el seno del angulo entre
+    esas tangentes, que es lo que define el Jacobiano escalado (Verdict).
+    Hasta 2026-09-07 se normalizaba por las COLUMNAS de J (gradientes de xi
+    y eta), una cantidad distinta que solo coincide en mapeos afines
+    ortogonales; el texto de la tesis y M0 (version por vertices) ya usaban
+    la definicion correcta.
 
     Vectorizado sobre los GP con el mismo array de dN precomputado que usa
     el ensamblaje (`get_dN_at_gauss_points`). Retorna (dets, col_norms)
@@ -53,10 +62,10 @@ def _jacobian_samples(node_coords, element_type):
     dets = J[:, 0, 0] * J[:, 1, 1] - J[:, 0, 1] * J[:, 1, 0]
     if np.any(np.abs(dets) < JACOBIAN_MIN_DETERMINANT):
         return None, None
-    # ||J[:, 0]|| = sqrt(J00^2 + J10^2); ||J[:, 1]|| = sqrt(J01^2 + J11^2)
-    col_0 = np.sqrt(J[:, 0, 0] ** 2 + J[:, 1, 0] ** 2)
-    col_1 = np.sqrt(J[:, 0, 1] ** 2 + J[:, 1, 1] ** 2)
-    return dets.tolist(), list(zip(col_0.tolist(), col_1.tolist()))
+    # ||J[0, :]|| = sqrt(J00^2 + J01^2) = |dx/dxi|;  ||J[1, :]|| = |dx/deta|
+    row_0 = np.sqrt(J[:, 0, 0] ** 2 + J[:, 0, 1] ** 2)
+    row_1 = np.sqrt(J[:, 1, 0] ** 2 + J[:, 1, 1] ** 2)
+    return dets.tolist(), list(zip(row_0.tolist(), row_1.tolist()))
 
 
 def jacobian_ratio(node_coords, element_type):
@@ -76,7 +85,7 @@ def jacobian_ratio(node_coords, element_type):
 
 
 def scaled_jacobian(node_coords, element_type):
-    """q_SJ = min_g det(J_g) / (||J[:,0]||_g * ||J[:,1]||_g).
+    """q_SJ = min_g det(J_g) / (||J[0,:]||_g * ||J[1,:]||_g).
 
     Es sin(angulo local entre las imagenes de los ejes naturales) y detecta
     inversion de forma robusta (valor <= 0 => elemento invalido).

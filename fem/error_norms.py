@@ -25,7 +25,7 @@ from fem.shape_functions import get_shape_functions
 from fem.gauss_quadrature import get_gauss_points_2d
 
 
-__all__ = ["compute_error_norms"]
+__all__ = ["compute_error_norms", "compute_stress_recovery_error"]
 
 
 def _default_n_gauss(element_type):
@@ -219,4 +219,101 @@ def compute_error_norms(project, solution, u_exact_fn,
         "area_total": float(area_total),
         "ndof": project.total_dof,
         "n_gauss": int(n_gauss),
+    }
+
+
+def compute_stress_recovery_error(project, solution, grad_u_exact_fn, *,
+                                  n_gauss=None):
+    """Norma L2 del error del campo de tensiones RECUPERADO frente al exacto.
+
+    El campo recuperado es el que el post-proceso muestra y la memoria de
+    calculo imprime: tensiones en los puntos de Gauss del solucionador,
+    extrapoladas a los nodos con E = M^-1 (`fem.stress`), promediadas entre
+    elementos adyacentes e interpoladas dentro de cada elemento con las
+    funciones de forma. Se compara con sigma_exacta = D * eps(grad u_exacta),
+    integrando con la misma cuadratura de orden p+1 que las normas de
+    desplazamiento.
+
+    Complementa a `compute_error_norms`: las normas L2/H1 del desplazamiento
+    no tocan la cadena Gauss -> nodos -> promedio, de modo que un error en la
+    matriz de extrapolacion (como el corregido el 2026-09-07 en Q4) pasaba
+    inadvertido. Esta norma lo detecta: con la matriz erronea el campo
+    recuperado no converge.
+
+    Parametros:
+        project, solution: como en compute_error_norms (solution debe traer
+            el ElementData del ensamblaje, que compute_all_stresses reutiliza).
+        grad_u_exact_fn: callable (x, y) -> ndarray 2x2
+            [[du/dx, du/dy], [dv/dx, dv/dy]].
+        n_gauss: puntos de Gauss por direccion (defecto p+1).
+
+    Retorna dict con:
+        L2_stress       - ||sigma*_h - sigma_exacta||_L2 (las 3 componentes)
+        L2_stress_rel   - relativa a ||sigma_exacta||_L2 (None si es 0)
+        n_gauss_stress  - orden de cuadratura usado
+    """
+    from fem.constitutive import constitutive_matrix
+    from fem.stress import compute_all_stresses
+
+    element_type = project.element_type
+    N_func, dN_func = get_shape_functions(element_type)
+    if n_gauss is None:
+        n_gauss = _default_n_gauss(element_type)
+    gauss_pts, gauss_wts = get_gauss_points_2d(n_gauss)
+    n_gp = len(gauss_pts)
+
+    elems = list(project.elements.values())
+    n_elem = len(elems)
+    if n_elem == 0:
+        return {"L2_stress": 0.0, "L2_stress_rel": None,
+                "n_gauss_stress": int(n_gauss)}
+    n_nodes = elems[0].num_nodes
+
+    N_at_gps = np.empty((n_gp, n_nodes))
+    dN_at_gps = np.empty((n_gp, 2, n_nodes))
+    for g in range(n_gp):
+        xi, eta = float(gauss_pts[g, 0]), float(gauss_pts[g, 1])
+        N_at_gps[g] = N_func(xi, eta)
+        dN_at_gps[g] = dN_func(xi, eta)
+
+    # Campo recuperado: promedio nodal del motor, llevado a cada elemento.
+    _, nodal_avg = compute_all_stresses(project, solution)
+    node_coords_all = np.empty((n_elem, n_nodes, 2))
+    sig_nod_all = np.empty((n_elem, n_nodes, 3))
+    D_all = np.empty((n_elem, 3, 3))
+    for e, elem in enumerate(elems):
+        mat = project.materials[elem.material_name]
+        D_all[e] = constitutive_matrix(mat.E, mat.nu, project.analysis_type)
+        for k, nid in enumerate(elem.node_ids):
+            node = project.nodes[nid]
+            node_coords_all[e, k, 0] = node.x
+            node_coords_all[e, k, 1] = node.y
+            s_n = nodal_avg[nid]
+            sig_nod_all[e, k] = (s_n["sigma_x"], s_n["sigma_y"], s_n["tau_xy"])
+
+    # Medida de integracion y coordenadas fisicas de cada punto de Gauss.
+    J = np.einsum("gak,ekb->egab", dN_at_gps, node_coords_all)
+    det_J = J[..., 0, 0] * J[..., 1, 1] - J[..., 0, 1] * J[..., 1, 0]
+    dV = np.abs(det_J) * gauss_wts[None, :]                          # (e, g)
+    xy_gps = np.einsum("gk,ekc->egc", N_at_gps, node_coords_all)     # (e, g, 2)
+
+    # sigma_exacta = D * [du/dx, dv/dy, du/dy + dv/dx] (unica pasada Python).
+    eps_ex = np.empty((n_elem, n_gp, 3))
+    for e in range(n_elem):
+        for g in range(n_gp):
+            gr = np.asarray(grad_u_exact_fn(float(xy_gps[e, g, 0]),
+                                            float(xy_gps[e, g, 1])), dtype=float)
+            eps_ex[e, g, 0] = gr[0, 0]
+            eps_ex[e, g, 1] = gr[1, 1]
+            eps_ex[e, g, 2] = gr[0, 1] + gr[1, 0]
+    sig_ex = np.einsum("eab,egb->ega", D_all, eps_ex)               # (e, g, 3)
+    sig_h = np.einsum("gk,ekc->egc", N_at_gps, sig_nod_all)         # (e, g, 3)
+
+    sq_err = float(np.sum((sig_h - sig_ex) ** 2 * dV[..., None]))
+    sq_ex = float(np.sum(sig_ex ** 2 * dV[..., None]))
+    L2_stress = float(np.sqrt(sq_err))
+    return {
+        "L2_stress": L2_stress,
+        "L2_stress_rel": (float(np.sqrt(sq_err / sq_ex)) if sq_ex > 0 else None),
+        "n_gauss_stress": int(n_gauss),
     }

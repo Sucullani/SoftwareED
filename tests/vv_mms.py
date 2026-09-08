@@ -6,20 +6,28 @@ Solucion manufacturada en el cuadrado unitario [0,1]^2:
     u_M(x,y) = sin(pi*x) * sin(pi*y)
     v_M(x,y) = cos(pi*x) * cos(pi*y)
 
-Material: E=1.0, nu=0.3, plane stress, t=1.0.
+Material: E=1.0, nu=0.3, t=1.0. Cuatro configuraciones:
+    {cuadrado unitario, cuadrilatero distorsionado} x {tension plana,
+    deformacion plana}.
 Body force: f = -div(sigma(u_M)) calculada analiticamente (ver derivacion
-en `body_force_fn` mas abajo). BCs Dirichlet exactas en todo el borde.
+en `make_body_force_fn`); la constante de Lame lambda depende del estado
+plano. BCs Dirichlet exactas en todo el borde (deteccion topologica de las
+aristas exteriores, valida para cualquier cuadrilatero).
 
 Para cada N en {2,4,8,16,32}: arma malla NxN estructurada Q4 y Q9, calcula
-desplazamientos, mide ||u_h - u_M||_L2 y ||grad(u_h - u_M)||_L2 con cuadratura
-de Gauss un orden por encima del usado para K. Estima tasas asintoticas de
-convergencia entre niveles consecutivos.
+desplazamientos, mide ||u_h - u_M||_L2, ||grad(u_h - u_M)||_L2 y el error
+L2 del campo de tensiones RECUPERADO (Gauss -> nodos -> promedio -> N,
+fem.error_norms.compute_stress_recovery_error) con cuadratura de Gauss un
+orden por encima del usado para K. Estima tasas asintoticas de convergencia
+entre niveles consecutivos.
 
 Outputs:
-  docs/vyv/datos/mms_q4.csv
-  docs/vyv/datos/mms_q9.csv
+  docs/vyv/datos/mms_q4.csv, mms_q9.csv            (unitario, tension plana)
+  docs/vyv/datos/mms_{q4,q9}_{dist_tp,unif_dp,dist_dp}.csv
+  docs/vyv/datos/mms_resumen.csv                    (tasas asintoticas, 4 configs)
   docs/vyv/figuras/mms_convergence_l2.png
   docs/vyv/figuras/mms_convergence_h1.png
+  docs/vyv/figuras/mms_convergence_stress.png   (campo de tensiones recuperado)
   docs/vyv/figuras/mms_field_u.png
   docs/vyv/figuras/mms_field_v.png
 
@@ -38,11 +46,12 @@ import matplotlib.pyplot as plt
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from config.settings import ANALYSIS_PLANE_STRESS, ELEMENT_Q4, ELEMENT_Q9
-from fem.error_norms import compute_error_norms
+from config.settings import (ANALYSIS_PLANE_STRAIN, ANALYSIS_PLANE_STRESS,
+                             ELEMENT_Q4, ELEMENT_Q9)
+from fem.error_norms import compute_error_norms, compute_stress_recovery_error
 from fem.solver import solve_system
 from models.material import Material
-from models.mesh_utils import boundary_node_ids, generate_structured_quad_mesh
+from models.mesh_utils import generate_structured_quad_mesh
 
 
 # ─── Solucion manufacturada y derivadas ─────────────────────────────────────
@@ -50,9 +59,26 @@ from models.mesh_utils import boundary_node_ids, generate_structured_quad_mesh
 E_MMS = 1.0
 NU_MMS = 0.3
 PI = math.pi
-# Plane stress: lambda_star = E*nu/(1-nu^2), mu = E/(2*(1+nu))
-LAM = E_MMS * NU_MMS / (1.0 - NU_MMS * NU_MMS)
+# Constantes de Lame. mu es comun; lambda depende del estado plano:
+#   tension plana:     lambda* = E*nu/(1-nu^2)
+#   deformacion plana: lambda  = E*nu/((1+nu)(1-2nu))
 MU = E_MMS / (2.0 * (1.0 + NU_MMS))
+LAM_TP = E_MMS * NU_MMS / (1.0 - NU_MMS * NU_MMS)
+LAM_DP = E_MMS * NU_MMS / ((1.0 + NU_MMS) * (1.0 - 2.0 * NU_MMS))
+LAM = LAM_TP   # compatibilidad: `body_force_fn` (abajo) es el caso de tension plana
+
+# Dominios: cuadrado unitario y un cuadrilatero general (elementos
+# distorsionados: Jacobiano no constante, mapeo inverso no trivial).
+CORNERS_UNIT = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)]
+CORNERS_DIST = [(0.0, 0.0), (1.0, 0.15), (0.85, 1.0), (0.1, 0.8)]
+
+CONFIGS = [
+    # clave, corners, tipo de analisis, etiqueta
+    ("unif_tp", CORNERS_UNIT, ANALYSIS_PLANE_STRESS, "cuadrado unitario / tension plana"),
+    ("dist_tp", CORNERS_DIST, ANALYSIS_PLANE_STRESS, "cuadrilatero distorsionado / tension plana"),
+    ("unif_dp", CORNERS_UNIT, ANALYSIS_PLANE_STRAIN, "cuadrado unitario / deformacion plana"),
+    ("dist_dp", CORNERS_DIST, ANALYSIS_PLANE_STRAIN, "cuadrilatero distorsionado / deformacion plana"),
+]
 
 
 def u_M(x, y):
@@ -67,6 +93,31 @@ def grad_u_M(x, y):
         [PI * cx * sy, PI * sx * cy],     # du/dx, du/dy
         [-PI * sx * cy, -PI * cx * sy],   # dv/dx, dv/dy
     ])
+
+
+def make_body_force_fn(analysis_type):
+    """Devuelve f(x, y) = -div(sigma(u_M)) para el estado plano indicado.
+
+    Solo cambia la constante lambda de la ley constitutiva
+    sigma = lambda*tr(eps)*I + 2*mu*eps (misma derivacion que `body_force_fn`).
+    """
+    lam = LAM_DP if analysis_type == ANALYSIS_PLANE_STRAIN else LAM_TP
+
+    def fn(x, y):
+        sx, cx = math.sin(PI * x), math.cos(PI * x)
+        sy, cy = math.sin(PI * y), math.cos(PI * y)
+        pi2 = PI * PI
+        u_xx = -pi2 * sx * sy
+        u_yy = -pi2 * sx * sy
+        u_xy = pi2 * cx * cy
+        v_xx = -pi2 * cx * cy
+        v_yy = -pi2 * cx * cy
+        v_xy = pi2 * sx * sy
+        div_sx = (lam + 2 * MU) * u_xx + MU * u_yy + (lam + MU) * v_xy
+        div_sy = (lam + MU) * u_xy + MU * v_xx + (lam + 2 * MU) * v_yy
+        return -div_sx, -div_sy
+
+    return fn
 
 
 def body_force_fn(x, y):
@@ -106,27 +157,52 @@ def body_force_fn(x, y):
 
 # ─── Driver ─────────────────────────────────────────────────────────────────
 
-def run_case(N, element_type):
+def boundary_nodes_topological(project):
+    """Nodos sobre aristas exteriores: aristas que pertenecen a un solo
+    elemento. Vale para cualquier cuadrilatero (boundary_node_ids usa el
+    bounding box y solo sirve para dominios rectangulares). En Q9 incluye
+    el nodo medio de cada arista exterior (node_ids[4+k] esta sobre la
+    arista (k, k+1))."""
+    from collections import Counter
+    count = Counter()
+    for elem in project.elements.values():
+        c = elem.node_ids[:4]
+        for k in range(4):
+            count[frozenset((c[k], c[(k + 1) % 4]))] += 1
+    border = set()
+    for elem in project.elements.values():
+        c = elem.node_ids[:4]
+        for k in range(4):
+            if count[frozenset((c[k], c[(k + 1) % 4]))] == 1:
+                border.add(c[k])
+                border.add(c[(k + 1) % 4])
+                if len(elem.node_ids) == 9:
+                    border.add(elem.node_ids[4 + k])
+    return border
+
+
+def run_case(N, element_type, *, corners=CORNERS_UNIT,
+             analysis_type=ANALYSIS_PLANE_STRESS):
     project = generate_structured_quad_mesh(
-        corners=[(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)],
+        corners=corners,
         nx=N, ny=N, element_type=element_type,
         material_name="MMS", thickness=1.0,
-        analysis_type=ANALYSIS_PLANE_STRESS,
+        analysis_type=analysis_type,
     )
     project.materials["MMS"] = Material(
         name="MMS", E=E_MMS, nu=NU_MMS, density=0.0,
     )
     # Dirichlet exacto en todo el borde
-    border = set()
-    for edge in ("left", "right", "top", "bottom"):
-        border.update(boundary_node_ids(project, edge))
-    for nid in border:
+    for nid in boundary_nodes_topological(project):
         node = project.nodes[nid]
         ux, uy = u_M(node.x, node.y)
         project.set_boundary_condition(nid, True, True, ux, uy)
 
-    sol = solve_system(project, body_force_fn=body_force_fn)
+    sol = solve_system(project, body_force_fn=make_body_force_fn(analysis_type))
     norms = compute_error_norms(project, sol, u_M, grad_u_M)
+    # Campo de tensiones recuperado (Gauss -> nodos -> promedio -> N): es lo
+    # que muestra el post-proceso; las normas de desplazamiento no lo tocan.
+    norms.update(compute_stress_recovery_error(project, sol, grad_u_M))
     return project, sol, norms
 
 
@@ -134,13 +210,14 @@ def compute_rates(norms_list):
     """Tasa asintotica entre niveles consecutivos: rate = log(e_i-1 / e_i) / log(h_i-1 / h_i)."""
     rates_L2 = [None]
     rates_H1 = [None]
+    rates_S = [None]
     for i in range(1, len(norms_list)):
         a, b = norms_list[i - 1], norms_list[i]
-        rL2 = math.log(a["L2_disp"] / b["L2_disp"]) / math.log(a["h"] / b["h"])
-        rH1 = math.log(a["H1_semi"] / b["H1_semi"]) / math.log(a["h"] / b["h"])
-        rates_L2.append(rL2)
-        rates_H1.append(rH1)
-    return rates_L2, rates_H1
+        lh = math.log(a["h"] / b["h"])
+        rates_L2.append(math.log(a["L2_disp"] / b["L2_disp"]) / lh)
+        rates_H1.append(math.log(a["H1_semi"] / b["H1_semi"]) / lh)
+        rates_S.append(math.log(a["L2_stress"] / b["L2_stress"]) / lh)
+    return rates_L2, rates_H1, rates_S
 
 
 def save_csv(path, header, rows):
@@ -154,7 +231,7 @@ def save_csv(path, header, rows):
 def plot_convergence(results_q4, results_q9, out_path, kind, title):
     """kind: 'L2' or 'H1'."""
     fig, ax = plt.subplots(figsize=(7, 5))
-    key = "L2_disp" if kind == "L2" else "H1_semi"
+    key = {"L2": "L2_disp", "H1": "H1_semi", "S": "L2_stress"}[kind]
     h_q4 = [r["h"] for r in results_q4]
     e_q4 = [r[key] for r in results_q4]
     h_q9 = [r["h"] for r in results_q9]
@@ -171,6 +248,17 @@ def plot_convergence(results_q4, results_q9, out_path, kind, title):
         ax.loglog(h_ref, c_q9 * h_ref ** 3, "--", color="#fd7e14", alpha=0.45,
                   label=r"O($h^3$)")
         ax.set_ylabel(r"$\|u_h - u_M\|_{L^2}$")
+    elif kind == "S":
+        # Campo recuperado (Gauss -> nodos -> promedio): la superconvergencia
+        # interior O(h^2) del Q4 se degrada en la capa de contorno (nodos con
+        # promedio unilateral) y la norma global observa O(h^1.5); Q9 da O(h^2).
+        c_q4 = e_q4[-1] / h_q4[-1] ** 1.5
+        c_q9 = e_q9[-1] / h_q9[-1] ** 2
+        ax.loglog(h_ref, c_q4 * h_ref ** 1.5, "--", color="#0d6efd", alpha=0.45,
+                  label=r"O($h^{1.5}$)")
+        ax.loglog(h_ref, c_q9 * h_ref ** 2, "--", color="#fd7e14", alpha=0.45,
+                  label=r"O($h^2$)")
+        ax.set_ylabel(r"$\|\sigma^*_h - \sigma_M\|_{L^2}$")
     else:
         c_q4 = e_q4[-1] / h_q4[-1] ** 1
         c_q9 = e_q9[-1] / h_q9[-1] ** 2
@@ -221,6 +309,45 @@ def plot_field(project, sol, out_path, component, title):
 
 # ─── Main ───────────────────────────────────────────────────────────────────
 
+def _rate_last(rows, key):
+    for r in reversed(rows):
+        if r.get(key, "") != "":
+            return float(r[key])
+    return None
+
+
+def _run_config(cfg_key, corners, analysis_type, Ns):
+    results = {"q4": [], "q9": []}
+    projects = {"q4": {}, "q9": {}}
+    for et_key, et in [("q4", ELEMENT_Q4), ("q9", ELEMENT_Q9)]:
+        print(f"\n=== MMS [{cfg_key}] sobre Q{4 if et_key == 'q4' else 9} ===")
+        for N in Ns:
+            project, sol, norms = run_case(N, et, corners=corners,
+                                           analysis_type=analysis_type)
+            projects[et_key][N] = (project, sol)
+            results[et_key].append({
+                "N": N, "h": norms["h"], "ndof": norms["ndof"],
+                "L2_u": norms["L2_u"], "L2_v": norms["L2_v"],
+                "L2_disp": norms["L2_disp"],
+                "L2_disp_rel": norms["L2_disp_rel"] or 0.0,
+                "H1_semi": norms["H1_semi"],
+                "H1_semi_rel": norms["H1_semi_rel"] or 0.0,
+                "n_gauss": norms["n_gauss"],
+                "L2_stress": norms["L2_stress"],
+                "L2_stress_rel": norms["L2_stress_rel"] or 0.0,
+            })
+            print(f"  N={N:2d}  ndof={norms['ndof']:5d}  "
+                  f"L2={norms['L2_disp']:.4e}  H1={norms['H1_semi']:.4e}  "
+                  f"L2(sigma*)={norms['L2_stress']:.4e}")
+    for et_key in ("q4", "q9"):
+        rates_L2, rates_H1, rates_S = compute_rates(results[et_key])
+        for r, rL2, rH1, rS in zip(results[et_key], rates_L2, rates_H1, rates_S):
+            r["rate_L2"] = rL2 if rL2 is not None else ""
+            r["rate_H1"] = rH1 if rH1 is not None else ""
+            r["rate_stress"] = rS if rS is not None else ""
+    return results, projects
+
+
 def main():
     out_dir = os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -232,58 +359,65 @@ def main():
     os.makedirs(figs_dir, exist_ok=True)
 
     Ns = [2, 4, 8, 16, 32]
-    results = {"q4": [], "q9": []}
-    projects = {"q4": {}, "q9": {}}
-
-    for et_key, et in [("q4", ELEMENT_Q4), ("q9", ELEMENT_Q9)]:
-        print(f"\n=== MMS sobre Q{4 if et_key == 'q4' else 9} ===")
-        for N in Ns:
-            project, sol, norms = run_case(N, et)
-            projects[et_key][N] = (project, sol)
-            results[et_key].append({
-                "N": N, "h": norms["h"], "ndof": norms["ndof"],
-                "L2_u": norms["L2_u"], "L2_v": norms["L2_v"],
-                "L2_disp": norms["L2_disp"],
-                "L2_disp_rel": norms["L2_disp_rel"] or 0.0,
-                "H1_semi": norms["H1_semi"],
-                "H1_semi_rel": norms["H1_semi_rel"] or 0.0,
-                "n_gauss": norms["n_gauss"],
-            })
-            print(f"  N={N:2d}  ndof={norms['ndof']:5d}  "
-                  f"L2={norms['L2_disp']:.4e}  H1={norms['H1_semi']:.4e}")
-
-    # Tasas
-    for et_key in ("q4", "q9"):
-        rates_L2, rates_H1 = compute_rates(results[et_key])
-        for r, rL2, rH1 in zip(results[et_key], rates_L2, rates_H1):
-            r["rate_L2"] = rL2 if rL2 is not None else ""
-            r["rate_H1"] = rH1 if rH1 is not None else ""
-
-    # CSVs
     header = ["N", "h", "ndof", "L2_u", "L2_v", "L2_disp", "L2_disp_rel",
-              "H1_semi", "H1_semi_rel", "rate_L2", "rate_H1", "n_gauss"]
-    for et_key in ("q4", "q9"):
-        rows = []
-        for r in results[et_key]:
-            rows.append([r["N"], f"{r['h']:.6f}", r["ndof"],
-                         f"{r['L2_u']:.6e}", f"{r['L2_v']:.6e}",
-                         f"{r['L2_disp']:.6e}", f"{r['L2_disp_rel']:.6e}",
-                         f"{r['H1_semi']:.6e}", f"{r['H1_semi_rel']:.6e}",
-                         f"{r['rate_L2']:.3f}" if r["rate_L2"] != "" else "",
-                         f"{r['rate_H1']:.3f}" if r["rate_H1"] != "" else "",
-                         r["n_gauss"]])
-        save_csv(os.path.join(datos_dir, f"mms_{et_key}.csv"), header, rows)
+              "H1_semi", "H1_semi_rel", "rate_L2", "rate_H1", "n_gauss",
+              "L2_stress", "L2_stress_rel", "rate_stress"]
 
-    # Figuras de convergencia
+    all_results = {}
+    base_projects = None
+    for cfg_key, corners, analysis_type, label in CONFIGS:
+        results, projects = _run_config(cfg_key, corners, analysis_type, Ns)
+        all_results[cfg_key] = results
+        if cfg_key == "unif_tp":
+            base_projects = projects
+        for et_key in ("q4", "q9"):
+            rows = []
+            for r in results[et_key]:
+                rows.append([r["N"], f"{r['h']:.6f}", r["ndof"],
+                             f"{r['L2_u']:.6e}", f"{r['L2_v']:.6e}",
+                             f"{r['L2_disp']:.6e}", f"{r['L2_disp_rel']:.6e}",
+                             f"{r['H1_semi']:.6e}", f"{r['H1_semi_rel']:.6e}",
+                             f"{r['rate_L2']:.3f}" if r["rate_L2"] != "" else "",
+                             f"{r['rate_H1']:.3f}" if r["rate_H1"] != "" else "",
+                             r["n_gauss"],
+                             f"{r['L2_stress']:.6e}", f"{r['L2_stress_rel']:.6e}",
+                             f"{r['rate_stress']:.3f}" if r["rate_stress"] != "" else ""])
+            suffix = "" if cfg_key == "unif_tp" else f"_{cfg_key}"
+            save_csv(os.path.join(datos_dir, f"mms_{et_key}{suffix}.csv"), header, rows)
+
+    # Resumen de tasas asintoticas (ultimo nivel) por configuracion y elemento
+    resumen_rows = []
+    for cfg_key, corners, analysis_type, label in CONFIGS:
+        for et_key in ("q4", "q9"):
+            rows = all_results[cfg_key][et_key]
+            last = rows[-1]
+            resumen_rows.append([
+                cfg_key, label, "Q4" if et_key == "q4" else "Q9", last["ndof"],
+                f"{_rate_last(rows, 'rate_L2'):.3f}",
+                f"{_rate_last(rows, 'rate_H1'):.3f}",
+                f"{_rate_last(rows, 'rate_stress'):.3f}",
+                f"{last['L2_disp_rel']:.3e}", f"{last['H1_semi_rel']:.3e}",
+                f"{last['L2_stress_rel']:.3e}",
+            ])
+    save_csv(os.path.join(datos_dir, "mms_resumen.csv"),
+             ["config", "descripcion", "elemento", "ndof_final", "rate_L2",
+              "rate_H1", "rate_stress", "L2_disp_rel_final", "H1_semi_rel_final",
+              "L2_stress_rel_final"], resumen_rows)
+
+    # Figuras de convergencia (configuracion base)
+    results = all_results["unif_tp"]
     plot_convergence(results["q4"], results["q9"],
                      os.path.join(figs_dir, "mms_convergence_l2.png"),
                      "L2", "Convergencia en norma $L^2$ (MMS)")
     plot_convergence(results["q4"], results["q9"],
                      os.path.join(figs_dir, "mms_convergence_h1.png"),
                      "H1", "Convergencia en seminorma $H^1$ (MMS)")
+    plot_convergence(results["q4"], results["q9"],
+                     os.path.join(figs_dir, "mms_convergence_stress.png"),
+                     "S", "Convergencia del campo de tensiones recuperado (MMS)")
 
-    # Campos para N=16 Q9
-    project_ref, sol_ref = projects["q9"][16]
+    # Campos para N=16 Q9 (configuracion base)
+    project_ref, sol_ref = base_projects["q9"][16]
     plot_field(project_ref, sol_ref,
                os.path.join(figs_dir, "mms_field_u.png"),
                "u", "Campo $u_h(x,y)$, malla Q9 16×16")
@@ -292,37 +426,32 @@ def main():
                "v", "Campo $v_h(x,y)$, malla Q9 16×16")
 
     # Resumen final en consola
-    print("\n=== Resumen final ===")
-    for et_key in ("q4", "q9"):
-        last = results[et_key][-1]
-        print(f"  Q{4 if et_key == 'q4' else 9}: "
-              f"L2 final {last['L2_disp']:.3e} (tasa~{last['rate_L2']}), "
-              f"H1 final {last['H1_semi']:.3e} (tasa~{last['rate_H1']})")
+    print("\n=== Resumen final (tasas asintoticas) ===")
+    for row in resumen_rows:
+        print(f"  {row[0]:8s} {row[2]}: L2 {row[4]}  H1 {row[5]}  L2(sigma*) {row[6]}"
+              f"   rel finales {row[7]} / {row[8]} / {row[9]}")
     print(f"\nOutputs en {out_dir}")
 
     # ─── Verificacion automatica de regresion ──────────────────────────────
-    # Las tasas de convergencia deben tender a las asintoticas teoricas:
+    # Las tasas de convergencia deben tender a las asintoticas teoricas en
+    # las cuatro configuraciones:
     #   Q4 -> L2 O(h^2), H1 O(h^1);   Q9 -> L2 O(h^3), H1 O(h^2).
+    # Campo de tensiones recuperado: O(h^1.5) Q4 (superconvergencia interior
+    # degradada por la capa de contorno) y O(h^2) Q9.
     # Tolerancia +-0.5 por la desviacion pre-asintotica de las mallas finitas.
     TOL = 0.5
-    expected = {"q4": (2.0, 1.0), "q9": (3.0, 2.0)}
+    expected = {"q4": (2.0, 1.0, 1.5), "q9": (3.0, 2.0, 2.0)}
     checks = []
-    for et_key in ("q4", "q9"):
-        rL, rH = None, None
-        for r in reversed(results[et_key]):
-            if rL is None and r["rate_L2"] != "":
-                rL = float(r["rate_L2"])
-            if rH is None and r["rate_H1"] != "":
-                rH = float(r["rate_H1"])
-            if rL is not None and rH is not None:
-                break
-        exp_L, exp_H = expected[et_key]
-        if rL is not None:
-            checks.append((f"MMS {et_key.upper()} tasa L2~{exp_L} (obs {rL:.2f})",
-                           abs(rL - exp_L) < TOL))
-        if rH is not None:
-            checks.append((f"MMS {et_key.upper()} tasa H1~{exp_H} (obs {rH:.2f})",
-                           abs(rH - exp_H) < TOL))
+    for cfg_key, corners, analysis_type, label in CONFIGS:
+        for et_key in ("q4", "q9"):
+            rows = all_results[cfg_key][et_key]
+            exp_L, exp_H, exp_S = expected[et_key]
+            for key, exp, name in (("rate_L2", exp_L, "L2"), ("rate_H1", exp_H, "H1"),
+                                   ("rate_stress", exp_S, "L2(sigma*)")):
+                obs = _rate_last(rows, key)
+                if obs is not None:
+                    checks.append((f"MMS [{cfg_key}] {et_key.upper()} tasa {name}~{exp} "
+                                   f"(obs {obs:.2f})", abs(obs - exp) < TOL))
     failed = [n for n, ok in checks if not ok]
     print("\n--- Verificacion ---")
     for name, ok in checks:

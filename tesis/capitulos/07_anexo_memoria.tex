@@ -11,7 +11,7 @@
 \chapter{Memoria de cálculo: ejemplo resuelto paso a paso}
 \label{anexo:memoria}
 
-Este anexo reproduce la \emph{Memoria de Cálculo} que EduFEM genera para el ejemplo canónico de validación: nueve nodos, cuatro elementos Q4, tensión plana. Cada matriz, vector y valor que sigue es la salida real del motor numérico, con sustitución directa sobre la formulación matricial.
+Este anexo presenta, en forma condensada, el contenido de la \emph{Memoria de Cálculo} que EduFEM genera para el ejemplo canónico de validación: nueve nodos, cuatro elementos Q4, tensión plana. La memoria completa que produce el programa consta de nueve capítulos en dos estilos (\autoref{sec:memoria-io}); aquí se conserva la cadena de sustitución numérica esencial. Cada matriz, vector y valor que sigue es la salida real del motor numérico, generada con las mismas funciones del programa, con sustitución directa sobre la formulación matricial.
 
 \section{Datos}
 
@@ -166,14 +166,14 @@ En cada punto de Gauss del elemento, $\bm{\varepsilon}=\bm{B}\,\bm{u}_e$ y $\bm{
 \qquad
 \bm{\sigma}=\sigA .
 \]
-Las tensiones principales y la de von Mises en ese punto resultan
+Las tensiones principales y la de von Mises (forma plana, $\sigma_z = 0$ en tensión plana) en ese punto resultan
 \[
 \sigma_{1,2}=\frac{\sigma_x+\sigma_y}{2}\pm\sqrt{\Bigl(\tfrac{\sigma_x-\sigma_y}{2}\Bigr)^{2}+\tau_{xy}^{2}}=\savgA\pm\radiusA=\sigOneA,\ \sigTwoA ,
 \]
 \[
 \sigma_{\mathrm{VM}}=\sqrt{\sigma_1^{2}-\sigma_1\sigma_2+\sigma_2^{2}}=\vmA .
 \]
-Repetida la operación en los cuatro puntos de Gauss, cada componente cartesiana se lleva a los nodos mediante una matriz de extrapolación constante $\bm{E}$ (deducida de $\pm\sqrt{3}$), $\bm{\sigma}_{\mathrm{nod}}=\bm{E}\,\bm{\sigma}_{\mathrm{PG}}$; por ejemplo, para $\sigma_x$ (nodos \showNodes):
+Repetida la operación en los cuatro puntos de Gauss —numerados $(-,-)$, $(-,+)$, $(+,-)$, $(+,+)$—, cada componente cartesiana se lleva a los nodos mediante la matriz de extrapolación constante $\bm{E}=\bm{M}^{-1}$ de la \autoref{eq:extrap-q4}, $\bm{\sigma}_{\mathrm{nod}}=\bm{E}\,\bm{\sigma}_{\mathrm{PG}}$; por ejemplo, para $\sigma_x$ (nodos \showNodes):
 {\footnotesize\setlength{\arraycolsep}{4pt}
 \[
 \sigxNodal=\Eextrap\,\sigxGauss .

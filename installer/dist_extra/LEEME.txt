@@ -42,11 +42,15 @@ Este archivo cubre las DOS formas en que se entrega EduFEM:
 ------------------------------------------------------------
 - Sistema: Windows 10 u 11 de 64 bits.
 - Memoria RAM: 4 GB recomendado (2 GB minimo).
-- Disco: unos 300 MB libres (programa + extraccion temporal).
+- Disco: unos 400 MB libres (programa + TeX embebido + extraccion
+  temporal).
 - No requiere conexion a internet ni tarjeta grafica dedicada.
+- NO requiere MiKTeX ni ninguna otra instalacion de LaTeX: el
+  instalador incluye su propio TeX (carpeta "texlive" junto al
+  programa) para la Memoria de Calculo y la Teoria en PDF.
 - En la version PORTABLE no hace falta instalar nada: manten
-  SIEMPRE juntos "EduFEM.exe" y "Iniciar EduFEM.bat" en la misma
-  carpeta.
+  SIEMPRE juntos "EduFEM.exe", "Iniciar EduFEM.bat" y la carpeta
+  "texlive" en la misma carpeta.
 
 
 ------------------------------------------------------------
@@ -114,21 +118,28 @@ con PyInstaller.)
 
 
 ------------------------------------------------------------
-6. MEMORIA DE CALCULO EN PDF  (requiere LaTeX / MiKTeX)
+6. MEMORIA DE CALCULO EN PDF  (LaTeX incluido)
 ------------------------------------------------------------
-La exportacion de la "Memoria de Calculo (PDF)" se genera con
-LaTeX. Para que funcione, la PC debe tener instalada una
-distribucion TeX:
+La "Memoria de Calculo (PDF)" y la "Teoria MEF" se generan con
+LaTeX. EduFEM trae su propio TeX (un TeX Live recortado, carpeta
+"texlive" junto al programa): NO hay que instalar MiKTeX, no hace
+falta internet y no aparece ningun dialogo de instalacion de
+paquetes.
 
-  - Windows:  MiKTeX  ->  https://miktex.org/download
+Si la carpeta "texlive" no esta (por ejemplo, se copio solo el
+EduFEM.exe de la version portable), EduFEM usa el pdflatex que
+encuentre instalado en la PC (MiKTeX o TeX Live). Con MiKTeX, los
+paquetes que falten se instalan solos (requiere internet). Si no
+hay ninguno, aparece un aviso con un boton de descarga; lo mas
+simple es volver a instalar EduFEM con el instalador completo.
 
-Sin MiKTeX, TODO el resto del programa funciona normalmente; solo
-la exportacion del PDF no estara disponible. Si se intenta exportar
-la memoria sin MiKTeX, EduFEM muestra un aviso con un boton de
-descarga. Despues de instalar MiKTeX, reiniciar EduFEM.
+Si tu nombre de usuario de Windows tiene tildes o espacios
+(C:\Users\Jose Perez\...), el instalador propone instalar en
+C:\ProgramData\EduFEM: el TeX embebido no funciona en carpetas con
+esos caracteres. Acepta esa carpeta.
 
-Nota: las formulas que se ven DENTRO del programa NO necesitan
-MiKTeX -- usan un modo de respaldo automatico.
+Nota: las formulas que se ven DENTRO del programa NO usan LaTeX --
+se dibujan con un motor propio.
 
 
 ------------------------------------------------------------
@@ -139,8 +150,12 @@ MiKTeX -- usan un modo de respaldo automatico.
 - Aparece "Windows protegio su PC" o el antivirus lo marca: falso
   positivo habitual en programas nuevos sin firma; usa el lanzador
   "Iniciar EduFEM.bat" o segui la seccion 4.
-- No se genera la Memoria PDF: falta MiKTeX (ver seccion 6);
-  instalalo y reinicia EduFEM.
+- No se genera la Memoria PDF: falta la carpeta "texlive" junto al
+  programa (ver seccion 6). Reinstala con el instalador completo o,
+  en la version portable, copia la carpeta "texlive" junto a
+  EduFEM.exe.
+- La Memoria falla y el programa esta instalado en una carpeta con
+  tildes o espacios: reinstala en C:\ProgramData\EduFEM (seccion 6).
 - El lanzador no encuentra el programa: asegurate de que
   "Iniciar EduFEM.bat" este en la MISMA carpeta que "EduFEM.exe".
 - El programa no abre: verifica que el sistema sea Windows de 64

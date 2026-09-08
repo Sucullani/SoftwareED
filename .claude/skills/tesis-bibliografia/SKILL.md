@@ -17,11 +17,15 @@ El preambulo (`tesis/preambulo.tex`) ya carga biblatex con biber.
 
 ## Campos por tipo (minimos correctos)
 
-- `@book`: author, title, year, publisher; (edition, address, isbn si se confirman).
+- `@book`: author, title, year, publisher; (edition, location, isbn si se confirman).
 - `@article`: author, title, journaltitle, year, volume, number, pages; (doi si se confirma).
-- `@inproceedings`: author, title, booktitle, year, pages; (publisher, address).
-- `@techreport`: author, title, institution, year, number.
-- `@manual`: title, organization/author, year; (version).
+- `@inproceedings`: author, title, booktitle, year, pages; (publisher, location).
+- `@techreport`: author, title, institution, year, number; (location).
+- `@manual`: title, author **o** organization (nunca los dos: el driver imprime ambos y la
+  editorial sale duplicada), year; (version).
+
+Usa los nombres de campo de biblatex, no los alias legacy de BibTeX: `journaltitle` (no
+`journal`) y `location` (no `address`).
 
 ## Reglas
 
@@ -55,7 +59,22 @@ Usa **biber**, no bibtex (biblatex moderno lo requiere). Si una cita sale como `
 ## Nucleo de referencias esperado
 
 MEF: Zienkiewicz & Taylor, Bathe, Cook-Malkus-Plesha-Witt, Hughes, Reddy, Onate.
-Elasticidad: Timoshenko & Goodier. V&V: Roache, Oberkampf & Roy, MMS (Salari & Knupp),
-benchmark de Cook (1974). Calidad de malla: reporte Verdict (Sandia). Stack cientifico:
-Harris et al. (NumPy), Virtanen et al. (SciPy). Educacion en ingenieria: 2-4 articulos
-reales. Validacion: manual de SAP2000 (CSI).
+Analisis matematico del metodo: Strang & Fix. Elasticidad: Timoshenko & Goodier.
+V&V: Roache, MMS (Salari & Knupp), benchmark de Cook (1974). Calidad de malla: reporte
+Verdict (Sandia). Stack cientifico: Harris et al. (NumPy), Virtanen et al. (SciPy).
+Educacion en ingenieria: Bishay, Lee (x2), Perez-Santiago, Suarez (ED-Elas2D).
+Validacion: manual de SAP2000 (CSI). Metodologia: el **material docente de la carrera**
+(`tesis/Material docente/`), que es la fuente normativa del Cap. de diseno metodologico y las
+unicas fuentes en espanol del .bib — Barrios (Modelo de investigacion, CIV 400) y Miranda
+(situacion problematica/objeto/campo; planteamiento del problema e hipotesis).
+
+**Antes de agregar una entrada nueva, agota este orden** (regla del 2026-09-08): (a) redirigir
+la afirmacion a una fuente que ya esta en el .bib; (b) reescribirla para que se sostenga sola
+—definir la formula en el texto, corroborar el dato con evidencia propia del trabajo—;
+(c) sustituir la apelacion a una autoridad ausente por el argumento tecnico que esa autoridad
+respaldaria; (d) reconocer explicitamente el limite de la revision. Solo si nada de eso aplica,
+entrada nueva. La bibliografia de esta tesis es corta a proposito y cada entrada tiene >= 2 citas.
+
+Oberkampf & Roy (2010) se retiro el 2026-09-08: sus 5 citas eran un subconjunto estricto de
+las de Roache y no sostenia ninguna afirmacion propia. **No reintroducir** sin un pasaje que
+use lo que aporta de distinto (cuantificacion de incertidumbre, metricas de validacion).
