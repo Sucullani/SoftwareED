@@ -19,6 +19,7 @@ tesis** (`tesis/`, 130 páginas, compila limpio).
 |---|---|---|
 | Cierre de la tesis | `tesis/` | Compila limpio. Abiertas las 5 observaciones bloqueantes de la revisión del 2026-06-10 — ver [ESTADO_AUDITORIAS.md](../auditorias/ESTADO_AUDITORIAS.md) §*Abierto — revisión de la tesis*. Varias son **decisiones de autor**, no fixes mecánicos |
 | Deuda técnica de la auditoría 2026-06-10 | repo | **Cerrada el 2026-09-06** (Top-10 + medios y bajos de §1, §2, §5 y §6). Único pendiente: decidir si se cablea `TheoryDoc.margin_formula()` en la memoria — cambia el layout del PDF, así que necesita validación visual del autor |
+| Mejora continua del software | `docs/rutina/` | **Activa desde el 2026-09-08**: rutina horaria de claude.ai que trabaja directo sobre `main`, una área por sesión con rotación de 14. Qué hizo cada sesión: [../rutina/BITACORA.md](../rutina/BITACORA.md); qué falta y qué espera al autor: [../rutina/BACKLOG.md](../rutina/BACKLOG.md) |
 | Distribución del `.exe` | `installer/` | Vía principal decidida: instalador Inno Setup por usuario, sin admin. Sin firma de código (decisión tomada) |
 
 ## Decisiones abiertas (esperan al autor)

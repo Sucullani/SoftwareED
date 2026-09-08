@@ -39,6 +39,11 @@ python tools/build_texlive.py         # -> vendor/texlive (TeX Live recortado, u
 pyinstaller --noconfirm build.spec    # -> dist/EduFEM.exe (onefile, ~101 MB)
 ```
 
+**Gate de verificación**: `python -m tests.run_gates` (~30 s, sin pantalla) importa los 97
+módulos, audita los hex literales de `gui/` y `education/` y corre la suite headless completa.
+Sale 0 o 1. Flags: `--con-latex`, `--con-vv`, `--con-gui`. Es la condición de push de la
+rutina de mejora continua ([docs/rutina/RUTINA.md](docs/rutina/RUTINA.md)).
+
 Tests — scripts printout, se corren sueltos con `python -m tests.<nombre>`:
 
 | Grupo | Módulos |

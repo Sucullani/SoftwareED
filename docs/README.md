@@ -28,6 +28,19 @@ que rompen la app. El capítulo completo sigue siendo esta carpeta.
 Espacio compartido entre sesiones y agentes: [notas/ESTADO.md](notas/ESTADO.md) dice qué
 está en curso; [notas/README.md](notas/README.md) explica la convención.
 
+## Rutina de mejora continua — [rutina/](rutina/)
+
+Rutina horaria de claude.ai que trabaja el software directo sobre `main`: corrige errores e
+incongruencias de interacción, alinea el software con lo que promete la tesis y mejora la
+funcionalidad y las gráficas existentes, sin agregar dependencias.
+
+- [rutina/RUTINA.md](rutina/RUTINA.md) — el prompt autoritativo: objetivo, rotación de áreas,
+  margen sobre las decisiones congeladas, gates y prohibiciones.
+- [rutina/BITACORA.md](rutina/BITACORA.md) — qué hizo cada sesión y por qué. Append-only.
+- [rutina/BACKLOG.md](rutina/BACKLOG.md) — qué falta, en qué orden, y qué espera al autor.
+
+El gate que toda sesión debe pasar antes de pushear es `python -m tests.run_gates`.
+
 ## Auditorías — [auditorias/](auditorias/)
 
 - [ESTADO_AUDITORIAS.md](auditorias/ESTADO_AUDITORIAS.md) — **empezar acá**: consolida los

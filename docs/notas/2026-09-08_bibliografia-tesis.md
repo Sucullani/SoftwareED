@@ -265,3 +265,31 @@ la ecuación nueva se corrigieron partiéndola en `aligned`.
 
 Los **localizadores de página** (0 de 78 citas los usan). Sigue requiriendo los libros; la tabla
 de sitios prioritarios está más arriba, sin cambios.
+
+---
+
+# Anexo: intento de descarga de tres fuentes (mismo día)
+
+El autor pidió bajar los PDF de `roache1998verification`, `cook1974membrane` y
+`perezsantiago2023fem`. **Ninguna de las tres tiene texto completo libre.** Comprobado con
+Crossref, OpenAlex, Unpaywall y Semantic Scholar (los tres dan `is_oa: false`, `oa_status:
+closed`, cero repositorios con full text), y con `curl` contra los PDF del editor: ASCE y Wiley
+devuelven **403**. No se descargó nada: no hay copia legítima y las vías piratas quedan fuera.
+
+| Referencia | Estado | Vía legítima |
+|---|---|---|
+| `roache1998verification` | Libro impreso, Hermosa Publishers, 464 pág., ISBN 978-0-913478-08-0. No está en Internet Archive (0 resultados) ni en ningún repositorio | Compra (Amazon / AbeBooks / Biblio, usado) o préstamo interbibliotecario vía [WorldCat](https://search.worldcat.org/oclc/40065186) |
+| `cook1974membrane` | ASCE Library, de pago por artículo. Sin versión de autor en ningún lado; ni siquiera está indexado en Semantic Scholar | [doi.org/10.1061/JSDEAG.0003877](https://ascelibrary.org/doi/10.1061/JSDEAG.0003877), compra individual o biblioteca con suscripción ASCE |
+| `perezsantiago2023fem` | Wiley, suscripción. Los autores tienen perfil en ResearchGate y Academia.edu: ahí se puede **solicitar el full text al autor** (Pérez-Santiago está en el Tec de Monterrey, [Research@Tec PID_24237](https://research.tec.mx/vivo-tec/display/PID_24237)) | Solicitud al autor por ResearchGate, o acceso institucional |
+
+**Metadatos confirmados de paso** (Crossref): Cook 1974, *Journal of the Structural Division*
+**100(9)**, 1851â€“1863 âœ“. Pérez-Santiago y Campos 2023, *CAEE* **31(5)**, 1159â€“1173 â€” el `.bib`
+dice `number = {5}` y **está bien**; el número 2 que circula en algunas listas es incorrecto.
+
+**Hallazgo lateral útil**: `cook2002concepts` (*Concepts and Applications of Finite Element
+Analysis*) **sí está en Internet Archive en préstamo digital**
+([conceptsapplicat0000cook](https://archive.org/details/conceptsapplicat0000cook) y
+`conceptsapplicat0000cook_c2x7`). Es el libro que gobierna 18 de las 78 citas y los tres
+localizadores de página más caros del pendiente 1 (tamaños 3D, reparto de cargas de arista,
+pesos de extrapolación 1,866 / 0,134). Con una cuenta gratuita se puede leer y anotar los
+números de página sin comprarlo.
