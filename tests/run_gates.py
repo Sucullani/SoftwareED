@@ -38,6 +38,7 @@ TESTS_RAPIDOS = [
     "tests.test_serialization",
     "tests.test_undo_stack",
     "tests.test_node_cascade",
+    "tests.test_model_health",
     "tests.test_noncontiguous_ids",
     "tests.test_unit_conversion",
     "tests.test_q9_q4_cycle",

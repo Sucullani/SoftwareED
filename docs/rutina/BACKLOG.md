@@ -11,20 +11,23 @@ Reglas del archivo, en [RUTINA.md](RUTINA.md) §4 y §9. Historial de lo hecho, 
 
 ## Área siguiente
 
-> **11 — Modelo, salud y validación** (`models/*`: `project.py`, `model_health.py`,
-> `undo_stack.py`, `mesh_utils.py`, `example_library.py`, `material.py`). Capítulo a leer
-> antes: [../convenciones/arquitectura.md](../convenciones/arquitectura.md) — el contrato
-> `restore_from_dict` (muta in-place, undo/redo) vs. `from_dict` (instancia nueva,
-> abrir/guardar), el campo nuevo que va en `to_dict` **Y** en `from_dict` con backward-compat,
-> la invalidación de `node_index_map` en cada mutación que agregue/borre/renombre nodos, y que
-> la validación es **una sola vía**: `_check_xxx(project, report)` en `models/model_health.py`
-> + su hint en `EDUCATIONAL_HINTS` (la GUI muestra el reporte, no valida por su cuenta); y
-> siempre [../convenciones/no-reintroducir.md](../convenciones/no-reintroducir.md). Ítems del
-> BACKLOG que le pertenecen y hay que drenar primero: **ninguno propio**. Ojo con dos cosas que
-> otras áreas dejaron apoyadas acá: los **hints de `EDUCATIONAL_HINTS`** son el único texto que
-> el alumno lee cuando el modelo no resuelve (la sesión 03 hizo que F5 pase por ahí), y
-> `models/mesh_utils.median_edge_length` ahora también lo consume la Memoria
-> (`figure_export._detail`), no solo el canvas.
+> **12 — Resultados numéricos visibles** (`fem/*`, **solo lo que llega al alumno**). Capítulo a
+> leer antes: [../convenciones/roadmap-fem.md](../convenciones/roadmap-fem.md), y siempre
+> [../convenciones/no-reintroducir.md](../convenciones/no-reintroducir.md). Es el área con la
+> regla de entrada más estricta de la rotación ([RUTINA.md](RUTINA.md) §2): **el motor se toca
+> solo cuando el número que ve el alumno está mal o la tesis dice otra cosa**; no se optimiza
+> sin síntoma medido, no se reintroduce `numba`/`@njit` y **la versión legible elemento a
+> elemento no se reemplaza nunca** (es la referencia pedagógica de M2/M3/M5 y el oráculo de
+> `test_solver_regression`). Cualquier cambio en `assembly` / `batch` / `solver` / `stress`
+> exige `python -m tests.test_solver_regression` + `python -m tests.test_fem` (regla dura 21) y
+> conviene sumar `run_gates --con-vv`. Ítems del BACKLOG que le pertenecen y hay que drenar
+> primero: **`get_shape_functions` devuelve las N de Q9 para cualquier string que no sea
+> exactamente `ELEMENT_Q4`** (abajo, con la evidencia de la sesión 10) y, compartido con el
+> área 7, el heatmap de det J de M2. Ojo con una cosa que la sesión 12 dejó apoyada acá: el
+> `ValueError` genérico de `fem/solver.py` («modelo mal restringido, elemento degenerado o E/ν
+> fuera de rango») es lo último que ve el alumno cuando el validador de salud no atrapó la
+> causa — ahora atrapa cuatro más, pero el mensaje del solucionador sigue sin nombrar el
+> espesor ni la densidad.
 
 Al cerrar la sesión, reemplazá esta línea por el área que sigue en la rotación de
 [RUTINA.md](RUTINA.md) §4 (1 → 2 → … → 14 → 1).
@@ -233,6 +236,28 @@ Formato: `[área Nº] descripción — evidencia — quién decide`.
   + un `after` de sondeo **desde el hilo principal**, que es como conviene comunicar un worker
   con Tk. Mismo patrón en `_PDFProgressDialog` de la memoria (área 10).
 
+- **[11] `add_element` explota con `IndexError` si la librería de materiales quedó vacía.**
+  `models/project.py:327` hace `material_name = list(self.materials.keys())[0]` cuando el
+  caller no pasa material. El alumno puede vaciar la librería (*Modelo ▸ Materiales ▸
+  Eliminar*, o el autofix de `UNUSED_MATERIAL`). Hoy **no hay síntoma**: los dos caminos
+  interactivos hacen su pre-flight —`mesh_canvas._finish_draw_element` avisa «defina al menos
+  un material antes de dibujar» y `pre_tab._on_element_double_click` abre el `MaterialDialog`—
+  y el paste TSV cae a un nombre inexistente que `elem_material_missing` marca. Encontrado por
+  la sesión 12, que no lo tocó porque endurecer la firma sin un caso que lo ejercite es
+  cambiar una API por las dudas. Si algún importador nuevo llama `add_element` sin
+  `material_name`, ése es el lugar.
+
+- **[11 / 13] `convert_units` no convierte los desplazamientos prescritos de las
+  restricciones.** `ProjectModel.convert_units` escala coordenadas, espesor, E, fuerzas,
+  cargas distribuidas y gravedad, pero **no** `BoundaryCondition.ux_value` / `uy_value`, que
+  son longitudes: un modelo con Dirichlet no homogéneo cambia de sistema de unidades y el
+  desplazamiento impuesto se queda con el número viejo, o sea que el problema físico cambia en
+  silencio. Hoy **no lo ejercita nadie**: la GUI no expone esos campos (solo los fijan
+  `vv_mms` y similares, que no cambian de unidades) y se serializan en el `.edufem`, así que
+  el caso pide un archivo generado por script y después reabierto y convertido. Encontrado por
+  la sesión 12. Arreglo natural: dos líneas en `convert_units` (`bc.ux_value *= fl`) más su
+  caso en `tests/test_unit_conversion.py`.
+
 - **[1] La cuadrícula del canvas no está anclada al mundo.** `_draw_grid` es un empapelado en
   coordenadas de pantalla (`spacing = clamp(50·scale, 30, 200)` px, fase `offset % spacing`):
   las líneas no caen en valores redondos de X/Y, así que no ayudan a estimar una coordenada
@@ -438,6 +463,28 @@ Lo que el gate no puede juzgar. Cada ítem dice qué abrir, qué mirar y cómo r
   asignarlo): la columna **Recomendación** tiene que quedar dentro de la hoja y cortar línea
   (antes se iba 23 cm hacia afuera). El **Glosario** del final, igual.
 
+- **El reporte de salud con los errores nuevos** (sesión 12, **el más importante**). `Ctrl+E`
+  → **PRE-PROCESO**, sub-pestaña **Elementos** → doble-click en la columna **Espesor** de un
+  elemento, escribir `-0.8`, Enter → `F5`: debe abrirse *⚕ Salud del modelo* con una tarjeta
+  **📏 roja** por elemento («Elemento N tiene espesor -0.800 mm. Un espesor negativo invierte
+  el signo de k_e…»), su «🎓 ¿Por qué es un problema?» y un «📍 Ir al ítem» que selecciona esa
+  fila. Antes el modelo **resolvía sin una sola advertencia** y la deformada salía para el otro
+  lado. Probar también con `0` (mensaje distinto: K singular) y con `E = 0` en *Modelo ▸
+  Materiales* — ahí el «📍 Ir al ítem» abre el diálogo de materiales posicionado en el
+  culpable. Revertir: `git revert` del commit de la sesión 12.
+- **El resumen de repeticiones** (sesión 12). *Ayuda ▸ Cargar Ejemplo ▸ Membrana de Cook ▸
+  Q4* → en la tabla de Elementos, `Ctrl+A`, `Ctrl+C`, poner la columna Espesor en `0` en Excel
+  y `Ctrl+V` de vuelta → `F5`: el reporte debe mostrar **10 tarjetas** de espesor y una
+  undécima «…y N caso(s) más con el mismo problema (ids …)», y abrirse sin demora (antes
+  hubiera dibujado una tarjeta por elemento).
+- **La Memoria de un modelo con hallazgos** (sesión 12). `Ctrl+E` → *Modelo ▸ Materiales*:
+  densidad `0` → *Modelo ▸ Gravedad*: activar **Incluir gravedad** → `F5` → *Archivo ▸ Exportar
+  ▸ Memoria de Cálculo*. El PDF tiene que **generarse** (antes abortaba con `LaTeX Error:
+  Unicode character ρ (U+03C1) not set up for use with LaTeX`) y en el capítulo **⑧
+  Diagnóstico** la advertencia debe leerse «…la fuerza volumétrica ρ g V resulta nula» con la ρ
+  compuesta como símbolo, ni como caja ni como error. Este es el único de los tres que el gate
+  no pudo tocar: el sandbox no tiene `pdflatex`.
+
 (*El centrado de `Ayuda ▸ Acerca de EduFEM`, que antes moría en `NameError`, no ocupa un
 pendiente visual: se verificó con Tk real bajo `xvfb` — abre en `450x350+225+175`, centrado
 sobre la ventana principal.*)
@@ -596,6 +643,38 @@ futura reabra algo ya decidido.
 - **[10] Ninguna tabla de la Memoria decía la unidad de sus números** — cerrado por la sesión
   11 con la vía única `_u(kind)` / `_u_lineal()` sobre `config.units`, en las 12 tablas con
   magnitud física y en los dos estilos. Regresión: `test_tablas_con_unidades`.
+
+- **[11] El validador daba `✓ Modelo sano` a cuatro modelos que no se pueden resolver** —
+  cerrado por la sesión 12 con los errores críticos `non_positive_thickness`,
+  `non_positive_young`, `invalid_poisson` y `negative_density`. Medido en el ejemplo canónico:
+  con `t = 0` y con `E = 0` el solucionador terminaba en el `ValueError` genérico de NaN (que
+  enumera tres causas y ninguna era la real); con `ν = 0,5` en deformación plana subía un
+  `ZeroDivisionError` crudo; y con **`t < 0` el modelo resolvía**, devolviendo `|u|` máx
+  idéntico (0,0130763) con **cada componente de signo cambiado**, sin un solo aviso. Los
+  materiales se evalúan solo si algún elemento los usa (un error crítico tiene que bloquear
+  algo real). Regresión: `tests/test_model_health.py`, nuevo y dentro del gate rápido — el
+  validador no tenía ni un test propio.
+- **[11] El mensaje de `gravity_no_density` afirmaba algo falso con densidad negativa** —
+  cerrado por la sesión 12. Decía que «la fuerza volumétrica F = ρ·g·V será nula»: con `ρ < 0`
+  la fuerza existe y apunta **hacia arriba**. Se separó en `ρ = 0` (sigue siendo warning: el
+  resultado es correcto, sin peso propio) y `ρ < 0` (error `negative_density`).
+- **[11 / 5] El rango de ν estaba escrito dos veces** — cerrado por la sesión 12 con
+  `POISSON_MIN` / `POISSON_MAX` en `models/material.py`, que ahora consumen `Material.validate()`,
+  el chequeo del validador y la validación live del `MaterialDialog`.
+- **[11 / 10] La Memoria de un modelo con hallazgos podía no compilar** — cerrado por la
+  sesión 12. El capítulo ⑧ mete los mensajes del validador verbatim y `escape_latex` deja pasar
+  el no-ASCII: el `ρ·g·V` de `gravity_no_density` metía una griega suelta en modo texto, lo que
+  la regla dura 20 documenta como aborto de `pdflatex`. Ahora pasan por
+  `MemoriaCalculo._texto_validador` (35 símbolos → macro LaTeX), sin empobrecer el texto de la
+  pantalla. De paso, `_DIAG_RECO` ganó los cuatro códigos nuevos y `orphan_free_node`, que caía
+  en el genérico «Revisar el ítem indicado.». Regresión sin `pdflatex`:
+  `test_mensajes_del_validador_son_compilables`.
+- **[11] Un reporte podía tener mil tarjetas idénticas** — cerrado por la sesión 12 con
+  `_colapsar_repetidos` (10 por código y severidad, el resto en una tarjeta de resumen). Los
+  issues `fixable` **no** se colapsan: cada tarjeta es la única vía de aplicar su 🔧 Corregir.
+- **[11] Los 16 mensajes del validador estaban sin tildes y siete docstrings decían `DOF`** —
+  cerrado por la sesión 12 (reglas duras 1 y 2 de terminología). Es el único texto que el
+  alumno lee cuando su modelo no resuelve.
 
 - **[1] `Supr` no borraba nada con multi-selección en el canvas** — cerrado por la sesión 01.
   El handler despachaba por `highlighted_*` (que valen `None` con >1 ítem). Ahora lee los sets

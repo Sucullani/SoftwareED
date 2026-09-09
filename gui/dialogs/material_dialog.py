@@ -35,7 +35,7 @@ from tkinter import messagebox
 
 from config.settings import LABEL_BG, LABEL_FG, CANVAS_SELECTED_ROW_BG, CANVAS_SELECTED_ROW_FG
 from gui.preprocessing._table_helpers import to_float_flex
-from models.material import Material
+from models.material import Material, POISSON_MAX, POISSON_MIN
 
 
 from gui.dialogs._dialog_helpers import bind_dialog_keys, center_dialog
@@ -325,7 +325,9 @@ class MaterialDialog:
         except (ValueError, TypeError):
             malos.append("E")
         try:
-            if not (-1.0 < to_float_flex(self.var_nu.get()) < 0.5):
+            # Mismos limites que `Material.validate()` y que el chequeo
+            # `_check_material_properties` del reporte de salud.
+            if not (POISSON_MIN < to_float_flex(self.var_nu.get()) < POISSON_MAX):
                 malos.append("nu")
         except (ValueError, TypeError):
             malos.append("nu")

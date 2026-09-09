@@ -26,6 +26,18 @@ DEFAULT_MATERIALS = {
 }
 
 
+# ─── Rango físico del coeficiente de Poisson ────────────────────────────
+# Intervalo ABIERTO (-1, 0.5) de un material isótropo: fuera de él la
+# matriz constitutiva D deja de ser definida positiva, y en el extremo
+# ν = 0.5 (incompresible) la deformación plana divide por (1-2ν) = 0.
+# Fuente única: la usan `Material.validate()`, el chequeo
+# `_check_material_properties` de `models/model_health.py` y —vía ese
+# validador— el reporte de salud que ve el alumno. El `MaterialDialog`
+# valida en vivo con los mismos límites.
+POISSON_MIN = -1.0
+POISSON_MAX = 0.5
+
+
 class Material:
     """Material elástico lineal isótropo."""
 
@@ -41,8 +53,11 @@ class Material:
         errors = []
         if self.E <= 0:
             errors.append("El módulo de Young (E) debe ser positivo.")
-        if not (-1.0 < self.nu < 0.5):
-            errors.append("El coef. de Poisson (ν) debe estar entre -1 y 0.5.")
+        if not (POISSON_MIN < self.nu < POISSON_MAX):
+            errors.append(
+                f"El coef. de Poisson (ν) debe estar entre {POISSON_MIN:g} "
+                f"y {POISSON_MAX:g}."
+            )
         if self.density < 0:
             errors.append("La densidad no puede ser negativa.")
         return errors

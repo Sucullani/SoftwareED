@@ -2010,3 +2010,180 @@ es incondicional.
 ### Área siguiente
 
 11 — Modelo, salud y validación (`models/*`).
+
+---
+
+## Sesión 12 — 2026-09-09 06:20 UTC — Área: 11 — Modelo, salud y validación
+
+**Commit**: (este) · **Gates**: `run_gates` verde (97/97 módulos, gate de nombres, 0 hex,
+**24/24** tests, con el nuevo `tests/test_model_health.py` dentro de la suite rápida).
+`--con-latex` **no se pudo correr**: este sandbox no tiene `pdflatex` ni `vendor/texlive`
+(ver *Descartado*).
+
+> El BACKLOG no le dejaba al área **ningún ítem propio**, así que todo lo de abajo es
+> material nuevo. No salió de leer los archivos sino de **recorrer el flujo del alumno con
+> el modelo roto a propósito**: poner un número raro donde la interfaz deja ponerlo y mirar
+> qué dice el programa. La respuesta, cuatro veces, fue **`✓ Modelo sano`**.
+
+### Qué se hizo y por qué
+
+**El validador daba por sano un modelo que no se puede resolver — o que se resuelve mal.**
+
+- `models/model_health.py` — cuatro errores críticos nuevos. El validador es la **única vía**
+  de validación del programa (regla dura 16: la tabla de Elementos y el importador CSV/ZIP no
+  validan por su cuenta, a propósito), así que lo que él no ve, el alumno lo descubre recién
+  cuando el solucionador falla, con un mensaje genérico que enumera tres causas posibles y no
+  incluye la verdadera. Los cuatro casos están medidos sobre el ejemplo canónico:
+
+  | Qué se toca | Antes | Ahora |
+  |---|---|---|
+  | Espesor `t = 0` en la tabla de Elementos | `✓ Modelo sano` → `ValueError: El solver produjo valores NaN o Inf…` | `non_positive_thickness`, error crítico que nombra el espesor |
+  | Espesor `t < 0` | `✓ Modelo sano` y **el modelo resuelve**: `\|u\|` máx idéntico (0,0130763) y **cada componente con el signo cambiado** | error crítico que dice exactamente eso |
+  | `E ≤ 0` en un material en uso | un warning de **unidades** (`¿Las unidades son las correctas?`) → NaN al resolver | `non_positive_young`, y el warning de unidades **ya no se emite** para ese número |
+  | `ν = 0,5` en deformación plana | `✓ Modelo sano` → `ZeroDivisionError: float division by zero` crudo | `invalid_poisson`, que nombra la división por `1-2ν = 0` |
+
+  **Por qué error y no warning**: la definición que el propio archivo da de ERROR es «bloquea
+  el solve». Los dos casos de signo invertido (espesor y densidad negativos) no bloquean nada:
+  devuelven números plausibles y mal, que es peor que fallar. Van como error por eso, y el
+  docstring del módulo ahora lo dice.
+
+  **Solo los materiales EN USO**: un error crítico tiene que bloquear algo real. Un material
+  inválido guardado en la librería y sin asignar a ningún elemento no entra a D y ya salía
+  como `unused_material`. Mismo criterio que `suspicious_young_modulus`.
+
+- `models/material.py` — `POISSON_MIN` / `POISSON_MAX`. El rango `(-1, 0.5)` estaba escrito
+  **tres veces**: en `Material.validate()`, en `MaterialDialog.campos_invalidos()` y (desde
+  hoy) lo hubiera estado una cuarta en el validador. Ahora las tres lo importan de acá.
+
+- `models/model_health.py::_check_gravity_density` — el mensaje de `gravity_no_density` decía
+  que con densidad ≤ 0 «la fuerza volumétrica F = ρ·g·V **será nula**». Con `ρ = 0` es cierto;
+  con `ρ < 0` es **falso y al revés**: la fuerza existe y apunta hacia arriba, el modelo
+  resuelve y la deformada sale invertida. Los dos casos se separaron: `ρ = 0` sigue siendo
+  warning (el resultado es correcto, solo que sin peso propio) y `ρ < 0` es el error
+  `negative_density`.
+
+**Mil tarjetas idénticas no informan más que diez.**
+
+- `models/model_health.py::_colapsar_repetidos` — los chequeos que recorren elementos emiten un
+  issue por ítem, y el espesor es una **columna que se edita en masa**: pegar 1024 filas con
+  `t = 0` daba 1024 tarjetas iguales en el reporte de salud (que las construye una por una, sin
+  tope) y 1024 filas en la tabla de diagnóstico de la Memoria. A partir de 10 por código y
+  severidad, el resto se resume en una sola tarjeta (`…y N caso(s) más (ids 11…64)`), pegada al
+  último caso listado de su código. **Los issues `fixable` no se colapsan**: cada tarjeta es la
+  única vía de aplicar su 🔧 Corregir, y resumirlas sería sacarle acciones al alumno. El
+  resumen no lleva `target`, porque «📍 Ir al ítem» no puede llevar a 54 elementos a la vez y
+  un botón que no actúa es un botón mudo (`no-reintroducir.md`).
+
+**La Memoria de un modelo con hallazgos no compilaba.**
+
+- `file_io/memoria_calculo.py` — el capítulo ⑧ mete los mensajes del validador **verbatim** en
+  el `.tex` (`escape(iss.message)`, y `escape_latex` deja pasar el no-ASCII sin tocarlo). El
+  mensaje de `gravity_no_density` trae `ρ·g·V` desde antes de esta sesión: un modelo con la
+  gravedad activa y densidad cero generaba un documento con una griega suelta en modo texto,
+  que es exactamente lo que la regla dura 20 dice que aborta `pdflatex`. O sea que **el alumno
+  cuyo modelo tenía un hallazgo era justo el que no podía exportar su Memoria**. La traducción
+  se hace en el borde (`_texto_validador`: `ρ` → `$\rho$`, `≤` → `$\le$`, `²` →
+  `\textsuperscript{2}`, 35 símbolos) y no empobreciendo el texto de la pantalla, donde `ρ·g·V`
+  es lo que corresponde mostrar. De paso, `_DIAG_RECO` ganó las recomendaciones de los cuatro
+  códigos nuevos y la de `orphan_free_node`, que caía en el genérico «Revisar el ítem
+  indicado.» desde que se agregó ese chequeo.
+
+**Acentos y GDL en el único texto que el alumno lee cuando su modelo no resuelve.**
+
+- `models/model_health.py` — los 16 mensajes visibles estaban sin tildes (`libreria`,
+  `vertices`, `sera`, `rotacion rigida`, `restriccion`, `ningun`, `orientacion`, `area`,
+  `Extension`, `analisis`, `volumetrica`) y siete docstrings/comentarios decían `DOF` en vez de
+  **GDL**. Reglas duras 1 y 2 de terminología, en la superficie donde más importan: es lo que
+  se lee cuando algo está mal. Sin cambio de lógica; los mensajes nuevos van con la misma vara.
+
+- `models/model_health.py` — los números de los mensajes nuevos pasan por `fmt(value, kind)`
+  (regla dura 8) y llevan **la unidad del proyecto** (`espesor -0.800 mm`, `E = 0.00 MPa`), vía
+  `config.units`, igual que las tablas del Pre y de la Memoria desde la sesión 11.
+
+### Errores encontrados y corregidos
+
+- **Espesor cero o negativo: `✓ Modelo sano`.** El negativo, además, resuelve e invierte el
+  signo de todo sin decir nada.
+- **`E ≤ 0`: diagnosticado como problema de unidades**, que es un consejo equivocado para un
+  cero, y sin error crítico.
+- **`ν = 0,5` en deformación plana: `ZeroDivisionError` crudo** hasta la GUI.
+- **`gravity_no_density` afirmaba algo falso** en el caso `ρ < 0` (la fuerza no es nula: está
+  invertida).
+- **El capítulo ⑧ de la Memoria no compilaba** si el reporte traía un mensaje con griegas
+  (`ρ·g·V`), es decir con la gravedad activa y densidad cero.
+- **`orphan_free_node` no tenía recomendación en la Memoria** (caía en el texto genérico).
+- **El rango de ν estaba escrito dos veces** y a punto de estarlo una tercera.
+
+### Tests
+
+- `tests/test_model_health.py` — **nuevo** (12 casos), y agregado a `TESTS_RAPIDOS` de
+  `run_gates`: el validador —la única vía de validación del programa— no tenía ni un test
+  propio. Cubre los cuatro chequeos nuevos, que el ejemplo canónico Q4/Q9 y Cook Q4 **no** den
+  falsos positivos, que un material inválido sin uso no bloquee el solve, el colapso de
+  repeticiones y que los `fixable` no se colapsen, y tres contratos con quien consume el
+  reporte: todo código tiene **hint** y **icono** en `health_report_dialog`, todo código tiene
+  **recomendación** en el capítulo ⑧ de la Memoria, y ningún mensaje mete símbolos que
+  `pdflatex` no sabe leer (este último corre en el gate rápido: no necesita LaTeX).
+- El test del espesor negativo **resuelve el modelo dos veces** y comprueba `u_mal == -u_ok`:
+  si algún día el motor deja de invertir el signo, el test lo dice en vez de pasar de largo.
+
+### DECISIÓN CONGELADA REVERTIDA
+
+- Ninguna.
+
+### Pendientes visuales para el autor
+
+1. **El reporte de salud con los errores nuevos** (*el más importante*). `Ctrl+E` → pestaña
+   **PRE-PROCESO**, sub-pestaña **Elementos** → doble-click en la columna **Espesor** de un
+   elemento, escribir `-0.8`, Enter → `F5`. Debe abrirse *⚕ Salud del modelo* con una tarjeta
+   **📏 roja** por elemento que dice «Elemento N tiene espesor -0.800 mm. Un espesor negativo
+   invierte el signo de k_e…», con su «🎓 ¿Por qué es un problema?» y un «📍 Ir al ítem» que
+   lleva a la fila de ese elemento. Antes: el modelo resolvía sin una sola advertencia y la
+   deformada salía **para el otro lado**. Probar también `0` (mensaje distinto: K singular) y,
+   en *Modelo ▸ Materiales*, un `E` de `0` — el «📍 Ir al ítem» de esa tarjeta abre el diálogo
+   de materiales posicionado en el material culpable. Revertir: `git revert` del commit de la
+   sesión 12.
+2. **El resumen de repeticiones**. *Ayuda ▸ Cargar Ejemplo ▸ Membrana de Cook ▸ Q4* → en la
+   tabla de Elementos, seleccionar todo con `Ctrl+A`, copiar a Excel, poner la columna Espesor
+   en `0` y pegar de vuelta con `Ctrl+V` → `F5`: el reporte debe mostrar **10 tarjetas** de
+   espesor y una undécima que dice «…y N caso(s) más con el mismo problema (ids …)», y la
+   ventana debe abrir sin demora. Antes hubiera dibujado una tarjeta por elemento.
+3. **La Memoria de un modelo con hallazgos**. `Ctrl+E` → *Modelo ▸ Materiales*: poner la
+   densidad en `0` → *Modelo ▸ Gravedad*: activar **Incluir gravedad** → `F5` → *Archivo ▸
+   Exportar ▸ Memoria de Cálculo*. El PDF tiene que **generarse** (antes abortaba con
+   `LaTeX Error: Unicode character ρ`) y en el capítulo **⑧ Diagnóstico** la fila de la
+   advertencia debe leerse «…la fuerza volumétrica $\rho\,g\,V$ resulta nula» con la ρ
+   compuesta como símbolo, no como caja ni como error.
+
+### Descartado
+
+- **Correr `run_gates --con-latex`.** Este sandbox no trae `pdflatex` ni `latexmk` y
+  `vendor/texlive` es un artefacto gitignored que no está en el clon, así que la suite de
+  LaTeX no se puede ejecutar. Por eso la corrección del capítulo ⑧ se cubrió con una
+  regresión que **no necesita compilar** (compara el texto emitido contra el conjunto de
+  caracteres que `inputenc utf8` resuelve) y la verificación del PDF real quedó como pendiente
+  visual 3. Es el mismo bloqueo que ya arrastran el Anexo A y las figuras del Anexo B en el
+  área 14.
+- **Validar el espesor en la celda de la tabla de Elementos** (`pre_tab._on_element_commit`).
+  Es exactamente lo que prohíbe la regla dura 16 y la fila de `no-reintroducir.md` «duplicar la
+  validación del modelo en la GUI»: la vía es el `_check_xxx`, que además cubre el paste TSV,
+  el CSV/ZIP y el `.edufem` editado a mano, que la celda no ve.
+- **Autofix (`fixable=True`) para los cuatro errores nuevos.** No hay corrección segura que
+  adivinar: el espesor que el alumno quería poner no lo sabe nadie, y «poner 1» sería inventar
+  un dato del modelo. El botón que sí tiene sentido es «📍 Ir al ítem», y lo tienen los cuatro.
+- **`add_element` con la librería de materiales vacía** levanta `IndexError`
+  (`list(self.materials.keys())[0]`). Los dos caminos interactivos (canvas y tabla) ya hacen su
+  pre-flight y el paste TSV cae a un nombre inexistente que el validador marca, así que hoy no
+  hay síntoma: queda anotado en el BACKLOG en vez de endurecer una firma sin caso.
+- **`convert_units` no convierte `ux_value`/`uy_value`** de las restricciones (desplazamientos
+  prescritos: son longitudes y deberían escalar). Hoy la GUI no permite valores no nulos —solo
+  los fijan los scripts de V&V/MMS, que no cambian de unidades—, así que va al BACKLOG con la
+  evidencia en vez de tocar la conversión sin caso que lo ejercite.
+- **Pasar el `E` del warning de unidades por `fmt`** (`{mat.E:g}`, regla dura 8). Ese mensaje
+  compara órdenes de magnitud, y `fmt(E, "stress")` fija dos decimales: `210000.00 MPa` en una
+  frase que habla de rangos es peor que `210000`. Los mensajes nuevos sí usan `fmt` porque
+  informan un valor puntual.
+
+### Área siguiente
+
+- 12 — Resultados numéricos visibles (`fem/*`, solo lo que llega al alumno).

@@ -87,6 +87,39 @@ EDUCATIONAL_HINTS = {
         "Un cuadrilatero con vertices repetidos colapsa geometricamente "
         "(area cero o negativa). El Jacobiano se anula y la inversa "
         "no esta definida -> la matriz B no se puede formar.",
+    HealthCode.NON_POSITIVE_THICKNESS:
+        "El espesor t multiplica la integral de la rigidez del elemento: "
+        "k_e = t · ∫ Bᵀ D B |J| dξ dη. Con t = 0 el elemento no aporta "
+        "nada a K; con t < 0 aporta lo mismo pero con el signo cambiado, "
+        "asi que el sistema K·u = F se resuelve igual y devuelve todos los "
+        "desplazamientos y todas las tensiones invertidos, sin ningun "
+        "aviso. Un espesor es una longitud fisica: tiene que ser mayor "
+        "que cero. Corregilo en la columna Espesor de la tabla de "
+        "Elementos (Pre-Proceso).",
+    HealthCode.NON_POSITIVE_YOUNG:
+        "El modulo de Young E es el factor comun de la matriz "
+        "constitutiva D: σ = D · ε. Con E = 0 el material no opone "
+        "ninguna resistencia, k_e se anula y K queda singular; con E < 0 "
+        "la rigidez es negativa, que es como decir que el material se "
+        "deforma hacia donde lo empujas. Ningun solido real tiene E <= 0. "
+        "Corregilo en Modelo ▸ Materiales.",
+    HealthCode.INVALID_POISSON:
+        "El coeficiente de Poisson ν mide cuanto se contrae el material "
+        "en la direccion transversal a la que se estira. En un solido "
+        "isotropo vive en (-1, 0.5): fuera de ese intervalo la matriz D "
+        "deja de ser definida positiva, que es la condicion de que "
+        "deformar el material cueste energia. El extremo ν = 0.5 es el "
+        "material incompresible (goma): en deformacion plana el factor "
+        "E/((1+ν)(1-2ν)) divide por cero y D no existe. Los valores "
+        "usuales van de 0.15 (concreto) a 0.35 (aluminio). Corregilo en "
+        "Modelo ▸ Materiales.",
+    HealthCode.NEGATIVE_DENSITY:
+        "Con la gravedad activa, el peso propio entra al vector F como la "
+        "fuerza volumetrica ∫ Nᵀ (ρ·g) dΩ de cada elemento. Si ρ es "
+        "negativa el producto cambia de signo y el peso propio empuja "
+        "hacia arriba: el modelo resuelve sin error y la deformada sale "
+        "al reves. Asigna una densidad positiva en Modelo ▸ Materiales, o "
+        "apaga Incluir gravedad si no queres peso propio.",
     HealthCode.NEGATIVE_JACOBIAN:
         "La convencion de toda la libreria es CCW (counter-clockwise). "
         "Si tus 4 vertices estan en orden CW, el Jacobiano sale negativo "
@@ -151,6 +184,10 @@ CODE_ICONS = {
     HealthCode.ELEM_MATERIAL_MISSING:   "🧱",
     HealthCode.SURFACE_NODE_MISSING:    "❌",
     HealthCode.DEGENERATE_ELEMENT:      "📐",
+    HealthCode.NON_POSITIVE_THICKNESS:  "📏",
+    HealthCode.NON_POSITIVE_YOUNG:      "🧱",
+    HealthCode.INVALID_POISSON:         "🧱",
+    HealthCode.NEGATIVE_DENSITY:        "🌍",
     HealthCode.NEGATIVE_JACOBIAN:       "🔄",
     HealthCode.LOAD_ORPHAN_NODE:        "🔗",
     HealthCode.UNUSED_MATERIAL:         "🧱",

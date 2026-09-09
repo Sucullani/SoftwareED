@@ -2341,6 +2341,24 @@ class MemoriaCalculo:
             r"sus extremos.",
         "no_elements":
             r"El modelo no tiene elementos: no hay sistema que resolver.",
+        "orphan_free_node":
+            r"El nodo no pertenece a ningún elemento y conserva GDL libres; "
+            r"conectarlo a la malla, restringirlo por completo o eliminarlo.",
+        "non_positive_thickness":
+            r"El espesor multiplica $\mathbf{k}_e$: con $t=0$ el elemento no "
+            r"aporta rigidez y con $t<0$ la aporta con el signo cambiado. "
+            r"Asignar un espesor mayor que cero.",
+        "non_positive_young":
+            r"El módulo de Young debe ser positivo: con $E\le 0$ la matriz "
+            r"$\mathbf{D}$ no representa un sólido elástico.",
+        "invalid_poisson":
+            r"El coeficiente de Poisson de un material isótropo vive en "
+            r"$(-1;\,0{,}5)$; en $\nu=0{,}5$ la deformación plana divide por "
+            r"$1-2\nu=0$.",
+        "negative_density":
+            r"Densidad negativa con gravedad activa: la fuerza másica "
+            r"$\rho\,\mathbf{g}$ queda invertida. Asignar densidad positiva "
+            r"o desactivar la gravedad.",
         "load_orphan_node":
             r"La carga actúa sobre un nodo sin elementos; no contribuye a la "
             r"rigidez.",
@@ -2358,9 +2376,43 @@ class MemoriaCalculo:
             r"La extensión del modelo es atípica; verificar el sistema de "
             r"unidades.",
         "gravity_no_density":
-            r"Gravedad activa pero densidad $\le 0$: la fuerza másica "
-            r"resulta nula.",
+            r"Gravedad activa pero densidad nula: la fuerza másica "
+            r"$\rho\,\mathbf{g}$ resulta nula.",
     }
+
+    # Los mensajes del validador son los MISMOS que el alumno lee en el
+    # reporte de salud en pantalla, donde "ρ·g·V" o "ν = 0,5" es lo que
+    # corresponde escribir. Pero de ahi entran a este .tex, y pdflatex no
+    # acepta griego ni simbolos matematicos sueltos en modo texto (regla
+    # dura 20): un modelo con la gravedad activa y densidad cero generaba
+    # un documento que NO compilaba — justo el alumno con un hallazgo era
+    # el que no podia exportar su Memoria. La traduccion se hace aca, en
+    # el borde, para no empobrecer el texto de la pantalla.
+    _UNICODE_A_LATEX = {
+        "α": r"$\alpha$", "β": r"$\beta$", "γ": r"$\gamma$",
+        "δ": r"$\delta$", "ε": r"$\varepsilon$", "θ": r"$\theta$",
+        "κ": r"$\kappa$", "λ": r"$\lambda$", "μ": r"$\mu$", "ν": r"$\nu$",
+        "ξ": r"$\xi$", "π": r"$\pi$", "ρ": r"$\rho$", "σ": r"$\sigma$",
+        "τ": r"$\tau$", "φ": r"$\varphi$", "ω": r"$\omega$",
+        "Δ": r"$\Delta$", "Σ": r"$\Sigma$", "Ω": r"$\Omega$",
+        "·": r"$\cdot$", "×": r"$\times$", "→": r"$\to$",
+        "≤": r"$\le$", "≥": r"$\ge$", "≠": r"$\neq$", "≈": r"$\approx$",
+        "±": r"$\pm$", "∞": r"$\infty$", "∫": r"$\int$", "∂": r"$\partial$",
+        "√": r"$\sqrt{\;}$", "²": r"\textsuperscript{2}",
+        "³": r"\textsuperscript{3}", "°": r"\textdegree{}",
+        "…": r"\ldots{}", "—": "---", "–": "--",
+    }
+
+    @classmethod
+    def _texto_validador(cls, mensaje: str) -> str:
+        """Escapa un mensaje del validador y traduce a LaTeX lo que pdflatex
+        no sabe leer en modo texto. Las vocales acentuadas y la ñ pasan tal
+        cual: `inputenc utf8` las resuelve."""
+        texto = str(TheoryDoc.escape(mensaje))
+        for caracter, latex in cls._UNICODE_A_LATEX.items():
+            if caracter in texto:
+                texto = texto.replace(caracter, latex)
+        return texto
 
     @staticmethod
     def _verdict_cell(state: str) -> str:
@@ -2408,7 +2460,8 @@ class MemoriaCalculo:
                         else r"\textcolor{edufemProc}{Advertencia}"
                     reco = self._DIAG_RECO.get(
                         iss.code, r"Revisar el item indicado.")
-                    rows.append([sev, TheoryDoc.escape(iss.message), reco])
+                    rows.append([sev, self._texto_validador(iss.message),
+                                 reco])
                 self._longtable(
                     headers=["Severidad", "Hallazgo", "Recomendación"],
                     rows=rows, col_align=r"lp{4.3cm}p{6.2cm}")
