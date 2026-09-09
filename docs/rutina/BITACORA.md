@@ -1279,3 +1279,105 @@ línea de alto a los overlays: los cuatro conservan su ancho y su geometría.
 ### Área siguiente
 
 8 — Módulos educativos M4–M7 (`education/mod04..mod07`, `module_launcher.py`).
+
+---
+
+## Sesión 08 — 2026-09-09 02:40 UTC — Área: 5 — Diálogos (repesca)
+
+**Commit**: (este) · **Gates**: `run_gates` verde (97/97 módulos, gate de nombres, 0 hex,
+21/21 tests) y también `run_gates --con-gui` bajo `xvfb` (23/23)
+
+> **Sesión solapada, no una área nueva.** Arranqué el área 5 en paralelo con la sesión 05 y,
+> al ir a pushear, `git fetch` trajo su commit `19ad312` (área 5) y el `38de9f8` (área 6) ya
+> en `main` — y al rebasar, también el `940c02d` de la sesión 07 (área 7). Numerada 08 por
+> orden de llegada; el trabajo es del área 5. Descarté mi árbol entero con
+> `git reset --hard origin/main` en vez de rebasarlo:
+> los dos habíamos encontrado casi lo mismo (el `NameError` de *Acerca de*, la rueda que
+> secuestraba la app, el «Ir al ítem» muerto, `to_float_flex` en Materiales, el modal de
+> borrado que cuenta los elementos) y su versión es mejor —el gate `gate_nombres` con
+> `symtable` cierra la clase entera del bug del import faltante, y de paso pescó el
+> `sympy` sin importar de M5—. **No se pisó nada.** Esta entrada solo agrega los **tres
+> hallazgos que su commit no cubría**; el área siguiente la fija la sesión 07 y no se toca.
+
+### Qué se hizo y por qué
+
+- `gui/dialogs/material_dialog.py::_mark_dirty` — **cambiar un material no invalidaba la
+  solución** (regla dura 12). Los tres flujos (`_add_material`, `_remove_material`,
+  `_save_material`) seteaban `is_modified = True` pero **no** `is_solved = False`, y sigue así
+  en `19ad312`. No es cosmético: `post_tab._auto_solve` corta con
+  `if self.solution is not None and self.project.is_solved: return`, así que el alumno bajaba
+  **E** de 200 GPa a 20 GPa, apretaba **F5**, y veía **exactamente los mismos desplazamientos
+  y tensiones**, sin ningún aviso. Y *Archivo ▸ Exportar Memoria PDF* seguía habilitado
+  (`_refresh_menu_state` mira `is_solved`), generando un documento con la tabla del material
+  **nuevo** y la K, la u y las σ de la corrida **vieja**. K depende de E y de ν vía D, y F del
+  peso propio depende de ρ. El autofix de `UNUSED_MATERIAL` en `models/model_health.py` ya lo
+  hacía bien: este diálogo era **el único camino de mutación del proyecto que no**. Ahora hay
+  un `_mark_dirty()` único —una sola asignación de `is_modified` en todo el archivo, para que
+  no se pueda volver a olvidar la otra mitad— por el que pasan los tres.
+- `material_dialog._notify_main_window(status=None)` — ahora llama también
+  `_update_status_info()` y escribe en la barra de estado. **Por qué**: borrar un material en
+  uso deja los elementos apuntando a un nombre inexistente (error crítico
+  `ELEM_MATERIAL_MISSING`), pero el **badge de salud** seguía diciendo «✓ Modelo sano» hasta
+  que alguna otra acción lo recalculara — el badge mentía. Y era el único diálogo del menú
+  Modelo mudo en la barra de estado: Unidades, Gravedad, Tipo de análisis y Tipo de elemento
+  la usan. Los mensajes nombran el material y, en el borrado, cuántos elementos quedaron sin
+  material.
+- `gui/dialogs/pdflatex_missing_dialog.py` — el botón **«Descargar MiKTeX»** tragaba la
+  excepción de `webbrowser.open` **y además ignoraba su valor de retorno** (`False` = no
+  encontró navegador). Este diálogo aparece justamente **cuando el alumno ya está bloqueado**:
+  un botón que no abre nada y no dice nada lo deja sin salida. Ahora, si no se abrió, un
+  `showinfo` le da la URL para copiar a mano.
+- `tests/test_dialogs.py` — **9 chequeos agregados al archivo de la sesión 05** (bloques `[10]`
+  y `[11]`, en su mismo estilo `check(...)`; no se tocó ninguno de los suyos). Cubren la regla
+  dura 12 en los tres flujos, el badge, el aviso de estado, que quede **una sola** asignación
+  de `is_modified`, y las dos del botón de descarga. Verificado que los 9 **fallan** contra el
+  `gui/` de `origin/main` y pasan con el arreglo.
+
+### Errores encontrados y corregidos
+
+- **Editar, agregar o borrar un material no invalidaba la solución**: `F5` devolvía las
+  tensiones del material viejo y la Memoria PDF se exportaba sobre una corrida vieja. Es el
+  hallazgo más serio del área y sobrevivió al pase de la sesión 05.
+- **El badge de salud mentía** tras borrar un material en uso.
+- **El botón «Descargar MiKTeX» podía no hacer nada** sin decirlo.
+
+### DECISIÓN CONGELADA REVERTIDA
+
+Ninguna. El minimalismo del `MaterialDialog` queda intacto: no se agregó status label, ni
+footer, ni hints — el feedback nuevo va a la barra de estado de la ventana principal, que es
+donde el resto del programa lo pone.
+
+### Pendientes visuales para el autor
+
+1. **Materiales: la solución se invalida de verdad.** `Ctrl+E` → `F5` → campo **|U|** y
+   anotá el máximo (en el ejemplo canónico, **0,0130763**) → *Modelo ▸ Material* → bajá **E** a
+   la décima parte → *Guardar cambios* → cerrá → `F5` → **|U|**: tiene que dar **10 veces
+   más** (0,130763). Antes salía idéntico. **Mirá los desplazamientos, no von Mises**:
+   con la carga impuesta del ejemplo, escalar E de forma uniforme no mueve las tensiones
+   (verificado: VM máx = 864,70 en los dos casos), así que von Mises no distingue el bug del
+   arreglo. La barra de estado debe decir «Material «Acero…» guardado.». Probá también
+   *Eliminar* sobre un material en uso: además del modal que ya avisa, el badge debe pasar a
+   **✗ 1 error(es)** en el acto, sin cambiar de pestaña. Revertir: `git revert` de este commit.
+
+### Descartado
+
+- **Rebasar mi árbol sobre el suyo.** Habría sido resolver conflictos línea por línea en 11
+  archivos para terminar con una versión peor que la que ya está pusheada. `reset --hard` +
+  reaplicar solo lo que falta es más corto y no arriesga pisar nada.
+- **Todo lo demás que había encontrado** (Escape en los 10 diálogos, la rueda del reporte de
+  salud, el `NameError` de *Acerca de*, `to_float_flex`, el modal de borrado con el conteo,
+  las trazas de los `except Exception`): ya está en `19ad312` y `38de9f8`, en varios casos
+  mejor resuelto. No se tocó.
+
+### Área siguiente
+
+8 — Módulos educativos M4–M7 (`education/mod04..mod07`, `module_launcher.py`). **Sin cambios**
+respecto de lo que dejó la sesión 07: esta sesión no consumió un área de la rotación.
+
+> **Nota de verificación** (smoke con Tk real, ejemplo canónico Q4): abrir el
+> `MaterialDialog`, bajar E a la décima parte y *Guardar cambios* deja `is_solved = False`, y
+> al re-resolver el desplazamiento máximo pasa de **0,0130763 a 0,130763** (×10, como manda
+> u ∝ 1/E con carga impuesta). El **von Mises máximo no cambia** (864,70 en los dos casos):
+> escalar E de forma uniforme no altera las tensiones en un modelo con carga impuesta. Por eso
+> el pendiente visual pide mirar **|U|** y no von Mises — con von Mises el arreglo sería
+> indistinguible del bug.

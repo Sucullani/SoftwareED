@@ -25,10 +25,12 @@ encabezado + mensaje muted + footer con dos botones.
 from __future__ import annotations
 
 import platform
+import traceback
 import webbrowser
 
 import tkinter as tk
 import ttkbootstrap as ttk
+from tkinter import messagebox
 from ttkbootstrap.constants import BOTH, BOTTOM, RIGHT, W, X, YES
 
 from config.settings import FONT_UI, FONT_UI_BOLD, TEXT_MUTED_FG
@@ -86,9 +88,21 @@ def show_pdflatex_missing_dialog(parent: tk.Misc) -> None:
 
     def _open_download() -> None:
         try:
-            webbrowser.open(url, new=2)
+            abierto = webbrowser.open(url, new=2)
         except Exception:
-            pass
+            traceback.print_exc()
+            abierto = False
+        if not abierto:
+            # `webbrowser.open` devuelve False cuando no encontro navegador,
+            # y ese retorno se estaba ignorando. Este dialogo existe porque
+            # el alumno YA esta bloqueado: un boton que no abre nada y no
+            # dice nada lo deja sin salida. Al menos mostrarle la URL.
+            messagebox.showinfo(
+                f"Descargar {distro}",
+                "No se pudo abrir el navegador desde la aplicacion.\n\n"
+                "Copiá esta dirección y pegala en tu navegador:\n\n" + url,
+                parent=top,
+            )
 
     ttk.Button(
         footer,

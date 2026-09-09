@@ -363,10 +363,10 @@ class MaterialDialog:
         self._capture("agregar material")
         mat = Material(name, 200000.0, 0.3, 7850.0)
         self.project.materials[name] = mat
-        self.project.is_modified = True
+        self._mark_dirty()
         self.selected_name = name
         self._populate_list()
-        self._notify_main_window()
+        self._notify_main_window(f"Material «{name}» agregado.")
 
     def _remove_material(self):
         if not self.selected_name:
@@ -395,12 +395,16 @@ class MaterialDialog:
             "Eliminar material", aviso, parent=self.dialog,
         ):
             return
-        self._capture(f"eliminar material '{self.selected_name}'")
-        del self.project.materials[self.selected_name]
-        self.project.is_modified = True
+        borrado = self.selected_name
+        self._capture(f"eliminar material '{borrado}'")
+        del self.project.materials[borrado]
+        self._mark_dirty()
         self.selected_name = None
         self._populate_list()
-        self._notify_main_window()
+        aviso_estado = f"Material «{borrado}» eliminado."
+        if en_uso:
+            aviso_estado += f" {en_uso} elemento(s) quedaron sin material."
+        self._notify_main_window(aviso_estado)
 
     def _on_return(self):
         """Return dentro del diálogo = 💾 Guardar cambios.
@@ -486,20 +490,50 @@ class MaterialDialog:
                     elem.material_name = new_name
 
         self.project.materials[new_name] = mat
-        self.project.is_modified = True
+        self._mark_dirty()
         self.selected_name = new_name
         self._populate_list()
-        self._notify_main_window()
+        renombrado = "" if new_name == old_name else f" (antes «{old_name}»)"
+        self._notify_main_window(f"Material «{new_name}» guardado{renombrado}.")
 
     # ═════════════════════════════════════════════════════════════════════
     # NOTIFICACION + UNDO
     # ═════════════════════════════════════════════════════════════════════
 
-    def _notify_main_window(self):
+    def _mark_dirty(self):
+        """Marca el proyecto como modificado E INVALIDA la solucion.
+
+        Regla dura 12. Faltaba el `is_solved = False`, y no era cosmetico:
+        `post_tab._auto_solve` corta con `if self.solution is not None and
+        self.project.is_solved: return`, asi que tras cambiar E, ν o ρ el
+        **F5 no recalculaba** — el alumno veia los desplazamientos y las
+        tensiones del material viejo, sin ningun aviso. Y *Exportar Memoria
+        PDF* seguia habilitado (`_refresh_menu_state` mira `is_solved`),
+        generando un documento con la tabla del material nuevo y la K, la u
+        y las σ de la corrida vieja. K depende de E y de ν via D, y F del
+        peso propio depende de ρ: cualquier edicion de la libreria invalida
+        la corrida. El autofix de `UNUSED_MATERIAL` en
+        `models/model_health.py` ya lo hacia bien; este dialogo era el unico
+        camino de mutacion del proyecto que no.
+        """
+        self.project.is_modified = True
+        self.project.is_solved = False
+
+    def _notify_main_window(self, status=None):
         if self.main_window is not None:
             try:
                 self.main_window._refresh_all_tabs()
+                # Recalcula el badge de salud: borrar un material en uso deja
+                # los elementos apuntando a un nombre inexistente (error
+                # critico ELEM_MATERIAL_MISSING) y el badge seguia diciendo
+                # "✓ Modelo sano" hasta la siguiente accion en otra pestaña.
+                self.main_window._update_status_info()
                 self.main_window._update_title()
+                if status:
+                    # Era el unico dialogo del menu Modelo que no decia nada
+                    # en la barra de estado: Unidades, Gravedad, Tipo de
+                    # analisis y Tipo de elemento si lo hacen.
+                    self.main_window.set_status(status)
             except Exception:
                 # Si falla, las tablas del Pre siguen mostrando el material
                 # viejo: sin traza es indepurable.

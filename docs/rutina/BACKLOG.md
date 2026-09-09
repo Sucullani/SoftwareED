@@ -337,6 +337,16 @@ Lo que el gate no puede juzgar. Cada ítem dice qué abrir, qué mirar y cómo r
   `xvfb-run -a python -m tests.run_gates --con-gui` (antes moría en `root.state("zoomed")`).
   Correrlo en Windows de vez en cuando sigue valiendo: Xvfb no reproduce el gestor de
   ventanas ni los diálogos nativos.
+- **Materiales: la solución se invalida de verdad** (sesión 08, **el más importante**).
+  `Ctrl+E` → `F5` → campo **|U|**, anotá el máximo (en el ejemplo canónico, **0,0130763**) →
+  *Modelo ▸ Material* → bajá **E** a la décima parte → *Guardar cambios* → cerrá → `F5` →
+  **|U|**: tiene que dar **10 veces más** (0,130763). Antes salía idéntico, y *Exportar
+  Memoria PDF* generaba un documento con el material nuevo y la corrida vieja. **Mirá los
+  desplazamientos, no von Mises**: con la carga impuesta del ejemplo, escalar E uniformemente
+  no mueve las tensiones (VM máx = 864,70 en los dos casos), así que von Mises no distingue el
+  bug del arreglo. La barra de estado debe decir «Material «…» guardado.». Probá también
+  *Eliminar* sobre un material en uso: el badge de salud debe pasar a **✗ 1 error(es)** en el
+  acto, sin cambiar de pestaña. Revertir: `git revert` del commit de la sesión 08.
 - **Diálogo de materiales con coma decimal** (sesión 05). `Modelo ▸ Materiales`, campo **ν**:
   tipear `0,3` → **💾 Guardar cambios** debe habilitarse (antes: gris para siempre y sin
   explicación). Tipear `0,9` → el borde del Entry de ν se pone **rojo** y Guardar se apaga;
@@ -497,6 +507,24 @@ futura reabra algo ya decidido.
   ya había reescalado todas las coordenadas y cambiado `unit_system`. Además el preview releía
   el DXF entero en cada `<Configure>` y reportaba un archivo ilegible como "capa sin
   polilíneas".
+- **[5] Cambiar un material no invalidaba la solución** — cerrado por la sesión 08 con
+  `MaterialDialog._mark_dirty()`. Los tres flujos seteaban `is_modified = True` pero **no**
+  `is_solved = False` (regla dura 12), y la sesión 05 no lo tocó. `post_tab._auto_solve` corta
+  con `if self.solution is not None and self.project.is_solved: return`, así que tras bajar E
+  a la décima parte el **F5 devolvía las mismas tensiones** y *Exportar Memoria PDF* seguía
+  habilitado sobre la corrida vieja. Era el único camino de mutación del proyecto sin la
+  invalidación (el autofix de `UNUSED_MATERIAL` ya la hacía). Ahora queda **una sola**
+  asignación de `is_modified` en el archivo, para que no se pueda volver a olvidar la otra
+  mitad. Regresión: bloque `[10]` de `tests/test_dialogs.py`.
+- **[5] El badge de salud mentía tras borrar un material en uso** — cerrado por la sesión 08:
+  `_notify_main_window` llama `_update_status_info()`. Los elementos quedaban apuntando a un
+  material inexistente (`ELEM_MATERIAL_MISSING`, error crítico) y el badge seguía en «✓ Modelo
+  sano» hasta la siguiente acción en otra pestaña. De paso, era el único diálogo del menú
+  Modelo que no decía nada en la barra de estado.
+- **[5] El botón «Descargar MiKTeX» podía no hacer nada y no decirlo** — cerrado por la sesión
+  08. `webbrowser.open` devuelve `False` cuando no encuentra navegador y ese retorno se
+  ignoraba, en el único diálogo que aparece **porque el alumno ya está bloqueado**. Ahora
+  muestra la URL para copiar a mano.
 - **[6] Cancelar el guardado no cancelaba la acción destructiva** — cerrado por la sesión 06.
   *Nuevo Proyecto*, *Cargar Ejemplo* y *Salir* preguntaban «¿guardar los cambios?» y seguían
   adelante **igual** si el guardado no ocurría: contestar *Sí* y después cancelar el diálogo de

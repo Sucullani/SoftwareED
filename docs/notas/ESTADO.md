@@ -38,6 +38,14 @@ tesis** (`tesis/`, 130 páginas, compila limpio).
   la **Vista 3D en modo Crudo** —que hasta ahora dibujaba el campo transpuesto dentro de cada
   elemento— y su **nueva escala de color**. El detalle de qué mirar está en
   [../rutina/BACKLOG.md](../rutina/BACKLOG.md), *Pendientes visuales*.
+- **Editar un material ya invalida la solución** (rutina, sesión 08, 2026-09-09). Hasta este
+  commit, cambiar E, ν o ρ desde *Modelo ▸ Material* no ponía `is_solved = False`, así que
+  `F5` cortaba con el fast-path de `post_tab._auto_solve` y devolvía **las tensiones del
+  material anterior**, con *Exportar Memoria PDF* habilitado sobre esa corrida vieja. Si en
+  algún momento se anotó un resultado después de tocar la librería de materiales **sin
+  reabrir el proyecto**, ese número hay que regenerarlo. Las cifras de la tesis **no** están
+  afectadas: salen de `tests/vv_*.py` y de `tesis/figuras/gen_anexo_calculo.py`, que arman el
+  proyecto desde cero y no pasan por el diálogo.
 - **Tesis, párrafo sobre el defecto corregido**: `04_resultados.tex` (§MMS, análisis) declara
   que la matriz E_Q4 estuvo mal hasta la revisión final y que por eso se agregó la prueba de
   reproducción polinómica. Es honestidad de V&V; el autor decide si lo conserva.

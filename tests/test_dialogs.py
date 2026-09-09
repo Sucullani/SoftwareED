@@ -188,6 +188,7 @@ check(md.campos_invalidos() == ["name"], "nombre vacio se rechaza")
 print("\n[3] MaterialDialog: el borrado nombra los elementos afectados")
 
 fuente_mat = _fuente("gui/dialogs/material_dialog.py")
+fuente_mat_12 = fuente_mat
 check("e.material_name == self.selected_name" in fuente_mat,
       "_remove_material cuenta los elementos que usan el material")
 check("sin material" in fuente_mat,
@@ -373,6 +374,146 @@ check("float(self.gx_var.get().replace" not in fuente_grav,
       "no queda el parseo a mano con .replace(',', '.')")
 check('f"{clave}: «{var.get()}»"' in fuente_grav,
       "el error nombra el campo y el texto rechazado")
+
+
+# ═════════════════════════════════════════════════════════════════════════
+print("\n[10] MaterialDialog: cambiar un material invalida la solucion")
+
+# Regla dura 12. `post_tab._auto_solve` corta con
+#   if self.solution is not None and self.project.is_solved: return
+# asi que sin el `is_solved = False` el alumno bajaba E a la decima parte,
+# apretaba F5 y veia EXACTAMENTE las mismas tensiones, sin ningun aviso; y
+# "Exportar Memoria PDF" seguia habilitado (`_refresh_menu_state` mira
+# `is_solved`) sobre esa corrida vieja.
+
+class VentanaContadora(VentanaFalsa):
+    """VentanaFalsa que ademas cuenta los refrescos."""
+
+    def __init__(self):
+        super().__init__()
+        self.n_refresh = 0
+        self.n_status_info = 0
+
+    def _refresh_all_tabs(self):
+        self.n_refresh += 1
+
+    def _update_status_info(self):
+        self.n_status_info += 1
+
+
+class MessageboxFalso:
+    def __init__(self, respuesta=True):
+        self.respuesta = respuesta
+        self.askyesno_calls = []
+
+    def askyesno(self, titulo, mensaje, **_kw):
+        self.askyesno_calls.append((titulo, mensaje))
+        return self.respuesta
+
+    def showerror(self, *a, **kw):
+        pass
+
+    def showwarning(self, *a, **kw):
+        pass
+
+
+def _material_headless(project, ventana):
+    d = object.__new__(MaterialDialog)
+    d.project = project
+    d.main_window = ventana
+    d.parent = None
+    d.dialog = None
+    d.selected_name = None
+    d._suppress_preview = False
+    d.var_name = VarFalsa()
+    d.var_E = VarFalsa()
+    d.var_nu = VarFalsa()
+    d.var_density = VarFalsa()
+    d.save_btn = BotonFalso()
+    d._entries = {c: EntryFalso() for c in ("name", "E", "nu", "density")}
+    d._row_widgets = {}
+    d._populate_list = lambda: None      # necesita widgets reales
+    return d
+
+
+def _resuelto():
+    proj = proyecto_con_material()
+    proj.is_solved = True
+    proj.is_modified = False
+    return proj
+
+
+# --- editar E ---
+ventana = VentanaContadora()
+proj = _resuelto()
+med = _material_headless(proj, ventana)
+med.selected_name = "Acero"
+med.var_name.set("Acero")
+med.var_E.set("20000")               # una decima parte: otra K
+med.var_nu.set("0.3")
+med.var_density.set("7.85e-9")
+
+import gui.dialogs.material_dialog as _mat_mod                # noqa: E402
+_mbox_original = _mat_mod.messagebox
+_mat_mod.messagebox = MessageboxFalso()
+try:
+    med._save_material()
+finally:
+    _mat_mod.messagebox = _mbox_original
+
+check(proj.materials["Acero"].E == 20000.0,
+      "editar E guarda el valor nuevo",
+      f"E -> {proj.materials['Acero'].E}")
+check(proj.is_solved is False,
+      "editar un material invalida la solucion (regla dura 12)",
+      "is_solved quedo en True: F5 devolveria las tensiones del material viejo")
+check(proj.is_modified is True, "editar un material marca el proyecto sucio")
+check(ventana.n_status_info == 1,
+      "el badge de salud se recalcula tras editar",
+      f"_update_status_info llamado {ventana.n_status_info} vez/veces")
+check(bool(ventana.mensajes),
+      "la edicion se anuncia en la barra de estado",
+      "era el unico dialogo del menu Modelo que no decia nada")
+
+# --- agregar ---
+proj = _resuelto()
+_material_headless(proj, VentanaContadora())._add_material()
+check(proj.is_solved is False and proj.is_modified is True,
+      "agregar un material invalida la solucion",
+      f"is_solved -> {proj.is_solved}")
+
+# --- borrar ---
+proj = _resuelto()
+proj.materials["Suplente"] = Material("Suplente", 1000.0, 0.2, 1.0)
+med = _material_headless(proj, VentanaContadora())
+med.selected_name = "Suplente"
+_mat_mod.messagebox = MessageboxFalso(respuesta=True)
+try:
+    med._remove_material()
+finally:
+    _mat_mod.messagebox = _mbox_original
+check("Suplente" not in proj.materials, "borrar un material lo saca de la libreria")
+check(proj.is_solved is False and proj.is_modified is True,
+      "borrar un material invalida la solucion",
+      f"is_solved -> {proj.is_solved}")
+
+# --- los tres flujos pasan por _mark_dirty, no por is_modified suelto ---
+check(fuente_mat_12.count("self.project.is_modified = True") == 1,
+      "un solo lugar setea is_modified: _mark_dirty()",
+      "quedan asignaciones sueltas que pueden volver a olvidar is_solved")
+check("self.project.is_solved = False" in fuente_mat_12,
+      "_mark_dirty invalida la solucion")
+
+
+# ═════════════════════════════════════════════════════════════════════════
+print("\n[11] pdflatex_missing_dialog: el boton de descarga no puede ser mudo")
+
+fuente_tex = _fuente("gui/dialogs/pdflatex_missing_dialog.py")
+check("abierto = webbrowser.open" in fuente_tex,
+      "se mira el retorno de webbrowser.open (False = no abrio nada)")
+check("if not abierto:" in fuente_tex and "showinfo" in fuente_tex,
+      "si no abrio el navegador, muestra la URL para copiar a mano",
+      "este dialogo aparece cuando el alumno YA esta bloqueado")
 
 
 # ═════════════════════════════════════════════════════════════════════════
