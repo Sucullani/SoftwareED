@@ -99,7 +99,7 @@ def show_pdflatex_missing_dialog(parent: tk.Misc) -> None:
             # dice nada lo deja sin salida. Al menos mostrarle la URL.
             messagebox.showinfo(
                 f"Descargar {distro}",
-                "No se pudo abrir el navegador desde la aplicacion.\n\n"
+                "No se pudo abrir el navegador desde la aplicación.\n\n"
                 "Copiá esta dirección y pegala en tu navegador:\n\n" + url,
                 parent=top,
             )
