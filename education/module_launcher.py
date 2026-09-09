@@ -244,7 +244,11 @@ def open_module(parent_tk, project, mod_key, mesh_canvas=None, elem_id=None):
                 if not already_unique:
                     mesh_canvas.replace_element_selection({elem_id})
             except Exception:
-                pass
+                # Es la sincronizacion lienzo <-> modulo al abrir: si falla
+                # muda, el overlay trabaja sobre el elemento `elem_id` mientras
+                # el halo del lienzo y el chip `#N` del panel siguen marcando
+                # otro. Tres vistas del mismo dato, dos diciendo lo contrario.
+                traceback.print_exc()
     else:
         # Modulos globales: no requieren elemento. Si no se paso uno, usar
         # el primero solo como contexto.

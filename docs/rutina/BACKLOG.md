@@ -11,23 +11,23 @@ Reglas del archivo, en [RUTINA.md](RUTINA.md) §4 y §9. Historial de lo hecho, 
 
 ## Área siguiente
 
-> **8 — Módulos educativos M4–M7** (`education/mod04..mod07`, `module_launcher.py`).
-> Capítulo a leer antes:
-> [../convenciones/modulos-educativos.md](../convenciones/modulos-educativos.md) (el ciclo de
-> vida del overlay: `close()` hace `withdraw()`, **nunca `destroy()`**; `transient(root)` es
-> necesario; el × va en `<ButtonRelease-1>` con `after_idle`; y el contrato del estado
-> **«esperando elemento»** que cerró la sesión 07 — título que nombra el estado, resultados en
-> cero, nada de placeholders que se lean como un valor válido, y `on_element_deselected`
-> sobrescrito en todo módulo cuyo panel muestre datos del elemento: **verificar si M4..M7 lo
-> cumplen**, porque solo se arreglaron M1/M2/M3) y siempre
-> [../convenciones/no-reintroducir.md](../convenciones/no-reintroducir.md), que tiene una tabla
-> **por módulo**: M4, M5 y M7 tienen fila propia, y la de M4 es la más larga del archivo (el
-> dial circular, el Entry de ν, el ancho del probe dependiente de ν —físicamente
-> incorrecto—, las flechas ámbar, el semáforo del fill…). Ítems del BACKLOG que le pertenecen y
-> hay que drenar primero: los **2 literales de color con nombre** de `mod05_stiffness.py` (1) y
-> `mod06_equivalent_forces.py` (1). Ojo: la numeración vigente es M3 = matriz B y **M4 = matriz
-> D** (se intercambiaron en 2026-05); los bullets viejos del capítulo usan la numeración
-> anterior.
+> **9 — Componentes educativos y Teoría** (`education/components/*`,
+> `gui/dialogs/theory_hub_dialog.py`). Capítulo a leer antes:
+> [../convenciones/modulos-educativos.md](../convenciones/modulos-educativos.md) (la lista de
+> componentes **VIVOS** vs. los **eliminados** en las limpiezas 2026-05 y 2026-06 —
+> `LatexMath`, `LatexBlock`, `FormulaValueToggle`, `PlotPanel`/`FourPanel`, `ParamInput`,
+> `StepAnimator`, `GaussCoordReadout`, `LatexStatusLabel`: **no recrearlos**— más las trampas
+> de `latex_image.py`: `shrink=False`, `ScrollableMatrixImage` solo para las matrices que NO
+> entran, la trampa de la rueda de `_consume_wheel_recursive`, el `cleanup()` que apaga el
+> ToolTip, y que mathtext **no** soporta `\begin{bmatrix}`) y
+> [../convenciones/memoria-calculo.md](../convenciones/memoria-calculo.md) para el Theory Hub,
+> que comparte con la memoria el backend pdflatex y la regla de **ASCII** en los strings LaTeX;
+> y siempre [../convenciones/no-reintroducir.md](../convenciones/no-reintroducir.md). Ítems del
+> BACKLOG que le pertenecen y hay que drenar primero: **ninguno abierto** — es la primera vez
+> que el área toca, así que después de revisar los hallazgos de
+> [../auditorias/ESTADO_AUDITORIAS.md](../auditorias/ESTADO_AUDITORIAS.md) se busca material
+> nuevo. Los `except Exception` de `education/components/` y de `theory_hub_dialog.py` son los
+> que quedan sin revisar del ítem transversal (**6 de 274**).
 
 Al cerrar la sesión, reemplazá esta línea por el área que sigue en la rotación de
 [RUTINA.md](RUTINA.md) §4 (1 → 2 → … → 14 → 1).
@@ -144,20 +144,39 @@ Formato: `[área Nº] descripción — evidencia — quién decide`.
   (`_layer_error_traced`) porque corre en cada redraw. Los otros 61 quedaron mudos por legítimos
   (guards de widgets destruidos, `after_cancel`, `set_zlabel` de matplotlib, `compute_jacobian`
   de un elemento degenerado dentro de un loop de 144 celdas, el `lift()` de una instancia stale
-  que el propio código maneja). **Revisados: 227 de 274.**
+  que el propio código maneja). **Revisados: 227 de 274.** Sesión 09, los 41 del área 8 (`mod04`..`mod07` +
+  `module_launcher.py`): **16 pasaron a dejar traza** — el `except: pass` de la capa de M4 se
+  **eliminó** (se comía la excepción antes de que el `_draw_layer_wrapper` de la base la viera),
+  los dos `set_matrix` de M4 (dejaban el panel con la D anterior), el `remove_click_consumer` de
+  M5 (un módulo **cerrado** que se sigue comiendo los clicks del lienzo), el `redraw` de
+  `_refresh_all` y el `draw_idle` del cuadrado natural de M5, el `sp.latex` y los dos de
+  `_count_terms` (los que escondieron el `sympy` sin importar de la sesión 05: uno degradaba al
+  `repr` y el otro devolvía el «0 términos»), el error de `SymbolicIntegrandQ4`, el
+  `redraw_overlays_only` del loop de M6 (con guard de **una traza por instancia**, corre a ~60
+  fps), y en M7 el `assemble_global_system` de la F de referencia, el `redraw` de su
+  `on_element_deselected`, el eslabón previo de la cadena de **hover** y su restauración en
+  `on_closed`; más el `replace_element_selection` de `module_launcher` (el overlay trabajaba
+  sobre un elemento y el halo marcaba otro). Los 25 restantes quedaron mudos por legítimos
+  (`after_cancel`, `destroy` de teardown, `subplots_adjust`/`suptitle` cosméticos,
+  `get_gauss_points_2d` sobre un orden 1..3, los 3 `get_dof_indices` dentro de renders de
+  hover). **Revisados: 268 de 274** — quedan los 6 de `education/components/` +
+  `theory_hub_dialog.py`, que son del área 9.
 
-- **[transversal] Quedan 2 literales de color con NOMBRE (`"white"` / `"black"`) fuera de
-  `config/`.** Esquivan la auditoría de hex de `run_gates` (busca `#RRGGBB`) pero incumplen
-  igual la regla dura 2: son colores decididos en `gui/` y `education/`. Los que faltan son del
-  **[8]**: `mod05_stiffness.py` (1) y `mod06_equivalent_forces.py` (1). Cada área cierra los
-  suyos en su turno, con una constante en `config/settings.py` y su comentario. Cerrados: los
+- **[transversal] Ya no queda ningún literal de color con NOMBRE fuera de `config/`** (cerrado
+  por la sesión 09; **lo que sigue abierto es la propuesta de gate**, abajo). Los `"white"` /
+  `"black"` esquivaban la auditoría de hex de `run_gates` (que busca `#RRGGBB`) pero incumplían
+  igual la regla dura 2: eran colores decididos en `gui/` y `education/`. Cada área cerró los
+  suyos en su turno, con una constante de `config/settings.py`. Cerrados: los
   del canvas (sesión 01: `CANVAS_ISOLINE_COLOR`, `CANVAS_COLORBAR_TEXT_COLOR`), los **5 de
-  `details_panel.py`** (sesión 04: `MOHR_MARKER_EDGE_COLOR`) y los **10 de M1/M2/M3** (sesión
+  `details_panel.py`** (sesión 04: `MOHR_MARKER_EDGE_COLOR`), los **10 de M1/M2/M3** (sesión
   07: `EDU_MARKER_OUTLINE_COLOR` para los outlines de marcador, que ya existía, y la nueva
-  `EDU_NODE_INDEX_FG_COLOR` para el número del nodo dentro de su disco). *Propuesta para una
-  sesión futura*: ampliar el patrón de `run_gates.gate_hex` para que también los detecte — hoy
-  no los ve; mientras tanto `tests/test_edu_modules_m0_m3.py` los vigila en los 5 archivos del
-  área 7.
+  `EDU_NODE_INDEX_FG_COLOR` para el número del nodo dentro de su disco) y los **2 últimos**
+  (sesión 09: el `edgecolors` del PG sumado del cuadrado natural de `mod05_stiffness.py` y el
+  `outline` de la bolita nodal de `mod06_equivalent_forces.py`, los dos a
+  `EDU_MARKER_OUTLINE_COLOR`). *Propuesta que sigue abierta*: ampliar el patrón de
+  `run_gates.gate_hex` para que también detecte los literales con **nombre** — hoy solo ve los
+  `#RRGGBB`; mientras tanto los vigilan `tests/test_edu_modules_m0_m3.py` (área 7) y
+  `tests/test_edu_modules_m4_m7.py` (área 8).
 
 - **[4 / 2] El mismo desplazamiento se lee distinto en la tabla del Post y en el lienzo.**
   `post_tab._update_table` formatea los desplazamientos en notación científica
@@ -224,16 +243,12 @@ Formato: `[área Nº] descripción — evidencia — quién decide`.
   progreso de la sesión), pero no está decidido qué debe pasar al empezar un proyecto nuevo:
   **decide el autor** si el progreso es del alumno (se conserva) o del modelo (se limpia).
 
-- **[8] ¿Cumplen M4..M7 el contrato del estado «esperando elemento»?** La sesión 07 lo fijó en
-  [../convenciones/modulos-educativos.md](../convenciones/modulos-educativos.md) (título que
-  nombra el estado y el gesto, resultados en **cero**, nada de placeholders que se lean como un
-  valor válido, warnings accionables borrados, y `on_element_deselected` sobrescrito en todo
-  módulo cuyo panel muestre datos del elemento) y lo aplicó **solo a M1, M2 y M3**. M4..M7 no se
-  revisaron: ninguno sobrescribe `on_element_deselected` hoy, y hay que ver caso por caso cuáles
-  lo necesitan (M4 muestra la D, que depende del material más que de la geometría; M5 la kₑ; M7
-  la K global con su cola de elementos). Ninguno fabrica un `np.eye` —eso era exclusivo de
-  M2— pero los tres usan `np.zeros` de arranque, así que el punto a revisar es el **título** y
-  el **congelamiento** tras deseleccionar. Pertenece al área 8.
+- **[8] `_refresh_status` y los chips de carga de M6 no pasan por `fmt(value, kind)`** (regla
+  dura 8). Hoy son `f"N{nid}:  Fx={fx:+.2f}   Fy={fy:+.2f}"` y
+  `q=[{sl.q_start:+.0f}, {sl.q_end:+.0f}]`: decimales hardcodeados y **sin unidades**, en el
+  único módulo cuyo resultado es un vector de fuerzas con unidades del proyecto. Encontrado por
+  la sesión 09, que no lo tomó porque cambia todas las líneas del panel y ya gastaba sus 3
+  pendientes visuales en los dos hallazgos grandes del área. Es el próximo turno del área 8.
 
 - **[7 / 12] El heatmap de det J de M2 recalcula 144 `compute_jacobian` + 169
   `natural_to_physical` por redraw.** `_draw_jacobian_heatmap` (`_HEATMAP_N=12`) es el punto más
@@ -380,6 +395,25 @@ Lo que el gate no puede juzgar. Cada ítem dice qué abrir, qué mirar y cómo r
   (Atajos): son `messagebox` largos y el sandbox no puede medirlos. Verificar en **1080p** que
   ninguno de los dos se corta ni se sale de la pantalla; si el manual no entra, hay que partirlo
   o pasarlo a un Toplevel propio (y eso ya es decisión del autor).
+- **M4 sin elemento** (sesión 09, **el más importante**). `Ctrl+E` → pestaña **⚙ PROCESO** →
+  **sin clickear nada**, `Ctrl+4` (**④ Matriz D**): el panel *Valores* debe abrir con la **D en
+  ceros**, arriba `◎ sin elemento — clickeá uno en el lienzo para ver su D.` y el espectro
+  **sin el ◆ dorado**. Antes abría con la D de `Material Ejemplo` (E = 225 000, `max|D| =
+  234 375`) y un ◆ apuntando a su ν, como si perteneciera a algún elemento. Clickeá un
+  elemento: la D se llena, vuelve el ◆ y el rótulo vuelve al `🧪 Deslizá o tocá…`. Clickeá en
+  **zona vacía del lienzo** (o `Esc`): vuelve a ceros. La pestaña **ƒ Fórmula** debe seguir
+  mostrando la D simbólica en los **tres** estados. Revertir: `git revert` del commit de la
+  sesión 09.
+- **M5 al deseleccionar** (sesión 09). `Ctrl+E` → clickeá un elemento → `Ctrl+5` (**⑤ Rigidez
+  K_e**) → clickeá en **zona vacía del lienzo**: la kₑ debe volver a `◎ Clickeá un elemento y
+  luego los PGs del canvas`, la línea `Σ 4/4 pg · último: pg4 …` debe **desaparecer** y los 4
+  PGs del cuadrado natural deben quedar **huecos y punteados** (ghost), no dorados. Clickeá
+  otro elemento y todo se repuebla con los 4 PGs sumados.
+- **Los dos outlines blancos** (sesión 09; deben verse **idénticos**). En el cuadrado natural
+  de `Ctrl+5`, el borde blanco de los PGs **dorados**; en `Ctrl+6` (**⑥ Fuerzas equivalentes**,
+  con una carga superficial definida), el borde blanco de las **bolitas nodales** rojas. Eran
+  los literales `"white"` y ahora son `EDU_MARKER_OUTLINE_COLOR`, con el mismo valor: si alguno
+  cambió de color, revisar esa constante.
 - **Deseleccionar con un módulo educativo abierto** (sesión 07, **el más importante**).
   `Ctrl+E` → pestaña **⚙ PROCESO** → clickear un elemento → `Ctrl+2` (*② Jacobiano*) → ahora
   **clickear en zona vacía del lienzo** (o `Esc`): el halo se apaga y el overlay debe quedar en
@@ -574,6 +608,30 @@ futura reabra algo ya decidido.
   desde entonces, porque M4 es la matriz **D** y no muestra ninguna derivada de N. Ahora
   `(∂Nᵢ/∂ξ, ∂Nᵢ/∂η: ver ① Mapeo iso)`, igual que M3, con la etiqueta visible del botón y no la
   key interna. Misma clase de error que la sesión 03 cerró en los mensajes del launcher.
+- **[8] M4 mostraba una D completa y plausible sin ningún elemento seleccionado** — cerrado
+  por la sesión 09. `_resolve_material` caía en `materials[0]` (etiquetado `"… (fallback)"`, una
+  etiqueta que además no se muestra desde el rediseño del espectro) y, sin materiales, en un
+  acero inventado (`_DEMO_E = 210e9`, `_DEMO_NU = 0.30`): abrir `Ctrl+4` sin selección llenaba
+  el panel *Valores* con una D del orden de 10¹¹ que no era la de ningún elemento elegido — el
+  `np.eye` de M2 pero con las unidades correctas. Ahora devuelve `(None, None, None)` y
+  `E is None` es la señal del estado: D en ceros (`_current_d`), sin ◆ «tu material» en el
+  espectro (ni como ancla de snap) y con el micro-rótulo nombrando el estado y el gesto. El
+  espectro, el probe y la fórmula simbólica siguen vivos: son del concepto, no del elemento.
+  Verificado con Tk real: `E = 200 GPa` → `E = None`, `max|D| = 0,0`.
+- **[8] M5 seguía mostrando la kₑ del elemento DESELECCIONADO** — cerrado por la sesión 09 con
+  un `on_element_deselected` propio, el mismo bug que la 07 cerró en M1/M2/M3. El default de la
+  base apagaba los glifos de PG del lienzo pero dejaba tres vistas del elemento ido: la kₑ
+  completa, el status `Σ 4/4 pg · último: pg4 · |det J|=4.34` y los PGs **dorados** del cuadrado
+  natural. La raíz común es `_contributions`; el override la vacía e invalida el cache del
+  integrando. Medido con Tk real: `k_e max = 205302,4` → placeholder, status → `''`, PGs
+  sumados 4 → 0. Regresión en `tests/test_edu_modules_m4_m7.py`.
+- **[8] M6 y M7 ya cumplían el contrato «esperando elemento»** — verificado por la sesión 09 y
+  documentado por módulo en `no-reintroducir.md`: M6 opera sobre **cargas superficiales** y su
+  `on_element_selected` es un no-op deliberado (**no** agregarle el hook), y M7 ya tenía el
+  override (cancela el pulso de ensamblaje, que si no seguía parpadeando ~210 ms sobre el
+  elemento deseleccionado).
+- **[8] El label de M5 decía «k_e es 8×8 · Q4» en un proyecto Q9 sin selección** — cerrado por
+  la sesión 09: `n_nodes` caía en un `4` fijo; ahora lo lee del project vía `_element_type()`.
 - **[7] El header de M0 le decía «hover» al alumno** (regla dura 1) y **las coords (x,y) del
   marcador de M2 no pasaban por `fmt`** (regla dura 8, tres decimales distintos a los del lienzo
   para la misma magnitud) — cerrados por la sesión 07.

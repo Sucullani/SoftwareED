@@ -31,6 +31,7 @@ este módulo como `file_io.memoria_calculo` la importan desde ahí.
 from __future__ import annotations
 
 import math
+import traceback
 from typing import Optional
 
 import numpy as np
@@ -68,6 +69,7 @@ from config.settings import (
     EDU_NATURAL_OUTLINE_COLOR, EDU_NATURAL_AXES_COLOR,
     HEALTH_WARNING_COLOR, HEALTH_ERROR_COLOR,
     OVERLAY_ACCENT_AMBER, EDU_INTEGRAND_TEXT_COLOR,
+    EDU_MARKER_OUTLINE_COLOR,
 )
 
 
@@ -312,7 +314,11 @@ class StiffnessElementModule(CanvasOverlayModule):
         try:
             self._mesh.remove_click_consumer(self._click_consumer)
         except Exception:
-            pass
+            # El fallo mas caro del cierre de M5: el consumer sigue registrado
+            # y `_on_canvas_click_consume` devuelve True cerca de un PG, o sea
+            # que un modulo CERRADO se come los clicks del alumno sobre el
+            # lienzo (no puede seleccionar el elemento que esta debajo).
+            traceback.print_exc()
         # Cancelar el refit diferido pendiente (si lo hay) para no disparar
         # refit_overlay() sobre el Toplevel ya withdrawn.
         if getattr(self, "_refit_after_id", None) is not None:
@@ -367,6 +373,25 @@ class StiffnessElementModule(CanvasOverlayModule):
                     pass
         self._rebuild_contributions()
         self._selected_pgs = set(range(len(self._contributions)))
+        self._refresh_all()
+
+    def on_element_deselected(self):
+        """Vuelve al estado «esperando elemento» (contrato del capitulo).
+
+        Sin este override el default de la base solo hace `set_element(None)`
+        + `redraw()`: la capa de PGs del lienzo desaparece, pero el overlay se
+        queda con la `k_e` del elemento que el alumno ACABA de deseleccionar,
+        con su `Σ 4/4 pg · último: pg4 · |det J|=…` y con los PGs dorados del
+        cuadrado natural. Tres vistas contradiciendo al halo apagado. Vaciamos
+        las contribuciones (la fuente de todo eso) e invalidamos el cache
+        simbolico; `_refresh_all` deja la k_e en su placeholder, el status y el
+        warning en blanco, y los PGs del cuadrado en ghost."""
+        self.element_id = None
+        self.element = None
+        self._last_kij_expr = None
+        self._last_kij_key = None
+        self._contributions = []
+        self._selected_pgs = set()
         self._refresh_all()
 
     def _on_expander_toggle(self):
@@ -521,8 +546,11 @@ class StiffnessElementModule(CanvasOverlayModule):
 
     # ── Render general ─────────────────────────────────────────────
     def _refresh_all(self):
-        # Dim label del expander (depende del element_type).
-        n_nodes = self.element.num_nodes if self.element else 4
+        # Dim label del expander (depende del element_type). Sin elemento se
+        # lee del project: antes caia siempre en 4 y un proyecto Q9 sin
+        # seleccion anunciaba "k_e es 8x8 · Q4".
+        n_nodes = (self.element.num_nodes if self.element
+                   else (9 if self._element_type() == ELEMENT_Q9 else 4))
         n_dof = 2 * n_nodes
         try:
             self._lbl_dim.configure(
@@ -540,7 +568,10 @@ class StiffnessElementModule(CanvasOverlayModule):
         try:
             self._mesh.redraw()
         except Exception:
-            pass
+            # Sin redraw los PGs del lienzo no siguen a la seleccion: el
+            # alumno clickea un PG, el cuadrado natural y la k_e cambian, y
+            # sobre el elemento el glifo sigue dorado (o ghost) al reves.
+            traceback.print_exc()
 
     # ── Cuadrado natural (subplot 2D matplotlib, estilo M2/M4) ─────
     def _draw_natural_square(self, ax) -> None:
@@ -564,7 +595,8 @@ class StiffnessElementModule(CanvasOverlayModule):
         for idx, (gx, gy) in enumerate(pts):
             if idx in self._selected_pgs:
                 ax.scatter([gx], [gy], s=82, c=GAUSS_ACTIVE,
-                            edgecolors="white", linewidths=0.9, zorder=8)
+                            edgecolors=EDU_MARKER_OUTLINE_COLOR,
+                            linewidths=0.9, zorder=8)
             else:
                 ax.scatter([gx], [gy], s=64, facecolors="none",
                             edgecolors=EDU_FG_MUTED, linewidths=1.1,
@@ -619,7 +651,9 @@ class StiffnessElementModule(CanvasOverlayModule):
             self._draw_natural_square(self._ax_nat)
             self._canvas_mpl.draw_idle()
         except Exception:
-            pass
+            # El cuadrado natural ESPEJA la seleccion de PGs: si falla mudo se
+            # congela con la anterior y contradice a los glifos del elemento.
+            traceback.print_exc()
 
     # ── Render del integrando simbólico (ex-M5) ────────────────────
     def _is_q9(self) -> bool:
@@ -655,6 +689,8 @@ class StiffnessElementModule(CanvasOverlayModule):
                 self._last_kij_expr = expr
                 self._last_kij_key = cache_key
             except Exception as exc:
+                # El alumno ve el cartel; `str(exc)` solo no ubica el fallo.
+                traceback.print_exc()
                 self._show_placeholder(
                     f"Error K_(i={self._i},j={self._j}):\n{exc}",
                     fg=HEALTH_ERROR_COLOR)
@@ -663,6 +699,10 @@ class StiffnessElementModule(CanvasOverlayModule):
         try:
             latex_body = sp.latex(expr)
         except Exception:
+            # Este es el `except` que escondio durante meses el `sympy` sin
+            # importar (cerrado en la sesion 05): degradaba al `repr` de Python
+            # de la expresion y el alumno veia texto plano donde va LaTeX.
+            traceback.print_exc()
             latex_body = str(expr)
         n_terms = self._count_terms(expr)
         n_chars = len(latex_body)
@@ -696,13 +736,17 @@ class StiffnessElementModule(CanvasOverlayModule):
 
     @staticmethod
     def _count_terms(expr) -> int:
+        # Un fallo aca devuelve 0 y el label anuncia "0 terminos" — que es
+        # justamente el sintoma del bug que cerro la sesion 05. Con traza.
         try:
             expanded = sp.expand(expr)
         except Exception:
+            traceback.print_exc()
             return 0
         try:
             return len(sp.Add.make_args(expanded))
         except Exception:
+            traceback.print_exc()
             return 0
 
     def _open_full_integrand_window(self) -> None:

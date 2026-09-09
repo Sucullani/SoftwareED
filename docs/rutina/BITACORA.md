@@ -1381,3 +1381,194 @@ respecto de lo que dejó la sesión 07: esta sesión no consumió un área de la
 > escalar E de forma uniforme no altera las tensiones en un modelo con carga impuesta. Por eso
 > el pendiente visual pide mirar **|U|** y no von Mises — con von Mises el arreglo sería
 > indistinguible del bug.
+
+---
+
+## Sesión 09 — 2026-09-09 02:56 UTC — Área: 8 — Módulos educativos M4–M7
+
+**Commit**: (este) · **Gates**: `run_gates` verde (97/97 módulos, gate de nombres, 0 hex,
+**23/23** tests) y también `run_gates --con-gui` bajo `xvfb`
+
+### Qué se hizo y por qué
+
+Los dos ítems que el BACKLOG le dejaba al área, drenados y cerrados: los **2 literales de
+color con nombre** y el **barrido del contrato «esperando elemento» en M4..M7** que la sesión
+07 fijó y aplicó solo a M1/M2/M3.
+
+- **Barrido del contrato, uno por uno.** Resultado: **M4 y M5 lo incumplían**, **M6 no aplica**
+  y **M7 ya lo cumplía**. Queda escrito en
+  [../convenciones/modulos-educativos.md](../convenciones/modulos-educativos.md) y en las filas
+  por módulo de [../convenciones/no-reintroducir.md](../convenciones/no-reintroducir.md), para
+  que nadie repita el barrido ni le agregue a M6 un hook que no necesita.
+
+- `education/mod04_constitutive.py::_resolve_material` — **el placeholder plausible de M4 no
+  estaba en una matriz de relleno: estaba en el MATERIAL.** Sin elemento seleccionado, el
+  método caía primero en `materials[0]` (etiquetándolo `"… (fallback)"`, una etiqueta que
+  además **no se muestra en ninguna parte** desde el rediseño del espectro) y, si el proyecto
+  no tenía materiales, en un acero inventado (`_DEMO_E = 210e9`, `_DEMO_NU = 0.30`). O sea que
+  `Ctrl+4` sin selección abría el panel *Valores* con una **D completa del orden de 10¹¹**,
+  indistinguible de una buena, para un material que no era el de ningún elemento elegido — la
+  misma clase de mentira que el `np.eye` de M2, con el agravante de que acá los números tienen
+  las unidades correctas. Verificado con Tk real sobre el ejemplo canónico: **antes `E = 200
+  GPa` sin ningún elemento seleccionado; ahora `E = None` y `max|D| = 0,0`**. Hoy el método
+  devuelve `(None, None, None)` y **`E is None` es la señal del estado**, que consumen las
+  tres vistas: `_current_d()` (nuevo) da **ceros**, el **◆ «tu material»** del espectro no se
+  dibuja ni es ancla de snap (sin elemento no hay material al que volver), y el micro-rótulo
+  gana su segundo estado. El caso «elemento con `material_name` inexistente» cae en la misma
+  rama y lo nombra.
+- `mod04::_sandbox_text` / `_refresh_sandbox_text` — el rótulo decía «no modifica la D **de tu
+  elemento**» hablando de un elemento que no existe. Ahora tiene tres estados: el de siempre,
+  `◎ sin elemento — clickeá uno en el lienzo para ver su D.` (la misma redacción que M2/M3
+  desde la sesión 07) y `⚠ el elemento #N no tiene material asignado`. **No contradice la
+  decisión congelada** de que el rótulo sea estático: lo que esa decisión prohíbe es repetir el
+  nombre y el ν del material en cada cambio de elemento (`(tu material: …, ν=…)`), y eso sigue
+  prohibido — el texto no cambia **entre elementos**, solo al entrar o salir del estado vacío.
+  Es además el único cartel del overlay capaz de explicar por qué la D está en ceros.
+- `mod04::on_element_deselected` — **nuevo**. Sin él, el default de la base apagaba el contorno
+  ámbar `D ▸ E3` del lienzo pero el overlay se quedaba con la D del elemento ido y con el ◆
+  apuntando a su ν. El ν que el alumno dejó en el espectro **no se toca**: es su sandbox.
+  El espectro, el probe de Poisson y la fórmula simbólica **siguen vivos** sin elemento (son
+  del concepto, no del elemento): el módulo no se queda vacío, solo deja de mentir.
+- `education/mod05_stiffness.py::on_element_deselected` — **nuevo**, el mismo bug que la sesión
+  07 cerró en M1/M2/M3. El default de la base apagaba los glifos de PG del lienzo (su
+  `draw_canvas_layer` guarda por `element is None`) pero dejaba el overlay con **tres** vistas
+  del elemento ya deseleccionado: la `kₑ` completa, el status `Σ 4/4 pg · último: pg4 · w=1.000
+  · |det J|=4.34` y los PGs **dorados** del cuadrado natural — las tres contradiciendo al halo
+  apagado. La raíz común es `_contributions`, así que el override la vacía (más el cache del
+  integrando simbólico) y `_refresh_all` hace el resto. Medido con Tk real: `k_e max =
+  205302.4` → `None` (placeholder), status → `''`, PGs sumados 4 → 0.
+- `mod05::_refresh_all` — el label del expander decía **«k_e es 8×8 · Q4» en un proyecto Q9**
+  sin selección: `n_nodes` caía en un `4` fijo. Ahora, sin elemento, lo lee del project vía
+  `_element_type()` (que ya existía y ya hacía ese fallback para todo lo demás).
+- `mod05_stiffness.py` y `mod06_equivalent_forces.py` — los **2 literales de color con nombre**
+  que quedaban en todo el repo (`edgecolors="white"` del PG sumado del cuadrado natural de M5,
+  `outline="white"` de la bolita nodal de M6) pasaron a `EDU_MARKER_OUTLINE_COLOR`, la
+  constante que ya existía y ya tiene ese valor. **Cierra el ítem transversal**: no quedan
+  literales con nombre en `gui/` ni en `education/`.
+
+### Errores encontrados y corregidos
+
+- **M4 mostraba una matriz D completa y plausible sin ningún elemento seleccionado** (el
+  principal), armada con `materials[0]` o con un acero inventado.
+- **M5 seguía mostrando la kₑ, el `Σ n/n pg` y los PGs dorados del elemento deseleccionado.**
+- **El ◆ «tu material» del espectro de M4 se dibujaba sin material** (y era ancla de snap).
+- **El label de M5 anunciaba «k_e es 8×8 · Q4» en un proyecto Q9** sin selección.
+- **2 literales de color con nombre** fuera de `config/` (regla dura 2).
+- **16 `except Exception` mudos** que dejaban al módulo mintiendo o inerte (detalle abajo).
+- De paso: `_mat_name` de M4 se asigna y **no se lee en ninguna parte** desde que el rediseño
+  del espectro eliminó el título `ν = …`. Se conserva (el `_resolve_material` devuelve la
+  terna completa y el nombre es la información que faltaría si mañana hace falta), pero queda
+  anotado acá para que nadie lo confunda con algo que se muestra.
+
+### `except Exception` del área (ítem transversal)
+
+**Revisados los 41 del área 8** (4 de `mod04` + 19 de `mod05` + 3 de `mod06` + 9 de `mod07` +
+3 de `module_launcher` + los 3 nuevos que introduje al partir bloques): **16 dejan traza
+ahora**, los demás quedaron mudos por legítimos (`after_cancel`, `destroy` de teardown,
+`subplots_adjust`/`suptitle` cosméticos, `get_gauss_points_2d` sobre un orden 1..3, los tres
+`get_dof_indices` dentro de renders de hover).
+
+- **M4 (4/4 tocados)**: el `except: pass` de `draw_canvas_layer` **se eliminó entero** — se
+  comía la excepción *antes* de que el `_draw_layer_wrapper` de la base la viera, así que el
+  elemento se quedaba sin su contorno ámbar y sin ninguna pista; ahora la aísla el wrapper, que
+  ya tiene el guard de una-traza-por-instancia. Los otros tres (la `constitutive_matrix` de
+  `_current_d` y los dos `set_matrix` de `_refresh_d_widgets`) dejaban el panel *Valores* o la
+  fórmula **con la matriz anterior**: el alumno mueve el espectro y la D no acompaña.
+- **M5 (7)**: el más caro es el `remove_click_consumer` de `on_closed` — si falla mudo, un M5
+  **cerrado** sigue registrado como click consumer y `_on_canvas_click_consume` devuelve `True`
+  cerca de un PG, o sea que **se come los clicks del alumno** sobre el lienzo. Más el `redraw`
+  de `_refresh_all` (los glifos del elemento dejan de seguir a la selección), el `draw_idle`
+  del cuadrado natural (se congela con la selección anterior y contradice al lienzo), el
+  `sp.latex` y los **dos** de `_count_terms` —que son exactamente los que escondieron durante
+  meses el `sympy` sin importar que cerró la sesión 05: uno degradaba al `repr` de Python y el
+  otro devolvía `0`, que se imprimía como «0 términos»— y el error de `SymbolicIntegrandQ4`.
+- **M6 (1)**: el `redraw_overlays_only` del loop de animación, con **guard de una sola traza
+  por instancia** (`_anim_error_traced`, el mismo criterio que `_draw_layer_wrapper`): corre a
+  ~60 fps y sin guard inundaría stderr. Si falla mudo las flechitas no decaen y las bolitas no
+  crecen — o sea que la integral `F = ∫N·q ds`, lo único que M6 enseña, no se ve pasar.
+- **M7 (4)**: `assemble_global_system` (es la referencia contra la que se escalan las barras
+  del panel F), el `redraw` de su `on_element_deselected` (el flash del pulso queda sobre un
+  elemento deseleccionado), el eslabón previo de la **cadena de hover** (mudo, M7 monopoliza el
+  hover del lienzo) y su restauración en `on_closed` (un M7 cerrado se queda con el hover).
+- **`module_launcher` (1)**: el `replace_element_selection` de la sincronización al abrir. Mudo,
+  el overlay trabaja sobre `elem_id` mientras el halo del lienzo y el chip `#N` del panel
+  marcan otro: tres vistas del mismo dato, dos diciendo lo contrario.
+
+**Revisados: 268 de 274.**
+
+### Tests
+
+- `tests/test_edu_modules_m4_m7.py` — **nuevo** (80 chequeos, sin display, en el mismo estilo
+  que el de M0..M3: `object.__new__` + dobles de matrices, labels y `tk.Canvas`). Cubre el
+  estado «esperando elemento» de M4 (D en ceros, rótulo, sin ◆, `_resolve_material` sin
+  fallback ni `_DEMO_*` —verificado con `ast` sobre las asignaciones globales, no por
+  substring, para que el comentario que documenta su retiro no lo falsee—) y de M5
+  (contribuciones vacías, kₑ en su placeholder, status y warning en blanco, cache invalidado,
+  `_lbl_dim` por tipo de proyecto), **que M6 NO tenga `on_element_deselected`** y que M7 sí,
+  los 2 literales de color, las trazas y el **contrato del área** (anchos 480/600/360/520,
+  fase, posición inicial, herencia, `REQUIRES_ELEMENT`, numeración visible ④⑤⑥⑦ y el
+  `delete(_TAG)` de cada capa). Sumado a `run_gates`. Verificado que **falla sin los arreglos**:
+  revienta en el primer bloque, con `E = 200 GPa` para un módulo abierto sin elemento.
+- Smoke con **Tk real bajo `xvfb`** sobre el ejemplo canónico Q4 (los números citados arriba
+  salen de ahí).
+
+### DECISIÓN CONGELADA REVERTIDA
+
+Ninguna. No se agregó ni un widget: la D en ceros y el ◆ ausente son estados de los widgets
+que ya existían, y el segundo estado del micro-rótulo usa el label que ya estaba (ver arriba
+por qué no contradice la decisión de que sea «estático»). No se tocó el espectro de Poisson,
+ni el probe de ancho fijo, ni la ausencia de Entry de ν, ni el título de la matriz de Valores,
+ni la altura de ningún overlay.
+
+### Pendientes visuales para el autor
+
+1. **M4 sin elemento** (lo más visible de la sesión). `Ctrl+E` → pestaña **⚙ PROCESO** →
+   **sin clickear nada**, `Ctrl+4` (**④ Matriz D**): el panel *Valores* debe abrir con la
+   **D en ceros**, arriba `◎ sin elemento — clickeá uno en el lienzo para ver su D.` y el
+   espectro **sin el ◆ dorado**. Antes abría con la D de `Material Ejemplo` (E = 225 000,
+   `max|D| = 234 375`) y un ◆ apuntando a su ν, como si perteneciera a algún elemento.
+   Clickeá un elemento: la D se llena, vuelve el ◆ y el rótulo vuelve al `🧪 Deslizá o tocá…`.
+   Clickeá en **zona vacía del lienzo** (o `Esc`): vuelve a ceros. La pestaña **ƒ Fórmula**
+   debe seguir mostrando la D simbólica **en los tres estados** (no depende del elemento).
+   Revertir: `git revert` del commit de esta sesión.
+2. **M5 al deseleccionar.** `Ctrl+E` → clickeá un elemento → `Ctrl+5` (**⑤ Rigidez K_e**) →
+   clickeá en **zona vacía del lienzo**: la kₑ debe volver a `◎ Clickeá un elemento y luego
+   los PGs del canvas`, la línea `Σ 4/4 pg · último: pg4 …` debe **desaparecer** y los 4 PGs
+   del cuadrado natural deben quedar **huecos y punteados** (ghost), no dorados. Antes se
+   quedaban los tres con los números del elemento ido. Clickeá otro elemento y todo se repuebla
+   con los 4 PGs sumados.
+3. **Los dos outlines blancos** (deben verse **idénticos**). En el cuadrado natural de
+   `Ctrl+5`, el borde blanco de los PGs **dorados**; y en `Ctrl+6` (**⑥ Fuerzas equivalentes**,
+   con una carga superficial definida), el borde blanco de las **bolitas nodales** rojas. Eran
+   los literales `"white"` y ahora son `EDU_MARKER_OUTLINE_COLOR`, con el mismo valor: si
+   alguno cambió de color, revisar esa constante.
+
+### Descartado
+
+- **Poner el estado «esperando elemento» de M4 como título de la matriz de Valores** (donde
+  vive en M2 y M3). `no-reintroducir.md` prohíbe explícitamente el título `ν = …` sobre esa
+  matriz y agregar otro label ahí lo reabriría por la ventana. El micro-rótulo de arriba ya
+  existía, ya es el lugar donde M4 habla en prosa, y decía justamente la frase que quedaba
+  falsa.
+- **Congelar también el espectro / el probe / la fórmula de M4 sin elemento.** Son del
+  concepto (ν es un parámetro del material isótropo, no del elemento) y funcionan igual: lo
+  único que el elemento aporta es `E`, y sin `E` lo único que no se puede calcular es la D
+  numérica. Apagar el módulo entero lo habría dejado inútil justo en el flujo que el launcher
+  permite a propósito (abrir sin selección).
+- **Resetear `self._nu` al deseleccionar.** Es el sandbox del alumno; volverlo a 0,30 le
+  borraría la exploración sin que nadie se lo pidiera. `on_element_selected` ya lo devuelve al
+  ν del material nuevo, que es donde sí corresponde.
+- **Pasar `_refresh_status` de M6 y los chips de carga por `fmt(value, kind)`** (regla dura 8:
+  hoy son `f"Fx={fx:+.2f}"` y `q=[{q:+.0f}]`, sin unidades). Es un cambio **visual** en todas
+  las líneas del panel y compite por los 3 pendientes visuales con los dos hallazgos grandes de
+  esta sesión. Al BACKLOG, para el próximo turno del área 8.
+- **Vectorizar o tocar `fem/`**: nada de esta sesión lo necesitaba. `test_solver_regression`
+  y `test_fem` pasan sin cambios porque el motor no se tocó.
+- **Los tres `get_dof_indices` de M7 dentro de los renders de hover**: quedan mudos. Un fallo
+  ahí significa un `node_index_map` roto (que el resto de la app ya reporta) y trazar dentro de
+  un render que corre con cada movimiento del mouse inundaría stderr.
+
+### Área siguiente
+
+9 — Componentes educativos y Teoría (`education/components/*`,
+`gui/dialogs/theory_hub_dialog.py`).

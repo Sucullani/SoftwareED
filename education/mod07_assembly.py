@@ -37,6 +37,7 @@ Reglas de la capa canvas:
 
 from __future__ import annotations
 
+import traceback
 from typing import Optional, Set
 
 import numpy as np
@@ -319,7 +320,11 @@ class AssemblyModule(CanvasOverlayModule):
             _, F_full, _ = assemble_global_system(self.project)
             self._F_target = F_full
         except Exception:
-            pass
+            # `_F_target` es la referencia contra la que se escalan las barras
+            # del panel F: si falla mudo, el vector F se dibuja contra la
+            # referencia por defecto y las magnitudes que ve el alumno no
+            # corresponden a las que el solver arma para este modelo.
+            traceback.print_exc()
 
         idx_map = self.project.node_index_map
         # Asignación de nodal_loads al primer elemento que contiene el nodo.
@@ -557,7 +562,9 @@ class AssemblyModule(CanvasOverlayModule):
         try:
             self._mesh.redraw()
         except Exception:
-            pass
+            # Sin redraw el flash blanco del pulso queda dibujado sobre un
+            # elemento que el alumno acaba de deseleccionar.
+            traceback.print_exc()
 
     def _on_canvas_hover_element(self, eid: Optional[int],
                                    *args, **kwargs) -> None:
@@ -576,7 +583,11 @@ class AssemblyModule(CanvasOverlayModule):
             try:
                 self._saved_hover(eid, *args, **kwargs)
             except Exception:
-                pass
+                # Eslabon previo de la cadena de hover (el del lienzo): si
+                # falla mudo, M7 monopoliza el hover y el resto de la app deja
+                # de reaccionar al paso del mouse sobre los elementos. Misma
+                # convencion que la cadena de seleccion de la clase base.
+                traceback.print_exc()
 
     # ── Render del panel (K | F | sistema) ─────────────────────────
     def _on_mode_change(self):
@@ -961,7 +972,9 @@ class AssemblyModule(CanvasOverlayModule):
             if self._mesh.on_hover_element == self._on_canvas_hover_element:
                 self._mesh.on_hover_element = self._saved_hover
         except Exception:
-            pass
+            # Si no se restaura, un M7 CERRADO se sigue quedando con el hover
+            # del lienzo: el hover causal de un modulo que ya no esta.
+            traceback.print_exc()
         try:
             self._mesh.canvas.delete(_TAG_BASE)
         except tk.TclError:

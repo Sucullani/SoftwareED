@@ -25,6 +25,7 @@ Reusa `fem/equivalent_forces.py` (lineal para Q4, cuadrática para Q9)
 from __future__ import annotations
 
 import math
+import traceback
 from typing import Optional
 
 import tkinter as tk
@@ -40,6 +41,7 @@ from config.settings import (
     ELEMENT_Q9, EDU_LABEL_BG, EDU_FG_MUTED,
     EDU_M6_EDGE_COLOR, OVERLAY_ACCENT_BLUE, HEALTH_ERROR_COLOR,
     OVERLAY_ACCENT_AMBER, EDU_MATRIX_TEXT_COLOR, EDU_STATUS_FG_COLOR,
+    EDU_MARKER_OUTLINE_COLOR,
 )
 
 
@@ -71,6 +73,8 @@ class EquivalentForcesModule(CanvasOverlayModule):
         self._F: list = []            # [(fx, fy), ...] por nodo (2 o 3 elementos)
         self._anim_t = 1.0
         self._anim_after_id: Optional[str] = None
+        # Guard de traza del loop de animacion: una sola por instancia.
+        self._anim_error_traced = False
         self._lbl_status: Optional[ttk.Label] = None
         self._chips_frame: Optional[ttk.Frame] = None
         super().__init__(main_window, project, element_id)
@@ -248,7 +252,14 @@ class EquivalentForcesModule(CanvasOverlayModule):
             # (80-200 ms) y a 60 fps convierte la animacion en un tiron.
             self._mesh.redraw_overlays_only()
         except Exception:
-            pass
+            # Si falla mudo la animacion se congela: las flechitas no decaen y
+            # las bolitas nodales no crecen, o sea que la integral F=∫N·q ds
+            # —lo unico que este modulo enseña— no se ve pasar. Traza UNA vez
+            # por instancia: el loop corre a ~60 fps y sin el guard inundaria
+            # stderr (mismo criterio que `_draw_layer_wrapper` de la base).
+            if not self._anim_error_traced:
+                self._anim_error_traced = True
+                traceback.print_exc()
         if self._anim_t < 1.0:
             try:
                 self._anim_after_id = self._mesh.after(16, self._step_animation)
@@ -291,7 +302,7 @@ class EquivalentForcesModule(CanvasOverlayModule):
             r = 2 + 14 * ratio * t
             mesh.canvas.create_oval(
                 sx - r, sy - r, sx + r, sy + r,
-                fill=_C_NODAL_BLOB, outline="white",
+                fill=_C_NODAL_BLOB, outline=EDU_MARKER_OUTLINE_COLOR,
                 width=1.2 if t > 0.3 else 0.6, tags=_TAG,
             )
             if t > 0.85 and ratio > 0.05:

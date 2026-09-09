@@ -40,6 +40,7 @@ del material" (que sugería edición).
 
 from __future__ import annotations
 
+import traceback
 from typing import Optional
 
 import numpy as np
@@ -63,9 +64,12 @@ from config.settings import (
 )
 
 
-# Defaults usados solo si el proyecto no tiene materiales asignados.
-_DEMO_E = 210e9
-_DEMO_NU = 0.30
+# Posicion inicial de la perilla del espectro cuando NO hay elemento (ni, por
+# lo tanto, un ν de material que respetar). Es un valor de sandbox del control
+# —el alumno lo arrastra— y NO alimenta ninguna matriz: sin elemento la D de
+# Valores va a ceros. Los ex `_DEMO_E = 210e9` / `_DEMO_NU = 0.30` se
+# eliminaron: alimentaban una D completa con el acero inventado.
+_SANDBOX_NU = 0.30
 
 # Tag del MeshCanvas para los dibujos M4 (highlight del elem seleccionado).
 _TAG = "edu_m4"
@@ -137,7 +141,10 @@ class ConstitutiveModule(CanvasOverlayModule):
         self._E, self._nu_default, self._mat_name = self._resolve_material(
             project, element_id
         )
-        self._nu = self._nu_default
+        # Sin material resuelto no hay «tu ν»: la perilla arranca en el valor
+        # de sandbox y el ◆ home no se dibuja.
+        self._nu = (self._nu_default if self._nu_default is not None
+                    else _SANDBOX_NU)
         self._toggle: Optional[FormulaValueBlocksToggle] = None
         self._spectrum_canvas: Optional[tk.Canvas] = None
         self._poisson_canvas: Optional[tk.Canvas] = None
@@ -154,20 +161,27 @@ class ConstitutiveModule(CanvasOverlayModule):
     # ── Resolución de material ─────────────────────────────────────
     @staticmethod
     def _resolve_material(project, element_id):
+        """(E, ν, nombre) del material del elemento bajo análisis.
+
+        Sin elemento —o con un elemento sin material asignable— devuelve
+        `(None, None, None)`: **no se inventa un material de reemplazo**. El
+        ex-fallback caía en `materials[0]` («… (fallback)») y, si el proyecto
+        no tenía ninguno, en un acero inventado (`210 GPa`, `ν = 0,30`); en
+        los dos casos el panel Valores mostraba una D completa y plausible
+        que no era la de ningún elemento elegido — la misma clase de
+        placeholder que el `np.eye` de M2. `E is None` es la señal de
+        «esperando elemento» que consumen `_current_d`, `_sandbox_text` y el
+        ◆ del espectro.
+        """
         if project is None:
-            return _DEMO_E, _DEMO_NU, "demo (sin proyecto)"
+            return None, None, None
         elem = (project.elements.get(element_id)
                 if element_id is not None else None)
         if elem is not None:
             mat = project.materials.get(getattr(elem, "material_name", None))
             if mat is not None:
                 return float(mat.E), float(mat.nu), mat.name
-        mats = (list(project.materials.values())
-                if project.materials else [])
-        if mats:
-            return float(mats[0].E), float(mats[0].nu), \
-                   f"{mats[0].name} (fallback)"
-        return _DEMO_E, _DEMO_NU, "demo (sin materiales)"
+        return None, None, None
 
     # ── Análisis vigente leído del project (sin selector local) ────
     @property
@@ -187,9 +201,30 @@ class ConstitutiveModule(CanvasOverlayModule):
         Texto mínimo: el ◆, el material real y el rango ν ∈ [0, ½) se ven en
         el espectro — no se describen en prosa. "isótropo" sí va acá: fija el
         supuesto del modelo (D = D(E, ν) de 2 constantes) sin una línea
-        aparte."""
+        aparte.
+
+        Es estático **entre elementos** (no repite el nombre ni el ν del
+        material: eso lo dice el espectro), pero tiene un segundo estado: sin
+        material resuelto la frase «no modifica la D de tu elemento» hablaría
+        de un elemento que no existe, así que nombra el estado y el gesto —
+        el único cartel del overlay que dice que la D está en ceros porque
+        falta elegir elemento."""
+        if self._E is None:
+            if self.element is None:
+                return ("◎ sin elemento — clickeá uno en el lienzo para ver "
+                        "su D.")
+            return (f"⚠ el elemento #{self.element_id} no tiene material "
+                    "asignado — asignale uno en Modelo ▸ Materiales.")
         return ("🧪 Deslizá o tocá un material isótropo — no modifica la D "
                 "de tu elemento.")
+
+    def _refresh_sandbox_text(self) -> None:
+        if self._lbl_sandbox is None:
+            return
+        try:
+            self._lbl_sandbox.configure(text=self._sandbox_text())
+        except tk.TclError:
+            pass
 
     # ── Construcción del overlay (compacto UX 2026) ───────────────
     def build_overlay(self, body):
@@ -264,31 +299,32 @@ class ConstitutiveModule(CanvasOverlayModule):
         if self.element is None or self.project is None:
             return
         # Dibujar contorno amarillo grueso sobre el elemento bajo análisis.
-        # Reusa los corners macro (Q4/Q9 trato igual).
-        try:
-            corners = self.element.node_ids[:4]
-            pts = []
-            for nid in corners:
-                node = self.project.nodes.get(nid)
-                if node is None:
-                    return
-                sx, sy = mesh.world_to_screen(node.x, node.y)
-                pts.extend([sx, sy])
-            if len(pts) < 8:
+        # Reusa los corners macro (Q4/Q9 trato igual). SIN try/except propio:
+        # el `_draw_layer_wrapper` de la base ya aisla la capa y deja UNA traza
+        # por instancia (la capa corre en cada redraw). El ex `except: pass`
+        # local se la comía antes de que el wrapper la viera, así que el
+        # elemento se quedaba sin su contorno ámbar sin ninguna pista.
+        corners = self.element.node_ids[:4]
+        pts = []
+        for nid in corners:
+            node = self.project.nodes.get(nid)
+            if node is None:
                 return
-            mesh.canvas.create_polygon(
-                *pts,
-                outline=OVERLAY_ACCENT_AMBER, fill="", width=3.0, tags=_TAG,
-            )
-            cx = sum(pts[::2]) / 4
-            cy = sum(pts[1::2]) / 4
-            mesh.canvas.create_text(
-                cx, cy - 16, text=f"D ▸ E{self.element_id}",
-                fill=OVERLAY_ACCENT_AMBER, font=("Consolas", 10, "bold"),
-                tags=_TAG,
-            )
-        except Exception:
-            pass
+            sx, sy = mesh.world_to_screen(node.x, node.y)
+            pts.extend([sx, sy])
+        if len(pts) < 8:
+            return
+        mesh.canvas.create_polygon(
+            *pts,
+            outline=OVERLAY_ACCENT_AMBER, fill="", width=3.0, tags=_TAG,
+        )
+        cx = sum(pts[::2]) / 4
+        cy = sum(pts[1::2]) / 4
+        mesh.canvas.create_text(
+            cx, cy - 16, text=f"D ▸ E{self.element_id}",
+            fill=OVERLAY_ACCENT_AMBER, font=("Consolas", 10, "bold"),
+            tags=_TAG,
+        )
 
     # ── Click en otro elemento → cambiar material ──────────────────
     def on_element_selected(self, elem_id):
@@ -300,10 +336,33 @@ class ConstitutiveModule(CanvasOverlayModule):
         self._E, self._nu_default, self._mat_name = self._resolve_material(
             self.project, elem_id
         )
-        # Resetear al ν del nuevo material — es lo que ese material es.
-        # (El texto sandbox es estático; solo se mueve el ◆ del espectro, que
-        # redibuja _refresh_nu_widgets.)
-        self._nu = self._nu_default
+        # Resetear al ν del nuevo material — es lo que ese material es. (El
+        # texto sandbox no repite el nombre ni el ν del material; solo cambia
+        # si se entra o se sale del estado «esperando elemento».)
+        self._nu = (self._nu_default if self._nu_default is not None
+                    else _SANDBOX_NU)
+        self._refresh_sandbox_text()
+        self._refresh_nu_widgets()
+        self._refresh_d_widgets()
+        self._mesh.redraw()
+
+    def on_element_deselected(self):
+        """Vuelve al estado «esperando elemento» (contrato del capítulo).
+
+        Sin este override el default de la base solo hace `set_element(None)`
+        + `redraw()`: el contorno ámbar `D ▸ E3` se apaga en el lienzo, pero
+        el overlay se queda con la **D del elemento deseleccionado** y con el
+        ◆ «tu material» apuntando a su ν. Ahora la matriz de Valores va a
+        ceros, el ◆ desaparece y el rótulo nombra el estado. El espectro, el
+        probe de Poisson y la fórmula simbólica siguen vivos: son del
+        concepto, no del elemento — el módulo no se queda vacío."""
+        self.element_id = None
+        self.element = None
+        self._E, self._nu_default, self._mat_name = self._resolve_material(
+            self.project, None
+        )
+        # El ν que el alumno dejó en el espectro NO se toca: es su sandbox.
+        self._refresh_sandbox_text()
         self._refresh_nu_widgets()
         self._refresh_d_widgets()
         self._mesh.redraw()
@@ -320,9 +379,11 @@ class ConstitutiveModule(CanvasOverlayModule):
 
     def _snap_candidates(self):
         """Anclas a las que el puntero engancha: materiales + ν del material
-        real del elemento (home)."""
+        real del elemento (home). Sin material resuelto no hay home: engancha
+        solo a los materiales de referencia."""
         cands = [nu for nu, _, _ in self._MAT_REFS]
-        cands.append(self._nu_default)
+        if self._nu_default is not None:
+            cands.append(self._nu_default)
         return cands
 
     def _nu_for_pointer_x(self, x: float) -> float:
@@ -458,11 +519,14 @@ class ConstitutiveModule(CanvasOverlayModule):
             )
 
         # Marcador "home" (ν del material real del elemento). Tocarlo = Reset.
-        hx = self._x_for_nu(self._nu_default)
-        c.create_polygon(
-            hx, y + 7, hx - 5, y + 15, hx + 5, y + 15,
-            fill=_HOME_COLOR, outline=EDU_MARKER_OUTLINE_COLOR, width=0.8,
-        )
+        # Sin material resuelto NO se dibuja: el ◆ significa «tu material» y
+        # sin elemento no hay ninguno al que volver.
+        if self._nu_default is not None:
+            hx = self._x_for_nu(self._nu_default)
+            c.create_polygon(
+                hx, y + 7, hx - 5, y + 15, hx + 5, y + 15,
+                fill=_HOME_COLOR, outline=EDU_MARKER_OUTLINE_COLOR, width=0.8,
+            )
 
         # Perilla en la posición actual.
         c.create_oval(kx - 8, y - 8, kx + 8, y + 8,
@@ -606,14 +670,29 @@ class ConstitutiveModule(CanvasOverlayModule):
         self._mat_formula.pack(anchor="center", pady=(6, 6))
         self._formula_case_rendered = case
 
+    def _current_d(self) -> np.ndarray:
+        """D del elemento bajo análisis, o **ceros** si no hay material.
+
+        D = D(E, ν, caso): sin E no hay D. Devolver la de un material
+        inventado sería un placeholder que se lee como un resultado válido —
+        lo que el contrato del estado «esperando elemento» prohíbe. El panel
+        Fórmula (simbólico) sigue siendo correcto: no depende del elemento.
+        """
+        if self._E is None:
+            return np.zeros((3, 3))
+        try:
+            return constitutive_matrix(self._E, self._nu, self.analysis_case)
+        except Exception:
+            # Un E o un ν que `constitutive_matrix` rechaza deja la D en ceros:
+            # sin traza era indistinguible del estado «esperando elemento».
+            traceback.print_exc()
+            return np.zeros((3, 3))
+
     def _build_values_panel(self, frame) -> None:
         """Panel de valores numéricos de D — matriz live-update via
         `set_matrix` cuando ν cambia. SIN título 'ν = ...': la lectura de ν
         ya vive bajo el espectro y la matriz ES el valor (cero redundancia)."""
-        try:
-            D = constitutive_matrix(self._E, self._nu, self.analysis_case)
-        except Exception:
-            D = np.zeros((3, 3))
+        D = self._current_d()
         scale, prefix_sci = self._scale_factor(D)
         Dn = D / scale
         prefix = self._latex_prefix(prefix_sci)
@@ -630,13 +709,15 @@ class ConstitutiveModule(CanvasOverlayModule):
         # Valores: la matriz cambia con cada ν o cambio de material.
         if self._mat_values is not None:
             try:
-                D = constitutive_matrix(self._E, self._nu, case)
+                D = self._current_d()
                 scale, prefix_sci = self._scale_factor(D)
                 Dn = D / scale
                 prefix = self._latex_prefix(prefix_sci)
                 self._mat_values.set_matrix(Dn, prefix=prefix)
             except Exception:
-                pass
+                # Mudo, el panel Valores se queda con la D ANTERIOR: el alumno
+                # mueve el espectro (o deselecciona) y la matriz no acompaña.
+                traceback.print_exc()
         # Fórmula: solo si cambió TP↔DP (re-mount de cells distintas).
         if self._mat_formula is not None and case != self._formula_case_rendered:
             try:
@@ -644,7 +725,9 @@ class ConstitutiveModule(CanvasOverlayModule):
                 self._mat_formula.set_matrix(cells, prefix=prefix)
                 self._formula_case_rendered = case
             except Exception:
-                pass
+                # Mudo, la D simbolica queda con las celdas del caso plano
+                # viejo: TP mostrando la formula de DP (o al reves).
+                traceback.print_exc()
 
     @staticmethod
     def _scale_factor(D: np.ndarray):
