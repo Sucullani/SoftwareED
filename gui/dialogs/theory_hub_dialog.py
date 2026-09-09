@@ -31,6 +31,7 @@ def open_theory_hub(parent) -> TheoryViewer:
         title="Teoría MEF — EduFEM",
         doc_builder=_build_full_theory_document,
         subtitle="Fundamentos clásicos para análisis Q4 / Q9 plano",
+        documento="la Teoría MEF",
     )
 
 
@@ -45,13 +46,20 @@ def _build_full_theory_document(doc: TheoryDoc) -> None:
     _m0_mesh_quality(doc)
     _m1_iso_mapping(doc)
     _m2_jacobian(doc)
-    _m3_constitutive(doc)
-    _m4_b_matrix(doc)
+    # M3 = matriz B y M4 = matriz D desde el swap B<->D de 2026-05. El orden
+    # de las dos secciones tambien es el del pipeline que enuncia la intro
+    # (N -> J -> B -> D -> k_e): B produce las deformaciones, D las convierte
+    # en tensiones.
+    _m3_b_matrix(doc)
+    _m4_constitutive(doc)
     _m5_stiffness_gauss(doc)
     _m6_equivalent_forces(doc)
     _m7_assembly(doc)
-    _m8_post_processing(doc)
-    _m9_convergence(doc)
+    # Las dos ultimas NO llevan numero de modulo: el Post-Proceso no tiene
+    # modulo educativo (el ex-M9 se elimino en 2026-05) y la convergencia
+    # es transversal.
+    _post_processing(doc)
+    _convergence(doc)
 
 
 # ────────────────────────────────────────────────────────────────────
@@ -128,7 +136,11 @@ def _intro(doc: TheoryDoc) -> None:
     )
     doc.para(
         r"Las secciones siguientes desarrollan cada eslabón en el orden "
-        r"en que aparece."
+        r"en que aparece. Las ocho primeras llevan el número del módulo "
+        r"educativo que las ilustra sobre la malla real (M0 en el "
+        r"Pre-Proceso; M1 a M7 en el Proceso, con \texttt{Ctrl+1} a "
+        r"\texttt{Ctrl+7}); las dos últimas son transversales y no tienen "
+        r"módulo propio."
     )
 
 
@@ -143,10 +155,11 @@ def _m0_mesh_quality(doc: TheoryDoc) -> None:
         r"Antes de calcular cualquier rigidez la malla debe ser válida y, de "
         r"ser posible, bien condicionada: sin elementos invertidos, sin "
         r"distorsión angular excesiva y sin elongación extrema. Dos métricas "
-        r"geométricas \emph{ortogonales}, ambas normalizadas al rango $[0,1]$ "
-        r"con $1$ = cuadrado ideal, describen la salud de un cuadrilátero: el "
-        r"\emph{Jacobiano escalado} mide la forma angular y la validez, y la "
-        r"\emph{compacidad} (\textit{stretch}) mide la proporción geométrica."
+        r"geométricas \emph{ortogonales} describen la salud de un "
+        r"cuadrilátero: el \emph{Jacobiano escalado} mide la forma angular y "
+        r"la validez, y la \emph{compacidad} (\textit{stretch}) mide la "
+        r"proporción geométrica. En las dos, el valor $1$ corresponde al "
+        r"cuadrado ideal."
     )
 
     doc.subsection_numbered("Jacobiano escalado (forma angular y validez)")
@@ -199,10 +212,15 @@ def _m0_mesh_quality(doc: TheoryDoc) -> None:
         r"corresponde a buena calidad."
     )
     doc.para(
-        r"Ambas métricas viven en $[0,1]$ con $1$ = ideal y comparten el "
-        r"mismo mapeo cromático rojo$\to$amarillo$\to$verde, de modo que un "
-        r"mismo color significa la misma calidad en cualquiera de las dos. No "
-        r"detectan la \emph{trapezoidalidad pura} (un cuadrilátero con "
+        r"Las dos comparten el mapeo cromático "
+        r"rojo$\to$amarillo$\to$verde, pero \textbf{no la misma escala}: la "
+        r"compacidad vive en $[0,1]$, mientras que el Jacobiano escalado se "
+        r"presenta en su rango completo $[-1,1]$ porque el signo distingue la "
+        r"validez. Tampoco comparten el umbral: el corte de aceptabilidad de "
+        r"la librería Verdict es $\mathrm{SJ}\ge 0{,}50$ y $Q\ge 0{,}25$, así "
+        r"que el cambio de color no cae en el mismo valor numérico en las dos. "
+        r"Ninguna de las dos "
+        r"detecta la \emph{trapezoidalidad pura} (un cuadrilátero con "
         r"ángulos rectos pero lados opuestos no paralelos), fenómeno ligado "
         r"al \textit{trapezoidal locking} de los elementos de cuatro nodos, "
         r"que se aborda por separado."
@@ -352,76 +370,12 @@ def _m2_jacobian(doc: TheoryDoc) -> None:
 
 
 # ────────────────────────────────────────────────────────────────────
-# M3 · Matriz constitutiva D
+# M3 · Matriz B (deformación-desplazamiento)
 # ────────────────────────────────────────────────────────────────────
 
 
-def _m3_constitutive(doc: TheoryDoc) -> None:
-    doc.section_numbered("M3 · Matriz constitutiva D")
-    doc.para(
-        r"En régimen elástico lineal, las tensiones y las deformaciones "
-        r"están relacionadas por la ley de Hooke generalizada:"
-    )
-    doc.equation(r"\boldsymbol\sigma = \mathbf{D}\,\boldsymbol\varepsilon,")
-    doc.para(
-        r"con $\boldsymbol\sigma=(\sigma_x,\sigma_y,\tau_{xy})^T$ y "
-        r"$\boldsymbol\varepsilon=(\varepsilon_x,\varepsilon_y,\gamma_{xy})^T$. "
-        r"La matriz constitutiva $\mathbf{D}$ depende del material "
-        r"(módulo de Young $E$ y coeficiente de Poisson $\nu$) y del tipo "
-        r"de problema plano."
-    )
-
-    doc.subsection_numbered("Tensión plana (TP)")
-    doc.para(
-        r"Hipótesis: cuerpo delgado, de espesor pequeño respecto de sus "
-        r"otras dimensiones, cargado en su plano medio. Las componentes "
-        r"fuera del plano se anulan: $\sigma_z=\tau_{xz}=\tau_{yz}=0$. "
-        r"Aplica a placas y membranas."
-    )
-    doc.equation(
-        r"\mathbf{D}_{TP} = \frac{E}{1-\nu^2}\begin{bmatrix}"
-        r"1 & \nu & 0 \\ \nu & 1 & 0 \\ 0 & 0 & (1-\nu)/2"
-        r"\end{bmatrix}."
-    )
-
-    doc.subsection_numbered("Deformación plana (DP)")
-    doc.para(
-        r"Hipótesis: cuerpo prismático muy largo en una dirección, con "
-        r"sección y cargas invariantes a lo largo del eje. La deformación "
-        r"axial se anula: $\varepsilon_z=\gamma_{xz}=\gamma_{yz}=0$. "
-        r"Aplica a presas, túneles, tuberías largas y secciones de cuerpos "
-        r"alargados."
-    )
-    doc.equation(
-        r"\mathbf{D}_{DP} = \frac{E}{(1+\nu)(1-2\nu)}\begin{bmatrix}"
-        r"1-\nu & \nu & 0 \\ \nu & 1-\nu & 0 \\ 0 & 0 & (1-2\nu)/2"
-        r"\end{bmatrix}."
-    )
-    doc.para(
-        r"En deformación plana la tensión axial no se anula: "
-        r"$\sigma_z=\nu(\sigma_x+\sigma_y)$, y se reconstruye en el "
-        r"post-proceso si se necesita."
-    )
-
-    doc.subsection_numbered(r"Limitación: locking volumétrico ($\nu\to 0{,}5$)")
-    doc.para(
-        r"En deformación plana, el factor $1/(1-2\nu)$ tiende a infinito "
-        r"cuando $\nu\to 0{,}5$ (materiales casi incompresibles, como "
-        r"caucho o suelos saturados). Los elementos isoparamétricos "
-        r"estándar de desplazamientos no pueden representar bien esa "
-        r"situación: se vuelven artificialmente rígidos (\emph{volumetric "
-        r"locking}). El tratamiento riguroso requiere formulaciones "
-        r"mixtas (B-bar, SRI, $u/p$), que exceden el alcance básico."
-    )
-
-
-# ────────────────────────────────────────────────────────────────────
-# M4 · Matriz B (deformación-desplazamiento)
-# ────────────────────────────────────────────────────────────────────
-
-
-def _m4_b_matrix(doc: TheoryDoc) -> None:
-    doc.section_numbered("M4 · Matriz B (deformación–desplazamiento)")
+def _m3_b_matrix(doc: TheoryDoc) -> None:
+    doc.section_numbered("M3 · Matriz B (deformación--desplazamiento)")
     doc.para(
         r"La matriz $\mathbf{B}$ relaciona los desplazamientos nodales "
         r"del elemento con las deformaciones continuas en su interior:"
@@ -476,7 +430,8 @@ def _m4_b_matrix(doc: TheoryDoc) -> None:
     doc.subsection_numbered("Superconvergencia de Gauss (Barlow 1976)")
     doc.para(
         r"Las tensiones $\boldsymbol\sigma=\mathbf{D}\,\mathbf{B}\,"
-        r"\mathbf{u}_e$ son discontinuas entre elementos (la formulación "
+        r"\mathbf{u}_e$ (con $\mathbf{D}$ la matriz constitutiva de la "
+        r"sección siguiente) son discontinuas entre elementos (la formulación "
         r"de Galerkin sólo garantiza continuidad $C^0$ del "
         r"desplazamiento, no de sus derivadas). Pero dentro de cada "
         r"elemento existen puntos privilegiados donde la convergencia "
@@ -495,6 +450,70 @@ def _m4_b_matrix(doc: TheoryDoc) -> None:
         r"(\pm\sqrt{3/5},0,\pm\sqrt{3/5})$. Esto motiva el procedimiento "
         r"clásico del post-proceso: calcular las tensiones primero en "
         r"los puntos de Gauss y \emph{extrapolarlas} a los nodos."
+    )
+
+
+# ────────────────────────────────────────────────────────────────────
+# M4 · Matriz constitutiva D
+# ────────────────────────────────────────────────────────────────────
+
+
+def _m4_constitutive(doc: TheoryDoc) -> None:
+    doc.section_numbered("M4 · Matriz constitutiva D")
+    doc.para(
+        r"En régimen elástico lineal, las tensiones y las deformaciones "
+        r"están relacionadas por la ley de Hooke generalizada:"
+    )
+    doc.equation(r"\boldsymbol\sigma = \mathbf{D}\,\boldsymbol\varepsilon,")
+    doc.para(
+        r"con $\boldsymbol\sigma=(\sigma_x,\sigma_y,\tau_{xy})^T$ y "
+        r"$\boldsymbol\varepsilon=(\varepsilon_x,\varepsilon_y,\gamma_{xy})^T$. "
+        r"La matriz constitutiva $\mathbf{D}$ depende del material "
+        r"(módulo de Young $E$ y coeficiente de Poisson $\nu$) y del tipo "
+        r"de problema plano."
+    )
+
+    doc.subsection_numbered("Tensión plana (TP)")
+    doc.para(
+        r"Hipótesis: cuerpo delgado, de espesor pequeño respecto de sus "
+        r"otras dimensiones, cargado en su plano medio. Las componentes "
+        r"fuera del plano se anulan: $\sigma_z=\tau_{xz}=\tau_{yz}=0$. "
+        r"Aplica a placas y membranas."
+    )
+    doc.equation(
+        r"\mathbf{D}_{TP} = \frac{E}{1-\nu^2}\begin{bmatrix}"
+        r"1 & \nu & 0 \\ \nu & 1 & 0 \\ 0 & 0 & (1-\nu)/2"
+        r"\end{bmatrix}."
+    )
+
+    doc.subsection_numbered("Deformación plana (DP)")
+    doc.para(
+        r"Hipótesis: cuerpo prismático muy largo en una dirección, con "
+        r"sección y cargas invariantes a lo largo del eje. La deformación "
+        r"axial se anula: $\varepsilon_z=\gamma_{xz}=\gamma_{yz}=0$. "
+        r"Aplica a presas, túneles, tuberías largas y secciones de cuerpos "
+        r"alargados."
+    )
+    doc.equation(
+        r"\mathbf{D}_{DP} = \frac{E}{(1+\nu)(1-2\nu)}\begin{bmatrix}"
+        r"1-\nu & \nu & 0 \\ \nu & 1-\nu & 0 \\ 0 & 0 & (1-2\nu)/2"
+        r"\end{bmatrix}."
+    )
+    doc.para(
+        r"En deformación plana la tensión axial no se anula: "
+        r"$\sigma_z=\nu(\sigma_x+\sigma_y)$, y se reconstruye en el "
+        r"post-proceso si se necesita."
+    )
+
+    doc.subsection_numbered(r"Limitación: locking volumétrico ($\nu\to 0{,}5$)")
+    doc.para(
+        r"En deformación plana, el factor $1/(1-2\nu)$ tiende a infinito "
+        r"cuando $\nu\to 0{,}5$ (materiales casi incompresibles, como "
+        r"caucho o suelos saturados). Los elementos isoparamétricos "
+        r"estándar de desplazamientos no pueden representar bien esa "
+        r"situación: se vuelven artificialmente rígidos (\emph{volumetric "
+        r"locking}). El tratamiento riguroso requiere formulaciones "
+        r"mixtas (B-bar, SRI, $u/p$), que exceden el alcance básico."
     )
 
 
@@ -768,12 +787,12 @@ def _m7_assembly(doc: TheoryDoc) -> None:
 
 
 # ────────────────────────────────────────────────────────────────────
-# M8 · Post-proceso: tensiones derivadas
+# Post-proceso: tensiones derivadas (sin modulo educativo propio)
 # ────────────────────────────────────────────────────────────────────
 
 
-def _m8_post_processing(doc: TheoryDoc) -> None:
-    doc.section_numbered("M8 · Post-proceso: tensiones derivadas")
+def _post_processing(doc: TheoryDoc) -> None:
+    doc.section_numbered("Post-proceso: tensiones derivadas")
     doc.para(
         r"El post-proceso transforma los desplazamientos nodales "
         r"$\mathbf{u}$ — la única incógnita directa del MEF — en las "
@@ -804,7 +823,7 @@ def _m8_post_processing(doc: TheoryDoc) -> None:
         r"no directamente en los nodos — por la superconvergencia de "
         r"Barlow: las tensiones en los puntos de Gauss convergen con "
         r"un orden adicional respecto del resto del elemento (sección "
-        r"M4)."
+        r"M3)."
     )
 
     doc.subsection_numbered("Extrapolación de Gauss a nodos (Q4)")
@@ -931,12 +950,12 @@ def _m8_post_processing(doc: TheoryDoc) -> None:
 
 
 # ────────────────────────────────────────────────────────────────────
-# M9 · Convergencia h y comparación Q4 / Q9
+# Convergencia h y comparacion Q4 / Q9 (sin modulo educativo propio)
 # ────────────────────────────────────────────────────────────────────
 
 
-def _m9_convergence(doc: TheoryDoc) -> None:
-    doc.section_numbered("M9 · Convergencia h y comparación Q4 / Q9")
+def _convergence(doc: TheoryDoc) -> None:
+    doc.section_numbered("Convergencia h y comparación Q4 / Q9")
     doc.para(
         r"Refinar la malla (\emph{h-refinamiento}: subdividir cada "
         r"elemento en sub-elementos más pequeños) reduce el error de "

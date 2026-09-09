@@ -22,16 +22,23 @@ Uso típico:
 
 from __future__ import annotations
 
+import traceback
 from typing import Callable, Optional
 
 import tkinter as tk
 import ttkbootstrap as ttk
 
-from config.settings import OVERLAY_ACCENT_BLUE
+from config.settings import FONT_UI, OVERLAY_ACCENT_BLUE
 
 
 # Color "link" del header (celeste — descubrible, no agresivo).
 _EXPANDER_FG = OVERLAY_ACCENT_BLUE
+# Fuente del header: la misma del resto de la UI (`config/settings.FONT_UI`).
+# Estaba escrita a mano tres veces como ("Segoe UI", 9) — la misma clase de
+# literal duplicado que los colores, y con el agravante de que fuera de
+# Windows "Segoe UI" no existe y Tk cae a una fuente cualquiera.
+_HEADER_FONT = FONT_UI
+_HEADER_FONT_HOVER = (*FONT_UI, "underline")
 
 
 class Expander(ttk.Frame):
@@ -56,7 +63,7 @@ class Expander(ttk.Frame):
         self._fg = fg
 
         self._header = tk.Label(
-            self, text="", font=("Segoe UI", 9), fg=fg, bg=bg,
+            self, text="", font=_HEADER_FONT, fg=fg, bg=bg,
             cursor="hand2", anchor="w",
         )
         self._header.pack(fill="x", anchor="w")
@@ -64,10 +71,10 @@ class Expander(ttk.Frame):
         # Underline al hover — refuerza la affordance de "clickeable".
         self._header.bind("<Enter>",
                           lambda _e: self._header.configure(
-                              font=("Segoe UI", 9, "underline")))
+                              font=_HEADER_FONT_HOVER))
         self._header.bind("<Leave>",
                           lambda _e: self._header.configure(
-                              font=("Segoe UI", 9)))
+                              font=_HEADER_FONT))
 
         # body — contenedor que el caller puebla.
         self.body = ttk.Frame(self)
@@ -87,7 +94,11 @@ class Expander(ttk.Frame):
             try:
                 self._on_toggle()
             except Exception:
-                pass
+                # El body se puebla PEREZOSAMENTE en este callback (M5 rinde
+                # ahi su integrando simbolico): si falla mudo, el expander se
+                # abre VACIO y el alumno no tiene ni el contenido ni el
+                # motivo. Es el camino que escondio el `sympy` sin importar.
+                traceback.print_exc()
 
     def _sync_header(self) -> None:
         arrow = "▾" if self._expanded else "▸"

@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import io
 import math
+import traceback
 from typing import Optional, Sequence, Union
 
 import numpy as np
@@ -85,6 +86,20 @@ MatrixLike = Union[np.ndarray, Sequence[Sequence], object]
 
 _CACHE: dict = {}
 
+# Firmas de render que ya dejaron traza. Las matrices LIVE (M2/M3/M5) se
+# rendean con cada movimiento del punto (`cache=False`): sin este guard, un
+# fallo de mathtext inundaria stderr a razon de un traceback por frame. Mismo
+# criterio que el `_layer_error_traced` de `overlay_module`.
+_TRACED_FAILURES: set = set()
+
+
+def _trace_once(signature) -> None:
+    """Imprime el traceback la PRIMERA vez que falla cada `signature`."""
+    if signature in _TRACED_FAILURES:
+        return
+    _TRACED_FAILURES.add(signature)
+    traceback.print_exc()
+
 
 # ─── API pública ────────────────────────────────────────────────────
 
@@ -142,13 +157,22 @@ def render_matrix_image(
             bg=bg, dpi=dpi, shrink=shrink,
         )
     except Exception:
+        # Sin traza, una matriz que desaparece del panel no tiene diagnostico
+        # posible (fue lo que escondio durante meses el `sympy` sin importar
+        # de M5). Una sola traza por firma: estas matrices se rendean por
+        # frame cuando el alumno mueve el punto.
+        _trace_once(("matrix", rows, cols, prefix, shrink))
         try:
             import matplotlib.pyplot as _plt
             _plt.close("all")
         except Exception:
             pass
         img = Image.new("RGBA", (1, 1), (0, 0, 0, 0))
-        photo = ImageTk.PhotoImage(img)
+        # NO se cachea el placeholder: cachearlo convertia un fallo
+        # transitorio (una figura a medio cerrar, un valor NaN puntual) en una
+        # matriz en blanco PARA SIEMPRE — la clave incluye el contenido, asi
+        # que el mismo dato nunca se volvia a intentar en toda la sesion.
+        return ImageTk.PhotoImage(img)
 
     if cache:
         _CACHE[key] = photo
@@ -385,9 +409,14 @@ def render_expression_image(
         if cached is not None:
             return cached
 
-    photo = _safe_render_mathtext_expression(text, body, fontsize=fontsize,
-                                              color=color, bg=bg, dpi=dpi)
-    if cache:
+    photo, renderizo = _safe_render_mathtext_expression(
+        text, body, fontsize=fontsize, color=color, bg=bg, dpi=dpi)
+    # Se cachea el resultado del intento 1 y el del 2 (el fallback monospace
+    # es determinista: si mathtext no parsea esa sintaxis, no va a parsearla
+    # la proxima vez, y reintentarlo cuesta ~100 ms por render). El
+    # placeholder 1x1 del intento 3, en cambio, es un fallo de matplotlib y
+    # NO se cachea: cachearlo dejaba esa expresion invisible para siempre.
+    if cache and renderizo:
         _CACHE[key] = photo
     return photo
 
@@ -395,9 +424,13 @@ def render_expression_image(
 def _safe_render_mathtext_expression(
     text: str, raw_expr: str, *,
     fontsize: int, color: str, bg: str, dpi: int,
-) -> ImageTk.PhotoImage:
+) -> tuple[ImageTk.PhotoImage, bool]:
     """Intenta render mathtext; si falla (sintaxis no soportada), cae a
-    monospace plain. Garantiza retornar SIEMPRE un PhotoImage valido."""
+    monospace plain. Garantiza retornar SIEMPRE un PhotoImage valido.
+
+    Devuelve `(photo, renderizo_algo)`: el segundo valor es `False` solo en
+    el ultimo recurso (imagen 1x1 vacia), para que el caller no lo cachee.
+    """
     # Intento 1: mathtext con `$...$` y family=serif (CM).
     try:
         fig = Figure(figsize=(0.01, 0.01), dpi=dpi, facecolor=bg)
@@ -406,8 +439,11 @@ def _safe_render_mathtext_expression(
         ax.set_facecolor(bg)
         ax.axis("off")
         ax.text(0, 0, text, fontsize=fontsize, color=color, family="serif")
-        return _fig_to_photoimage(fig, dpi=dpi)
+        return _fig_to_photoimage(fig, dpi=dpi), True
     except Exception:
+        # Degradar a monospace muestra el LaTeX CRUDO en pantalla: sin traza,
+        # nadie sabe que comando no soporta mathtext. Una por expresion.
+        _trace_once(("expr", text))
         try:
             import matplotlib.pyplot as _plt
             _plt.close("all")
@@ -424,8 +460,9 @@ def _safe_render_mathtext_expression(
         plain = raw_expr.replace("$", "")
         ax.text(0, 0, plain, fontsize=max(8, fontsize - 2),
                 color=color, family="monospace")
-        return _fig_to_photoimage(fig, dpi=dpi)
+        return _fig_to_photoimage(fig, dpi=dpi), True
     except Exception:
+        _trace_once(("expr-plain", text))
         try:
             import matplotlib.pyplot as _plt
             _plt.close("all")
@@ -434,7 +471,7 @@ def _safe_render_mathtext_expression(
 
     # Intento 3: placeholder transparente 1x1 (ultimo recurso).
     img = Image.new("RGBA", (1, 1), (0, 0, 0, 0))
-    return ImageTk.PhotoImage(img)
+    return ImageTk.PhotoImage(img), False
 
 
 # ─── Widgets Tk ─────────────────────────────────────────────────────
@@ -743,6 +780,9 @@ def fit_matrix_widget(
                                  prefix=prefix, cache=False, shrink=False, **kw)
         iw, ih = ph.width(), ph.height()
     except Exception:
+        # Elegir el widget equivocado deja la matriz recortada o con un scroll
+        # que no hace falta: sin traza, el sintoma no lleva a la causa.
+        _trace_once(("fit", prefix, fontsize))
         iw, ih = max_width + 1, 60  # ante fallo, asumir overflow → scrollable
     if iw <= max_width and not force_scroll:
         return LatexMatrixImage(parent, matrix=matrix, fmt=fmt,

@@ -1572,3 +1572,248 @@ ni la altura de ningún overlay.
 
 9 — Componentes educativos y Teoría (`education/components/*`,
 `gui/dialogs/theory_hub_dialog.py`).
+
+---
+
+## Sesión 10 — 2026-09-09 05:05 UTC — Área: 9 — Componentes educativos y Teoría
+
+**Commit**: (este) · **Gates**: `run_gates` verde (97/97 módulos, gate de nombres, 0 hex,
+**23/23** tests), `run_gates --con-latex` verde (con `pdflatex` real: la Memoria Q4 directo
+compila y el Theory Hub compila a **13 páginas / 323 KB**) y `run_gates --con-gui` verde bajo
+`xvfb`
+
+> El BACKLOG le dejaba al área **ningún ítem propio** salvo la cuota del transversal de
+> `except Exception`, así que todo lo de abajo es material nuevo. Nota de exactitud: el
+> transversal decía «quedan **6 de 274**» para esta área; el grep de hoy da **39** en
+> `education/components/` + `theory_hub_dialog.py` y **303** en `gui/` + `education/` (el
+> total creció porque las sesiones que agregaron trazas partieron bloques `try`). Se corrige
+> el número en el BACKLOG.
+
+### Qué se hizo y por qué
+
+**El Theory Hub le mentía al alumno sobre qué módulo abre cada número.**
+
+- `gui/dialogs/theory_hub_dialog.py` — **las secciones M3 y M4 estaban cruzadas** desde el
+  swap B↔D de 2026-05: el documento titulaba «M3 · Matriz constitutiva D» y «M4 · Matriz B»,
+  pero en la aplicación `Ctrl+3` abre **③ Matriz B** y `Ctrl+4` abre **④ Matriz D**. El
+  alumno que leía la teoría de la sección M4 y apretaba `Ctrl+4` se encontraba con otra
+  matriz. Es exactamente la clase de error que la sesión 03 cerró en los mensajes del
+  launcher («Archivo ▸ Cargar Ejemplo», «menú Educación») y la 07 en la nota de M2 («las
+  fórmulas de ∂Nᵢ/∂ξ se ven en M1 y M4»): un puntero que apunta a otro lado. Hoy **M3 = B** y
+  **M4 = D**, y además **en ese orden**, que es el del pipeline que enuncia la propia
+  introducción del documento (`modelo → N → J → B → D → kₑ`): B produce las deformaciones y D
+  las convierte en tensiones. La única frase que quedaba colgada por el reordenamiento (la
+  σ = D·B·uₑ del bloque de Barlow, que ahora nombra D antes de definirla) lleva un puntero
+  explícito «con **D** la matriz constitutiva de la sección siguiente».
+- `theory_hub_dialog.py` — **las secciones «M8 ·» y «M9 ·» nombraban módulos que no
+  existen**. El ex-M8 (tensiones principales) se consolidó en el Post-Proceso nativo y el
+  ex-M9 (Q4 vs Q9) se eliminó en 2026-05: el Post **no tiene** módulo educativo, así que un
+  alumno que buscara «M8» en el panel de módulos no iba a encontrar nada. Las dos pasan a
+  titularse por su contenido, **sin prefijo de módulo** (*Post-proceso: tensiones derivadas*
+  y *Convergencia h y comparación Q4 / Q9*), y la introducción explica la regla en una línea:
+  las ocho primeras secciones llevan el número del módulo que las ilustra (`Ctrl+1`..`Ctrl+7`),
+  las dos últimas son transversales. La referencia cruzada interna «(sección M4)» del bloque
+  de Barlow pasó a «(sección M3)».
+- `theory_hub_dialog._m0_mesh_quality` — **la sección de calidad de malla se contradecía a sí
+  misma y contradecía a M0**. Abría con «dos métricas… **ambas normalizadas al rango [0,1]**»
+  y cerraba con «**ambas métricas viven en [0,1]** … un mismo color significa la misma calidad
+  en cualquiera de las dos», mientras un párrafo intermedio decía —correctamente— que el
+  Scaled Jacobian vive en `[-1,1]`. Lo que el alumno tiene delante en `Ctrl+0` son dos
+  `QualityBar` con **rangos distintos** (`[-1,1]` y `[0,1]`) y **umbrales aceptables
+  distintos** (0,50 y 0,25, literales de Verdict, decisión documentada del refactor de M0):
+  o sea que el mismo color **no** significa la misma calidad. Reescritas las dos frases con lo
+  que el software realmente muestra, sin tocar el resto de la sección.
+
+**El visor de Teoría era el último `bind_all` del repositorio.**
+
+- `education/components/theory_viewer.py` — `self._canvas.bind_all("<MouseWheel>", …)` escribe
+  en el bindtag `all`, que es de **toda la aplicación**. Es la regla que la sesión 05 fijó para
+  los diálogos (`arquitectura.md` §rueda) y acá pegaba más fuerte, porque el visor **no es
+  modal a propósito** (su docstring dice que está para consultarlo mientras se opera el resto
+  del programa): con la Teoría abierta, cada rueda sobre el `MeshCanvas` hacía **zoom y además
+  scrolleaba el PDF de fondo**. Medido con Tk real: con `bind_all`, un solo evento de rueda
+  sobre el canvas dispara **1 zoom + 1 scroll de la teoría**; atado al Toplevel, **1 zoom + 0
+  scrolls**. Y como nunca se desataba, el binding global **sobrevivía al cierre** de la
+  ventana apuntando a un canvas ya destruido, con el fallo silenciado por un
+  `except Exception: pass`. Ahora es `self.bind("<MouseWheel>", …)` (el bindtag del toplevel ya
+  está en el de todos sus descendientes) y el `except` quedó acotado a `tk.TclError` como guard
+  de teardown. Verificado bajo `xvfb`: `root.bind_all("<MouseWheel>")` queda **vacío**.
+- `theory_viewer` + `gui/dialogs/pdflatex_missing_dialog.py` — **sin `pdflatex` había dos vías
+  para la misma causa**. La Memoria abre el diálogo con **botón de descarga** (decisión
+  documentada: «no reintroducir el `showerror` seco»); la Teoría escribía su propio texto en un
+  label gris del encabezado de una ventana vacía, sin ninguna acción a mano. El peor
+  tratamiento le tocaba al alumno que solo quería leer. Ahora las dos pasan por
+  `show_pdflatex_missing_dialog`, que ganó un kwarg **`documento`** («la Memoria de Cálculo» /
+  «la Teoría MEF») para nombrar lo que se estaba pidiendo — es lo único que las distingue —, y
+  el visor vacío se cierra al cerrarse el diálogo.
+- `theory_viewer` — el resto de los fallos de compilación mostraban `Error al compilar LaTeX:
+  <repr de la excepción>` y **se tragaban el traceback**. Ahora dejan traza en `stderr` y el
+  label muestra la **primera línea del `.log` de pdflatex** (`LatexCompileError.log_tail`), que
+  es la que nombra la causa; el label ganó `wraplength` porque esos mensajes no entran en una
+  línea y quedaban recortados justo donde estaba el error.
+- `theory_viewer` — la barra de estado decía `Teoría — a3f2b9c1d4e5f607.pdf`: **el nombre-hash
+  del archivo cacheado**, una key interna que el alumno nunca vio en ningún lado (mismo defecto
+  que el `Modulo educativo abierto: mod03` que cerró la sesión 03). Ahora dice
+  «13 páginas — rueda del mouse para recorrer, Escape para cerrar».
+- `theory_viewer` — **Escape cierra** (por `bind_dialog_keys`, con su fila nueva en la tabla de
+  `arquitectura.md`) y la ventana **se centra** con `center_dialog(..., clamp_screen=True)`
+  (regla dura 19; 900×820 px se abrían donde Tk quisiera y podían caerse de una pantalla de
+  768). **No ata `Return`**: es un visor de lectura, no tiene acción primaria.
+- `theory_viewer._hash_doc` — si `dumps()` fallaba devolvía el hash del **string vacío**, o sea
+  la **misma clave de caché para cualquier documento roto**: el segundo habría mostrado el PDF
+  del primero. Ahora devuelve una clave única y deja traza.
+
+**Componentes: un fallo transitorio dejaba una matriz en blanco para siempre.**
+
+- `education/components/latex_image.py::render_matrix_image` — el `except` de render devolvía
+  un placeholder de 1×1 transparente **y lo guardaba en `_CACHE`**. Como la clave incluye el
+  contenido de la matriz, un fallo transitorio (una figura a medio cerrar, un valor puntual que
+  mathtext no parsea) dejaba **esa matriz invisible durante toda la sesión**, aunque el motivo
+  ya no existiera, y sin una sola línea en `stderr`. Ahora el placeholder se retorna sin
+  cachear. En `render_expression_image` se conserva el cacheo del **fallback monospace**
+  (es determinista: si mathtext no parsea esa sintaxis, no la va a parsear la próxima vez, y
+  reintentarlo cuesta ~100 ms por render) pero **no** el del último recurso 1×1.
+- `education/components/iso_inverse.py` — el default `element_type="Q4"` **no matchea**
+  `ELEMENT_Q4` (que vale `"Q4 - Cuadrilátero 4 nodos"`), así que
+  `fem.shape_functions.get_shape_functions` caía en su rama por defecto y devolvía las
+  funciones de forma de **Q9**: 9 valores para 4 nodos, sin ningún error. Ningún llamador de
+  hoy usa el default (M1/M2/M3/M5 pasan `self.element_type`), pero el primero que lo omitiera
+  se llevaba números mal en silencio. Los tres defaults del archivo pasan a `ELEMENT_Q4`.
+- `education/components/expander.py` — la fuente del header estaba escrita a mano tres veces
+  como `("Segoe UI", 9)`, que es **literalmente** `FONT_UI` de `config/settings.py`. Es la misma
+  clase de literal que la regla dura 2 persigue en los colores, con el agravante de que fuera de
+  Windows «Segoe UI» no existe y Tk cae a la fuente que quiera.
+
+### Errores encontrados y corregidos
+
+- **El Theory Hub numeraba la matriz B como M4 y la D como M3** (cruzadas desde 2026-05), y
+  titulaba dos secciones **M8** y **M9**, módulos que no existen.
+- **La sección M0 del Hub afirmaba dos veces que las dos métricas viven en `[0,1]`** y que un
+  mismo color significa la misma calidad — falso en las dos mitades y contradicho por el propio
+  Hub tres párrafos más abajo.
+- **El visor de Teoría secuestraba la rueda de toda la aplicación** con `bind_all`, y no la
+  devolvía nunca (el último `bind_all` del repo).
+- **Sin `pdflatex`, la Teoría dejaba al alumno sin salida** mientras la Memoria le ofrecía un
+  botón de descarga.
+- **`render_matrix_image` cacheaba su placeholder de fallo**: una matriz en blanco para toda la
+  sesión, sin traza.
+- **`_hash_doc` colapsaba en una sola clave de caché** todos los documentos cuyo `dumps()`
+  fallara.
+- **El default `element_type="Q4"` de `iso_inverse` resolvía a las funciones de forma de Q9.**
+- **La barra de estado del visor mostraba el nombre-hash del PDF cacheado.**
+- **La fuente del `Expander` estaba escrita a mano tres veces** en vez de `FONT_UI`.
+
+### `except Exception` del área (ítem transversal)
+
+**Revisados los 39 del área** (18 de `latex_image` + 7 de `edu_plot_style` + 4 de
+`formula_value_blocks` + 4 de `theory_viewer` + 3 de `latex_runtime` + 1 de `expander` + 1 de
+`iso_inverse` + 1 de `quality_bar`; `theory_hub_dialog`, `theory_builder` y `gauss_glyph` no
+tienen ninguno): **12 dejan traza ahora**, 1 se acotó a `tk.TclError` y 1 se reemplazó por el
+diálogo de `pdflatex` faltante.
+
+- **`latex_image` (4)**: el render de matriz, los dos intentos de `_safe_render_mathtext_expression`
+  (el que degrada a monospace **muestra el LaTeX crudo en pantalla**: sin traza nadie sabe qué
+  comando no soporta mathtext — es el camino que escondió durante meses el `sympy` sin importar
+  de M5) y el `fit_matrix_widget` (elegir el widget equivocado deja la matriz recortada o con un
+  scroll que no hace falta). Los cuatro usan el helper nuevo **`_trace_once`**, con guard de
+  **una traza por firma**: estas matrices se rendean por frame cuando el alumno mueve el punto
+  en M2/M3/M5, y un traceback por frame inundaría `stderr` (mismo criterio que el
+  `_draw_layer_wrapper` de la base y el loop de M6).
+- **`formula_value_blocks` (4)**: los dos `build_formula`/`build_values` (el cartel rojo le dice
+  al alumno *qué* falló pero no *dónde* — mismo caso que el `build_overlay` que trazó la sesión
+  07) y los dos `on_mode_change` (el toggle **ya cambió de panel**: si el callback del módulo
+  falla mudo, el alumno ve el panel nuevo con el contenido sin refrescar).
+- **`expander` (1)**: el `on_toggle`, que es donde el body se puebla **perezosamente** (M5 rinde
+  ahí su integrando simbólico). Si falla mudo, el expander se abre **vacío**.
+- **`theory_viewer` (3 + 1 + 1)**: `_hash_doc`, el fallo genérico de compilación y el
+  `fitz.open` del PDF generado dejan traza; el `_on_wheel` quedó acotado a `tk.TclError`
+  (guard de teardown legítimo) y el `FileNotFoundError` ya no es un label sino el diálogo.
+- **Quedan mudos por legítimos (25)**: los 7 de `edu_plot_style` (sondeo de la API privada de
+  matplotlib para el chrome de los plots, exactamente la categoría que la sesión 04 clasificó
+  así), los 3 de `latex_runtime` (`--version` de un `pdflatex` que no responde → `"unknown"`;
+  el `GetShortPathNameW` de Windows; el `cleanup()` del temporal, que Windows puede negar si un
+  visor abrió el `.log`), los 3 sondeos de `_infer_bg`, los `fig.clf()` de los `finally`, los
+  `configure` de teardown, el probe de `sympy.MatrixBase`, el import diferido del `ToolTip`, el
+  `compute_jacobian` dentro del loop de Newton de `iso_inverse` (devuelve `None` y el llamador
+  ya lo maneja) y el `_infer_bg` de `QualityBar`.
+
+**Revisados: 39 de 39 del área.** El transversal queda **cerrado**: no queda ningún archivo de
+`gui/` ni de `education/` sin pasar por su turno.
+
+### Tests
+
+- `tests/test_edu_components.py` — **nuevo** (38 chequeos, sin display, en el estilo `check(...)`
+  de `test_dialogs`). Mezcla inspección de fuente para lo que necesita Tk (que no haya
+  `.bind_all(`, que Escape vaya por `bind_dialog_keys`, que el visor abra el diálogo de
+  `pdflatex`, que el `except` de `render_matrix_image` **termine en un `return`** —verificado con
+  `ast` sobre el handler, no por substring— y que ningún widget del `Expander` lleve la fuente a
+  mano) con **ejecución real** de todo lo que es lógica pura: el round-trip
+  `(ξ,η) → (x,y) → (ξ,η)` de `iso_inverse` sobre un Q4 deliberadamente no rectangular (error
+  máximo < 1e-9), que un punto lejano devuelva `None` en vez de extrapolar, que el default de
+  `element_type` resuelva a las **4** funciones de forma de Q4, los helpers de conversión
+  unicode→LaTeX y de celdas de `latex_image`, y `fmt_es`. Sumado a `run_gates`.
+- `tests/test_memoria_calculo.py` — `test_hub_tiene_m8_post` **exigía el literal «M8»** en el
+  `.tex`: el chequeo estaba fijando la numeración equivocada. Renombrado a
+  `test_hub_tiene_post_proceso`, pide el título real y ahora **falla si reaparece un «M8» o un
+  «M9»**. Sumados `test_hub_numeracion_modulos` (M3 = B, M4 = D, y B antes que D) y
+  `test_hub_rango_metricas_calidad` (que no vuelvan las dos frases del `[0,1]`).
+- **Compilación real del Theory Hub** con `pdflatex` (el sandbox de esta sesión sí lo tenía):
+  13 páginas, 323 KB, con la numeración nueva verificada sobre el PDF con PyMuPDF.
+- **Smoke con Tk real bajo `xvfb`**: `Ayuda ▸ Teoría MEF` renderiza las 13 páginas, la barra de
+  estado dice «13 páginas — …», `root.bind_all("<MouseWheel>")` queda **vacío**, una rueda sobre
+  un canvas de fondo produce **1 zoom y 0 scrolls de la teoría**, y `Escape` cierra la ventana.
+
+### DECISIÓN CONGELADA REVERTIDA
+
+Ninguna. No se agregó ni un widget al visor ni a los componentes: el diálogo de `pdflatex`
+faltante ya existía y es la vía canónica; la barra de estado y el label de error ya estaban. No
+se tocó el scrollbar condicional del visor (la filosofía «cero scrollbars visibles cuando no
+hacen falta»), ni el cacheo de PDF por hash, ni el zoom 1.5 de render.
+
+### Pendientes visuales para el autor
+
+1. **Teoría MEF: numeración y rueda** (lo más visible de la sesión). `Ayuda ▸ Teoría MEF` →
+   mirar el **índice** de la primera página: la sección **M3 debe ser «Matriz B»** y la **M4
+   «Matriz constitutiva D»** (antes al revés), y las dos últimas secciones deben llamarse
+   *Post-proceso: tensiones derivadas* y *Convergencia h…*, **sin** «M8 ·» ni «M9 ·». Contrastar
+   con `Ctrl+3` y `Ctrl+4` en la pestaña Proceso: tienen que coincidir. Después, **con la
+   ventana de Teoría abierta**, poner el mouse sobre el lienzo y girar la rueda: debe hacer
+   **solo zoom del lienzo**; el PDF de teoría **no** debe moverse. `Escape` cierra la ventana y
+   la barra de arriba debe decir «13 páginas — rueda del mouse para recorrer, Escape para
+   cerrar» (antes decía el nombre-hash del archivo). Revertir: `git revert` del commit de esta
+   sesión.
+2. **La Teoría sin LaTeX**. Solo comprobable en la carpeta **portable sin `texlive/`** (o
+   renombrándola): `Ayuda ▸ Teoría MEF` debe abrir el **mismo diálogo con botón de descarga**
+   que ya abre *Exportar Memoria PDF*, con el encabezado «📄 Para generar **la Teoría MEF** falta
+   pdflatex», y la ventana vacía del visor debe cerrarse sola al cerrar el diálogo. Verificar de
+   paso que el de la Memoria sigue diciendo «la Memoria de Cálculo».
+3. **La ventana de Teoría centrada**. Abrir `Ayuda ▸ Teoría MEF` en **1080p**: la ventana
+   (900×820) debe aparecer **centrada sobre la ventana principal** y entera en pantalla (antes
+   se abría donde Tk quisiera). Si el borde inferior queda cortado, revisar el
+   `clamp_screen=True` del `center_dialog`.
+
+### Descartado
+
+- **Renumerar las secciones del Hub con los glifos circulados de los botones** (`③ Matriz B`).
+  Son `U+2462`: no-ASCII en un string LaTeX, o sea la regla dura 20 y una compilación abortada.
+  El prefijo `M3 ·` es la forma que ya usaba el documento y la que entiende `pdflatex`.
+- **Unificar `_theme_colors` / los `except` cosméticos de `edu_plot_style`.** Los 7 son sondeos
+  de la API privada de matplotlib (`_axinfo`, `set_pane_color`), que cambia entre versiones: si
+  fallan, el plot se ve con el chrome default y nada más. Trazarlos sería ruido.
+- **Tocar `fem.shape_functions.get_shape_functions`**, cuyo `return` por defecto entrega **Q9**
+  para cualquier string que no sea exactamente `ELEMENT_Q4` — es el mecanismo que convirtió el
+  literal `"Q4"` de `iso_inverse` en funciones de forma equivocadas. Es `fem/` (área 12) y hoy
+  ningún llamador de producción le pasa algo distinto de las dos constantes; queda anotado en el
+  BACKLOG con la evidencia en vez de cambiar el motor desde el área de componentes.
+- **Cablear `TheoryDoc.margin_formula()`** (el pendiente que arrastra `ESTADO_AUDITORIAS.md`):
+  cambia el layout del PDF y necesita juicio visual del autor. Sigue siendo decisión de autor.
+- **Convertir los `("Consolas", 7/6/8)` de `quality_bar`**: son micro-tamaños de los ticks de un
+  `tk.Canvas`, más chicos que cualquier constante de `config/settings.py`; inventar tres
+  constantes nuevas para tres usos de un solo widget sería peor que dejarlos.
+- **Agregar un scrollbar visible o botones de página al visor de Teoría**: la filosofía de
+  «cero scrollbars visibles cuando no hacen falta» está tomada y el visor ya los muestra por
+  overflow.
+
+### Área siguiente
+
+10 — Memoria de cálculo y figuras (`file_io/memoria_calculo.py`, `file_io/figure_export.py`).

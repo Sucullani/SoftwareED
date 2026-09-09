@@ -79,6 +79,9 @@ Abreviaturas de capítulo:
 | Seguir con *Nuevo Proyecto* / *Cargar Ejemplo* / *Salir* sin verificar que el guardado ocurrió | Contestar «Sí, guardar» y cancelar el *Guardar Como* descartaba el modelo igual: el guardado devuelve `bool` y `_confirm_discard_changes` aborta | [ARQ] |
 | Preguntar por los cambios sin guardar con una redacción propia en cada flujo | Eran tres textos distintos para la misma decisión: la puerta única es `_confirm_discard_changes` | [ARQ] |
 | Un `bind("<Escape>")` o `<Return>` suelto en un diálogo | Va por `bind_dialog_keys` de `_dialog_helpers.py`, y su fila va en la tabla diálogo → (Escape, Return) | [ARQ] |
+| `bind_all` de `<MouseWheel>` en el `TheoryViewer` (Ayuda ▸ Teoría MEF) | El visor **no es modal** a propósito: la rueda sobre el `MeshCanvas` hacía zoom **y** scrolleaba el PDF, y el binding global nunca se desataba. Va al Toplevel | [MEM] |
+| Un texto propio del visor de Teoría cuando falta `pdflatex` | Misma causa que la Memoria = misma salida: `show_pdflatex_missing_dialog(parent, documento=…)`, con botón de descarga | [MEM] |
+| El nombre del PDF cacheado (`a3f2b9c1….pdf`) en la barra de estado del visor | Es un hash de contenido interno: el alumno necesita saber cuántas páginas hay y cómo cerrar | [MEM] |
 | `Return` en el `HealthReportDialog` o en `pdflatex_missing_dialog` | Sus dos salidas son decisiones opuestas (corregir vs. resolver igual) o se van de la app (abre el navegador): no hay default seguro para dar por Enter | [ARQ] |
 | «Manual de usuario próximamente» detrás de `F1` | Un ítem de menú que promete algo y no lo da; los atajos no son un manual. `_on_help` recorre el flujo real de las 3 fases | [ARQ] |
 | Un atajo que no diga nada cuando no puede actuar (`Ctrl+S` sin cambios, `F8` fuera del modo dibujo) | El ítem de menú gris no llega al atajo, y el indicador `ORTHO` solo se ve dibujando: el toggle era invisible | [ARQ] |
@@ -180,6 +183,11 @@ Abreviaturas de capítulo:
 | Mostrar solo `J` / `B` resultado sin la cadena de sustitución | Rompe la consistencia con M2/M3 | [MEM] |
 | Cómputos repetidos de `evaluate_mesh_quality` / `validate_project` | Usar los memoizadores `_mesh_quality()` / `_health()` | [MEM] |
 | Figuras matplotlib en `figure_export.py` | Es Pillow-only; las 3D viven en el Post nativo | [MEM] |
+| Numerar las secciones del Theory Hub con un módulo que no abre ese número (`M3 · D`, `M4 · B`) o con módulos inexistentes (`M8`, `M9`) | Hoy `Ctrl+3` abre B y `Ctrl+4` abre D; el Post no tiene módulo educativo. Las dos últimas secciones van **sin** prefijo | [MEM] |
+| Decir en el Hub que las dos métricas de calidad viven en `[0,1]` o que comparten umbral | El Jacobiano escalado se muestra en `[-1,1]` y los cortes aceptables son 0,50 y 0,25 — es lo que ve el alumno en M0 | [MEM] |
+| Cachear el placeholder 1×1 de `render_matrix_image` | Un fallo transitorio dejaba esa matriz **en blanco para toda la sesión**: la clave de caché incluye el contenido | [EDU] |
+| La fuente `("Segoe UI", 9)` escrita a mano en un widget educativo | Es `FONT_UI` de `config/settings.py`; fuera de Windows esa familia no existe | [EST] |
+| El literal `"Q4"` como `element_type` en `education/` | No matchea `ELEMENT_Q4` (`"Q4 - Cuadrilátero 4 nodos"`) y `get_shape_functions` devolvía las N de **Q9** sin error | [EDU] |
 | `render_surface_3d` o una 3D estática en el PDF | Suma peso sin ganancia sobre el contorno 2D | [MEM] |
 | Internals del software en la narrativa (`spsolve`, SuperLU, `node_index_map`, rutas `fem/…`) | La teoría es general, estilo libro de texto | [MEM] |
 | Caracteres no-ASCII literales (σ, →, ≤, ₑ, κ, ε) en strings LaTeX | Abortan la compilación en cp1252 | [MEM] |

@@ -11,23 +11,23 @@ Reglas del archivo, en [RUTINA.md](RUTINA.md) §4 y §9. Historial de lo hecho, 
 
 ## Área siguiente
 
-> **9 — Componentes educativos y Teoría** (`education/components/*`,
-> `gui/dialogs/theory_hub_dialog.py`). Capítulo a leer antes:
-> [../convenciones/modulos-educativos.md](../convenciones/modulos-educativos.md) (la lista de
-> componentes **VIVOS** vs. los **eliminados** en las limpiezas 2026-05 y 2026-06 —
-> `LatexMath`, `LatexBlock`, `FormulaValueToggle`, `PlotPanel`/`FourPanel`, `ParamInput`,
-> `StepAnimator`, `GaussCoordReadout`, `LatexStatusLabel`: **no recrearlos**— más las trampas
-> de `latex_image.py`: `shrink=False`, `ScrollableMatrixImage` solo para las matrices que NO
-> entran, la trampa de la rueda de `_consume_wheel_recursive`, el `cleanup()` que apaga el
-> ToolTip, y que mathtext **no** soporta `\begin{bmatrix}`) y
-> [../convenciones/memoria-calculo.md](../convenciones/memoria-calculo.md) para el Theory Hub,
-> que comparte con la memoria el backend pdflatex y la regla de **ASCII** en los strings LaTeX;
-> y siempre [../convenciones/no-reintroducir.md](../convenciones/no-reintroducir.md). Ítems del
-> BACKLOG que le pertenecen y hay que drenar primero: **ninguno abierto** — es la primera vez
-> que el área toca, así que después de revisar los hallazgos de
-> [../auditorias/ESTADO_AUDITORIAS.md](../auditorias/ESTADO_AUDITORIAS.md) se busca material
-> nuevo. Los `except Exception` de `education/components/` y de `theory_hub_dialog.py` son los
-> que quedan sin revisar del ítem transversal (**6 de 274**).
+> **10 — Memoria de cálculo y figuras** (`file_io/memoria_calculo.py`,
+> `file_io/figure_export.py`). Capítulo a leer antes:
+> [../convenciones/memoria-calculo.md](../convenciones/memoria-calculo.md) **entero** — la regla
+> de oro del pipeline compartido (las fórmulas, matrices y ecuaciones se emiten **siempre**;
+> solo la prosa va detrás de `if self._prose:`), los 9 capítulos, los memoizadores
+> `_mesh_quality()` / `_health()`, los umbrales `_COMPACT_MAX_ELEMENTS_Q4 = 2` / `_Q9 = 1`, que
+> `figure_export` es **Pillow puro** (no reintroducir matplotlib ni una 3D estática) y la regla
+> de **ASCII** en los strings LaTeX (regla dura 20); y siempre
+> [../convenciones/no-reintroducir.md](../convenciones/no-reintroducir.md). Ítems del BACKLOG
+> que le pertenecen y hay que drenar primero: **ninguno propio**; el más cercano es el
+> **[6] `_on_export_pdf` puede lanzar dos compilaciones a la vez** (abajo, en *Interacción e
+> incongruencias*), que la sesión 06 dejó para el área de la memoria justamente para no tocar
+> este flujo desde la ventana. Si hay `pdflatex` en el sandbox, correr
+> `run_gates --con-latex`; si no lo hay, se instala como preparación del entorno (la sesión 10
+> lo hizo con `apt-get install texlive-latex-base texlive-latex-recommended
+> texlive-fonts-recommended texlive-latex-extra texlive-lang-spanish lmodern`, que **no** es
+> agregar una dependencia del proyecto: `requirements.txt` no se toca).
 
 Al cerrar la sesión, reemplazá esta línea por el área que sigue en la rotación de
 [RUTINA.md](RUTINA.md) §4 (1 → 2 → … → 14 → 1).
@@ -88,79 +88,6 @@ Formato: `[área Nº] descripción — evidencia — quién decide`.
   una sola vez (`main_window._build_main_layout`) y `_update_all_project_refs` no la reinvoca,
   y el efecto duplicado sería idempotente (refrescar el chip dos veces). Si algún flujo futuro
   re-cablea las pestañas, recorrer la cadena en vez de mirar solo el tope.
-
-- **[transversal] 274 `except Exception` en `gui/` + `education/`.** Algunos son legítimos
-  (Tk destruyendo widgets durante el cierre, `iconbitmap` que puede no existir). Otros tragan
-  un fallo en un camino que el alumno recorre y lo dejan sin saber qué pasó. **No hacer un
-  barrido masivo**: cada sesión revisa los de **su** área, decide caso por caso, y anota
-  acá cuántos revisó y cuántos cambió. Sesión 01, los
-  15 de `gui/preprocessing/mesh_canvas.py`: 9 pasaron a dejar traza con
-  `traceback.print_exc()`, 3 quedaron mudos por legítimos (`after_cancel`, import diferido de
-  `education.overlay_module`, `set_status`) y 3 se fueron al refactorizar el borrado. Sesión
-  02, los 22 de `gui/preprocessing/pre_tab.py`: 6 pasaron a dejar traza (`_capture` —si el
-  snapshot falla la acción queda fuera del `Ctrl+Z`—, `_safe_redraw`, el refresco tras
-  expandir a Q9 y los 3 del panel de módulos educativos) y 16 quedaron mudos por legítimos
-  (`set_status`, `nametowidget`, guards de widgets destruidos). La convención es la de
-  `models/undo_stack.py` y `post_tab`: traza a stderr, y mensaje al alumno solo si el fallo
-  cambia lo que puede hacer. Sesión 03, los 3 de `gui/processing/proc_tab.py` (los 3 pasaron a
-  dejar traza: eslabón previo de la cadena de selección, estado inicial del chip,
-  `_current_selected_element`) más los 2 de `education/module_launcher.py` que se comían el
-  traceback de un módulo que no abre. Sesión 04, los 35 de `gui/postprocessing/` (los 4
-  archivos): 8 pasaron a dejar traza —los 3 refrescos de la Vista 3D en `post_tab` (que además
-  avisan con `_avisar_3d_desactualizada`: si fallan mudos, el visor sigue mostrando la solución
-  o el campo **anteriores**), el retorno al Pre-Proceso al cancelar el reporte de salud, el
-  `compute_raw_grids` del visor, el `_copy_values_tsv`, el callback de cierre del
-  `DetailsPanel` y `_get_units` visto desde el 3D— y 27 quedaron mudos por legítimos
-  (`after_cancel`, `destroy`/`unbind` de teardown, `tooltip.hide`, `set_status`, sondeo de la
-  API privada de matplotlib para los paneles 3D, `tight_layout`). Sesión 05, los 33 de
-  `gui/dialogs/` sin contar `theory_hub_dialog` (que es del área 9): 9 pasaron a dejar traza
-  —los 5 `stack.capture` (si el snapshot falla, esa acción queda fuera del `Ctrl+Z`), los 3
-  refrescos de la ventana principal (`_refresh_all_tabs` mudo deja las tablas con el modelo
-  viejo o con los números del sistema de unidades anterior bajo el encabezado nuevo) y el
-  `readfile` del preview DXF (un archivo ilegible se reportaba como "capa sin polilíneas")— y
-  24 quedaron mudos por legítimos (`webbrowser.open`, `grab_set`, teardown de video,
-  `tooltip`, guards de widgets destruidos). Sesión 06, los 43 del área 6 (30 de
-  `gui/main_window.py` + 13 de `gui/widgets/`): 13 pasaron a dejar traza —los que dejaban la
-  UI mintiendo (el refresco final de `_on_state_restored`, o sea el `Ctrl+Z` que parece no
-  haber hecho nada; el `validate_project` del badge, que se queda diciendo «Modelo sano»; el
-  `wire_canvas` de cada fase; la suscripción del breadcrumb), los que dejaban una tecla muda
-  (`F` de ajustar vista, `D` de dibujar, los dos eslabones de la cascada de `Escape`, el chip
-  del breadcrumb), los del PDF (el snapshot del proyecto y las tensiones por elemento) y el
-  render del `WebpPlayer` más el `on_closed` de `CanvasOverlay` (si falla, el overlay se ve
-  cerrado pero su loop sigue repintando)— y 30 quedaron mudos por legítimos (`iconbitmap`,
-  warmup de mathtext, `focus_get`, teardown de Toplevels, `after_cancel`, walk de widgets de
-  terceros). Además el `os.startfile` del «¿Abrir el PDF ahora?» dejó de estar dentro del
-  `try` que se comía el «Sí» del alumno. **Revisados: 153 de 274.** Sesión 07, los 74 del área 7 (M0..M3 +
-  `overlay_module.py`): **13 pasaron a dejar traza, los 13 en `overlay_module.py`**, que es la
-  base de los 8 overlays — `on_activated` (sin él el overlay abre y no reacciona a ningún click
-  del lienzo), `on_closed` (M0 deja la malla entera en fantasma gris, M3 deja su loop de pulso a
-  30 fps sobre un overlay cerrado), los 3 hooks de la cadena de selección + su eslabón previo
-  (el módulo deja de seguir al lienzo), el `open_module` del `👉` clickeable del pie, el
-  `build_overlay` (el cartel que ve el alumno no ubicaba el fallo), `refit_overlay` (el Toplevel
-  borderless recorta lo que empuja el contenido nuevo), el `redraw` de `refresh_overlay`, el
-  `cleanup()` de los widgets hijos (ToolTip huérfano), el bloque de restauración de `_cleanup`
-  (deja un módulo cerrado dibujando y filtrando clicks) y el `inst.close()` de los otros
-  overlays; más el de `_draw_layer_wrapper`, acotado a **una traza por instancia**
-  (`_layer_error_traced`) porque corre en cada redraw. Los otros 61 quedaron mudos por legítimos
-  (guards de widgets destruidos, `after_cancel`, `set_zlabel` de matplotlib, `compute_jacobian`
-  de un elemento degenerado dentro de un loop de 144 celdas, el `lift()` de una instancia stale
-  que el propio código maneja). **Revisados: 227 de 274.** Sesión 09, los 41 del área 8 (`mod04`..`mod07` +
-  `module_launcher.py`): **16 pasaron a dejar traza** — el `except: pass` de la capa de M4 se
-  **eliminó** (se comía la excepción antes de que el `_draw_layer_wrapper` de la base la viera),
-  los dos `set_matrix` de M4 (dejaban el panel con la D anterior), el `remove_click_consumer` de
-  M5 (un módulo **cerrado** que se sigue comiendo los clicks del lienzo), el `redraw` de
-  `_refresh_all` y el `draw_idle` del cuadrado natural de M5, el `sp.latex` y los dos de
-  `_count_terms` (los que escondieron el `sympy` sin importar de la sesión 05: uno degradaba al
-  `repr` y el otro devolvía el «0 términos»), el error de `SymbolicIntegrandQ4`, el
-  `redraw_overlays_only` del loop de M6 (con guard de **una traza por instancia**, corre a ~60
-  fps), y en M7 el `assemble_global_system` de la F de referencia, el `redraw` de su
-  `on_element_deselected`, el eslabón previo de la cadena de **hover** y su restauración en
-  `on_closed`; más el `replace_element_selection` de `module_launcher` (el overlay trabajaba
-  sobre un elemento y el halo marcaba otro). Los 25 restantes quedaron mudos por legítimos
-  (`after_cancel`, `destroy` de teardown, `subplots_adjust`/`suptitle` cosméticos,
-  `get_gauss_points_2d` sobre un orden 1..3, los 3 `get_dof_indices` dentro de renders de
-  hover). **Revisados: 268 de 274** — quedan los 6 de `education/components/` +
-  `theory_hub_dialog.py`, que son del área 9.
 
 - **[transversal] Ya no queda ningún literal de color con NOMBRE fuera de `config/`** (cerrado
   por la sesión 09; **lo que sigue abierto es la propuesta de gate**, abajo). Los `"white"` /
@@ -264,6 +191,28 @@ Formato: `[área Nº] descripción — evidencia — quién decide`.
   capítulo documenta que se unifica el **estilo**, no el widget ni el backend. Un helper con 6
   flags sería peor que las tres copias. Si se hace, es una refactorización con su propio turno
   del área 7 y conviene que salga con el estilo ya estabilizado.
+
+- **[12] `get_shape_functions` devuelve las funciones de forma de Q9 para cualquier string
+  que no sea exactamente `ELEMENT_Q4`.** `fem/shape_functions.py:119` es
+  `if element_type == ELEMENT_Q4: return q4...` y después un `return q9...` **sin `else` ni
+  validación**. No es teórico: `education/components/iso_inverse.py` tenía como default el
+  literal `"Q4"` (que no matchea `ELEMENT_Q4 = "Q4 - Cuadrilátero 4 nodos"`) y por eso devolvía
+  **9 valores para 4 nodos**, sin ningún error — lo cerró la sesión 10 en el llamador, no en el
+  motor. Hoy ningún llamador de producción le pasa otra cosa que las dos constantes, así que el
+  fallo está tapado; pero un `element_type` mal escrito en cualquier flujo futuro se traduce en
+  números mal en silencio. Arreglo natural: elevar `ValueError` para un tipo desconocido, o
+  aceptar explícitamente `ELEMENT_Q9` y fallar en el resto. Es `fem/` (**área 12**) y la regla
+  es que el motor se toca solo cuando el número que ve el alumno está mal: hoy no lo está, así
+  que va acá con la evidencia en vez de cambiarse desde el área de componentes.
+
+- **[9] `TheoryViewer` llama `self.after(...)` desde el thread de compilación.** `Misc.after`
+  registra un comando en el intérprete Tcl, y hacerlo desde un hilo que no es el del `mainloop`
+  no es seguro (en el smoke sin `mainloop` levanta `RuntimeError: main thread is not in main
+  loop`). En la app real funciona porque el `mainloop` está corriendo, y es el patrón que ya
+  usaba el archivo antes de la sesión 10, así que no se cambió en una sesión que ya tocaba ese
+  flujo. Si alguna vez aparece un cuelgue al abrir *Ayuda ▸ Teoría MEF*, la vía es una `queue`
+  + un `after` de sondeo **desde el hilo principal**, que es como conviene comunicar un worker
+  con Tk. Mismo patrón en `_PDFProgressDialog` de la memoria (área 10).
 
 - **[1] La cuadrícula del canvas no está anclada al mundo.** `_draw_grid` es un empapelado en
   coordenadas de pantalla (`spacing = clamp(50·scale, 30, 200)` px, fase `offset % spacing`):
@@ -432,6 +381,23 @@ Lo que el gate no puede juzgar. Cada ítem dice qué abrir, qué mirar y cómo r
   literales `"black"` / `"white"` y ahora son constantes de `config/settings.py` con el mismo
   valor, así que debe verse **idéntico**; si algún número o borde cambió de color, revisar
   `EDU_NODE_INDEX_FG_COLOR` / `EDU_MARKER_OUTLINE_COLOR`.
+- **Teoría MEF: numeración y rueda** (sesión 10, **el más importante**). `Ayuda ▸ Teoría MEF`
+  → mirar el **índice** de la primera página: **M3 = «Matriz B»** y **M4 = «Matriz constitutiva
+  D»** (antes al revés), y las dos últimas secciones se llaman *Post-proceso: tensiones
+  derivadas* y *Convergencia h…*, **sin** «M8 ·» ni «M9 ·». Contrastar con `Ctrl+3` y `Ctrl+4`
+  en la pestaña Proceso: tienen que coincidir. Después, **con la Teoría abierta**, girar la
+  rueda con el mouse sobre el lienzo: debe hacer **solo zoom**; el PDF de teoría **no** se
+  mueve (antes hacía las dos cosas). `Escape` cierra, y la barra de arriba dice «13 páginas —
+  rueda del mouse para recorrer, Escape para cerrar» (antes: el nombre-hash del archivo
+  cacheado). Revertir: `git revert` del commit de la sesión 10.
+- **La Teoría sin LaTeX** (sesión 10). Solo comprobable en la carpeta **portable sin
+  `texlive/`** (o renombrándola): `Ayuda ▸ Teoría MEF` debe abrir el **mismo diálogo con botón
+  de descarga** que *Exportar Memoria PDF*, con el encabezado «📄 Para generar **la Teoría MEF**
+  falta pdflatex», y la ventana vacía del visor debe cerrarse sola al cerrar el diálogo.
+  Verificar de paso que el de la Memoria sigue diciendo «la Memoria de Cálculo».
+- **La ventana de Teoría centrada** (sesión 10). Abrirla en **1080p**: 900×820 px, **centrada
+  sobre la ventana principal** y entera en pantalla (antes se abría donde Tk quisiera). Si el
+  borde inferior queda cortado, revisar el `clamp_screen=True` del `center_dialog`.
 
 (*El centrado de `Ayuda ▸ Acerca de EduFEM`, que antes moría en `NameError`, no ocupa un
 pendiente visual: se verificó con Tk real bajo `xvfb` — abre en `450x350+225+175`, centrado
@@ -443,6 +409,127 @@ sobre la ventana principal.*)
 
 Se mueve acá lo resuelto, con la sesión que lo cerró. Se conserva: evita que una sesión
 futura reabra algo ya decidido.
+
+- **[transversal] Los `except Exception` de `gui/` + `education/`** — **CERRADO por la
+  sesión 10**: las 9 áreas con archivos de `gui/` o `education/` pasaron por su turno.
+  Se conserva el detalle porque dice, área por área, **cuál** se dejó mudo y por qué.
+  Algunos son legítimos
+  (Tk destruyendo widgets durante el cierre, `iconbitmap` que puede no existir). Otros tragan
+  un fallo en un camino que el alumno recorre y lo dejan sin saber qué pasó. **No hacer un
+  barrido masivo**: cada sesión revisa los de **su** área, decide caso por caso, y anota
+  acá cuántos revisó y cuántos cambió. Sesión 01, los
+  15 de `gui/preprocessing/mesh_canvas.py`: 9 pasaron a dejar traza con
+  `traceback.print_exc()`, 3 quedaron mudos por legítimos (`after_cancel`, import diferido de
+  `education.overlay_module`, `set_status`) y 3 se fueron al refactorizar el borrado. Sesión
+  02, los 22 de `gui/preprocessing/pre_tab.py`: 6 pasaron a dejar traza (`_capture` —si el
+  snapshot falla la acción queda fuera del `Ctrl+Z`—, `_safe_redraw`, el refresco tras
+  expandir a Q9 y los 3 del panel de módulos educativos) y 16 quedaron mudos por legítimos
+  (`set_status`, `nametowidget`, guards de widgets destruidos). La convención es la de
+  `models/undo_stack.py` y `post_tab`: traza a stderr, y mensaje al alumno solo si el fallo
+  cambia lo que puede hacer. Sesión 03, los 3 de `gui/processing/proc_tab.py` (los 3 pasaron a
+  dejar traza: eslabón previo de la cadena de selección, estado inicial del chip,
+  `_current_selected_element`) más los 2 de `education/module_launcher.py` que se comían el
+  traceback de un módulo que no abre. Sesión 04, los 35 de `gui/postprocessing/` (los 4
+  archivos): 8 pasaron a dejar traza —los 3 refrescos de la Vista 3D en `post_tab` (que además
+  avisan con `_avisar_3d_desactualizada`: si fallan mudos, el visor sigue mostrando la solución
+  o el campo **anteriores**), el retorno al Pre-Proceso al cancelar el reporte de salud, el
+  `compute_raw_grids` del visor, el `_copy_values_tsv`, el callback de cierre del
+  `DetailsPanel` y `_get_units` visto desde el 3D— y 27 quedaron mudos por legítimos
+  (`after_cancel`, `destroy`/`unbind` de teardown, `tooltip.hide`, `set_status`, sondeo de la
+  API privada de matplotlib para los paneles 3D, `tight_layout`). Sesión 05, los 33 de
+  `gui/dialogs/` sin contar `theory_hub_dialog` (que es del área 9): 9 pasaron a dejar traza
+  —los 5 `stack.capture` (si el snapshot falla, esa acción queda fuera del `Ctrl+Z`), los 3
+  refrescos de la ventana principal (`_refresh_all_tabs` mudo deja las tablas con el modelo
+  viejo o con los números del sistema de unidades anterior bajo el encabezado nuevo) y el
+  `readfile` del preview DXF (un archivo ilegible se reportaba como "capa sin polilíneas")— y
+  24 quedaron mudos por legítimos (`webbrowser.open`, `grab_set`, teardown de video,
+  `tooltip`, guards de widgets destruidos). Sesión 06, los 43 del área 6 (30 de
+  `gui/main_window.py` + 13 de `gui/widgets/`): 13 pasaron a dejar traza —los que dejaban la
+  UI mintiendo (el refresco final de `_on_state_restored`, o sea el `Ctrl+Z` que parece no
+  haber hecho nada; el `validate_project` del badge, que se queda diciendo «Modelo sano»; el
+  `wire_canvas` de cada fase; la suscripción del breadcrumb), los que dejaban una tecla muda
+  (`F` de ajustar vista, `D` de dibujar, los dos eslabones de la cascada de `Escape`, el chip
+  del breadcrumb), los del PDF (el snapshot del proyecto y las tensiones por elemento) y el
+  render del `WebpPlayer` más el `on_closed` de `CanvasOverlay` (si falla, el overlay se ve
+  cerrado pero su loop sigue repintando)— y 30 quedaron mudos por legítimos (`iconbitmap`,
+  warmup de mathtext, `focus_get`, teardown de Toplevels, `after_cancel`, walk de widgets de
+  terceros). Además el `os.startfile` del «¿Abrir el PDF ahora?» dejó de estar dentro del
+  `try` que se comía el «Sí» del alumno. **Revisados: 153 de 274.** Sesión 07, los 74 del área 7 (M0..M3 +
+  `overlay_module.py`): **13 pasaron a dejar traza, los 13 en `overlay_module.py`**, que es la
+  base de los 8 overlays — `on_activated` (sin él el overlay abre y no reacciona a ningún click
+  del lienzo), `on_closed` (M0 deja la malla entera en fantasma gris, M3 deja su loop de pulso a
+  30 fps sobre un overlay cerrado), los 3 hooks de la cadena de selección + su eslabón previo
+  (el módulo deja de seguir al lienzo), el `open_module` del `👉` clickeable del pie, el
+  `build_overlay` (el cartel que ve el alumno no ubicaba el fallo), `refit_overlay` (el Toplevel
+  borderless recorta lo que empuja el contenido nuevo), el `redraw` de `refresh_overlay`, el
+  `cleanup()` de los widgets hijos (ToolTip huérfano), el bloque de restauración de `_cleanup`
+  (deja un módulo cerrado dibujando y filtrando clicks) y el `inst.close()` de los otros
+  overlays; más el de `_draw_layer_wrapper`, acotado a **una traza por instancia**
+  (`_layer_error_traced`) porque corre en cada redraw. Los otros 61 quedaron mudos por legítimos
+  (guards de widgets destruidos, `after_cancel`, `set_zlabel` de matplotlib, `compute_jacobian`
+  de un elemento degenerado dentro de un loop de 144 celdas, el `lift()` de una instancia stale
+  que el propio código maneja). **Revisados: 227 de 274.** Sesión 09, los 41 del área 8 (`mod04`..`mod07` +
+  `module_launcher.py`): **16 pasaron a dejar traza** — el `except: pass` de la capa de M4 se
+  **eliminó** (se comía la excepción antes de que el `_draw_layer_wrapper` de la base la viera),
+  los dos `set_matrix` de M4 (dejaban el panel con la D anterior), el `remove_click_consumer` de
+  M5 (un módulo **cerrado** que se sigue comiendo los clicks del lienzo), el `redraw` de
+  `_refresh_all` y el `draw_idle` del cuadrado natural de M5, el `sp.latex` y los dos de
+  `_count_terms` (los que escondieron el `sympy` sin importar de la sesión 05: uno degradaba al
+  `repr` y el otro devolvía el «0 términos»), el error de `SymbolicIntegrandQ4`, el
+  `redraw_overlays_only` del loop de M6 (con guard de **una traza por instancia**, corre a ~60
+  fps), y en M7 el `assemble_global_system` de la F de referencia, el `redraw` de su
+  `on_element_deselected`, el eslabón previo de la cadena de **hover** y su restauración en
+  `on_closed`; más el `replace_element_selection` de `module_launcher` (el overlay trabajaba
+  sobre un elemento y el halo marcaba otro). Los 25 restantes quedaron mudos por legítimos
+  (`after_cancel`, `destroy` de teardown, `subplots_adjust`/`suptitle` cosméticos,
+  `get_gauss_points_2d` sobre un orden 1..3, los 3 `get_dof_indices` dentro de renders de
+  hover). Sesión 10, los **39** del área 9 (18 de `latex_image` + 7 de `edu_plot_style` + 4 de
+  `formula_value_blocks` + 4 de `theory_viewer` + 3 de `latex_runtime` + 1 de `expander` + 1 de
+  `iso_inverse` + 1 de `quality_bar`; `theory_hub_dialog`, `theory_builder` y `gauss_glyph` no
+  tienen ninguno): **12 pasaron a dejar traza** —el render de matriz y los dos intentos de
+  expresión de `latex_image` (el que degrada a monospace **muestra el LaTeX crudo en pantalla**)
+  más su `fit_matrix_widget`, los 4 de `formula_value_blocks` (el cartel rojo decía *qué* falló
+  pero no *dónde*, y un `on_mode_change` mudo deja el panel nuevo sin refrescar), el `on_toggle`
+  del `Expander` (el body se puebla **perezosamente** ahí: si falla, el expander abre vacío) y 3
+  de `theory_viewer`—, 1 se acotó a `tk.TclError` (guard de teardown de la rueda) y 1 se
+  reemplazó por el diálogo de `pdflatex` faltante. Los 4 de `latex_image` usan el helper nuevo
+  `_trace_once`, con guard de **una traza por firma**: esas matrices se rendean por frame en
+  M2/M3/M5. Los 25 restantes quedaron mudos por legítimos (los 7 sondeos de la API privada de
+  matplotlib de `edu_plot_style`, los 3 de `latex_runtime`, los 3 de `_infer_bg`, los `fig.clf()`
+  de los `finally`, el probe de `sympy.MatrixBase`, el import diferido del `ToolTip`, el
+  `compute_jacobian` del loop de Newton de `iso_inverse`). **El ítem transversal queda CERRADO**:
+  no queda ningún archivo de `gui/` ni de `education/` sin pasar por su área (los tres que
+  faltaban por nombre —`canvas_logic.py`, `canvas_raster.py`, `_table_helpers.py`— no tienen
+  ni un `except Exception`). Nota de exactitud: el total «274» era una foto del 2026-09-08; el
+  grep de hoy da **303**, porque las sesiones que agregaron trazas partieron bloques `try`
+  existentes.
+
+- **[9] El Theory Hub numeraba la matriz B como M4 y la D como M3** (cruzadas desde el swap
+  B↔D de 2026-05) y titulaba dos secciones **M8** y **M9**, módulos que no existen — cerrado
+  por la sesión 10. Hoy M3 = B y M4 = D, **en el orden del pipeline** (`N → J → B → D → kₑ`), y
+  las dos últimas secciones van sin prefijo de módulo. Regresiones:
+  `test_hub_numeracion_modulos` y `test_hub_tiene_post_proceso` (que además falla si reaparece
+  un «M8» o un «M9»).
+- **[9] La sección M0 del Hub decía que las dos métricas de calidad viven en `[0,1]`** y que un
+  mismo color significa la misma calidad — cerrado por la sesión 10. El Jacobiano escalado se
+  muestra en `[-1,1]` y los umbrales aceptables son distintos (0,50 y 0,25): es lo que el alumno
+  ve en las dos `QualityBar` de M0, y el propio Hub se contradecía tres párrafos más abajo.
+  Regresión: `test_hub_rango_metricas_calidad`.
+- **[9] El visor de Teoría secuestraba la rueda de toda la aplicación** (`bind_all`, el último
+  del repo) — cerrado por la sesión 10. Como **no es modal** a propósito, con la Teoría abierta
+  una rueda sobre el `MeshCanvas` hacía zoom **y** scrolleaba el PDF (medido con Tk real: 1
+  zoom + 1 scroll; con el bind al Toplevel, 1 zoom + 0 scrolls), y el binding sobrevivía al
+  cierre apuntando a un canvas destruido.
+- **[9 / 5] Sin `pdflatex` había dos vías para la misma causa** — cerrado por la sesión 10. La
+  Memoria abría el diálogo con botón de descarga y la Teoría escribía su propio texto en un
+  label de una ventana vacía. Ahora las dos pasan por `show_pdflatex_missing_dialog`, con el
+  kwarg `documento` como única diferencia.
+- **[9] `render_matrix_image` cacheaba su placeholder 1×1 de fallo** — cerrado por la sesión
+  10. La clave de caché incluye el contenido, así que un fallo transitorio dejaba esa matriz
+  **en blanco para toda la sesión** y sin traza.
+- **[9] El default `element_type="Q4"` de `iso_inverse` resolvía a las N de Q9** — cerrado por
+  la sesión 10 (el literal no matchea `ELEMENT_Q4`). El defecto de fondo, en `fem/`, queda
+  abierto arriba como ítem del área 12.
 
 - **[1] `Supr` no borraba nada con multi-selección en el canvas** — cerrado por la sesión 01.
   El handler despachaba por `highlighted_*` (que valen `None` con >1 ítem). Ahora lee los sets

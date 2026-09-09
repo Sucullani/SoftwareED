@@ -11,9 +11,17 @@ from __future__ import annotations
 
 import numpy as np
 
-from config.settings import NUMERICAL_TOLERANCE
+from config.settings import ELEMENT_Q4, NUMERICAL_TOLERANCE
 from fem.shape_functions import get_shape_functions
 from fem.jacobian import compute_jacobian
+
+# El default de `element_type` tiene que ser la MISMA constante que compara
+# `fem.shape_functions.get_shape_functions` (`ELEMENT_Q4`, que vale
+# "Q4 - Cuadrilatero 4 nodos"). Estaba escrito a mano como "Q4": esa cadena no
+# matchea la constante, asi que la funcion caia en su rama por defecto y
+# devolvia las funciones de forma de **Q9** — 9 valores para 4 nodos. Ningun
+# llamador de hoy usa el default (M1/M2/M3/M5 pasan `self.element_type`), pero
+# el primero que lo omitiera se llevaria numeros mal sin ningun error.
 
 
 def in_natural_domain(xi: float, eta: float, margin: float = 0.0) -> bool:
@@ -25,7 +33,7 @@ def _physical_to_natural(
     x: float,
     y: float,
     node_coords: np.ndarray,
-    element_type: str = "Q4",
+    element_type: str = ELEMENT_Q4,
     tol: float = NUMERICAL_TOLERANCE,
     max_iter: int = 50,
 ):
@@ -73,7 +81,7 @@ def iso_inverse_map(
     x: float,
     y: float,
     node_coords: np.ndarray,
-    element_type: str = "Q4",
+    element_type: str = ELEMENT_Q4,
     tol: float = NUMERICAL_TOLERANCE,
     max_iter: int = 50,
 ):
@@ -94,7 +102,7 @@ def iso_inverse_map(
 
 
 def natural_to_physical(xi: float, eta: float, node_coords: np.ndarray,
-                        element_type: str = "Q4") -> np.ndarray:
+                        element_type: str = ELEMENT_Q4) -> np.ndarray:
     """Mapeo directo (xi, eta) -> (x, y) via N_i(xi, eta) · coords_i."""
     N_fn, _ = get_shape_functions(element_type)
     N = N_fn(xi, eta)

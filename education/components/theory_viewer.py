@@ -4,12 +4,25 @@ PyMuPDF y muestra las páginas en un Canvas+Scrollbar dentro de un
 ttk.Toplevel.
 
 La compilación corre en un thread para no bloquear la UI.
+
+El visor **no es modal** a propósito (se consulta mientras se opera el resto
+del programa), y de ahí salen sus tres reglas — ver
+`docs/convenciones/memoria-calculo.md` §Visor de PDF:
+
+* la rueda se ata al **Toplevel**, nunca con `bind_all` (que es el bindtag de
+  toda la aplicación: la rueda sobre el `MeshCanvas` hacía zoom **y**
+  scrolleaba este PDF);
+* sin `pdflatex` se abre el **mismo** diálogo con botón de descarga que la
+  Memoria de Cálculo (`documento` nombra cuál de los dos se pedía);
+* la barra de estado habla de páginas, no del nombre-hash del PDF cacheado.
 """
 
 from __future__ import annotations
 
 import hashlib
+import traceback
 import threading
+import uuid
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -26,11 +39,18 @@ _PDF_CACHE: dict[str, Path] = {}
 
 
 def _hash_doc(doc: TheoryDoc) -> str:
-    """Hash del código LaTeX para cachear PDFs."""
+    """Hash del código LaTeX para cachear PDFs.
+
+    Si `dumps()` falla se devuelve una clave ÚNICA (no la del documento
+    vacío): con una clave constante, dos documentos distintos que fallaran
+    al serializarse compartirían entrada de caché y el segundo mostraría
+    el PDF del primero.
+    """
     try:
         tex = doc.doc.dumps()
     except Exception:
-        tex = ""
+        traceback.print_exc()
+        return "nohash-" + uuid.uuid4().hex[:10]
     return hashlib.sha256(tex.encode("utf-8", errors="ignore")).hexdigest()[:16]
 
 
@@ -44,13 +64,20 @@ class TheoryViewer(ttk.Toplevel):
         doc_builder: Optional[Callable[[TheoryDoc], None]] = None,
         subtitle: str = "",
         zoom: float = 1.5,
+        documento: str = "la teoría en PDF",
     ):
         super().__init__(parent)
         self.title(title)
         self.geometry("900x820")
 
         self._zoom = zoom
-        self._status = ttk.Label(self, text="Compilando PDF…", anchor="w")
+        # Nombre del documento en prosa ("la Teoría MEF"): lo consume el
+        # dialogo de pdflatex faltante, que es compartido con la Memoria.
+        self._doc_label = documento
+        # wraplength: los mensajes de error de LaTeX no entran en una linea y
+        # un label sin wrap los recorta justo donde esta la causa.
+        self._status = ttk.Label(self, text="Compilando el PDF…", anchor="w",
+                                 justify="left", wraplength=860)
         self._status.pack(fill="x", padx=10, pady=(8, 4))
 
         outer = ttk.Frame(self)
@@ -80,16 +107,33 @@ class TheoryViewer(ttk.Toplevel):
         self._canvas.bind("<Configure>",
                            lambda _e: self._sync_scrollbar_visibility())
 
-        self._canvas.bind_all("<MouseWheel>", self._on_wheel)
+        # Rueda atada al TOPLEVEL, nunca con `bind_all`: el bindtag del
+        # toplevel esta en los bindtags de todos sus descendientes, asi que
+        # cubre la ventana entera sin salirse de ella. `bind_all` escribe en
+        # el bindtag `all`, que es de TODA la aplicacion — y este visor NO es
+        # modal (esta pensado para consultarlo mientras se opera el resto del
+        # programa), asi que la rueda sobre el MeshCanvas hacia zoom Y
+        # scrolleaba este PDF a la vez; ademas el binding global sobrevivia al
+        # cierre de la ventana apuntando a un canvas ya destruido. Es la misma
+        # regla que fijo `docs/convenciones/arquitectura.md` para los dialogos.
+        self.bind("<MouseWheel>", self._on_wheel)
 
         self._images: list[ImageTk.PhotoImage] = []
+
+        # Escape cierra, igual que la X del Toplevel. Sin `Return`: no hay
+        # accion primaria que dar por Enter en un visor de lectura.
+        from gui.dialogs._dialog_helpers import bind_dialog_keys, center_dialog
+        bind_dialog_keys(self, on_escape=self.destroy)
+        center_dialog(self, parent, clamp_screen=True)
 
         self._build_and_render(doc_builder, title, subtitle)
 
     def _on_wheel(self, event):
         try:
             self._canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
-        except Exception:
+        except tk.TclError:
+            # El canvas puede estar destruyendose (cierre de la ventana con el
+            # cursor encima): guard de teardown, no un fallo que reportar.
             pass
 
     def _sync_scrollbar_visibility(self) -> None:
@@ -129,15 +173,43 @@ class TheoryViewer(ttk.Toplevel):
                     _PDF_CACHE[key] = pdf_path
                 self.after(0, lambda: self._render_pdf(pdf_path))
             except FileNotFoundError:
-                msg = ("No se encontró pdflatex: falta la carpeta 'texlive' que "
-                       "acompaña a EduFEM (reinstalá con el instalador completo "
-                       "o instalá MiKTeX).")
-                self.after(0, lambda: self._status.configure(text=msg))
+                # MISMA causa, MISMA salida que la Memoria de Calculo: el
+                # dialogo con boton de descarga. Antes esto era una linea de
+                # texto gris en el encabezado de una ventana vacia — el alumno
+                # quedaba bloqueado sin ninguna accion a mano, que es
+                # justamente lo que ese dialogo existe para evitar.
+                self.after(0, self._show_missing_latex)
             except Exception as e:
-                msg = f"Error al compilar LaTeX: {e}"
+                traceback.print_exc()
+                detail = getattr(e, "log_tail", "") or str(e)
+                first = next((ln for ln in str(detail).splitlines() if ln.strip()),
+                             str(e))
+                msg = ("No se pudo compilar el PDF de teoría. "
+                       f"pdflatex informó: {first}")
                 self.after(0, lambda: self._status.configure(text=msg))
 
         threading.Thread(target=worker, daemon=True).start()
+
+    def _show_missing_latex(self) -> None:
+        """Falta pdflatex: abre el diálogo con botón de descarga y cierra el
+        visor (que no puede mostrar nada) en cuanto el alumno lo cierra."""
+        try:
+            from gui.dialogs.pdflatex_missing_dialog import (
+                show_pdflatex_missing_dialog,
+            )
+            show_pdflatex_missing_dialog(self, documento=self._doc_label)
+        except Exception:
+            traceback.print_exc()
+            self._status.configure(text=(
+                "No se encontró pdflatex: falta la carpeta 'texlive' que "
+                "acompaña a EduFEM (reinstalá con el instalador completo o "
+                "instalá MiKTeX)."
+            ))
+            return
+        try:
+            self.destroy()
+        except tk.TclError:
+            pass
 
     def _compile(self, td: TheoryDoc, key: str) -> Path:
         # Cache en el directorio de usuario aislado (~/.edufem), no en el TEMP
@@ -157,22 +229,32 @@ class TheoryViewer(ttk.Toplevel):
         return pdf
 
     def _render_pdf(self, pdf_path: Path) -> None:
-        self._status.configure(text=f"Teoría — {pdf_path.name}")
         try:
             doc = fitz.open(str(pdf_path))
         except Exception as e:
-            self._status.configure(text=f"Error al abrir PDF: {e}")
+            traceback.print_exc()
+            self._status.configure(text=f"No se pudo abrir el PDF generado: {e}")
             return
 
         mat = fitz.Matrix(self._zoom, self._zoom)
-        for page in doc:
-            pix = page.get_pixmap(matrix=mat, alpha=False)
-            img = Image.frombytes("RGB", (pix.width, pix.height), pix.samples)
-            photo = ImageTk.PhotoImage(img)
-            lbl = ttk.Label(self._inner, image=photo)
-            lbl.pack(padx=6, pady=6)
-            self._images.append(photo)
-        doc.close()
+        try:
+            for page in doc:
+                pix = page.get_pixmap(matrix=mat, alpha=False)
+                img = Image.frombytes("RGB", (pix.width, pix.height), pix.samples)
+                photo = ImageTk.PhotoImage(img)
+                lbl = ttk.Label(self._inner, image=photo)
+                lbl.pack(padx=6, pady=6)
+                self._images.append(photo)
+        finally:
+            doc.close()
+        # El nombre del archivo es un hash de contenido del cache interno
+        # (`a3f2b9c1d4e5f607.pdf`): no le dice NADA al alumno. Lo que le sirve
+        # es cuanto tiene para leer y que puede scrollear.
+        n = len(self._images)
+        self._status.configure(
+            text=f"{n} página{'s' if n != 1 else ''} — rueda del mouse "
+                 f"para recorrer, Escape para cerrar."
+        )
 
     # ---------- API estática ----------
     @classmethod
@@ -182,8 +264,10 @@ class TheoryViewer(ttk.Toplevel):
         title: str,
         doc_builder: Callable[[TheoryDoc], None],
         subtitle: str = "",
+        documento: str = "la teoría en PDF",
     ) -> "TheoryViewer":
-        win = cls(parent, title=title, doc_builder=doc_builder, subtitle=subtitle)
+        win = cls(parent, title=title, doc_builder=doc_builder,
+                  subtitle=subtitle, documento=documento)
         win.lift()
         win.focus_force()
         return win

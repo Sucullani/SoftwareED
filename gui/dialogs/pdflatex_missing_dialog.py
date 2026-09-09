@@ -14,9 +14,15 @@ sin LaTeX — solo la exportación de la Memoria y la teoría en PDF lo necesita
 El compilador se busca en cada exportación: instalar la distribución (o copiar
 la carpeta) surte efecto sin reiniciar EduFEM.
 
+Lo comparten los **dos** PDF que compila EduFEM, porque los dos fallan por la
+misma causa: ``main_window._on_export_pdf`` (Memoria de Cálculo) y
+``education.components.theory_viewer`` (Ayuda ▸ Teoría MEF). El kwarg
+``documento`` nombra cuál de los dos se estaba pidiendo.
+
 Uso:
     from gui.dialogs.pdflatex_missing_dialog import show_pdflatex_missing_dialog
     show_pdflatex_missing_dialog(parent)   # parent = widget Tk (root o Toplevel)
+    show_pdflatex_missing_dialog(parent, documento="la Teoría MEF")
 
 Filosofía minimalista (ver CLAUDE.md): sin Labelframes, sin subtítulo extra;
 encabezado + mensaje muted + footer con dos botones.
@@ -45,8 +51,17 @@ _TEX_DISTRO = {
 _TEX_DISTRO_DEFAULT = ("TeX Live", "https://tug.org/texlive/")
 
 
-def show_pdflatex_missing_dialog(parent: tk.Misc) -> None:
+def show_pdflatex_missing_dialog(
+    parent: tk.Misc, *, documento: str = "la Memoria de Cálculo",
+) -> None:
     """Muestra el diálogo modal de 'falta pdflatex' con botón de descarga.
+
+    `documento` nombra en prosa lo que el alumno estaba pidiendo ("la Memoria
+    de Cálculo", "la Teoría MEF"): son los **dos** PDF que compila EduFEM y
+    los dos fallan por la misma causa, así que comparten esta salida. Antes
+    el visor de Teoría escribía su propio texto en un label del encabezado —
+    misma causa, dos tratamientos, y el peor le tocaba al alumno que solo
+    quería leer.
 
     Debe invocarse desde el hilo principal de Tk (no desde un worker).
     """
@@ -62,19 +77,19 @@ def show_pdflatex_missing_dialog(parent: tk.Misc) -> None:
 
     ttk.Label(
         main,
-        text="📄  Para exportar la Memoria de Cálculo falta pdflatex",
+        text=f"📄  Para generar {documento} falta pdflatex",
         font=FONT_UI_BOLD,
     ).pack(anchor=W, pady=(0, 10))
 
     ttk.Label(
         main,
         text=(
-            "La Memoria de Cálculo (PDF) se compila con LaTeX. EduFEM no "
-            "encontró la carpeta 'texlive' que acompaña al programa ni una "
-            "distribución TeX instalada.\n\n"
+            f"EduFEM genera {documento} en PDF con LaTeX, y no encontró la "
+            "carpeta 'texlive' que acompaña al programa ni una distribución "
+            "TeX instalada.\n\n"
             "Solución recomendada: reinstalá EduFEM con el instalador "
             f"completo. Alternativa: descargá e instalá {distro} (incluye "
-            "pdflatex) y volvé a exportar.\n\n"
+            "pdflatex) y volvé a intentarlo.\n\n"
             "El resto del programa funciona normalmente sin LaTeX."
         ),
         font=FONT_UI,

@@ -48,6 +48,7 @@ Uso típico:
 
 from __future__ import annotations
 
+import traceback
 from typing import Callable, Optional
 
 import tkinter as tk
@@ -149,7 +150,10 @@ class FormulaValueBlocksToggle(ttk.Frame):
             try:
                 self._on_mode_change(mode)
             except Exception:
-                pass
+                # El toggle YA cambio de panel: si el callback del modulo
+                # falla mudo, el alumno ve el panel nuevo con el contenido
+                # sin refrescar y nada que explique la diferencia.
+                traceback.print_exc()
 
     @property
     def frame_formula(self) -> ttk.Frame:
@@ -169,7 +173,7 @@ class FormulaValueBlocksToggle(ttk.Frame):
             try:
                 self._on_mode_change(self._mode)
             except Exception:
-                pass
+                traceback.print_exc()
 
     def _apply_mode(self) -> None:
         if self._mode == self.MODE_FORMULA:
@@ -179,6 +183,13 @@ class FormulaValueBlocksToggle(ttk.Frame):
 
     @staticmethod
     def _show_build_error(frame: ttk.Frame, exc: Exception, label: str) -> None:
+        """Cartel rojo en lugar del panel + traceback a stderr.
+
+        El cartel le dice al alumno QUE fallo, pero no DONDE: sin la traza,
+        un panel que no se construye es indepurable (mismo criterio que el
+        `build_overlay` de `overlay_module`).
+        """
+        traceback.print_exc()
         tk.Label(
             frame, text=f"Error al construir el panel de {label}:\n{exc}",
             bg=OVERLAY_BG, fg=HEALTH_ERROR_COLOR, font=FONT_UI,

@@ -21,7 +21,8 @@ Cobertura (sincronizada con las funciones reales; ver el bloque __main__):
   - test_mesh_diagram_es_pil: render_mesh_diagram devuelve una PIL.Image.
   - test_contornos_pil_blanco: los contornos son PIL con fondo blanco.
   - test_pipeline_map_es_pil / test_compila_directo_q4.
-  - test_hub_*: chequeos del Theory Hub (m8/post, LU sin internals, sin Mohr,
+  - test_hub_*: chequeos del Theory Hub (post-proceso, numeracion M3=B/M4=D,
+    rangos de calidad, LU sin internals, sin Mohr,
     BCs por eliminacion, TOC clickeable, sin bibliografia).
 """
 
@@ -487,16 +488,82 @@ def _build_hub_tex() -> str:
     return doc.document().dumps()
 
 
-def test_hub_tiene_m8_post() -> bool:
-    print("test_hub_tiene_m8_post ...")
+def test_hub_tiene_post_proceso() -> bool:
+    """La seccion de post-proceso cubre la cadena PG -> nodo -> invariantes.
+
+    Antes pedia el literal "M8": esa seccion se llamaba "M8 . Post-proceso",
+    pero el ex-M8 fue consolidado en el Post-Proceso nativo en 2026-05 y el
+    Post no tiene ningun modulo educativo, asi que el numero nombraba un
+    modulo inexistente. Hoy la seccion no lleva prefijo de modulo (como la de
+    convergencia) y el chequeo pide el titulo real.
+    """
+    print("test_hub_tiene_post_proceso ...")
     tex = _build_hub_tex()
-    required = ["M8", "Extrapolación", "Promediado", "principales", "Mises",
-                "Barlow"]
+    required = ["Post-proceso", "Extrapolación", "Promediado", "principales",
+                "Mises", "Barlow"]
     missing = [s for s in required if s not in tex]
     if missing:
-        print(f"  FAIL: faltan en Hub M8: {missing}")
+        print(f"  FAIL: faltan en el post-proceso del Hub: {missing}")
         return False
-    print("  OK: Hub M8 cubre PG/extrapolación/promediado/principales/VM")
+    for phantom in ("M8", "M9"):
+        if phantom in tex:
+            print(f"  FAIL: el Hub nombra un modulo inexistente: {phantom}")
+            return False
+    print("  OK: Hub post-proceso cubre PG/extrapolación/promediado/"
+          "principales/VM, sin M8 ni M9")
+    return True
+
+
+def test_hub_numeracion_modulos() -> bool:
+    """M3 = matriz B y M4 = matriz D, igual que Ctrl+3 y Ctrl+4 en la app.
+
+    Estaban cruzadas desde el swap B<->D de 2026-05: el Hub titulaba
+    "M3 . Matriz constitutiva D" y "M4 . Matriz B", asi que un alumno que
+    leia la seccion M4 y apretaba Ctrl+4 se encontraba con otra matriz.
+    """
+    print("test_hub_numeracion_modulos ...")
+    tex = _build_hub_tex()
+    idx_b = tex.find("Matriz B (deformaci")
+    idx_d = tex.find("Matriz constitutiva D")
+    if idx_b < 0 or idx_d < 0:
+        print("  FAIL: no se encontraron las secciones de B y D")
+        return False
+    # El numero pegado a cada titulo (el Hub numera las secciones con el
+    # modulo que las ilustra).
+    if "M3 · Matriz B" not in tex:
+        print("  FAIL: la matriz B no esta numerada como M3")
+        return False
+    if "M4 · Matriz constitutiva D" not in tex:
+        print("  FAIL: la matriz D no esta numerada como M4")
+        return False
+    if idx_b > idx_d:
+        print("  FAIL: D aparece antes que B (el pipeline es N -> J -> B -> D)")
+        return False
+    print("  OK: M3 = B y M4 = D, en el orden del pipeline")
+    return True
+
+
+def test_hub_rango_metricas_calidad() -> bool:
+    """M0 del Hub no puede decir que las dos metricas viven en [0,1].
+
+    El Jacobiano escalado se presenta en [-1,1] (rango completo de Verdict,
+    el signo distingue la validez) y la compacidad en [0,1]; ademas los
+    umbrales aceptables son distintos (0,50 y 0,25). El Hub afirmaba las dos
+    cosas contrarias en la misma seccion, y contradecia la barra que el
+    alumno ve en M0.
+    """
+    print("test_hub_rango_metricas_calidad ...")
+    tex = _build_hub_tex()
+    if "ambas normalizadas al rango $[0,1]$" in tex:
+        print("  FAIL: el Hub sigue diciendo que ambas metricas viven en [0,1]")
+        return False
+    if "Ambas métricas viven en $[0,1]$" in tex:
+        print("  FAIL: el Hub sigue igualando los rangos de las dos metricas")
+        return False
+    if "$[-1,1]$" not in tex:
+        print("  FAIL: el Hub no menciona el rango [-1,1] del Jacobiano")
+        return False
+    print("  OK: rangos y umbrales por metrica, coherentes con M0")
     return True
 
 
@@ -583,7 +650,9 @@ if __name__ == "__main__":
         test_contornos_pil_blanco(),
         test_pipeline_map_es_pil(),
         test_compila_directo_q4(),
-        test_hub_tiene_m8_post(),
+        test_hub_tiene_post_proceso(),
+        test_hub_numeracion_modulos(),
+        test_hub_rango_metricas_calidad(),
         test_hub_solver_lu_sin_internals(),
         test_hub_no_tiene_mohr(),
         test_hub_bcs_solo_eliminacion(),
