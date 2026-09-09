@@ -20,6 +20,12 @@ Paleta:
     Implementado como LUT interna; look reconocible de ingenieria estructural
     (ver CLAUDE.md). `coolwarm` queda sin uso en los resultados.
 
+Nivel de detalle: las figuras del modelo y de la deformada deciden cuánto
+dibujar con el MISMO criterio que el canvas (`_detail` → `canvas_logic.
+lod_level` sobre `median_edge_length * scale`). En una malla densa un disco y
+un número por nodo tapan lo que la figura tiene que mostrar; en mallas de
+pocos elementos no se degrada nada. Ver `docs/convenciones/memoria-calculo.md`.
+
 Funciones expuestas (todas retornan `PIL.Image.Image` o None si Pillow no
 está disponible / el modelo no tiene datos suficientes):
   - render_mesh_diagram(project)
@@ -48,6 +54,7 @@ from config.settings import (
     PHASE_PRE_COLOR,
     PHASE_PROC_COLOR,
     PHASE_POST_COLOR,
+    fmt_escala,
 )
 
 
@@ -153,15 +160,42 @@ class _View:
         return x * self.scale + self.offset_x, -y * self.scale + self.offset_y
 
 
+# Fuentes TrueType candidatas, en orden. Las cuatro traen alfabeto griego
+# (sigma, tau) y acentos, que es lo que necesitan los rotulos de campo. Si no
+# hay ninguna se cae al bitmap default de Pillow, que NO tiene griego: en ese
+# caso los rotulos degradan a ASCII (ver `_component_label`).
+_TTF_CANDIDATES = ("DejaVuSans.ttf", "arial.ttf",
+                   "LiberationSans-Regular.ttf", "segoeui.ttf")
+_ttf_name: str | None = None
+_ttf_resolved = False
+
+
+def _resolve_ttf() -> str | None:
+    """Nombre de la primera TrueType disponible (memoizado), o None."""
+    global _ttf_name, _ttf_resolved
+    if not _ttf_resolved:
+        _ttf_resolved = True
+        if HAS_PIL:
+            for name in _TTF_CANDIDATES:
+                try:
+                    ImageFont.truetype(name, 12)
+                except Exception:
+                    continue
+                _ttf_name = name
+                break
+    return _ttf_name
+
+
 def _font(size: int):
     """Carga una fuente TrueType legible; cae al bitmap default si falta."""
     if not HAS_PIL:
         return None
-    for name in ("DejaVuSans.ttf", "arial.ttf"):
+    name = _resolve_ttf()
+    if name is not None:
         try:
             return ImageFont.truetype(name, size)
         except Exception:
-            continue
+            pass
     try:
         return ImageFont.load_default(size=size)
     except Exception:
@@ -171,6 +205,34 @@ def _font(size: int):
 def _tint(rgb: tuple[int, int, int], t: float) -> tuple[int, int, int]:
     """Mezcla `rgb` con blanco: t=0 → rgb, t=1 → blanco. Para rellenos suaves."""
     return tuple(int(round(c + (255 - c) * t)) for c in rgb)
+
+
+def _detail(project, view):
+    """Nivel de detalle de la figura: `("far" | "mid" | "near", edge_px)`.
+
+    Mismo criterio y mismos umbrales que el `MeshCanvas`
+    (`canvas_logic.lod_level` sobre `median_edge_length * scale`): si la malla
+    es lo bastante densa como para que los nodos, sus numeros y los simbolos
+    de apoyo se pisen, se dibuja menos. Sin esto la figura del modelo y la
+    deformada de un ejemplo real (Cook 32x32: 4225 nodos a ~8 px de
+    separacion) salian como una mancha azul de discos superpuestos.
+
+    Las mallas de <= `LOD_MIN_ELEMENTS_FOR_GATING` elementos nunca se
+    degradan: el ejemplo canonico se ve exactamente igual que antes.
+    """
+    try:
+        from models.mesh_utils import median_edge_length
+        from gui.preprocessing.canvas_logic import lod_level
+        med = median_edge_length(project)
+        edge_px = None if med is None else float(med) * view.scale
+        return lod_level(edge_px, len(project.elements)), edge_px
+    except Exception:
+        # Degradar a "near" deja la figura como era antes (todo dibujado), asi
+        # que no rompe nada — pero si esto falla en una malla grande la figura
+        # vuelve a ser una mancha y nadie sabria por que: dejar traza.
+        import traceback
+        traceback.print_exc()
+        return "near", None
 
 
 # ---------------------------------------------------------------------------
@@ -375,7 +437,11 @@ def _draw_colorbar(draw, img_h, lut, vmin, vmax, label, *,
         yy = bar_top + int(k / n_lbl * bar_h)
         draw.line([(x0 + bar_w, yy), (x0 + bar_w + 4, yy)],
                   fill=(120, 120, 120))
-        draw.text((x0 + bar_w + 7, yy - 7), f"{val:.3g}",
+        # Ticks con el MISMO formato que la colorbar del lienzo y la de la
+        # Vista 3D (`config.settings.fmt_escala`, fuente unica de las tres
+        # escalas): un esfuerzo en Pa se lee `2.50e+07`, no `2.5e+07` en una
+        # pantalla y `25000000` en el PDF.
+        draw.text((x0 + bar_w + 7, yy - 7), fmt_escala(val),
                   fill=_AXIS_TEXT, font=font)
     if label:
         draw.text((x0 - 2, bar_top - 26), label, fill=_AXIS_TEXT, font=font_lbl)
@@ -423,6 +489,11 @@ def render_mesh_diagram(project, *, width=900, height=680):
     draw = ImageDraw.Draw(img)
     font_id = _font(13)
 
+    # Nivel de detalle (mismos umbrales que el canvas): en 'near' la figura es
+    # identica a la de siempre; en mallas densas se recortan los numeros de
+    # nodo, los nodos de andamiaje Q9 y el tamano de los simbolos de apoyo.
+    lod, edge_px = _detail(project, view)
+
     # Relleno + aristas de elementos. El rotulo "EN" se dibuja solo si el
     # elemento mide en pantalla al menos lo que el texto: en mallas finas los
     # rotulos se pisan hasta volverse una mancha ilegible y ademas dominan el
@@ -466,19 +537,39 @@ def render_mesh_diagram(project, *, width=900, height=680):
         draw.ellipse([sx - r, sy - r, sx + r, sy + r], fill=color,
                      outline=(0, 0, 0))
 
-    for nid in mid:
-        _dot(nid, _RGB_NODE_MID, 4)
-    for nid in center:
-        _dot(nid, _RGB_NODE_CENTER, 4)
-    for nid in corner:
-        _dot(nid, _RGB_NODE_CORNER, 5)
-    for nid, n in project.nodes.items():
-        sx, sy = view.w2s(n.x, n.y)
-        draw.text((sx + 6, sy - 14), str(nid), fill=_ELEMENT_EDGE, font=font_id)
+    # Radios por nivel de detalle: el canvas encoge las decoraciones al alejar
+    # y en 'far' deja de dibujar los nodos de andamiaje Q9 (mid/center), que a
+    # esa escala son ruido puro. La figura va un paso mas alla porque es
+    # estatica (no hay zoom que la rescate): en 'mid' solo esquinas, y en
+    # 'far' ningun disco — la geometria la cuentan los elementos.
+    r_corner = {"near": 5, "mid": 3}.get(lod, 0)
+    r_mid = {"near": 4}.get(lod, 0)
+    if r_mid:
+        for nid in mid:
+            _dot(nid, _RGB_NODE_MID, r_mid)
+        for nid in center:
+            _dot(nid, _RGB_NODE_CENTER, r_mid)
+    if r_corner:
+        for nid in corner:
+            _dot(nid, _RGB_NODE_CORNER, r_corner)
+    # Numeracion global: solo en 'near', igual que
+    # `canvas_logic.label_globally_visible` en modo "auto". Con 4225 nodos a
+    # 8 px los numeros se pisaban hasta tapar el modelo entero.
+    if lod == "near":
+        for nid, n in project.nodes.items():
+            sx, sy = view.w2s(n.x, n.y)
+            draw.text((sx + 6, sy - 14), str(nid), fill=_ELEMENT_EDGE,
+                      font=font_id)
 
-    # Escala característica para símbolos de restricción.
+    # Escala característica para símbolos de restricción, acotada por la
+    # separacion entre nodos: en un borde con 33 apoyos, un simbolo de 24 px
+    # cada 8 px es una mancha naranja donde no se distingue ni el tipo de
+    # apoyo ni la malla que hay debajo.
     bbox_extent = max(max(xs) - min(xs), max(ys) - min(ys), 1e-6)
     bc_px = max(view.scale * 0.04 * bbox_extent, 10)
+    if edge_px:
+        node_px = edge_px / 2.0 if is_q9 else edge_px
+        bc_px = max(min(bc_px, 0.5 * node_px), 6)
     for nid, bc in project.boundary_conditions.items():
         if nid not in project.nodes or not (bc.restrain_x or bc.restrain_y):
             continue
@@ -562,12 +653,42 @@ def _draw_arrow(draw, x0, y0, x1, y1, color, *, width=2):
 # Contornos de tensión
 # ---------------------------------------------------------------------------
 
+# Simbolos de los componentes de tension. Los mismos que la colorbar del
+# lienzo y la de la Vista 3D (`post_tab._update_canvas_result`): el alumno
+# tiene que reconocer en la Memoria el mismo campo que vio en pantalla, no una
+# key interna (`sigma_x`). Sin subindices unicode (se rinden como cajas).
 _COMPONENT_LABELS = {
+    "sigma_x": "σx",
+    "sigma_y": "σy",
+    "tau_xy": "τxy",
+    "von_mises": "σVM",
+}
+# Degradacion para el bitmap default de Pillow, que no trae griego.
+_COMPONENT_LABELS_ASCII = {
     "sigma_x": "sigma_x",
     "sigma_y": "sigma_y",
     "tau_xy": "tau_xy",
     "von_mises": "sigma_VM",
 }
+
+
+def _component_label(component: str) -> str:
+    """Simbolo visible del componente (griego si la fuente lo soporta)."""
+    table = (_COMPONENT_LABELS if _resolve_ttf() is not None
+             else _COMPONENT_LABELS_ASCII)
+    return table.get(component, component)
+
+
+def _stress_unit(project) -> str:
+    """Unidad de esfuerzo del sistema del proyecto (`MPa`, `Pa`, `ksi`...).
+
+    Misma fuente que las tablas del Post y la colorbar del lienzo
+    (`config.units.get_unit_labels`). Cadena vacia si no se puede resolver."""
+    try:
+        from config.units import get_unit_labels
+        return get_unit_labels(project.unit_system).get("esfuerzo", "") or ""
+    except Exception:
+        return ""
 
 
 def render_contour(project, solution, nodal_stresses, component, *,
@@ -625,11 +746,16 @@ def render_contour(project, solution, nodal_stresses, component, *,
     img = Image.fromarray(arr, "RGBA").convert("RGB")
     draw = ImageDraw.Draw(img)
     _draw_wireframe(draw, project, view, deformed_coords=deformed_coords)
-    _draw_colorbar(draw, height, lut, vmin, vmax, _COMPONENT_LABELS.get(
-        component, component), x0=width - cbar_w + 8)
+    # Rotulo de la escala: simbolo + unidad del sistema del proyecto, igual
+    # que la colorbar del lienzo y la de la Vista 3D. Era el unico campo de
+    # resultados que llegaba al alumno sin decir en que unidad esta.
+    sym = _component_label(component)
+    unit = _stress_unit(project)
+    _draw_colorbar(draw, height, lut, vmin, vmax,
+                   f"{sym} [{unit}]" if unit else sym,
+                   x0=width - cbar_w + 8)
     suffix = "  (malla deformada)" if deformed else ""
-    _title(draw, f"Contorno de {_COMPONENT_LABELS.get(component, component)}"
-                 f"{suffix}", width)
+    _title(draw, f"Contorno de {sym}{suffix}", width)
     return img
 
 
@@ -668,11 +794,16 @@ def render_deformed(project, solution, scale=None, *, width=900, height=680):
     # Malla deformada (verde, post-proceso).
     _draw_wireframe(draw, project, view, deformed_coords=deformed_coords,
                     color=_RGB_DEFORMED, width=2)
-    for nid, (wx, wy) in deformed_coords.items():
-        sx, sy = view.w2s(wx, wy)
-        draw.ellipse([sx - 3, sy - 3, sx + 3, sy + 3], fill=_RGB_NODE_CORNER,
-                     outline=(0, 0, 0))
-    _title(draw, f"Configuracion deformada  (escala x{sc:.3g})", width)
+    # Nodos solo cuando se distinguen (mismo criterio que el canvas): con la
+    # malla densa los discos se solapan y tapan por completo la deformada
+    # verde, que es justamente lo que la figura tiene que mostrar.
+    lod, _edge_px = _detail(project, view)
+    if lod == "near":
+        for nid, (wx, wy) in deformed_coords.items():
+            sx, sy = view.w2s(wx, wy)
+            draw.ellipse([sx - 3, sy - 3, sx + 3, sy + 3],
+                         fill=_RGB_NODE_CORNER, outline=(0, 0, 0))
+    _title(draw, f"Configuración deformada  (escala ×{sc:.3g})", width)
     return img
 
 
@@ -718,5 +849,5 @@ def render_K_sparsity(K, *, size=620, tol=1e-9):
         y = pad + int(i * avail / n)
         draw.rectangle([x, y, x + dot - 1, y + dot - 1],
                        fill=(33, 33, 51))
-    _title(draw, "Patron de no-nulos de K (estructura de banda)", size, y=8)
+    _title(draw, "Patrón de no-nulos de K (estructura de banda)", size, y=8)
     return img

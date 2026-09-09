@@ -71,6 +71,11 @@ class MainWindow:
                     f"{self.root.winfo_screenheight()}+0+0"
                 )
         self._is_fullscreen = False
+        # Guard de una sola compilacion de la Memoria a la vez: el dialogo de
+        # progreso NO hace grab_set a proposito (la GUI sigue viva mientras el
+        # worker compila), asi que nada impedia volver a Exportar y arrancar un
+        # segundo thread sobre el mismo .pdf destino. Ver `_on_export_pdf`.
+        self._exportando_pdf = False
 
         # Icono de la app (Explorador, barra de tareas, titulo de ventana).
         # resource_path resuelve en dev y en el .exe empaquetado (sys._MEIPASS).
@@ -1053,7 +1058,21 @@ class MainWindow:
         Compila vía pylatex + pdflatex (requiere MiKTeX/TeX Live instalado).
         La compilación corre en un hilo aparte para no congelar la GUI;
         un diálogo de progreso indeterminado acompaña al usuario.
+
+        **Guard `_exportando_pdf`** (mismo patrón que el `_solving` de
+        `post_tab.auto_solve`): el `_PDFProgressDialog` no es modal a
+        propósito, así que el alumno puede volver al menú y pedir otra
+        Memoria con una compilación en curso. Sin el guard arrancaban dos
+        threads y, si elegía el mismo destino, los dos escribían el mismo
+        `.pdf`. Se libera en `_on_done`, que corre en el hilo principal.
         """
+        if self._exportando_pdf:
+            self.set_status(
+                "Ya hay una Memoria de Cálculo compilándose — esperá a que "
+                "termine antes de exportar otra."
+            )
+            return
+
         if not self.project.is_solved:
             messagebox.showwarning(
                 "Aviso",
@@ -1130,6 +1149,11 @@ class MainWindow:
                 self.root.after(0, _on_done)
 
         def _on_done():
+            # Liberar el guard ANTES de cualquier diálogo: los messagebox de
+            # abajo son modales y bloquean este handler hasta que el alumno
+            # responde; si el flag se bajara al final, Exportar quedaría
+            # bloqueado todo ese rato sin que nada esté compilando.
+            self._exportando_pdf = False
             try:
                 progress.close()
             except Exception:
@@ -1179,6 +1203,7 @@ class MainWindow:
                 )
 
         import threading
+        self._exportando_pdf = True
         thread = threading.Thread(target=_worker, daemon=True)
         thread.start()
 

@@ -24,6 +24,10 @@ Regresiones que cubre:
     realmente tiene, y no ubica `Ctrl+E` en un menu donde no esta.
   - `bind_dialog_keys` ata Escape / Return donde corresponde y **no** ata
     Return donde no hay default seguro (reporte de salud, falta pdflatex).
+  - **Dos Memorias compilandose a la vez.** El dialogo de progreso no es
+    modal, asi que volver a *Exportar > Memoria de Calculo* con una
+    compilacion en curso arrancaba un segundo thread sobre el mismo `.pdf`.
+    Ahora hay un guard `_exportando_pdf` que avisa en la barra de estado.
 """
 
 import sys
@@ -248,6 +252,42 @@ def test_f8_en_modo_dibujo_mantiene_el_mensaje_corto():
     MainWindow._on_toggle_ortho(mw)
     assert mw.status[-1] == "ORTHO activado", mw.status
     print("[OK] dibujando, el mensaje de ORTHO sigue siendo el corto")
+
+
+def test_exportar_memoria_no_lanza_dos_compilaciones():
+    """Exportar con una Memoria compilandose avisa en vez de arrancar otra.
+
+    El dialogo de progreso NO es modal (decision tomada: la GUI sigue viva
+    mientras el worker compila), asi que nada impedia volver a
+    *Archivo > Exportar > Memoria de Calculo* y disparar un segundo thread
+    sobre el mismo `.pdf` destino."""
+    mw = _main_window()
+    mw._exportando_pdf = True
+    espia = _MessageBoxSpy()
+    original = main_window_mod.messagebox
+    main_window_mod.messagebox = espia
+    try:
+        MainWindow._on_export_pdf(mw)
+    finally:
+        main_window_mod.messagebox = original
+    assert not espia.calls, "la segunda exportacion abrio un dialogo"
+    assert mw.status and "compilándose" in mw.status[-1], mw.status
+
+    src = inspect.getsource(MainWindow._on_export_pdf)
+    assert "self._exportando_pdf = True" in src, (
+        "el guard nunca se arma: `_on_export_pdf` no lo pone en True"
+    )
+    assert "self._exportando_pdf = False" in src, (
+        "el guard no se libera al terminar: Exportar quedaria muerto"
+    )
+    # Se libera ANTES de los messagebox modales del cierre; si se liberara al
+    # final, Exportar quedaria bloqueado mientras el alumno lee el aviso.
+    pos_false = src.index("self._exportando_pdf = False")
+    pos_msg = src.index("askyesno")
+    assert pos_false < pos_msg, (
+        "el guard se libera despues de los dialogos modales de cierre"
+    )
+    print("[OK] Exportar Memoria no lanza dos compilaciones a la vez")
 
 
 def test_f11_no_desincroniza_el_flag_si_tk_rechaza():
@@ -483,6 +523,7 @@ if __name__ == "__main__":
     test_ctrl_s_sin_cambios_avisa()
     test_f8_fuera_del_modo_dibujo_avisa()
     test_f8_en_modo_dibujo_mantiene_el_mensaje_corto()
+    test_exportar_memoria_no_lanza_dos_compilaciones()
     test_f11_no_desincroniza_el_flag_si_tk_rechaza()
     test_la_ventana_de_atajos_nombra_las_teclas_que_existen()
     test_ctrl_e_figura_en_el_menu_donde_realmente_esta()
@@ -495,5 +536,5 @@ if __name__ == "__main__":
     test_proceso_no_tiene_un_notebook_de_una_sola_pestana()
     test_las_etiquetas_educativas_estan_acentuadas()
     print("=" * 62)
-    print("  TODOS LOS TESTS PASARON [20/20]")
+    print("  TODOS LOS TESTS PASARON [21/21]")
     print("=" * 62)

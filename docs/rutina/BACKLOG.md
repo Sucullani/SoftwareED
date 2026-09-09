@@ -11,23 +11,20 @@ Reglas del archivo, en [RUTINA.md](RUTINA.md) §4 y §9. Historial de lo hecho, 
 
 ## Área siguiente
 
-> **10 — Memoria de cálculo y figuras** (`file_io/memoria_calculo.py`,
-> `file_io/figure_export.py`). Capítulo a leer antes:
-> [../convenciones/memoria-calculo.md](../convenciones/memoria-calculo.md) **entero** — la regla
-> de oro del pipeline compartido (las fórmulas, matrices y ecuaciones se emiten **siempre**;
-> solo la prosa va detrás de `if self._prose:`), los 9 capítulos, los memoizadores
-> `_mesh_quality()` / `_health()`, los umbrales `_COMPACT_MAX_ELEMENTS_Q4 = 2` / `_Q9 = 1`, que
-> `figure_export` es **Pillow puro** (no reintroducir matplotlib ni una 3D estática) y la regla
-> de **ASCII** en los strings LaTeX (regla dura 20); y siempre
-> [../convenciones/no-reintroducir.md](../convenciones/no-reintroducir.md). Ítems del BACKLOG
-> que le pertenecen y hay que drenar primero: **ninguno propio**; el más cercano es el
-> **[6] `_on_export_pdf` puede lanzar dos compilaciones a la vez** (abajo, en *Interacción e
-> incongruencias*), que la sesión 06 dejó para el área de la memoria justamente para no tocar
-> este flujo desde la ventana. Si hay `pdflatex` en el sandbox, correr
-> `run_gates --con-latex`; si no lo hay, se instala como preparación del entorno (la sesión 10
-> lo hizo con `apt-get install texlive-latex-base texlive-latex-recommended
-> texlive-fonts-recommended texlive-latex-extra texlive-lang-spanish lmodern`, que **no** es
-> agregar una dependencia del proyecto: `requirements.txt` no se toca).
+> **11 — Modelo, salud y validación** (`models/*`: `project.py`, `model_health.py`,
+> `undo_stack.py`, `mesh_utils.py`, `example_library.py`, `material.py`). Capítulo a leer
+> antes: [../convenciones/arquitectura.md](../convenciones/arquitectura.md) — el contrato
+> `restore_from_dict` (muta in-place, undo/redo) vs. `from_dict` (instancia nueva,
+> abrir/guardar), el campo nuevo que va en `to_dict` **Y** en `from_dict` con backward-compat,
+> la invalidación de `node_index_map` en cada mutación que agregue/borre/renombre nodos, y que
+> la validación es **una sola vía**: `_check_xxx(project, report)` en `models/model_health.py`
+> + su hint en `EDUCATIONAL_HINTS` (la GUI muestra el reporte, no valida por su cuenta); y
+> siempre [../convenciones/no-reintroducir.md](../convenciones/no-reintroducir.md). Ítems del
+> BACKLOG que le pertenecen y hay que drenar primero: **ninguno propio**. Ojo con dos cosas que
+> otras áreas dejaron apoyadas acá: los **hints de `EDUCATIONAL_HINTS`** son el único texto que
+> el alumno lee cuando el modelo no resuelve (la sesión 03 hizo que F5 pase por ahí), y
+> `models/mesh_utils.median_edge_length` ahora también lo consume la Memoria
+> (`figure_export._detail`), no solo el canvas.
 
 Al cerrar la sesión, reemplazá esta línea por el área que sigue en la rotación de
 [RUTINA.md](RUTINA.md) §4 (1 → 2 → … → 14 → 1).
@@ -73,6 +70,19 @@ Formato: `[área Nº] descripción — evidencia — quién decide`.
   resto del Anexo A. **No se hizo en la sesión 04 porque el sandbox no tenía `pdflatex` ni
   `latexmk`** y §6 exige compilar antes de pushear. Verificar que haya LaTeX (o el
   `vendor/texlive`) antes de tomarlo, junto con las otras dos correcciones del Anexo A.
+
+- **[14] Las cuatro figuras `mem_*.png` del Anexo B quedaron una revisión atrás del
+  software.** La sesión 11 cambió los rótulos de `file_io/figure_export.py` y
+  `tesis/figuras/mem_contorno_vm.png` sigue mostrando la colorbar **sin unidad** y con los
+  ticks en `:.3g`, mientras el programa ahora dibuja `von Mises [MPa]` con `fmt_escala`;
+  `mem_deformada.png` y `mem_Ksparsity.png` conservan los títulos sin tilde
+  («Configuracion», «Patron»). Los números **no** cambiaron y `mem_modelo.png` es idéntico
+  (el ejemplo canónico tiene 4 elementos: no entra el LOD). Se regeneran con su script —
+  `python tesis/figuras/gen_anexo_calculo.py`, nunca a mano— y hay que **compilar la tesis**
+  antes de pushear ([RUTINA.md](RUTINA.md) §6). **No se hizo en la sesión 11 porque el
+  sandbox no tiene `biblatex`** (`main.tex` aborta con `File 'biblatex.sty' not found`;
+  haría falta `texlive-bibtex-extra` + `biber`). Tomarlo junto con las tres correcciones del
+  Anexo A que ya están en esta lista, en una sesión con LaTeX completo.
 
 - **[14] Barrido pendiente, capítulo por capítulo.** Nadie contrastó todavía `tesis/` contra
   el software de forma sistemática. Cada vez que toque el área 14, tomá **una** sección que no
@@ -155,14 +165,23 @@ Formato: `[área Nº] descripción — evidencia — quién decide`.
   abierto y ahora tiene **más** filas que sumar: tomarlos juntos, en la misma pasada por el
   Anexo A, cuando haya `pdflatex`.
 
-- **[6] `_on_export_pdf` puede lanzar dos compilaciones a la vez.** El `_PDFProgressDialog`
-  **no** hace `grab_set` (decisión tomada: la GUI sigue interactiva mientras el worker
-  compila), pero nada impide volver a *Archivo ▸ Exportar ▸ Memoria de Cálculo* con una
-  compilación en curso: arrancan dos threads y, si el alumno elige el mismo destino, los dos
-  escriben el mismo `.pdf`. Hoy no revienta nada visible —cada worker trabaja sobre su propio
-  snapshot— pero es una carrera real. El arreglo natural es un guard `_exportando` en el mismo
-  estilo que el `_solving` de `auto_solve` (sesión 03); no se hizo acá para no tocar el flujo de
-  la memoria (área 10) en una sesión de la ventana.
+- **[10] Quedan 7 `Overfull \hbox` en la Memoria de un modelo Q9** (los del ejemplo canónico
+  Q4 ya están en 0). Medidos con `pdflatex` sobre Cook Q9 N=4 por la sesión 11, que cerró los
+  otros 9: (a) ×4 la tabla de **N en los 9 puntos de Gauss** (13 columnas, ya en `\scriptsize`,
+  21,4 pt); (b) la **kₑ 18×18** en landscape `\tiny` (185,6 pt) y (c) el **vector F** de 18
+  entradas (180,7 pt); (d) la sustitución de **σ₁,₂** cuando los cuatro valores salen a 4
+  cifras (24,3 pt). Ninguno es nuevo. Los tres primeros piden una decisión de presentación
+  (bajar a `\tiny`, partir la tabla en dos bloques de PGs, o cortar el vector en filas de 6)
+  que **cambia cómo se ve el documento**: van con pendiente visual en el próximo turno del
+  área 10. El (d) se arregla como se arregló θp/σVM: partiéndolo en dos renglones.
+
+- **[10] El wireframe del contorno podría comerse el campo en mallas más finas que `far`.**
+  La sesión 11 dejó `render_contour` dibujando **todas** las aristas a cualquier escala, que es
+  lo que hace el canvas en `mid` (Cook 32×32 da 14,8 px por arista). Por debajo de
+  `LOD_EDGE_PX_FAR` el canvas deja **solo la silueta** (`boundary_edges`), y ahí la figura de la
+  Memoria seguiría dibujando la malla entera sobre el gradiente. No se tocó porque no hay caso
+  medido (haría falta una malla más fina que Cook 32×32) y porque alejarse del canvas sin
+  evidencia contradice el criterio de coherencia entre fases.
 
 - **[6] `_on_new_project` no limpia el breadcrumb de módulos visitados.** `_breadcrumb_visited`
   acumula por sesión y sobrevive a *Nuevo Proyecto*: los chips siguen marcados como visitados
@@ -398,6 +417,26 @@ Lo que el gate no puede juzgar. Cada ítem dice qué abrir, qué mirar y cómo r
 - **La ventana de Teoría centrada** (sesión 10). Abrirla en **1080p**: 900×820 px, **centrada
   sobre la ventana principal** y entera en pantalla (antes se abría donde Tk quisiera). Si el
   borde inferior queda cortado, revisar el `clamp_screen=True` del `center_dialog`.
+- **Las figuras de la Memoria en una malla real** (sesión 11, **el más importante**).
+  *Ayuda ▸ Cargar Ejemplo ▸ Membrana de Cook ▸ Q9* → `F5` → *Archivo ▸ Exportar ▸ Memoria de
+  Cálculo*, estilo **educativo**. En el PDF: el **«Resumen visual del modelo»** debe dejar ver
+  la malla y la franja de apoyos del borde izquierdo (antes: una mancha azul de discos y
+  números encimados), y la **«Configuración deformada»** debe mostrar la **malla verde**
+  deformada sobre la gris original (antes la verde estaba enterrada bajo un disco por nodo).
+  Comparar con la Memoria del **ejemplo canónico** (`Ctrl+E`), que debe verse **igual que
+  antes**: numeración completa y discos grandes. Revertir: `git revert` del commit de la
+  sesión 11.
+- **La escala de color del contorno** (sesión 11). En esa misma Memoria, los cuatro contornos:
+  la colorbar debe decir **`σVM [MPa]`** (símbolo + unidad del proyecto) en vez de `sigma_VM`,
+  con los ticks en el mismo formato que la del lienzo (`2.50e+07` en magnitudes grandes);
+  contrastar con la pestaña Post en pantalla. Si aparecen **cajas** en vez de σ, esa máquina no
+  tiene ninguna TrueType con griego: revisar `figure_export._resolve_ttf`.
+- **Tablas con unidades y el diagnóstico que ya no se corta** (sesión 11). En la misma Memoria
+  los encabezados deben decir `X [mm]`, `Fx [N]`, `ux [mm]`, `σx [MPa]`, `Espesor [mm]`,
+  `q_inicio [N/mm]`, y **ninguna** tabla debe pasarse del margen derecho. Mirar sobre todo el
+  capítulo **⑧ Diagnóstico** de un modelo con hallazgos (basta agregar un material y no
+  asignarlo): la columna **Recomendación** tiene que quedar dentro de la hoja y cortar línea
+  (antes se iba 23 cm hacia afuera). El **Glosario** del final, igual.
 
 (*El centrado de `Ayuda ▸ Acerca de EduFEM`, que antes moría en `NameError`, no ocupa un
 pendiente visual: se verificó con Tk real bajo `xvfb` — abre en `450x350+225+175`, centrado
@@ -530,6 +569,33 @@ futura reabra algo ya decidido.
 - **[9] El default `element_type="Q4"` de `iso_inverse` resolvía a las N de Q9** — cerrado por
   la sesión 10 (el literal no matchea `ELEMENT_Q4`). El defecto de fondo, en `fem/`, queda
   abierto arriba como ítem del área 12.
+
+- **[6 / 10] `_on_export_pdf` podía lanzar dos compilaciones a la vez** — cerrado por la
+  sesión 11 con el guard `_exportando_pdf` (mismo patrón que el `_solving` de `auto_solve`),
+  liberado **al principio** de `_on_done` para que los `messagebox` modales del cierre no
+  dejen Exportar bloqueado mientras el alumno lee el aviso. El segundo pedido lo dice en la
+  barra de estado. Regresión: `test_exportar_memoria_no_lanza_dos_compilaciones`.
+- **[10] La tabla de diagnóstico y el glosario se imprimían fuera de la hoja** — cerrado por
+  la sesión 11. `_longtable` contaba **caracteres** en vez de columnas
+  (`len("lp{10cm}") == 8 != 2`), así que descartaba en silencio todo preámbulo con `p{…}` y
+  caía al `l` por defecto, que no corta línea: las recomendaciones del validador se iban
+  **673 pt** (23 cm) del margen derecho y el glosario 73 pt. Ahora las cuenta
+  `_count_col_specs`. Medido con `pdflatex`: los `Overfull \hbox` del ejemplo canónico pasaron
+  de 5 a 0 y los de Cook Q9 de 16 a 7. Regresión:
+  `test_longtable_cuenta_columnas_de_parrafo`.
+- **[10] La figura del modelo y la deformada eran una mancha de discos en cualquier malla
+  real** — cerrado por la sesión 11. Dibujaban un disco y un número **por nodo** a cualquier
+  escala: con Cook 32×32 Q9 (un ejemplo del propio menú) la deformada verde quedaba enterrada.
+  Ahora siguen el LOD del canvas (`median_edge_length * scale` → `lod_level`, mismos umbrales)
+  y las mallas de ≤ 12 elementos no se degradan (canónico píxel a píxel idéntico). Medido:
+  ×2,07 píxeles de deformada visibles en Cook 16×16. Regresión:
+  `test_figuras_lod_en_malla_densa`.
+- **[10 / 4] La colorbar del contorno mostraba la key interna y no decía la unidad** — cerrado
+  por la sesión 11: `σVM [MPa]` con los ticks de `fmt_escala`, igual que el lienzo y la
+  Vista 3D. Era el único resultado que llegaba al alumno sin unidad.
+- **[10] Ninguna tabla de la Memoria decía la unidad de sus números** — cerrado por la sesión
+  11 con la vía única `_u(kind)` / `_u_lineal()` sobre `config.units`, en las 12 tablas con
+  magnitud física y en los dos estilos. Regresión: `test_tablas_con_unidades`.
 
 - **[1] `Supr` no borraba nada con multi-selección en el canvas** — cerrado por la sesión 01.
   El handler despachaba por `highlighted_*` (que valen `None` con >1 ítem). Ahora lee los sets

@@ -1,6 +1,6 @@
 # Estado del trabajo
 
-**Última actualización**: 2026-09-07
+**Última actualización**: 2026-09-09
 
 > Lo primero que lee un agente al entrar. Qué está en curso, qué quedó a medias y qué
 > decisión espera al autor. Se edita; lo que deja de aplicar se borra.
@@ -36,7 +36,11 @@ tesis** (`tesis/`, 130 páginas, compila limpio).
   canónico pasa de 977,46 a 864,70); Q9 no cambia. El diagrama de malla ya no rotula elementos
   demasiado chicos para el texto. **Sumar a esa validación** (rutina, sesión 04, 2026-09-08):
   la **Vista 3D en modo Crudo** —que hasta ahora dibujaba el campo transpuesto dentro de cada
-  elemento— y su **nueva escala de color**. El detalle de qué mirar está en
+  elemento— y su **nueva escala de color**. **Sumar también** (rutina, sesión 11, 2026-09-09):
+  las **figuras de la Memoria en una malla real** (con Cook Q9, el diagrama del modelo y la
+  deformada ya no son una mancha de discos: los nodos siguen el LOD del canvas), la colorbar
+  del contorno con **símbolo y unidad** (`σVM [MPa]`) y las **tablas con unidades**; el
+  ejemplo canónico debe salir igual que antes. El detalle de qué mirar está en
   [../rutina/BACKLOG.md](../rutina/BACKLOG.md), *Pendientes visuales*.
 - **Editar un material ya invalida la solución** (rutina, sesión 08, 2026-09-09). Hasta este
   commit, cambiar E, ν o ρ desde *Modelo ▸ Material* no ponía `is_solved = False`, así que

@@ -191,6 +191,12 @@ Abreviaturas de capítulo:
 | `render_surface_3d` o una 3D estática en el PDF | Suma peso sin ganancia sobre el contorno 2D | [MEM] |
 | Internals del software en la narrativa (`spsolve`, SuperLU, `node_index_map`, rutas `fem/…`) | La teoría es general, estilo libro de texto | [MEM] |
 | Caracteres no-ASCII literales (σ, →, ≤, ₑ, κ, ε) en strings LaTeX | Abortan la compilación en cp1252 | [MEM] |
+| Contar las columnas de un `col_align` con `len()` en `_longtable` | `p{4.3cm}` es UNA columna: el glosario y la tabla de diagnóstico perdían su columna de párrafo y el texto se salía **673 pt** del margen. Es `_count_col_specs` | [MEM] |
+| Un disco y un número por nodo en las figuras del modelo a cualquier escala | Cook 32×32 Q9 (4225 nodos a ~8 px) salía como una mancha de discos que tapaba la deformada: siguen el LOD del canvas (`lod_level`) | [MEM] |
+| La key interna (`sigma_VM`) o una escala sin unidad en la colorbar del contorno | El lienzo y la Vista 3D rotulan `σVM [MPa]`: era el único resultado que llegaba al alumno sin decir en qué unidad está | [MEM] |
+| Encabezados de tabla de la Memoria sin la unidad del sistema | El Pre rotula `X [mm]` y el Post `sigma_x [MPa]`: la vía única es `MemoriaCalculo._u(kind)` | [MEM] |
+| θp y σVM en la misma línea de `equation*` | `\qquad` no da punto de corte y la línea se pasaba 44 pt del margen | [MEM] |
+| Exportar la Memoria sin el guard `_exportando_pdf` | El diálogo de progreso no es modal: dos threads escribiendo el mismo `.pdf` | [MEM] |
 
 ---
 

@@ -20,6 +20,13 @@ Cobertura (sincronizada con las funciones reales; ver el bloque __main__):
     test_tex_directo_paso_a_paso.
   - test_mesh_diagram_es_pil: render_mesh_diagram devuelve una PIL.Image.
   - test_contornos_pil_blanco: los contornos son PIL con fondo blanco.
+  - test_longtable_cuenta_columnas_de_parrafo: `p{4.3cm}` es UNA columna
+    (el glosario y la tabla de diagnostico perdian su columna de parrafo).
+  - test_tablas_con_unidades: los encabezados dicen la unidad del sistema.
+  - test_contorno_rotulo_con_simbolo_y_unidad: la colorbar del contorno usa
+    el simbolo del campo + su unidad, con los ticks de `fmt_escala`.
+  - test_figuras_lod_en_malla_densa: los nodos de las figuras siguen el LOD
+    del canvas (la deformada de una malla densa era una mancha de discos).
   - test_pipeline_map_es_pil / test_compila_directo_q4.
   - test_hub_*: chequeos del Theory Hub (post-proceso, numeracion M3=B/M4=D,
     rangos de calidad, LU sin internals, sin Mohr,
@@ -436,6 +443,160 @@ def test_contornos_pil_blanco() -> bool:
     return True
 
 
+def test_longtable_cuenta_columnas_de_parrafo() -> bool:
+    """`p{4.3cm}` es UNA columna, no ocho caracteres.
+
+    `_longtable` descartaba el preambulo cuando `len(col_align) != n_cols`:
+    el glosario (`lp{10cm}`) y la tabla de diagnostico
+    (`lp{4.3cm}p{6.2cm}`) caian al `l` por defecto, que no corta linea. Las
+    recomendaciones del validador se salian **673 pt** del margen derecho
+    (medido con pdflatex sobre Cook Q9), o sea fuera de la hoja."""
+    print("test_longtable_cuenta_columnas_de_parrafo ...")
+    cuenta = MemoriaCalculo._count_col_specs
+    casos = [("rrrr", 4), ("lp{10cm}", 2), ("lp{4.3cm}p{6.2cm}", 3),
+             ("ccrrrrrr", 8), ("l|r", 2), ("m{2cm}b{3cm}c", 3)]
+    for spec, esperado in casos:
+        got = cuenta(spec)
+        if got != esperado:
+            print(f"  FAIL: '{spec}' cuenta {got} columnas, no {esperado}")
+            return False
+    tex = _tex("educativo")
+    if r"\begin{longtable}{lp{10cm}}" not in tex:
+        print("  FAIL: el glosario perdio su columna de parrafo p{10cm}")
+        return False
+    # Tabla de diagnostico: solo aparece si el modelo tiene hallazgos.
+    from models.material import Material
+    project, solution, es, ns = _solved_example()
+    project.materials["Sin usar"] = Material("Sin usar", 210000.0, 0.3)
+    mem = MemoriaCalculo(project, solution, es, ns, style="directo")
+    mem.build()
+    tex_diag = mem.tex_source()
+    if r"\begin{longtable}{lp{4.3cm}p{6.2cm}}" not in tex_diag:
+        print("  FAIL: la tabla de diagnostico perdio sus columnas p{}")
+        return False
+    print("  OK: glosario y diagnostico conservan sus columnas de parrafo")
+    return True
+
+
+def test_tablas_con_unidades() -> bool:
+    """Los encabezados dicen en que unidad estan los numeros.
+
+    Es el mismo rotulado que las tablas del Pre (`X [mm]`, `q Inicio
+    [N/mm]`) y del Post (`sigma_x [MPa]`): la Memoria era el unico lugar
+    donde los valores llegaban al alumno sin unidad."""
+    print("test_tablas_con_unidades ...")
+    from config.units import get_unit_labels
+    project = load_example_project()
+    u = get_unit_labels(project.unit_system)
+    L, F, S = u["longitud"], u["fuerza"], u["esfuerzo"]
+    for style in ("educativo", "directo"):
+        tex = _tex(style)
+        esperados = [
+            f"$X$ [{L}]", f"$Y$ [{L}]", f"Espesor [{L}]",
+            f"$F_x$ [{F}]", f"$R_x$ [{F}]", f"$u_x$ [{L}]",
+            f"$\\sigma_x$ [{S}]", f"$\\sigma_{{VM}}$ [{S}]", f"$E$ [{S}]",
+        ]
+        faltan = [e for e in esperados if e not in tex]
+        if faltan:
+            print(f"  FAIL ({style}): encabezados sin unidad: {faltan}")
+            return False
+    print(f"  OK: encabezados con [{L}] / [{F}] / [{S}] en ambos estilos")
+    return True
+
+
+def test_contorno_rotulo_con_simbolo_y_unidad() -> bool:
+    """La colorbar del contorno dice el simbolo del campo y su unidad.
+
+    Era el unico resultado que llegaba al alumno sin unidad y con la key
+    interna (`sigma_x`) como rotulo, mientras la colorbar del lienzo y la de
+    la Vista 3D muestran `sigma_x [MPa]`."""
+    print("test_contorno_rotulo_con_simbolo_y_unidad ...")
+    try:
+        from PIL import Image  # noqa: F401
+    except ImportError:
+        print("  SKIP: Pillow no disponible")
+        return True
+    from file_io import figure_export as fx
+    from config.units import get_unit_labels
+    project = load_example_project()
+    if fx._resolve_ttf() is None:
+        print("  SKIP: sin fuente TrueType (los rotulos degradan a ASCII)")
+        return True
+    esperado = {"sigma_x": "σx", "sigma_y": "σy",
+                "tau_xy": "τxy", "von_mises": "σVM"}
+    for comp, sym in esperado.items():
+        got = fx._component_label(comp)
+        if got != sym:
+            print(f"  FAIL: rotulo de {comp} es '{got}', se esperaba '{sym}'")
+            return False
+    unidad = fx._stress_unit(project)
+    esperada = get_unit_labels(project.unit_system)["esfuerzo"]
+    if unidad != esperada:
+        print(f"  FAIL: unidad '{unidad}' != '{esperada}' del sistema "
+              f"'{project.unit_system}'")
+        return False
+    # Los ticks de la escala comparten formato con la colorbar del lienzo.
+    from config.settings import fmt_escala
+    import inspect
+    src = inspect.getsource(fx._draw_colorbar)
+    if "fmt_escala" not in src:
+        print("  FAIL: los ticks de la colorbar no pasan por fmt_escala")
+        return False
+    if fmt_escala(2.5e7) != "2.50e+07":
+        print("  FAIL: fmt_escala no da el formato esperado")
+        return False
+    print(f"  OK: rotulos griegos + unidad '{unidad}' + ticks fmt_escala")
+    return True
+
+
+def test_figuras_lod_en_malla_densa() -> bool:
+    """En una malla densa la deformada muestra la deformada, no una mancha.
+
+    `render_deformed` dibujaba un disco por nodo a cualquier escala: con Cook
+    16x16 Q9 (1089 nodos) los discos tapaban por completo la malla verde, que
+    es lo unico que la figura tiene que mostrar. Ahora los nodos siguen el
+    mismo LOD que el canvas (`canvas_logic.lod_level`) y las mallas de pocos
+    elementos se ven exactamente igual que antes."""
+    print("test_figuras_lod_en_malla_densa ...")
+    try:
+        from PIL import Image  # noqa: F401
+    except ImportError:
+        print("  SKIP: Pillow no disponible")
+        return True
+    from file_io import figure_export as fx
+    from models.example_library import load_example_cook_q9
+
+    # (a) El ejemplo canonico (4 elementos) nunca se degrada.
+    project = load_example_project()
+    view = fx._View([n.x for n in project.nodes.values()],
+                    [n.y for n in project.nodes.values()],
+                    900, 680, pad_left=36, pad_right=36,
+                    pad_top=48, pad_bottom=36)
+    lod, _ = fx._detail(project, view)
+    if lod != "near":
+        print(f"  FAIL: el ejemplo canonico degrado a '{lod}' (debe ser near)")
+        return False
+
+    # (b) Malla densa: la deformada verde tiene que verse.
+    dense = load_example_cook_q9(N=16)
+    solution = solve_system(dense)
+    img = fx.render_deformed(dense, solution)
+    if img is None:
+        print("  FAIL: render_deformed devolvio None")
+        return False
+    arr = np.asarray(img.convert("RGB"), dtype=int)
+    verde = int((np.abs(arr - np.array(fx._RGB_DEFORMED)).sum(axis=2)
+                 < 30).sum())
+    # Medido: 14 590 px con un disco por nodo, 30 252 px sin ellos. El piso
+    # deja margen de sobra y falla si vuelven los discos.
+    if verde < 22000:
+        print(f"  FAIL: solo {verde} px de malla deformada visibles "
+              f"(los discos de nodo la estan tapando)")
+        return False
+    print(f"  OK: canonico='near'; Cook 16x16 con {verde} px de deformada")
+    return True
+
+
 def test_pipeline_map_es_pil() -> bool:
     """El mapa del cálculo (infografía del educativo) es una PIL.Image."""
     print("test_pipeline_map_es_pil ...")
@@ -648,6 +809,10 @@ if __name__ == "__main__":
         test_tex_directo_paso_a_paso(),
         test_mesh_diagram_es_pil(),
         test_contornos_pil_blanco(),
+        test_longtable_cuenta_columnas_de_parrafo(),
+        test_tablas_con_unidades(),
+        test_contorno_rotulo_con_simbolo_y_unidad(),
+        test_figuras_lod_en_malla_densa(),
         test_pipeline_map_es_pil(),
         test_compila_directo_q4(),
         test_hub_tiene_post_proceso(),

@@ -268,6 +268,7 @@ class MemoriaCalculo:
         # los elementos / re-validar 3-4 veces.
         self._mq_cache = None
         self._health_cache = None
+        self._units_cache = None
 
         title = TheoryDoc.escape(self.TITLE)
         subtitle = TheoryDoc.escape(
@@ -370,6 +371,45 @@ class MemoriaCalculo:
             except Exception:
                 self._mq_cache = {}
         return self._mq_cache
+
+    # Superindices de las unidades tecnicas (kgf/cm2, tonf/m2) en LaTeX: el
+    # `²` literal es no-ASCII en un string del .tex (regla dura 20).
+    _UNIT_TEX = {"²": r"\textsuperscript{2}", "³": r"\textsuperscript{3}"}
+
+    def _units(self) -> dict:
+        """Etiquetas de unidad del sistema del proyecto, memoizadas. Misma
+        fuente que las tablas del Post y la colorbar del lienzo."""
+        if self._units_cache is None:
+            try:
+                from config.units import get_unit_labels
+                self._units_cache = get_unit_labels(self._project.unit_system)
+            except Exception:
+                self._units_cache = {}
+        return self._units_cache
+
+    def _u(self, kind: str) -> str:
+        """Sufijo de unidad para un encabezado de tabla: `` [MPa]``.
+
+        `kind` es una clave de `config.units` (`longitud`, `fuerza`,
+        `esfuerzo`). Cadena vacia si el sistema no la define — el encabezado
+        queda como estaba y la tabla nunca se rompe. Las tablas del Post
+        rotulan asi (`sigma_x [MPa]`): sin esto la Memoria era el unico lugar
+        donde los numeros llegaban al alumno sin decir en que unidad estan."""
+        label = str(self._units().get(kind, "") or "")
+        if not label:
+            return ""
+        for raw, tex in self._UNIT_TEX.items():
+            label = label.replace(raw, tex)
+        return rf" [{label}]"
+
+    def _u_lineal(self) -> str:
+        """Sufijo de la carga superficial: `` [N/mm]`` (fuerza por unidad de
+        longitud, igual que el encabezado `q Inicio [N/mm]` del Pre-Proceso)."""
+        fuerza = str(self._units().get("fuerza", "") or "")
+        longitud = str(self._units().get("longitud", "") or "")
+        if not (fuerza and longitud):
+            return ""
+        return rf" [{fuerza}/{longitud}]"
 
     def _health(self):
         """HealthReport del modelo, memoizado. None si el validador falla."""
@@ -702,8 +742,10 @@ class MemoriaCalculo:
         if not rows:
             self._td.para(r"\emph{Ningún material está referenciado por elementos.}")
             return
-        self._longtable(headers=["Material", r"$E$", r"$\nu$", r"$\rho$"],
-                        rows=rows, col_align="lrrr")
+        self._longtable(
+            headers=["Material", "$E$" + self._u("esfuerzo"), r"$\nu$",
+                     r"$\rho$"],
+            rows=rows, col_align="lrrr")
 
     def _tabla_nodos(self) -> None:
         proj = self._project
@@ -713,7 +755,8 @@ class MemoriaCalculo:
         rows = [[str(nid), fmt(proj.nodes[nid].x, "length"),
                  fmt(proj.nodes[nid].y, "length")]
                 for nid in sorted(proj.nodes.keys())]
-        self._longtable(headers=["ID", r"$X$", r"$Y$"], rows=rows,
+        u = self._u("longitud")
+        self._longtable(headers=["ID", "$X$" + u, "$Y$" + u], rows=rows,
                         col_align="rrr")
 
     def _tabla_elementos(self) -> None:
@@ -724,11 +767,12 @@ class MemoriaCalculo:
         is_q9 = proj.element_type == ELEMENT_Q9
         if is_q9:
             headers = ["ID", "N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8",
-                       "N9", "Espesor", "Material"]
+                       "N9", "Espesor" + self._u("longitud"), "Material"]
             col_align = "r" * 10 + "rl"
             n_cols = 9
         else:
-            headers = ["ID", "N1", "N2", "N3", "N4", "Espesor", "Material"]
+            headers = ["ID", "N1", "N2", "N3", "N4",
+                       "Espesor" + self._u("longitud"), "Material"]
             col_align = "rrrrrrl"
             n_cols = 4
         rows = []
@@ -741,7 +785,14 @@ class MemoriaCalculo:
             row.append(fmt(elem.thickness, "length"))
             row.append(TheoryDoc.escape(elem.material_name))
             rows.append(row)
+        # Q9: 12 columnas rozan el ancho de A4 portrait (con la unidad del
+        # espesor en el encabezado se pasaban 5,7 pt) -> scriptsize, el mismo
+        # tratamiento que la tabla de N en puntos de Gauss.
+        if is_q9:
+            self._td.raw(r"{\scriptsize")
         self._longtable(headers=headers, rows=rows, col_align=col_align)
+        if is_q9:
+            self._td.raw(r"}")
 
     def _tabla_cargas_nodales(self) -> None:
         proj = self._project
@@ -751,7 +802,8 @@ class MemoriaCalculo:
         rows = [[str(nid), fmt(proj.nodal_loads[nid].fx, "force"),
                  fmt(proj.nodal_loads[nid].fy, "force")]
                 for nid in sorted(proj.nodal_loads.keys())]
-        self._longtable(headers=["Nodo", r"$F_x$", r"$F_y$"], rows=rows,
+        u = self._u("fuerza")
+        self._longtable(headers=["Nodo", "$F_x$" + u, "$F_y$" + u], rows=rows,
                         col_align="rrr")
 
     def _tabla_cargas_superficiales(self) -> None:
@@ -765,9 +817,10 @@ class MemoriaCalculo:
             rows.append([str(idx), str(sl.node_start), str(sl.node_end),
                          fmt(sl.q_start, "force"), fmt(sl.q_end, "force"),
                          fmt(angle, "angle")])
+        u = self._u_lineal()
         self._longtable(
-            headers=[r"\#", "N inicio", "N fin", r"$q_{inicio}$", r"$q_{fin}$",
-                     r"$\theta$ (°)"],
+            headers=[r"\#", "N inicio", "N fin", r"$q_{inicio}$" + u,
+                     r"$q_{fin}$" + u, r"$\theta$ (°)"],
             rows=rows, col_align="rrrrrr")
 
     def _tabla_restricciones(self) -> None:
@@ -1605,8 +1658,10 @@ class MemoriaCalculo:
              rf"\textbf{{{fmt(ftot_x, 'force')}}}",
              rf"\textbf{{{fmt(ftot_y, 'force')}}}"],
         ]
-        self._longtable(headers=["Fuente", r"$\sum F_x$", r"$\sum F_y$"],
-                        rows=rows, col_align="lrr")
+        u = self._u("fuerza")
+        self._longtable(
+            headers=["Fuente", r"$\sum F_x$" + u, r"$\sum F_y$" + u],
+            rows=rows, col_align="lrr")
 
     # ------------------------------------------------------------------
     # Capítulo 6: restricciones + solución (fusionado)
@@ -1744,8 +1799,11 @@ class MemoriaCalculo:
             ux, uy = float(u[base]), float(u[base + 1])
             umag = float(np.hypot(ux, uy))
             rows.append([str(nid), f"{ux:.5e}", f"{uy:.5e}", f"{umag:.5e}"])
-        self._longtable(headers=["Nodo", r"$u_x$", r"$u_y$", r"$|u|$"],
-                        rows=rows, col_align="rrrr")
+        # `uni`, no `u`: en este metodo `u` es el vector de desplazamientos.
+        uni = self._u("longitud")
+        self._longtable(
+            headers=["Nodo", "$u_x$" + uni, "$u_y$" + uni, "$|u|$" + uni],
+            rows=rows, col_align="rrrr")
 
     def _tabla_reacciones(self, R) -> None:
         proj = self._project
@@ -1766,7 +1824,8 @@ class MemoriaCalculo:
             rows.append([str(nid), fmt(rx, "force"), fmt(ry, "force")])
         rows.append([r"\textbf{Suma}", rf"\textbf{{{fmt(sum_rx, 'force')}}}",
                      rf"\textbf{{{fmt(sum_ry, 'force')}}}"])
-        self._longtable(headers=["Nodo", r"$R_x$", r"$R_y$"], rows=rows,
+        u = self._u("fuerza")
+        self._longtable(headers=["Nodo", "$R_x$" + u, "$R_y$" + u], rows=rows,
                         col_align="rrr")
 
     def _tabla_verificacion_equilibrio(self, R) -> None:
@@ -1788,8 +1847,11 @@ class MemoriaCalculo:
             ["Y", fmt(Fy_aplicada, "force"), fmt(Ry_total, "force"),
              f"{Fy_aplicada + Ry_total:.3e}"],
         ]
-        self._longtable(headers=["Dirección", "Cargas aplicadas", "Reacciones",
-                                 "Residuo"], rows=rows, col_align="crrr")
+        u = self._u("fuerza")
+        self._longtable(
+            headers=["Dirección", "Cargas aplicadas" + u, "Reacciones" + u,
+                     "Residuo" + u],
+            rows=rows, col_align="crrr")
 
     # ------------------------------------------------------------------
     # Capítulo 7: post-proceso
@@ -2007,9 +2069,12 @@ class MemoriaCalculo:
                 fmt(s.get("sigma_2", 0.0), "stress"),
                 fmt(s.get("von_mises", 0.0), "stress"),
             ])
+        u = self._u("esfuerzo")
         self._longtable(
-            headers=["Nodo", r"$\sigma_x$", r"$\sigma_y$", r"$\tau_{xy}$",
-                     r"$\sigma_1$", r"$\sigma_2$", r"$\sigma_{VM}$"],
+            headers=["Nodo"] + [sym + u for sym in
+                                (r"$\sigma_x$", r"$\sigma_y$",
+                                 r"$\tau_{xy}$", r"$\sigma_1$",
+                                 r"$\sigma_2$", r"$\sigma_{VM}$")],
             rows=rows, col_align="rrrrrrr")
 
     def _insertar_contorno(self, component: str) -> None:
@@ -2055,9 +2120,12 @@ class MemoriaCalculo:
         if not rows:
             self._td.para(r"\emph{Sin tensiones por punto de Gauss.}")
             return
+        u = self._u("esfuerzo")
         self._longtable(
-            headers=["Elem", "PG", r"$\sigma_x$", r"$\sigma_y$", r"$\tau_{xy}$",
-                     r"$\sigma_1$", r"$\sigma_2$", r"$\sigma_{VM}$"],
+            headers=["Elem", "PG"] + [sym + u for sym in
+                                      (r"$\sigma_x$", r"$\sigma_y$",
+                                       r"$\tau_{xy}$", r"$\sigma_1$",
+                                       r"$\sigma_2$", r"$\sigma_{VM}$")],
             rows=rows, col_align="ccrrrrrr")
 
     # ------------------------------------------------------------------
@@ -2096,10 +2164,13 @@ class MemoriaCalculo:
                 fmt(gs.get("sigma_y", 0.0), "stress"),
                 fmt(gs.get("tau_xy", 0.0), "stress"),
             ])
+        # Las deformaciones son adimensionales; las tensiones llevan la
+        # unidad del sistema del proyecto.
+        u = self._u("esfuerzo")
         self._longtable(
             headers=["PG", r"$\varepsilon_x$", r"$\varepsilon_y$",
-                     r"$\gamma_{xy}$", r"$\sigma_x$", r"$\sigma_y$",
-                     r"$\tau_{xy}$"],
+                     r"$\gamma_{xy}$", r"$\sigma_x$" + u,
+                     r"$\sigma_y$" + u, r"$\tau_{xy}$" + u],
             rows=rows, col_align="ccccrrr")
 
     def _sustitucion_principales_vm(self) -> None:
@@ -2149,16 +2220,21 @@ class MemoriaCalculo:
             )
         else:
             theta_expr = rf"\theta_p={theta:.4g}^\circ"
+        # theta_p y sigma_VM van en RENGLONES SEPARADOS: juntos con un \qquad
+        # la linea se pasaba del margen derecho (Overfull \hbox de 44 pt en el
+        # ejemplo canonico, con los cuatro valores a 4 cifras). El \qquad no
+        # da punto de corte y `equation*` no parte la linea sola.
         if proj.analysis_type == _DP:
+            td.equation(theta_expr + rf",\qquad \sigma_z={sz:.4g}")
             td.equation(
-                theta_expr + rf",\qquad \sigma_z={sz:.4g},\qquad "
                 rf"\sigma_{{VM}}=\sqrt{{\tfrac12\left[({s1:.4g}-({s2:.4g}))^2"
                 rf"+({s2:.4g}-({sz:.4g}))^2+({sz:.4g}-({s1:.4g}))^2\right]}}"
                 rf"={vm:.4g}"
             )
         else:
+            td.equation(theta_expr)
             td.equation(
-                theta_expr + rf",\qquad \sigma_{{VM}}=\sqrt{{({s1:.4g})^2"
+                rf"\sigma_{{VM}}=\sqrt{{({s1:.4g})^2"
                 rf"-({s1:.4g})({s2:.4g})+({s2:.4g})^2}}={vm:.4g}"
             )
 
@@ -2221,8 +2297,9 @@ class MemoriaCalculo:
         rows.append([r"Salto $\Delta$"] + [
             fmt((max(vs) - min(vs)) if vs else 0.0, "stress")
             for c, vs in ((c, vals_by_comp[c]) for c, _ in comps)])
+        u = self._u("esfuerzo")
         self._longtable(
-            headers=["Origen"] + [sym for _, sym in comps],
+            headers=["Origen"] + [sym + u for _, sym in comps],
             rows=rows, col_align="l" + "r" * len(comps))
         if self._prose:
             td.educational_teaser(
@@ -2614,6 +2691,42 @@ class MemoriaCalculo:
         td.para(rf"\emph{{Documento generado por {TheoryDoc.escape(APP_NAME)} "
                 rf"v{APP_VERSION}.}}")
 
+    @staticmethod
+    def _count_col_specs(col_align: str) -> int:
+        """Cantidad de COLUMNAS que declara un preámbulo de tabla LaTeX.
+
+        No es `len(col_align)`: una columna de párrafo ocupa varios
+        caracteres (`p{4.3cm}`) y los separadores (`|`) no ocupan ninguna.
+        Contarlas por longitud descartaba en silencio todo preámbulo con
+        `p{...}` — el glosario (`lp{10cm}`) y la tabla de diagnóstico
+        (`lp{4.3cm}p{6.2cm}`) caían al `l` por defecto, que **no corta
+        línea**: sus celdas de texto largo se salían del margen derecho
+        (5 `Overfull \\hbox` de hasta 73 pt en la Memoria del ejemplo
+        canónico).
+        """
+        n, i = 0, 0
+        while i < len(col_align):
+            c = col_align[i]
+            if c in "lcr":
+                n += 1
+                i += 1
+            elif c in "pmb" and i + 1 < len(col_align) \
+                    and col_align[i + 1] == "{":
+                depth, j = 0, i + 1
+                while j < len(col_align):
+                    if col_align[j] == "{":
+                        depth += 1
+                    elif col_align[j] == "}":
+                        depth -= 1
+                        if depth == 0:
+                            break
+                    j += 1
+                n += 1
+                i = j + 1
+            else:
+                i += 1          # separadores (`|`, espacios): no son columna
+        return n
+
     def _longtable(self, *, headers: list[str], rows: list[list[str]],
                    col_align: str) -> None:
         td = self._td
@@ -2624,7 +2737,7 @@ class MemoriaCalculo:
             raise ValueError(
                 f"longtable: filas con columnas inconsistentes (esperado "
                 f"{n_cols}).")
-        if len(col_align) != n_cols:
+        if self._count_col_specs(col_align) != n_cols:
             col_align = "l" * n_cols
         head_row = " & ".join(rf"\textbf{{{h}}}" for h in headers) + r" \\"
         td.raw(r"\begin{center}")
