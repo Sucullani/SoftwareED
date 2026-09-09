@@ -49,6 +49,7 @@ Singleton por clase: `activate()` reusa la instancia activa si existe
 
 from __future__ import annotations
 
+import traceback
 from typing import Callable, Optional, Tuple
 
 import tkinter as tk
@@ -98,7 +99,10 @@ def _notify_overlay_change(main_window) -> None:
         try:
             cb(main_window, active_keys)
         except Exception:
-            pass
+            # Hoy el único listener es el breadcrumb de la barra de estado: si
+            # falla mudo, el chip del módulo queda encendido (o apagado) sin
+            # relación con lo que está abierto.
+            traceback.print_exc()
 
 
 class CanvasOverlayModule:
@@ -159,7 +163,11 @@ class CanvasOverlayModule:
             try:
                 inst.close()
             except Exception:
-                pass
+                # Si el overlay anterior no se cierra, su capa (las trazas de
+                # M7, el X-ray de M0) queda dibujada DEBAJO del módulo nuevo —
+                # exactamente el ruido visual que la política de overlay único
+                # evita. Sin traza era indepurable.
+                traceback.print_exc()
 
         inst = cls(main_window, project, element_id)
         _ACTIVE[key] = inst
@@ -197,6 +205,9 @@ class CanvasOverlayModule:
 
         # Capa educativa — bound method que se borrará en _cleanup.
         self._layer = self._draw_layer_wrapper
+        # Guard de traza de la capa: una sola por instancia (ver
+        # `_draw_layer_wrapper`).
+        self._layer_error_traced = False
 
         # **API moderna**: el MeshCanvas dispara `on_selection_changed(dict)`
         # cuando cambia cualquier selección. Las legacy `on_element_select`
@@ -231,6 +242,10 @@ class CanvasOverlayModule:
         try:
             self.build_overlay(self._overlay.body)
         except Exception as exc:
+            # El alumno ve el cartel; el traceback va a stderr porque `str(exc)`
+            # solo no alcanza para ubicar el fallo (el cartel dice "KeyError:
+            # 'mod03'" sin una línea).
+            traceback.print_exc()
             self._show_overlay_error(str(exc))
 
         # Registrar la capa de dibujo y mostrar el overlay
@@ -241,7 +256,11 @@ class CanvasOverlayModule:
         try:
             self.on_activated()
         except Exception:
-            pass
+            # `on_activated` es donde los módulos registran su click consumer,
+            # el hover y los loops de animación: si falla mudo, el overlay abre
+            # pero NO REACCIONA a nada de lo que haga el alumno en el lienzo
+            # (M0 sin hover ni drag, M1/M2/M3 sin snap a nodo/PG).
+            traceback.print_exc()
 
     # ── Hooks que las subclases sobrescriben ────────────────────────
     def build_overlay(self, body: tk.Widget) -> None:
@@ -291,7 +310,9 @@ class CanvasOverlayModule:
         try:
             self._mesh.redraw()
         except Exception:
-            pass
+            # Sin redraw la capa educativa se queda con el dibujo del estado
+            # anterior: el alumno ve el marcador/glow donde ya no corresponde.
+            traceback.print_exc()
 
     def refit_overlay(self) -> None:
         """Re-ajusta el alto del overlay flotante a su contenido actual.
@@ -307,7 +328,10 @@ class CanvasOverlayModule:
             try:
                 refit()
             except Exception:
-                pass
+                # El Toplevel borderless no crece solo: sin refit, el contenido
+                # que acaba de aparecer (el banner de M0, un expander) empuja y
+                # RECORTA lo de abajo, incluido el cross-ref al pie.
+                traceback.print_exc()
 
     def on_activated(self) -> None:
         """Hook tras inicialización completa (overlay visible + layer
@@ -352,7 +376,11 @@ class CanvasOverlayModule:
                          mesh_canvas=self._mesh,
                          elem_id=self.element_id)
         except Exception:
-            pass
+            # El `👉 …` del pie es clickeable (cursor hand2): si falla mudo, el
+            # alumno clickea y NO PASA NADA. `open_module` ya avisa sus propios
+            # casos esperables (sin malla, sin canvas); lo que cae acá es un
+            # fallo inesperado y hasta ahora era invisible.
+            traceback.print_exc()
 
     # ── API pública ────────────────────────────────────────────────
     def set_element(self, elem_id: Optional[int]) -> None:
@@ -403,7 +431,11 @@ class CanvasOverlayModule:
                 try:
                     _prev(sel)
                 except Exception:
-                    pass
+                    # Eslabón previo de la cadena (proc_tab / pre_tab): si falla
+                    # mudo, el chip `#N` del panel de módulos y la barra de
+                    # estado se quedan con la selección anterior. Misma
+                    # convención que proc_tab (sesión 03).
+                    traceback.print_exc()
 
             elems = sel.get("elements", set()) if sel else set()
             nodes = sel.get("nodes", set()) if sel else set()
@@ -415,7 +447,10 @@ class CanvasOverlayModule:
                 try:
                     _self.on_element_selected(eid)
                 except Exception:
-                    pass
+                    # Si el hook falla mudo, el módulo DEJA DE SEGUIR al lienzo:
+                    # el alumno clickea otro elemento, el halo se mueve y el
+                    # overlay sigue mostrando los números del anterior.
+                    traceback.print_exc()
             elif eid is None and not elems and _self._last_seen_eid is not None:
                 # Caso deselección explícita (set vacío). Solo propagamos
                 # si el último visto era un elemento real — evita disparar
@@ -425,14 +460,16 @@ class CanvasOverlayModule:
                 try:
                     _self.on_element_deselected()
                 except Exception:
-                    pass
+                    # Idem: el overlay quedaría mostrando el elemento que el
+                    # alumno acaba de deseleccionar.
+                    traceback.print_exc()
 
             if nid is not None and nid != _self._last_seen_nid:
                 _self._last_seen_nid = nid
                 try:
                     _self.on_node_selected(nid)
                 except Exception:
-                    pass
+                    traceback.print_exc()
 
             # Multi-select de elementos o de nodos: solo resetear el
             # "último visto" para que la próxima selección single dispare
@@ -460,7 +497,11 @@ class CanvasOverlayModule:
                 try:
                     fn()
                 except Exception:
-                    pass
+                    # El overlay se cierra con withdraw (no destroy), así que un
+                    # `cleanup()` que falla deja el recurso vivo: el caso real es
+                    # el ToolTip de `ScrollableMatrixImage`, que queda como
+                    # Toplevel huérfano flotando sobre el escritorio.
+                    traceback.print_exc()
             self._cleanup_child_widgets(child)
 
     def _draw_layer_wrapper(self, mesh_canvas):
@@ -468,7 +509,14 @@ class CanvasOverlayModule:
         try:
             self.draw_canvas_layer(mesh_canvas)
         except Exception:
-            pass
+            # Una capa rota dibuja NADA sobre el lienzo y el módulo se ve
+            # "desconectado" del modelo (sin glow, sin X-ray, sin marcador).
+            # Traza UNA sola vez por instancia: `draw_canvas_layer` corre en
+            # cada redraw y M3 lo llama a ~30 fps desde su loop de pulso — sin
+            # el guard, un fallo persistente inundaría stderr.
+            if not self._layer_error_traced:
+                self._layer_error_traced = True
+                traceback.print_exc()
 
     def _show_overlay_error(self, msg: str) -> None:
         body = self._overlay.body
@@ -487,7 +535,11 @@ class CanvasOverlayModule:
         try:
             self.on_closed()
         except Exception:
-            pass
+            # `on_closed` es donde los módulos cancelan sus `after` y devuelven
+            # el lienzo a su estado: si falla mudo quedan secuelas visibles tras
+            # cerrar — M0 deja TODA la malla en modo fantasma gris, M3 deja su
+            # loop de pulso repintando a 30 fps sobre un overlay cerrado.
+            traceback.print_exc()
 
         # Cerrar recursos de widgets hijos que sobreviven al withdraw del
         # overlay (popups de zoom de LatexMatrixImage, bindings de
@@ -498,7 +550,7 @@ class CanvasOverlayModule:
         try:
             self._cleanup_child_widgets(self._overlay.body)
         except Exception:
-            pass
+            traceback.print_exc()
 
         # Restaurar callbacks del canvas
         try:
@@ -532,7 +584,11 @@ class CanvasOverlayModule:
                 except Exception:
                     pass
         except Exception:
-            pass
+            # Si esta restauración falla, el lienzo queda con NUESTRO eslabón de
+            # la cadena de selección y con la capa educativa registrada: un
+            # módulo cerrado que sigue dibujando y filtrando clicks. Es el fallo
+            # más caro del ciclo de vida y era completamente mudo.
+            traceback.print_exc()
 
         # Liberar slot del singleton
         cls = type(self)

@@ -1425,7 +1425,7 @@ class MainWindow:
         )
 
     def _on_open_theory_hub(self):
-        """Abre el hub de teoría FEM (Ayuda ▸ Teoría FEM).
+        """Abre el hub de teoría del MEF (Ayuda ▸ Teoría MEF).
 
         Reemplaza al botón '?' que cada módulo educativo tenía en su
         header. La teoría es transversal a los módulos y vive en un

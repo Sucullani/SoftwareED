@@ -66,8 +66,9 @@ from config.settings import (
     HEALTH_ERROR_COLOR,
     EDU_AXES_BG, EDU_LABEL_BG, EDU_FG, EDU_FG_MUTED,
     EDU_SURFACE_LO_COLOR, EDU_FREE_POINT_COLOR,
+    EDU_MARKER_OUTLINE_COLOR,
     EDU_NATURAL_OUTLINE_COLOR, EDU_NATURAL_AXES_COLOR,
-    OVERLAY_ACCENT_BLUE,
+    OVERLAY_ACCENT_BLUE, fmt,
 )
 
 
@@ -315,7 +316,12 @@ class JacobianModule(CanvasOverlayModule):
                 px, py = mesh.world_to_screen(float(xy_sel[0]), float(xy_sel[1]))
                 lbl_color = (_C_MARKER if self._gauss_index is not None
                              else EDU_FREE_POINT_COLOR)
-                txt = f"(x, y) = ({xy_sel[0]:.3g}, {xy_sel[1]:.3g})"
+                # `fmt(..., "length")` y no `:.3g`: son coordenadas del mundo,
+                # las mismas que el lienzo escribe en la barra de estado y las
+                # tablas del Pre-Proceso (regla dura 8 — decimales por magnitud,
+                # una sola regla de formato en toda la app).
+                txt = (f"(x, y) = ({fmt(xy_sel[0], 'length')}, "
+                       f"{fmt(xy_sel[1], 'length')})")
                 tid = mesh.canvas.create_text(
                     px + 12, py - 12, text=txt, fill=lbl_color,
                     font=("Consolas", 8, "bold"), anchor="w", tags=_TAG,
@@ -453,6 +459,22 @@ class JacobianModule(CanvasOverlayModule):
         # cancelable: el último click gana.
         self._schedule_refresh()
 
+    def on_element_deselected(self) -> None:
+        """El alumno limpió la selección (Esc o click en zona vacía).
+
+        Sin este override, el panel seguía mostrando la superficie det J, las
+        matrices ∂N/Xₑ/J **y el aviso rojo de elemento degenerado** del elemento
+        que ya no está seleccionado (la capa del canvas sí se borra, y el chip
+        `#N` del panel de módulos se apaga: el overlay quedaba contradiciendo a
+        las otras dos vistas). Volvemos al estado «esperando elemento».
+        """
+        self.element_id = None
+        self.element = None
+        self._xi, self._eta = 0.0, 0.0
+        self._gauss_index = None
+        self._free_point = False
+        self._schedule_refresh()
+
     def _schedule_refresh(self, delay_ms: int = 80) -> None:
         """Cola un refresh debounced. Cancela el pendiente si lo hay."""
         if self._refresh_after_id is not None:
@@ -552,7 +574,8 @@ class JacobianModule(CanvasOverlayModule):
                 sel = (self._gauss_index == i)
                 ax.scatter([gx], [gy], s=86 if sel else 64,
                             c=_C_MARKER if sel else _C_SURFACE_HI,
-                            edgecolors="white", linewidths=1.0 if sel else 0.8,
+                            edgecolors=EDU_MARKER_OUTLINE_COLOR,
+                            linewidths=1.0 if sel else 0.8,
                             zorder=9 if sel else 7)
         except Exception:
             pass
@@ -640,26 +663,31 @@ class JacobianModule(CanvasOverlayModule):
         # ∂N(ξ,η) y J = ∂N·Xₑ cambian con el punto → update live. Xₑ solo
         # cambia con el elemento → re-render únicamente al cambiar de elemento
         # (no en cada frame del drag, que re-renderizaría una matriz idéntica).
+        # Sin elemento (o con coords incompletas) las tres matrices van a CERO,
+        # NUNCA a los números del elemento anterior: el panel no puede mostrar
+        # datos de un estado que ya no existe (el `if mat is not None` previo los
+        # dejaba congelados tras deseleccionar).
+        n = self.n_nodes
         if self._mat_dN is not None:
             try:
                 dN = self._compute_dN_matrix()
-                if dN is not None:
-                    self._mat_dN.set_matrix(dN)
+                self._mat_dN.set_matrix(
+                    dN if dN is not None else np.zeros((2, n)))
             except Exception:
                 pass
         if self._mat_Xe is not None and self._xe_element_id != self.element_id:
             try:
                 Xe = self._node_coords_matrix()
-                if Xe is not None:
-                    self._mat_Xe.set_matrix(Xe)
-                    self._xe_element_id = self.element_id
+                self._mat_Xe.set_matrix(
+                    Xe if Xe is not None else np.zeros((n, 2)))
+                self._xe_element_id = self.element_id
             except Exception:
                 pass
         if self._mat_values is not None:
             try:
                 J = self._compute_jacobian_value()
-                if J is not None:
-                    self._mat_values.set_matrix(J)
+                self._mat_values.set_matrix(
+                    J if J is not None else np.zeros((2, 2)))
             except Exception:
                 pass
         self._refresh_status()
@@ -672,6 +700,17 @@ class JacobianModule(CanvasOverlayModule):
         # 3D; (x,y) en el marcador del canvas físico — sin repetir nada.
         if self._lbl_values_title is None:
             return
+        # Estado «esperando elemento»: el launcher abre el módulo sin selección
+        # (Ctrl+2 con el lienzo limpio) y el alumno puede deseleccionar con Esc.
+        # Antes decía "J en centro del elemento" sobre una J que era la matriz
+        # IDENTIDAD de relleno — se leía como un Jacobiano válido de un elemento
+        # inexistente. Ahora nombra el estado y el gesto que lo resuelve.
+        if self.element is None:
+            self._lbl_values_title.configure(
+                text="sin elemento — clickeá uno en el lienzo",
+                fg=EDU_FG_MUTED,
+            )
+            return
         if self._gauss_index is not None:
             mode_tag, fg = f"pg{self._gauss_index + 1}", GAUSS_CANONICAL
         elif self._free_point:
@@ -681,7 +720,13 @@ class JacobianModule(CanvasOverlayModule):
         self._lbl_values_title.configure(text=f"J  en  {mode_tag}", fg=fg)
 
     def _refresh_warning(self):
-        if self._lbl_warning is None or self.element is None:
+        if self._lbl_warning is None:
+            return
+        # Sin elemento hay que BORRAR el aviso, no salir dejándolo: el "⚠
+        # Elemento degenerado … Reordená los nodos" es un error accionable y
+        # quedaba en pantalla apuntando a un elemento ya deseleccionado.
+        if self.element is None:
+            self._lbl_warning.configure(text="")
             return
         coords = self._coords_macro()
         if coords is None:
@@ -785,7 +830,7 @@ class JacobianModule(CanvasOverlayModule):
             )
             dJ_sel = float(dJ_sel)
             ax.scatter([self._xi], [self._eta], [dJ_sel],
-                        s=42, c=mk, edgecolors="white",
+                        s=42, c=mk, edgecolors=EDU_MARKER_OUTLINE_COLOR,
                         linewidths=0.8, depthshade=False, zorder=20)
             ax.text(
                 self._xi, self._eta, dJ_sel + max(0.08 * span, 0.12),
@@ -882,8 +927,15 @@ class JacobianModule(CanvasOverlayModule):
             expr=r"\det\mathbf{J}=J_{11}\,J_{22}-J_{12}\,J_{21}",
             fontsize=self._FS, color=OVERLAY_ACCENT_BLUE,
         ).pack(anchor="center", pady=(0, 1))
+        # Nota de remisión: las fórmulas REALES de ∂Nᵢ/∂ξ y ∂Nᵢ/∂η viven en M1
+        # (`_N_FORMULAS_Q4/Q9`, el título de su superficie 3D). Decía "M1 y M4",
+        # que era cierto ANTES del swap B↔D de 2026-05: hoy M4 es la matriz
+        # constitutiva D (espectro de Poisson) y no muestra ninguna derivada de
+        # N, así que mandaba al alumno a una ventana donde no está lo que busca.
+        # Se nombra el módulo con la etiqueta que el alumno ve en el botón (①),
+        # no con la key interna — misma regla que los mensajes del launcher.
         ttk.Label(
-            frame, text="(las formulas de dNi/dxi se ven en M1 y M4)",
+            frame, text="(∂Nᵢ/∂ξ, ∂Nᵢ/∂η: ver ① Mapeo iso)",
             foreground=EDU_FG_MUTED, font=("Consolas", 8), anchor="center",
         ).pack(fill="x", pady=(0, 2))
 
@@ -920,9 +972,11 @@ class JacobianModule(CanvasOverlayModule):
 
         # J = ∂N·Xₑ: 2×2 — resultado (cambia con ξ,η). Estática a `_FS_VAL` (no
         # auto-encoge a 2×2 → queda a la misma fuente que el resto del panel).
+        # Placeholder en CEROS, no la identidad: sin elemento, una `J = I` se
+        # lee como un Jacobiano válido (y `det J = 1`) que nadie calculó.
         J0 = self._compute_jacobian_value()
         self._mat_values = LatexMatrixImage(
-            frame, matrix=J0 if J0 is not None else np.eye(2),
+            frame, matrix=J0 if J0 is not None else np.zeros((2, 2)),
             fmt="{:.3g}", fontsize=self._FS_VAL,
             prefix=r"\mathbf{J}=\partial\mathbf{N}_{\xi\eta}\,\mathbf{X}_e=",
             cache_values=False,  # cambia con ξ,η

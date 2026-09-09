@@ -1091,3 +1091,191 @@ regla de los **3 menús**: no se agregó ninguna entrada de menú en toda la ses
 ### Área siguiente
 
 7 — Módulos educativos M0–M3 (`education/mod00..mod03`, `overlay_module.py`).
+
+---
+
+## Sesión 07 — 2026-09-09 03:20 UTC — Área: 7 — Módulos educativos M0–M3
+
+**Commit**: (este) · **Gates**: `run_gates` verde (97/97 módulos, 0 nombres sin definir, 0 hex,
+**21**/21 tests) y también `run_gates --con-gui` bajo `xvfb` (23/23) · además un smoke con Tk
+real que abre M0, M1, M2 y M3 sobre el ejemplo canónico Q4, deselecciona con el lienzo y
+verifica el teardown (`ghost_geometry` restaurado, 0 click consumers, cadena de selección
+desenganchada)
+
+> Nota de entorno: igual que las sesiones 03–06, el sandbox vino **sin el stack y sin
+> `tkinter`**. Gate corrido con un venv de `python3.12` del sistema + `pip install -r
+> requirements.txt`, según la receta de [RUTINA.md](RUTINA.md) §8. Sin tocar
+> `requirements.txt`. **Tampoco hay `pdflatex` ni `latexmk`** (ni `vendor/texlive`): las cuatro
+> correcciones de `tesis/` siguen sin poder tomarse (§6 exige compilar antes de pushear).
+
+### Qué se hizo y por qué
+
+El hallazgo central es que **los overlays de M1, M2 y M3 seguían mostrando el elemento que el
+alumno acababa de deseleccionar**, y que M2 además **fabricaba una `J = I`** cuando no había
+ninguno. Las tres vistas que el alumno mira a la vez (lienzo, chip `#N` del panel de módulos y
+overlay) se contradecían entre sí.
+
+- `education/mod02_jacobian.py`, `mod03_b_matrix.py`, `mod01_iso_mapping.py` — **nuevo
+  `on_element_deselected` en los tres**. El default de `CanvasOverlayModule` solo hace
+  `set_element(None)` + `refresh_overlay()`, que es un `redraw()` del lienzo: la capa educativa
+  se borra (su guard `if self.element is None: return`) pero **el overlay no se toca**. Click en
+  zona vacía o `Esc` (las dos únicas vías, porque `is_any_overlay_active` suprime el
+  second-click-deselects) apagaban el halo y el chip `#N`, y el overlay seguía mostrando la
+  superficie det J, las matrices `∂N`/`Xₑ`/`J`, la cadena `∂N_ξη · J⁻¹ → ∂N_xy → B` y la línea
+  `nodo 3` de un elemento que ya no estaba seleccionado. **Por qué importa**: es la definición
+  de estado invisible de [RUTINA.md](RUTINA.md) §7 al revés — el estado cambió y la pantalla que
+  el alumno está leyendo no. Medido con Tk real: los tres vuelven al estado «esperando
+  elemento» y el teardown queda limpio.
+- `mod02_jacobian._build_values_panel` — **el placeholder de J dejó de ser `np.eye(2)`**. El
+  launcher abre los módulos **sin selección a propósito** (`Ctrl+2` con el lienzo limpio es un
+  flujo normal: «cero diálogos modales», el módulo espera el click), y en ese estado el panel
+  mostraba `J = [[1,0],[0,1]]` bajo el título `J en centro del elemento`: una identidad es un
+  Jacobiano **perfectamente plausible**, con `det J = 1`, que nadie calculó, presentada como el
+  valor en el centro de un elemento inexistente. Ahora el placeholder es **cero** y el título
+  dice `sin elemento — clickeá uno en el lienzo` (muted), o sea el estado y el gesto que lo
+  resuelve. Mismo tratamiento en el título de M3.
+- `mod02._refresh_all` / `mod03._refresh_all` — **las matrices van a CERO cuando no se pueden
+  calcular**, nunca se quedan con los números del elemento anterior. Era un `if mat is not None:
+  set_matrix(mat)`: con `coords=None` el `set_matrix` no se llamaba y los valores quedaban
+  **congelados** del elemento ido. Es la otra mitad del mismo defecto.
+- `mod02._refresh_warning` — **borra el aviso de elemento degenerado cuando no hay elemento**.
+  Salía por el guard `if ... or self.element is None: return` **sin limpiar el label**, así que
+  el `⚠ Elemento degenerado: det J ≤ 0 en pg1 (…). Reordená los nodos en CCW` —un error
+  accionable, que nombra una causa y un arreglo— quedaba en pantalla apuntando a nada.
+- `mod02._build_formula_panel` — **la nota de remisión mandaba al alumno al módulo equivocado**.
+  Decía `(las formulas de dNi/dxi se ven en M1 y M4)`: era cierto antes del **swap B↔D de
+  2026-05** y es falso desde entonces — hoy **M4 es la matriz constitutiva D** (espectro de
+  Poisson) y no muestra ninguna derivada de N. Ahora dice `(∂Nᵢ/∂ξ, ∂Nᵢ/∂η: ver ① Mapeo iso)`,
+  idéntica a la de M3, con la **etiqueta visible del botón** y no la key interna — la misma
+  regla que la sesión 03 aplicó a los mensajes del launcher. De paso deja de ser el único string
+  del área sin acentos y con `dNi/dxi` en ASCII.
+- `mod03_b_matrix.py` — la nota de M3 pasó de `(… ver M1)` a `(… ver ① Mapeo iso)`: una sola
+  forma de nombrar un módulo en todo el área. Y el docstring de la clase + el comentario del tag
+  decían **M4** (numeración previa al swap): corregidos, porque son la trampa que hace que el
+  próximo agente busque la matriz B en el módulo de la D.
+- `mod02` — **las coords `(x, y)` del marcador físico pasan por `fmt(..., "length")`** (regla
+  dura 8). Usaban `:.3g` local, así que el mismo punto se leía `(2.5, 1.33)` en la etiqueta del
+  overlay y `(2.500, 1.330)` en la barra de estado del lienzo y en la tabla de Nodos.
+- `mod00_mesh_quality._set_no_element_state` — **el header le hablaba en inglés al alumno**:
+  `(hover sobre un elemento para ver su calidad)`. Ahora `Pasá el cursor sobre un elemento para
+  ver su calidad.`, como el resto del overlay («Arrastrá un nodo…»). Regla dura 1.
+- `mod00_mesh_quality.py` (docstring) y, de paso, `gui/main_window.py:1428` +
+  `modulos-educativos.md` + `no-reintroducir.md` — **el ítem de menú se llama `📘 Teoría MEF`**,
+  no «Teoría FEM». Cuatro lugares del canon y del código nombraban un ítem que no existe con ese
+  rótulo (y en inglés, contra la regla dura 1: `FEM` → **MEF** salvo la marca EduFEM y la capa
+  DXF). Es un docstring, no un string del alumno, pero es la clase de trampa que manda al próximo
+  agente a buscar un menú por un nombre equivocado. `main_window.py` es área 6: una palabra, cero
+  riesgo, y la RUTINA pide corregir lo que aparece (§1.3).
+- **Los 10 literales de color con NOMBRE del área, cerrados** (ítem del BACKLOG, regla dura 2):
+  los 7 de `mod01` (4 `edgecolors="white"` + 3 `color="black"`), los 2 de `mod02` y el 1 de
+  `mod03`. Los `"white"` son el outline de marcadores sobre fondo variable → la constante ya
+  existía (`EDU_MARKER_OUTLINE_COLOR`, la misma que el disco del marcador de M1 en el lienzo);
+  los `"black"` son el **número del nodo escrito DENTRO de su disco** en el cuadrado natural de
+  M1 → constante nueva `EDU_NODE_INDEX_FG_COLOR` en `config/settings.py` con su comentario (es
+  el único tono legible sobre el naranja, el azul y el violeta de los tres tipos de nodo).
+  `gate_hex` no los veía (busca `#RRGGBB`); el test nuevo sí.
+- **`except Exception` del área: revisados los 74, cambiados 13** — los 13 en
+  `education/overlay_module.py`, que es la base de los **8** módulos. Dejan traza con
+  `traceback.print_exc()` (convención de `undo_stack` / `post_tab` / `mesh_canvas` /
+  `dialogs` / `main_window`): `on_activated()` (es donde los módulos registran su click
+  consumer, el hover y los loops de animación: si falla mudo, **el overlay abre y no reacciona a
+  nada** de lo que el alumno haga en el lienzo), `on_closed()` (donde se cancelan los `after` y
+  se devuelve el lienzo: si falla, **M0 deja toda la malla en fantasma gris** y **M3 deja su
+  loop de pulso repintando a 30 fps sobre un overlay cerrado**), los 3 hooks de la cadena de
+  selección y su eslabón previo (si fallan, el módulo **deja de seguir al lienzo**), el
+  `open_module` del `👉` del pie (es clickeable con `hand2`: fallaba y **no pasaba nada**), el
+  `build_overlay` (el alumno ve el cartel, pero `str(exc)` sin traceback no ubica el fallo), el
+  `refit_overlay` (sin refit el Toplevel borderless **recorta** lo que empuja el contenido
+  nuevo), el `redraw` de `refresh_overlay`, el `cleanup()` de los widgets hijos (deja el
+  `ToolTip` de `ScrollableMatrixImage` como Toplevel huérfano sobre el escritorio), el bloque de
+  restauración de `_cleanup` (**el fallo más caro del ciclo de vida**: deja el lienzo con
+  nuestro eslabón de la cadena y la capa registrada, o sea un módulo cerrado que sigue dibujando
+  y filtrando clicks), el `inst.close()` de los otros overlays (su capa queda debajo del módulo
+  nuevo) y el listener del breadcrumb. El de `_draw_layer_wrapper` traza **una sola vez por
+  instancia** (`_layer_error_traced`): corre en cada redraw y M3 lo llama a ~30 fps, sin el
+  guard un fallo persistente inundaría stderr. Los otros 61 quedaron mudos por legítimos
+  (guards de widgets destruidos, `after_cancel`, `mpl` sin `set_zlabel`, `compute_jacobian` de
+  un elemento degenerado dentro de un loop de 144 celdas, `lift()` de una instancia stale que el
+  propio código maneja popeando el slot). **Revisados: 227 de 274.**
+- `tests/test_edu_modules_m0_m3.py` — nuevo (47 chequeos, sin display: los módulos con
+  `object.__new__` y dobles de las matrices y labels, como las sesiones 01–06). Sumado a
+  `run_gates`. Cubre el estado «esperando elemento» de M2 y M3 (ceros, título, que no quede
+  `np.eye`), el borrado del aviso de degenerado, los tres `on_element_deselected` (y su efecto
+  medido), las dos notas de remisión, los 10 literales de color, el `fmt` de las coords, el
+  español de M0, las 5 trazas clave de `overlay_module` + el guard de una-sola-traza, y **el
+  contrato del área** (anchos 470/500/740/720, fase, posición inicial, herencia de
+  `CanvasOverlayModule`, numeración visible ①②③ y el `delete(_TAG)` de cada capa). Verificado
+  que **falla sin los arreglos**: 36 FALLOS con el código de antes.
+
+### Errores encontrados y corregidos
+
+- **M1, M2 y M3 seguían mostrando el elemento deseleccionado** (el principal), mientras el
+  lienzo y el chip `#N` del panel decían lo contrario.
+- **M2 fabricaba `J = identidad`** (y `det J = 1`) cuando no había elemento, bajo el título
+  «J en centro del elemento».
+- **Las matrices de M2 y M3 quedaban congeladas** con los valores del elemento anterior.
+- **El aviso rojo «Elemento degenerado … Reordená los nodos» sobrevivía** a la deselección.
+- **La nota de M2 mandaba las fórmulas de ∂Nᵢ/∂ξ a M4**, que desde el swap B↔D es la matriz D.
+- **El header de M0 le decía «hover» al alumno.**
+- **10 literales de color con nombre** fuera de `config/` (regla dura 2).
+- **Las coords (x,y) de M2 no pasaban por `fmt`** (regla dura 8): tres decimales distintos a los
+  del resto de la app para la misma magnitud.
+- **Docstring y comentario de `mod03` con la numeración vieja (M4)**, la trampa que manda al
+  próximo agente a buscar B en el módulo de la D.
+- **Cuatro lugares nombraban el ítem de menú «Teoría FEM»**, que se llama **`📘 Teoría MEF`**.
+- **13 `except Exception` mudos** en la base de los 8 overlays (arriba el detalle).
+
+### DECISIÓN CONGELADA REVERTIDA
+
+Ninguna. El texto `sin elemento — clickeá uno en el lienzo` **no** reintroduce los hints
+«Click aquí para…» que la filosofía minimalista eliminó: esa fila es sobre hints **redundantes**
+con un feedback visual que ya invita al gesto, y acá no hay nada que invite — el panel está
+vacío de datos y el título decía algo falso. Es el mismo criterio con el que M1 ya conserva su
+«Clickeá un nodo o cualquier punto interior del elemento.» Tampoco se tocó ningún widget de los
+prohibidos (ni badge, ni combobox de elemento, ni botón Cerrar, ni `?`), ni se agregó una sola
+línea de alto a los overlays: los cuatro conservan su ancho y su geometría.
+
+### Pendientes visuales para el autor
+
+1. **Deseleccionar con un módulo abierto** (lo más visible de la sesión). `Ctrl+E` → pestaña
+   **⚙ PROCESO** → clickear un elemento → `Ctrl+2` (**② Jacobiano**) → ahora **clickear en zona
+   vacía del lienzo** (o `Esc`): el halo se apaga y el overlay debe quedar en `sin elemento —
+   clickeá uno en el lienzo`, con las matrices `∂N`/`Xₑ`/`J` en **ceros** y sin el aviso rojo
+   (antes: la superficie det J y los números del elemento ido seguían ahí). Clickear otro
+   elemento lo vuelve a poblar. Probar lo mismo en `Ctrl+3` (**③ Matriz B**) y en `Ctrl+1`
+   (**① Mapeo iso**, donde la línea de estado debe volver a «Clickeá un nodo…»). Revertir:
+   `git revert` del commit de esta sesión.
+2. **`Ctrl+2` con el lienzo vacío.** *Archivo ▸ Nuevo Proyecto* → `Ctrl+2`: el panel Valores
+   debe abrir con la **J en ceros** y el título del estado. Antes abría con la matriz
+   **identidad** bajo «J en centro del elemento», que se lee como un Jacobiano válido.
+3. **El cuadrado natural de M1 en Q9.** `Ctrl+E` con el ejemplo **Q9** → `Ctrl+1`: los 9 nodos
+   del cuadrado natural llevan su número **en negro** dentro del disco y el **outline blanco**
+   (antes eran los literales `"black"` / `"white"`, ahora constantes de `config/settings.py` con
+   el mismo valor). Debe verse **idéntico** a antes; si algún número o borde cambió de color,
+   revisar `EDU_NODE_INDEX_FG_COLOR` / `EDU_MARKER_OUTLINE_COLOR`.
+
+### Descartado
+
+- **Unificar el `_draw_natural_square` de M2 y M3** (son ~45 líneas casi idénticas, y M1 tiene
+  una tercera variante). Tentador, pero las tres difieren en lo que marcan (M1 **nodos**, M2/M3
+  **puntos de Gauss**), en el título y en los límites, y el capítulo documenta que se unifica el
+  **estilo**, no el backend ni el widget. Un helper con 6 flags sería peor que las tres copias;
+  si se hace, es una refactorización con su propio turno del área.
+- **Pasar el heatmap de det J de M2 (`_HEATMAP_N=12` ⇒ 144 celdas × `compute_jacobian` + 169
+  `natural_to_physical` por redraw) a `fem/batch.py`.** Es el punto más caro del área, pero hoy
+  no produce ningún síntoma medible (el propio comentario mide <5 ms) y vectorizarlo es tocar
+  `fem/` (área 12) por una optimización sin evidencia. Al BACKLOG como propuesta.
+- **Mostrar un guion o un «—» en vez de ceros** en las matrices sin elemento. `LatexMatrixImage`
+  acepta celdas `str`, así que se podría; pero el título ya dice que no hay elemento y una matriz
+  de guiones invita a preguntarse qué significa cada guion. El cero es neutro y la vía más corta.
+- **Avisar en la barra de estado al deseleccionar con un módulo abierto.** El lienzo ya escribe
+  «Seleccion limpiada» y el overlay ahora lo dice en su propio título: un tercer mensaje para el
+  mismo gesto es ruido.
+- **Tocar `tesis/`**: sigue sin haber `pdflatex` ni `latexmk` ni `vendor/texlive`. Las cuatro
+  correcciones del Anexo A siguen abiertas en el área 14.
+- **Un cuarto menú, una toolbar o un botón nuevo**: ni se evaluó. Esta sesión no agregó ninguna
+  entrada de menú ni ningún widget.
+
+### Área siguiente
+
+8 — Módulos educativos M4–M7 (`education/mod04..mod07`, `module_launcher.py`).

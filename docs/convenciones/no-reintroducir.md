@@ -131,7 +131,7 @@ Abreviaturas de capítulo:
 | No reintroducir | Motivo (resumen) | Cap. |
 |---|---|---|
 | Botón *Cerrar* propio en el header de un módulo | La X nativa del Toplevel ya cierra | [EDU] |
-| Botón *? / Teoría* propio | La teoría vive en Ayuda ▸ Teoría FEM (transversal) | [EDU] |
+| Botón *? / Teoría* propio | La teoría vive en Ayuda ▸ Teoría MEF (transversal) | [EDU] |
 | Badge de Q4/Q9, TP/DP, material, E, ν, ρ, t | El alumno ya definió su modelo | [EDU] |
 | Combobox de elemento dentro de un módulo | El click en el canvas es la única vía de selección | [EDU] |
 | Hints "Click aquí para…" cuando ya hay feedback visual | La invitación está en la animación | [EDU] |
@@ -150,15 +150,17 @@ Abreviaturas de capítulo:
 | Expanders para la fórmula principal de un módulo | Destruye la jerarquía visual: el expander es excepcional | [EDU] |
 | Duplicar código de `fem/` en `education/` | Los módulos solo visualizan | [EDU] |
 | Los literales `#4fa3ff` / `#3a5278` locales | Viven en `EDU_NATURAL_*` de settings | [EDU] |
+| Un panel que sigue mostrando el elemento **deseleccionado** | El default de la base solo limpia la capa del lienzo: hay que sobrescribir `on_element_deselected` | [EDU] |
+| Placeholders que se leen como un resultado válido (`np.eye`) con `element is None` | Sin elemento los números van a **cero** y el título nombra el estado | [EDU] |
 
 ## Módulos educativos (por módulo)
 
 | Módulo | No reintroducir | Cap. |
 |---|---|---|
-| **M0** | Coloreado bipolar gris-centro; umbral único compartido entre las dos métricas; dos banners simultáneos; un refit por banner; el `refit` diferido `after(50)`; el botón Reset; el radar de 4 ejes; el histograma; los expanders de derivación LaTeX; el relleno sólido o punteado denso; la malla base a color normal bajo M0 | [EDU] |
-| **M1** | El chip de dualidad `(x,y) ↔ (ξ,η)` y su pulso; widgets tk de fórmula/valor bajo la figura; el título `N{idx}(ξ,η)`; el label `Nᵢ=valor` sobre el canvas; las coords en la línea de estado; el readout pinneado en esquina; el signo `+` en positivos | [EDU] |
-| **M2** | El readout tk (`GaussCoordReadout`); apilar cuadrado + superficie; **drag** en el cuadrado matplotlib (laguea la 3D); la J de derivadas abstractas `∂x/∂ξ`; el banner **verde** de validez (el rojo de degenerado sí queda); la ∂N simbólica en blanco; forzar `ScrollableMatrixImage` para matrices que entran; "corregir" la superficie plana de det J en Q9 (no es un bug) | [EDU] |
-| **M3 (B)** | El readout tk; la notación `N1x`; la **relación escalar malformada** `∂Nᵢ/∂x = J⁻¹ ∂Nᵢ/∂ξ` (usar siempre la vectorial 2×1); la descripción del mapeo; el `_lbl_status`; el viewport hardcodeado de B | [EDU] |
+| **M0** | Coloreado bipolar gris-centro; umbral único compartido entre las dos métricas; dos banners simultáneos; un refit por banner; el `refit` diferido `after(50)`; el botón Reset; el radar de 4 ejes; el histograma; los expanders de derivación LaTeX; el relleno sólido o punteado denso; la malla base a color normal bajo M0; el header en inglés `(hover sobre un elemento…)` | [EDU] |
+| **M1** | El chip de dualidad `(x,y) ↔ (ξ,η)` y su pulso; widgets tk de fórmula/valor bajo la figura; el título `N{idx}(ξ,η)`; el label `Nᵢ=valor` sobre el canvas; las coords en la línea de estado; el readout pinneado en esquina; el signo `+` en positivos; dejar la línea de estado en `nodo N` / `punto libre` tras deseleccionar (vuelve a `_mode="init"`) | [EDU] |
+| **M2** | El readout tk (`GaussCoordReadout`); apilar cuadrado + superficie; **drag** en el cuadrado matplotlib (laguea la 3D); la J de derivadas abstractas `∂x/∂ξ`; el banner **verde** de validez (el rojo de degenerado sí queda); la ∂N simbólica en blanco; forzar `ScrollableMatrixImage` para matrices que entran; "corregir" la superficie plana de det J en Q9 (no es un bug); el placeholder `J = np.eye(2)` y las matrices con los números del elemento deseleccionado (van a cero); la remisión `M1 y M4` de las ∂Nᵢ (hoy M4 es la D: es `① Mapeo iso`); `:.3g` en las coords (x,y) del marcador (es `fmt(..., "length")`) | [EDU] |
+| **M3 (B)** | El readout tk; la notación `N1x`; la **relación escalar malformada** `∂Nᵢ/∂x = J⁻¹ ∂Nᵢ/∂ξ` (usar siempre la vectorial 2×1); la descripción del mapeo; el `_lbl_status`; el viewport hardcodeado de B; la cadena numérica con los valores del elemento deseleccionado (va a cero) | [EDU] |
 | **M4 (D)** | El dial circular; el Entry numérico `ν =`; el botón "Reset al ν del material"; el título `ν = …` sobre la matriz; la regla de materiales dentro del probe; los nombres largos en el espectro; el caption "Efecto Poisson"; el rótulo "deformación exagerada"; las flechas ámbar de contracción; el semáforo de 4 colores del fill; **cualquier ancho del probe dependiente de ν**; las constantes muertas `_PROBE_VIS_SCALE`/`_CONTRACT_COLOR`; la línea de isotropía aparte; las flechas de ∇Nᵢ sobre el elemento | [EDU] |
 | **M5** | El `GaussCoordReadout` tk; `_lbl_k_title`; el viewport de kₑ de 300 px; el `after(120)` sin cancelar; el triple mensaje de estado vacío | [EDU] |
 | **M7** | (ex-M7 y ex-M8 fueron consolidados en el Post: no recrear `mod07_stress_discontinuity.py` ni `mod08_principal_stresses.py`) | [EDU] |

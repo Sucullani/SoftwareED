@@ -49,7 +49,7 @@ abstractos sin referente visual):
 
     El paso a paso simbolico completo (todos los elementos) vive en la Memoria
     de Calculo (Archivo > Exportar) y la teoria general en el Theory Hub
-    (Ayuda > Teoria FEM); M0 no lo repite.
+    (Ayuda > Teoria MEF); M0 no lo repite.
 """
 
 from __future__ import annotations
@@ -750,8 +750,11 @@ class MeshQualityModule(CanvasOverlayModule):
     def _set_no_element_state(self):
         """Estado vacio: sin hover y sin elemento de apertura."""
         if self._lbl_header is not None:
+            # En español (regla dura 1): "hover" es el nombre del gesto en el
+            # código, no una palabra que el alumno tenga que conocer. El resto
+            # del overlay ya habla así ("Arrastrá un nodo…").
             self._lbl_header.configure(
-                text="(hover sobre un elemento para ver su calidad)",
+                text="Pasá el cursor sobre un elemento para ver su calidad.",
             )
         # Ocultar ambos banners (Jacobiano + Compacidad) con un refit combinado.
         changed = self._set_banner(self._lbl_warning, "_warning_shown", None,

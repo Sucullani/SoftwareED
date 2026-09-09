@@ -60,6 +60,7 @@ from config.settings import (
     GAUSS_CANONICAL_COLOR, EDU_FREE_POINT_COLOR, EDU_MARKER_OUTLINE_COLOR,
     HEALTH_ERROR_COLOR, OVERLAY_ACCENT_BLUE,
     EDU_M1_VERTEX_NODE_COLOR, EDU_M1_CENTER_NODE_COLOR,
+    EDU_NODE_INDEX_FG_COLOR,
 )
 
 
@@ -261,6 +262,22 @@ class IsoMappingModule(CanvasOverlayModule):
             self._node_idx = 1
         # Al cambiar de elemento volvemos al modo "init" — no hay una
         # selección activa que comunicar.
+        self._mode = "init"
+        self._sel_xi, self._sel_eta = 0.0, 0.0
+        self._redraw()
+        self._refresh_mode_label()
+
+    def on_element_deselected(self) -> None:
+        """El alumno limpió la selección (Esc o click en zona vacía).
+
+        La superficie Nᵢ(ξ,η) NO depende del elemento, así que el panel sigue
+        siendo válido; lo que quedaba mintiendo era la línea de estado, que
+        seguía diciendo `nodo 3` / `punto libre` de un elemento que ya no está
+        seleccionado (y cuyo marcador físico la capa del canvas ya borró).
+        Volvemos al estado inicial: la invitación a clickear.
+        """
+        self.element_id = None
+        self.element = None
         self._mode = "init"
         self._sel_xi, self._sel_eta = 0.0, 0.0
         self._redraw()
@@ -476,28 +493,30 @@ class IsoMappingModule(CanvasOverlayModule):
         ax.axvline(0, color=EDU_NATURAL_AXES_COLOR, lw=0.8, alpha=0.85)
         corners = sq[:4]
         ax.scatter(corners[:, 0], corners[:, 1], s=110,
-                    c=_C_ORANGE, edgecolors="white", linewidths=1.2,
-                    zorder=8)
+                    c=_C_ORANGE, edgecolors=EDU_MARKER_OUTLINE_COLOR,
+                    linewidths=1.2, zorder=8)
         for i, (xi, eta) in enumerate(corners):
             ax.annotate(str(i + 1), (xi, eta),
                          textcoords="offset points", xytext=(0, 0),
-                         color="black", fontsize=8, fontweight="bold",
-                         ha="center", va="center")
+                         color=EDU_NODE_INDEX_FG_COLOR, fontsize=8,
+                         fontweight="bold", ha="center", va="center")
         if self._explore_type == ELEMENT_Q9:
             mids = np.array([[0, -1], [1, 0], [0, 1], [-1, 0]])
             ax.scatter(mids[:, 0], mids[:, 1], s=60,
-                        c=OVERLAY_ACCENT_BLUE, edgecolors="white", linewidths=0.8,
+                        c=OVERLAY_ACCENT_BLUE,
+                        edgecolors=EDU_MARKER_OUTLINE_COLOR, linewidths=0.8,
                         zorder=7)
             for i, (xi, eta) in enumerate(mids):
                 ax.annotate(str(i + 5), (xi, eta),
                              textcoords="offset points", xytext=(0, 0),
-                             color="black", fontsize=7,
+                             color=EDU_NODE_INDEX_FG_COLOR, fontsize=7,
                              ha="center", va="center")
             ax.scatter([0], [0], s=60, c=EDU_M1_CENTER_NODE_COLOR,
-                        edgecolors="white", linewidths=0.8, zorder=7)
+                        edgecolors=EDU_MARKER_OUTLINE_COLOR, linewidths=0.8,
+                        zorder=7)
             ax.annotate("9", (0, 0),
                          textcoords="offset points", xytext=(0, 0),
-                         color="black", fontsize=7,
+                         color=EDU_NODE_INDEX_FG_COLOR, fontsize=7,
                          ha="center", va="center")
         # Etiquetas ±1 + ξ / η: anclan la escala sin ejes numéricos
         # (mismo patrón que el inset). Consolas para coherencia con la
@@ -563,7 +582,8 @@ class IsoMappingModule(CanvasOverlayModule):
             ni_val = float(N_fn(self._sel_xi, self._sel_eta)[self._node_idx - 1])
             self._ax_n3d.scatter(
                 [self._sel_xi], [self._sel_eta], [ni_val],
-                s=60, c=marker_color, edgecolors="white", linewidths=1.2,
+                s=60, c=marker_color, edgecolors=EDU_MARKER_OUTLINE_COLOR,
+                linewidths=1.2,
                 zorder=20, depthshade=False,
             )
             val_tex = self._shape_value_latex()

@@ -49,6 +49,7 @@ TESTS_RAPIDOS = [
     "tests.test_post_inspection",
     "tests.test_dialogs",
     "tests.test_main_window",
+    "tests.test_edu_modules_m0_m3",
     "tests.test_canvas_visualization",
     "tests.test_canvas_raster",       # el mas lento del grupo (~26 s)
     "tests.test_vv_extensions",

@@ -62,11 +62,12 @@ from fem.gauss_quadrature import get_gauss_points_for_element
 
 from config.settings import (
     EDU_FREE_POINT_COLOR, EDU_AXES_BG, EDU_FG, EDU_FG_MUTED, EDU_LABEL_BG,
+    EDU_MARKER_OUTLINE_COLOR,
     EDU_NATURAL_OUTLINE_COLOR, EDU_NATURAL_AXES_COLOR, OVERLAY_ACCENT_BLUE,
 )
 
 
-# Tag canvas — identifica TODOS los items de M4 para borrarlos en cada
+# Tag canvas — identifica TODOS los items de M3 para borrarlos en cada
 # redraw sin pisar tags de otros módulos.
 _TAG = "edu_m3"
 # Marcador/PG seleccionado en naranja (halo unificado), PGs no seleccionados
@@ -76,7 +77,11 @@ _C_SURFACE_HI = GAUSS_CANONICAL
 
 
 class BMatrixModule(CanvasOverlayModule):
-    """M4 en modo Overlay: matriz B con toggle Fórmula/Valores y glow Gauss."""
+    """M3 en modo Overlay: matriz B con toggle Fórmula/Valores y glow Gauss.
+
+    (La numeración vigente es M3 = matriz B desde el swap B↔D de 2026-05; los
+    comentarios que decían "M4" eran de la numeración anterior.)
+    """
 
     TITLE = "③  Matriz B  (ε = B · u)"
     PHASE = "proc"
@@ -309,6 +314,21 @@ class BMatrixModule(CanvasOverlayModule):
         self._free_point = False
         self._refresh_all()
 
+    def on_element_deselected(self) -> None:
+        """El alumno limpió la selección (Esc o click en zona vacía).
+
+        Sin este override, la cadena numérica completa (∂N_ξη · J⁻¹ → ∂N_xy → B)
+        seguía mostrando los valores del elemento que ya no está seleccionado,
+        mientras la capa del canvas y el chip `#N` del panel de módulos ya
+        decían lo contrario. Volvemos al estado «esperando elemento».
+        """
+        self.element_id = None
+        self.element = None
+        self._xi, self._eta = 0.0, 0.0
+        self._gauss_index = None
+        self._free_point = False
+        self._refresh_all()
+
     # ── Click consumer: snap a Gauss + free point en físico ─────
     def _on_canvas_click_consume(self, event) -> bool:
         """Consumer registrado en MeshCanvas. Cascada:
@@ -386,7 +406,8 @@ class BMatrixModule(CanvasOverlayModule):
                 sel = (self._gauss_index == i)
                 ax.scatter([gx], [gy], s=86 if sel else 64,
                             c=_C_MARKER if sel else _C_SURFACE_HI,
-                            edgecolors="white", linewidths=1.0 if sel else 0.8,
+                            edgecolors=EDU_MARKER_OUTLINE_COLOR,
+                            linewidths=1.0 if sel else 0.8,
                             zorder=9 if sel else 7)
         except Exception:
             pass
@@ -455,12 +476,20 @@ class BMatrixModule(CanvasOverlayModule):
         # Live-update de TODA la cadena numérica (∂N_ξη, J⁻¹, ∂N_xy, B) —
         # siempre, aunque esté en modo fórmula (barato, mantiene coherencia al
         # togglear). Un único _compute_b devuelve los cuatro.
+        # Sin elemento (o con coords incompletas) las cuatro van a CERO, NUNCA a
+        # los números del elemento anterior: el `if mat is not None` previo las
+        # dejaba congeladas tras deseleccionar, contradiciendo al lienzo.
+        n = self.n_nodes
         try:
             B, dN_nat, invJ, dN_phys = self._compute_b(return_intermediate=True)
-            for w, mat in ((self._mat_dN_nat, dN_nat), (self._mat_invJ, invJ),
-                           (self._mat_dN_phys, dN_phys), (self._mat_values, B)):
-                if w is not None and mat is not None:
-                    w.set_matrix(mat)
+            for w, mat, shape in (
+                (self._mat_dN_nat, dN_nat, (2, n)),
+                (self._mat_invJ, invJ, (2, 2)),
+                (self._mat_dN_phys, dN_phys, (2, n)),
+                (self._mat_values, B, (3, 2 * n)),
+            ):
+                if w is not None:
+                    w.set_matrix(mat if mat is not None else np.zeros(shape))
         except Exception:
             pass
         # La fórmula simbólica solo se reconstruye si cambió el número
@@ -484,17 +513,29 @@ class BMatrixModule(CanvasOverlayModule):
         # Título minimalista del panel Valores: SOLO el modo (criterio de M2).
         # Sin descripción de mapeo, sin "Elemento N", sin "3 × N" — el cuadrado
         # natural ya muestra (ξ,η) y la propia matriz muestra su tamaño.
-        if self._lbl_values_title is not None:
-            if self._gauss_index is not None:
-                mode_tag = f"pg{self._gauss_index + 1}"
-                fg = GAUSS_CANONICAL
-            elif self._free_point:
-                mode_tag = "punto libre"
-                fg = EDU_FREE_POINT_COLOR
-            else:
-                mode_tag = "centro del elemento"
-                fg = EDU_FG
-            self._lbl_values_title.configure(text=f"B  en  {mode_tag}", fg=fg)
+        if self._lbl_values_title is None:
+            return
+        # Estado «esperando elemento»: el launcher abre el módulo sin selección
+        # (Ctrl+3 con el lienzo limpio) y el alumno puede deseleccionar con Esc.
+        # Antes decía "B en centro del elemento" sobre una cadena numérica en
+        # ceros: nombraba un elemento que no existe en vez del gesto que
+        # completa el módulo.
+        if self.element is None:
+            self._lbl_values_title.configure(
+                text="sin elemento — clickeá uno en el lienzo",
+                fg=EDU_FG_MUTED,
+            )
+            return
+        if self._gauss_index is not None:
+            mode_tag = f"pg{self._gauss_index + 1}"
+            fg = GAUSS_CANONICAL
+        elif self._free_point:
+            mode_tag = "punto libre"
+            fg = EDU_FREE_POINT_COLOR
+        else:
+            mode_tag = "centro del elemento"
+            fg = EDU_FG
+        self._lbl_values_title.configure(text=f"B  en  {mode_tag}", fg=fg)
 
     # ── Pulse loop ──────────────────────────────────────────────────
     def _schedule_pulse(self):
@@ -589,7 +630,7 @@ class BMatrixModule(CanvasOverlayModule):
         )
         self._mat_formula.pack(anchor="center", pady=(0, 2))
         ttk.Label(
-            frame, text="(∂Nᵢ/∂ξ, ∂Nᵢ/∂η: ver M1)",
+            frame, text="(∂Nᵢ/∂ξ, ∂Nᵢ/∂η: ver ① Mapeo iso)",
             foreground=EDU_FG_MUTED, font=("Consolas", 8), anchor="center",
         ).pack(fill="x", pady=(0, 2))
 

@@ -11,19 +11,23 @@ Reglas del archivo, en [RUTINA.md](RUTINA.md) §4 y §9. Historial de lo hecho, 
 
 ## Área siguiente
 
-> **7 — Módulos educativos M0–M3** (`education/mod00..mod03`, `overlay_module.py`).
+> **8 — Módulos educativos M4–M7** (`education/mod04..mod07`, `module_launcher.py`).
 > Capítulo a leer antes:
 > [../convenciones/modulos-educativos.md](../convenciones/modulos-educativos.md) (el ciclo de
 > vida del overlay: `close()` hace `withdraw()`, **nunca `destroy()`**; `transient(root)` es
-> necesario; el × va en `<ButtonRelease-1>` con `after_idle`) y siempre
+> necesario; el × va en `<ButtonRelease-1>` con `after_idle`; y el contrato del estado
+> **«esperando elemento»** que cerró la sesión 07 — título que nombra el estado, resultados en
+> cero, nada de placeholders que se lean como un valor válido, y `on_element_deselected`
+> sobrescrito en todo módulo cuyo panel muestre datos del elemento: **verificar si M4..M7 lo
+> cumplen**, porque solo se arreglaron M1/M2/M3) y siempre
 > [../convenciones/no-reintroducir.md](../convenciones/no-reintroducir.md), que tiene una tabla
-> **por módulo**: M0, M1, M2 y M3 tienen fila propia con lo que ya se eliminó a propósito
-> (readouts tk, chips de dualidad, el drag del cuadrado de M2, la relación escalar malformada
-> de M3…). Ítem del BACKLOG que le pertenece y hay que drenar primero: los **10 literales de
-> color con nombre** (`"white"` / `"black"`) de `mod01_iso_mapping.py` (7), `mod02_jacobian.py`
-> (2) y `mod03_b_matrix.py` (1) — incumplen la regla dura 2 aunque `run_gates` no los vea.
-> Ojo: la numeración vigente es **M3 = matriz B** y M4 = matriz D (se intercambiaron en
-> 2026-05); los bullets viejos del capítulo usan la numeración anterior.
+> **por módulo**: M4, M5 y M7 tienen fila propia, y la de M4 es la más larga del archivo (el
+> dial circular, el Entry de ν, el ancho del probe dependiente de ν —físicamente
+> incorrecto—, las flechas ámbar, el semáforo del fill…). Ítems del BACKLOG que le pertenecen y
+> hay que drenar primero: los **2 literales de color con nombre** de `mod05_stiffness.py` (1) y
+> `mod06_equivalent_forces.py` (1). Ojo: la numeración vigente es M3 = matriz B y **M4 = matriz
+> D** (se intercambiaron en 2026-05); los bullets viejos del capítulo usan la numeración
+> anterior.
 
 Al cerrar la sesión, reemplazá esta línea por el área que sigue en la rotación de
 [RUTINA.md](RUTINA.md) §4 (1 → 2 → … → 14 → 1).
@@ -126,18 +130,34 @@ Formato: `[área Nº] descripción — evidencia — quién decide`.
   cerrado pero su loop sigue repintando)— y 30 quedaron mudos por legítimos (`iconbitmap`,
   warmup de mathtext, `focus_get`, teardown de Toplevels, `after_cancel`, walk de widgets de
   terceros). Además el `os.startfile` del «¿Abrir el PDF ahora?» dejó de estar dentro del
-  `try` que se comía el «Sí» del alumno. **Revisados: 153 de 274.**
+  `try` que se comía el «Sí» del alumno. **Revisados: 153 de 274.** Sesión 07, los 74 del área 7 (M0..M3 +
+  `overlay_module.py`): **13 pasaron a dejar traza, los 13 en `overlay_module.py`**, que es la
+  base de los 8 overlays — `on_activated` (sin él el overlay abre y no reacciona a ningún click
+  del lienzo), `on_closed` (M0 deja la malla entera en fantasma gris, M3 deja su loop de pulso a
+  30 fps sobre un overlay cerrado), los 3 hooks de la cadena de selección + su eslabón previo
+  (el módulo deja de seguir al lienzo), el `open_module` del `👉` clickeable del pie, el
+  `build_overlay` (el cartel que ve el alumno no ubicaba el fallo), `refit_overlay` (el Toplevel
+  borderless recorta lo que empuja el contenido nuevo), el `redraw` de `refresh_overlay`, el
+  `cleanup()` de los widgets hijos (ToolTip huérfano), el bloque de restauración de `_cleanup`
+  (deja un módulo cerrado dibujando y filtrando clicks) y el `inst.close()` de los otros
+  overlays; más el de `_draw_layer_wrapper`, acotado a **una traza por instancia**
+  (`_layer_error_traced`) porque corre en cada redraw. Los otros 61 quedaron mudos por legítimos
+  (guards de widgets destruidos, `after_cancel`, `set_zlabel` de matplotlib, `compute_jacobian`
+  de un elemento degenerado dentro de un loop de 144 celdas, el `lift()` de una instancia stale
+  que el propio código maneja). **Revisados: 227 de 274.**
 
-- **[transversal] Quedan 12 literales de color con NOMBRE (`"white"` / `"black"`) fuera de
+- **[transversal] Quedan 2 literales de color con NOMBRE (`"white"` / `"black"`) fuera de
   `config/`.** Esquivan la auditoría de hex de `run_gates` (busca `#RRGGBB`) pero incumplen
-  igual la regla dura 2: son colores decididos en `gui/` y `education/`. Reparto por área:
-  **[7]** `education/mod01_iso_mapping.py` (7), `mod02_jacobian.py` (2), `mod03_b_matrix.py`
-  (1) · **[8]** `mod05_stiffness.py` (1), `mod06_equivalent_forces.py` (1). Cada área cierra
-  los suyos en su turno, con una constante en `config/settings.py` y su comentario. Cerrados:
-  los del canvas (sesión 01: `CANVAS_ISOLINE_COLOR`, `CANVAS_COLORBAR_TEXT_COLOR`) y los **5
-  de `details_panel.py`** (sesión 04: `MOHR_MARKER_EDGE_COLOR`). *Propuesta para una sesión
-  futura*: ampliar el patrón de `run_gates.gate_hex` para que también los detecte — hoy no los
-  ve.
+  igual la regla dura 2: son colores decididos en `gui/` y `education/`. Los que faltan son del
+  **[8]**: `mod05_stiffness.py` (1) y `mod06_equivalent_forces.py` (1). Cada área cierra los
+  suyos en su turno, con una constante en `config/settings.py` y su comentario. Cerrados: los
+  del canvas (sesión 01: `CANVAS_ISOLINE_COLOR`, `CANVAS_COLORBAR_TEXT_COLOR`), los **5 de
+  `details_panel.py`** (sesión 04: `MOHR_MARKER_EDGE_COLOR`) y los **10 de M1/M2/M3** (sesión
+  07: `EDU_MARKER_OUTLINE_COLOR` para los outlines de marcador, que ya existía, y la nueva
+  `EDU_NODE_INDEX_FG_COLOR` para el número del nodo dentro de su disco). *Propuesta para una
+  sesión futura*: ampliar el patrón de `run_gates.gate_hex` para que también los detecte — hoy
+  no los ve; mientras tanto `tests/test_edu_modules_m0_m3.py` los vigila en los 5 archivos del
+  área 7.
 
 - **[4 / 2] El mismo desplazamiento se lee distinto en la tabla del Post y en el lienzo.**
   `post_tab._update_table` formatea los desplazamientos en notación científica
@@ -203,6 +223,32 @@ Formato: `[área Nº] descripción — evidencia — quién decide`.
   sobre un modelo vacío. Es deliberado que sobreviva al **cierre** de un módulo (indicador de
   progreso de la sesión), pero no está decidido qué debe pasar al empezar un proyecto nuevo:
   **decide el autor** si el progreso es del alumno (se conserva) o del modelo (se limpia).
+
+- **[8] ¿Cumplen M4..M7 el contrato del estado «esperando elemento»?** La sesión 07 lo fijó en
+  [../convenciones/modulos-educativos.md](../convenciones/modulos-educativos.md) (título que
+  nombra el estado y el gesto, resultados en **cero**, nada de placeholders que se lean como un
+  valor válido, warnings accionables borrados, y `on_element_deselected` sobrescrito en todo
+  módulo cuyo panel muestre datos del elemento) y lo aplicó **solo a M1, M2 y M3**. M4..M7 no se
+  revisaron: ninguno sobrescribe `on_element_deselected` hoy, y hay que ver caso por caso cuáles
+  lo necesitan (M4 muestra la D, que depende del material más que de la geometría; M5 la kₑ; M7
+  la K global con su cola de elementos). Ninguno fabrica un `np.eye` —eso era exclusivo de
+  M2— pero los tres usan `np.zeros` de arranque, así que el punto a revisar es el **título** y
+  el **congelamiento** tras deseleccionar. Pertenece al área 8.
+
+- **[7 / 12] El heatmap de det J de M2 recalcula 144 `compute_jacobian` + 169
+  `natural_to_physical` por redraw.** `_draw_jacobian_heatmap` (`_HEATMAP_N=12`) es el punto más
+  caro del área 7 y se ejecuta en cada `redraw()` del canvas mientras M2 está abierto. Hoy **no
+  produce ningún síntoma medible** (el propio comentario del método lo mide en <5 ms) y
+  vectorizarlo sobre `fem/batch.py` es tocar el motor (área 12) por una optimización sin
+  evidencia, así que la sesión 07 no lo tomó. Si alguna vez se nota lag al arrastrar el canvas
+  con M2 abierto, ése es el lugar (y bajar `N` a 8 ya da 64 quads con gradientes igual legibles).
+
+- **[7] `_draw_natural_square` existe tres veces.** M2 y M3 tienen ~45 líneas casi idénticas y M1
+  una tercera variante (`_draw_natural`). Unificarlas es tentador pero las tres difieren en lo
+  que marcan (M1 **nodos**, M2/M3 **puntos de Gauss**), en el título y en los límites; el
+  capítulo documenta que se unifica el **estilo**, no el widget ni el backend. Un helper con 6
+  flags sería peor que las tres copias. Si se hace, es una refactorización con su propio turno
+  del área 7 y conviene que salga con el estilo ya estabilizado.
 
 - **[1] La cuadrícula del canvas no está anclada al mundo.** `_draw_grid` es un empapelado en
   coordenadas de pantalla (`spacing = clamp(50·scale, 30, 200)` px, fase `offset % spacing`):
@@ -324,6 +370,24 @@ Lo que el gate no puede juzgar. Cada ítem dice qué abrir, qué mirar y cómo r
   (Atajos): son `messagebox` largos y el sandbox no puede medirlos. Verificar en **1080p** que
   ninguno de los dos se corta ni se sale de la pantalla; si el manual no entra, hay que partirlo
   o pasarlo a un Toplevel propio (y eso ya es decisión del autor).
+- **Deseleccionar con un módulo educativo abierto** (sesión 07, **el más importante**).
+  `Ctrl+E` → pestaña **⚙ PROCESO** → clickear un elemento → `Ctrl+2` (*② Jacobiano*) → ahora
+  **clickear en zona vacía del lienzo** (o `Esc`): el halo se apaga y el overlay debe quedar en
+  `sin elemento — clickeá uno en el lienzo`, con `∂N`, `Xₑ` y `J` en **ceros** y **sin** el aviso
+  rojo de elemento degenerado. Antes seguían ahí la superficie det J, las matrices y el aviso del
+  elemento ya deseleccionado. Clickear otro elemento lo vuelve a poblar. Repetir en `Ctrl+3`
+  (*③ Matriz B*) y en `Ctrl+1` (*① Mapeo iso*, cuya línea de estado debe volver a «Clickeá un
+  nodo o cualquier punto interior del elemento.»). Revertir: `git revert` del commit de la
+  sesión 07.
+- **`Ctrl+2` con el lienzo vacío** (sesión 07). *Archivo ▸ Nuevo Proyecto* → `Ctrl+2`: el panel
+  Valores abre con la **J en ceros** y el título del estado. Antes abría con la matriz
+  **identidad** bajo «J en centro del elemento» — una J perfectamente plausible, con det J = 1,
+  que nadie había calculado.
+- **El cuadrado natural de M1 en Q9** (sesión 07). `Ctrl+E` con el ejemplo **Q9** → `Ctrl+1`: los
+  9 nodos llevan su número **en negro** dentro del disco y el **outline blanco**. Eran los
+  literales `"black"` / `"white"` y ahora son constantes de `config/settings.py` con el mismo
+  valor, así que debe verse **idéntico**; si algún número o borde cambió de color, revisar
+  `EDU_NODE_INDEX_FG_COLOR` / `EDU_MARKER_OUTLINE_COLOR`.
 
 (*El centrado de `Ayuda ▸ Acerca de EduFEM`, que antes moría en `NameError`, no ocupa un
 pendiente visual: se verificó con Tk real bajo `xvfb` — abre en `450x350+225+175`, centrado
@@ -460,6 +524,31 @@ futura reabra algo ya decidido.
 - **[6] `F1` prometía un manual que no existía** — cerrado por la sesión 06: *Ayuda ▸ Manual de
   Usuario* recorre el flujo real de las tres fases nombrando dónde está cada acción, en vez de
   anunciar «próximamente» y derivar a los atajos (que no son un manual).
+
+- **[7] M1, M2 y M3 seguían mostrando el elemento DESELECCIONADO** — cerrado por la sesión 07
+  con un `on_element_deselected` propio en los tres. El default de la base solo hace
+  `set_element(None)` + `refresh_overlay()` (un `redraw()` del lienzo): la capa educativa
+  desaparecía por su guard `element is None`, pero el overlay seguía con la superficie det J, las
+  matrices `∂N`/`Xₑ`/`J`, la cadena `∂N_ξη · J⁻¹ → ∂N_xy → B` y la línea `nodo 3` del elemento
+  ido — contradiciendo al halo del lienzo y al chip `#N` del panel de módulos, las otras dos
+  vistas que el alumno mira a la vez. Verificado con Tk real bajo `xvfb`; regresión en
+  `tests/test_edu_modules_m0_m3.py`.
+- **[7] M2 fabricaba `J = identidad` cuando no había elemento** — cerrado por la sesión 07.
+  `_build_values_panel` usaba `np.eye(2)` de placeholder, así que abrir `② Jacobiano` sin
+  selección (un flujo normal: el launcher no pide elemento a propósito) mostraba una J
+  perfectamente plausible con `det J = 1` bajo el título «J en centro del elemento». Ahora el
+  placeholder es cero y el título nombra el estado y el gesto. Con él se cerró que las matrices
+  de M2 y M3 quedaran **congeladas** con los números del elemento anterior (era un
+  `if mat is not None: set_matrix(mat)`) y que el aviso rojo «Elemento degenerado … Reordená los
+  nodos» sobreviviera a la deselección (`_refresh_warning` salía por el guard sin limpiar).
+- **[7] La nota de M2 mandaba las fórmulas de ∂Nᵢ/∂ξ a M4** — cerrado por la sesión 07. Decía
+  `(las formulas de dNi/dxi se ven en M1 y M4)`: cierto antes del swap B↔D de 2026-05 y falso
+  desde entonces, porque M4 es la matriz **D** y no muestra ninguna derivada de N. Ahora
+  `(∂Nᵢ/∂ξ, ∂Nᵢ/∂η: ver ① Mapeo iso)`, igual que M3, con la etiqueta visible del botón y no la
+  key interna. Misma clase de error que la sesión 03 cerró en los mensajes del launcher.
+- **[7] El header de M0 le decía «hover» al alumno** (regla dura 1) y **las coords (x,y) del
+  marcador de M2 no pasaban por `fmt`** (regla dura 8, tres decimales distintos a los del lienzo
+  para la misma magnitud) — cerrados por la sesión 07.
 
 - **[2] Docstrings de `pre_tab.py` / `_table_helpers.py` que anunciaban features eliminadas**
   (fill-down `Ctrl+D`, navegación Tab/flechas, menú contextual, `on_commit(text, direction)`)
