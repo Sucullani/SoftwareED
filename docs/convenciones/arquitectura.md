@@ -114,6 +114,8 @@ Switching a Post-Proceso auto-resuelve (`post_tab.auto_solve()` en `_on_tab_chan
 
 **Arranque maximizado con degradación portable**: `MainWindow.__init__` intenta `root.state("zoomed")` (la vía de Windows, la plataforma de distribución) y, si Tk la rechaza con `TclError`, cae a `attributes("-zoomed", True)` y por último a un `geometry()` del tamaño de pantalla. Sin ese guard la app moría en el constructor fuera de Windows, y con ella los tests `run_gates --con-gui` (`test_draw_mode`, `test_selection_integration`), que ahora también corren en Linux bajo `xvfb-run`.
 
+**Sub-pestañas por fase, y dónde NO hay** (2026-09-09): el Pre-Proceso tiene un `Notebook` porque ahí conviven las 5 tablas + **🎓 Educación**. El **Proceso monta su panel de módulos directo en el frame de la fase**: tenía un `Notebook` con **una sola** pestaña —un control que no controla nada— y encima repetía «módulos educativos» tres veces en la misma pantalla (subtítulo del banner + pestaña + header del panel). Ahora el subtítulo del banner describe la **fase** (`Del elemento al sistema K·u = F · F5 resuelve`, que además era la única pantalla donde no estaba escrito cómo se resuelve) y el header del panel se queda con el nombre. **No reintroducir** el `Notebook` de una pestaña. Las etiquetas visibles van acentuadas (`Educación`, `Módulos`).
+
 **Trampa de orden**: las 3 pestañas se construyen **antes** que `MeshCanvas`. Cualquier wiring `*_tab → mesh_canvas` desde `__init__` falla. Solución: método público `_wire_canvas_callbacks()` invocado tardíamente desde `MainWindow._build_main_layout` tras crear el canvas.
 
 #### Barra de menús (filosofía minimalista)
@@ -142,6 +144,23 @@ Switching a Post-Proceso auto-resuelve (`post_tab.auto_solve()` en `_on_tab_chan
 **Chequeos de consistencia de unidades** ([models/model_health.py](../../models/model_health.py)): tres warnings heurísticos en `validate_project` que detectan mismatch numérico ↔ unidad. (1) `SUSPICIOUS_YOUNG_MODULUS`: convierte E del material a Pa y avisa si está fuera de `[1e8, 5e11]` Pa (rango de materiales estructurales típicos, desde maderas hasta cerámicas). (2) `SUSPICIOUS_MODEL_SCALE`: convierte la extensión del modelo a metros y avisa si está fuera de `[0.1 mm, 10 km]`. (3) `GRAVITY_NO_DENSITY`: si `include_gravity=True` pero la densidad del material asignado es ≤ 0. Los tres se skip-ean si `unit_system` no está en `UNIT_SYSTEMS` (caso defensivo, archivo corrupto). Test de regresión: [tests/test_unit_conversion.py](../../tests/test_unit_conversion.py).
 
 Diálogos en [gui/dialogs/](../../gui/dialogs/): `(parent, project, main_window=None)`. Invocables desde menú o desde tabs sin acoplarse. **Centrado del Toplevel** vía `center_dialog(win, parent, *, clamp_screen=False)` ([gui/dialogs/_dialog_helpers.py](../../gui/dialogs/_dialog_helpers.py), auditoría 2026-06): centraliza las ~7 copias verbatim de `_center()` que vivían en cada diálogo. `clamp_screen=True` además clampa contra el tamaño de pantalla (margen inferior ~50 px) — para los diálogos altos con video (`ElementType`/`Analysis`/`Gravity`). **No reintroducir** un `_center()` local en un diálogo nuevo — usar este helper.
+
+**Teclas `Escape` y `Return`** (2026-09-09, helper `bind_dialog_keys(win, *, on_escape=None, on_return=None)` de `_dialog_helpers.py`): hasta esa fecha **ningún** diálogo respondía a ninguna de las dos y había que llevar el mouse hasta el botón o la X para todo. La semántica **no es la misma en los diez**, por eso es un helper con dos parámetros y no un comportamiento automático:
+
+| Diálogo | `Escape` | `Return` |
+|---|---|---|
+| `AboutDialog` | Cerrar | Cerrar (única acción posible) |
+| `AnalysisTypeDialog` | Cancelar | Aceptar |
+| `ElementTypeDialog` | Cancelar | Aceptar (el paso Q9→Q4 conserva su confirmación modal) |
+| `GravityDialog` | Cancelar | Aceptar (el foco vive en los Entry de gx/gy) |
+| `UnitsDialog` | Cancelar | Aceptar |
+| `MemoriaStyleDialog` | Cancelar (`result = None`) | Continuar con el estilo marcado |
+| `DxfImportDialog` | Cancelar | Importar **solo si el botón está habilitado**; si el DXF todavía se está leyendo, lo dice en el pie del preview |
+| `MaterialDialog` | Cerrar (no hay Aceptar global) | 💾 Guardar cambios **solo si los 4 campos son válidos**; si no, repinta el rojo y nombra el campo culpable en la barra de estado |
+| `HealthReportDialog` | Volver al Pre-Proceso (lo mismo que su X) | **sin atar** |
+| `pdflatex_missing_dialog` | Cerrar | **sin atar** |
+
+Regla: `Escape` = *salir sin cambiar nada*, **siempre lo mismo que la X del Toplevel**. `Return` = **la** acción primaria, y solo cuando hay una sola y pulsarla sin querer no rompe nada. Los dos últimos no atan `Return` a propósito: en el reporte de salud las dos salidas son decisiones **opuestas** (corregir los errores vs. resolver igual) y en el de `pdflatex` la acción principal se va de la aplicación (abre el navegador). No hay default seguro para elegir por el alumno, y un Enter arrastrado del diálogo anterior no puede tomar esa decisión. El handler devuelve `"break"`: sin eso el `Return` de un `Entry` seguiría subiendo por los bindtags después de haber aceptado. **No reintroducir** un `bind("<Escape>")` suelto en un diálogo nuevo — va por el helper, y su fila va en esta tabla.
 
 **Tres reglas transversales de `gui/dialogs/`**, todas fijadas el 2026-09-09 tras encontrar el mismo defecto en varios archivos:
 
@@ -178,6 +197,8 @@ Diálogos en [gui/dialogs/](../../gui/dialogs/): `(parent, project, main_window=
 
 **Título dinámico**: prefijo `●` cuando `is_modified`. Llamar `_update_title()` tras mutaciones.
 
+**El guardado informa si llegó a disco** (2026-09-09). `_on_save_project`, `_on_save_as_project` y `_save_to_file` devuelven `bool`, y los tres flujos que destruyen el modelo en memoria —*Nuevo Proyecto*, *Cargar Ejemplo* y *Salir*— pasan por `_confirm_discard_changes(titulo, accion)`, que aborta si el guardado no ocurrió. Antes cada uno preguntaba por su cuenta, con tres redacciones distintas, y **los tres seguían adelante igual**: contestar *Sí, guardar* y después cancelar el diálogo de *Guardar Como* (o que fallara la escritura) descartaba el modelo sin decir nada. Es la peor clase de acción destructiva, porque el alumno acababa de pedir explícitamente que no pasara. La confirmación única usa el mismo formato `Sí → / No → / Cancelar →` que el import de modelo. Regresión en [tests/test_main_window.py](../../tests/test_main_window.py).
+
 **Enable/disable inteligente** (`_refresh_menu_state`): Save según `is_modified`, Memoria de Cálculo (PDF) según `is_solved`. Sincronizado vía **`postcommand` del `menu_archivo`** — se dispara automáticamente al abrir el menú, así no hay que llamar `_refresh_menu_state` desde cada mutación del spreadsheet/canvas. Las flags `is_modified`/`is_solved` ya las setean los setters del `ProjectModel`; el postcommand solo sincroniza la UI cuando el usuario va a verla. **No reintroducir** llamadas explícitas a `_refresh_menu_state` tras mutaciones — duplica trabajo.
 
 **Atajos** (en `_bind_shortcuts` y reflejados en `_on_shortcuts`):
@@ -185,9 +206,12 @@ Diálogos en [gui/dialogs/](../../gui/dialogs/): `(parent, project, main_window=
 | Atajo | Acción |
 |---|---|
 | Ctrl+N / O / S / Shift+S | Nuevo / Abrir / Guardar / Guardar Como |
-| Ctrl+E | Cargar Ejemplo |
+| Ctrl+E | Cargar Ejemplo — vive en el menú **Ayuda**, no en Archivo |
 | Ctrl+Q | Salir |
 | Ctrl+Z / Y / Shift+Z | Deshacer / Rehacer / Rehacer alt — ver `models/undo_stack.py` |
+| Supr | Borrar la selección (lienzo y las 5 tablas del Pre) |
+| Ctrl+C / Ctrl+V | Copiar / pegar filas TSV en las tablas; en el Post, copiar la tabla o el punto consultado |
+| F8 / Backspace | ORTHO (Shift = override) / borrar el último vértice del elemento parcial |
 | Ctrl+1..7 | Módulos educativos M1..M7 en orden canónico FEM (mapeo, Jacobiano, **B**, **D**, K+Gauss, fuerzas, ensamblaje). M3 = matriz B (`mod03_b_matrix.py`), M4 = matriz D (`mod04_constitutive.py`) |
 | F5 | Resolver |
 | F11 / F | Pantalla completa / Ajustar vista |
@@ -197,7 +221,11 @@ Diálogos en [gui/dialogs/](../../gui/dialogs/): `(parent, project, main_window=
 | Ctrl+Tab / Shift+Tab | Pestaña sig / ant |
 | Ctrl+/ / F1 | Atajos / Manual |
 
-`_is_entry_focused()` corta atajos de una sola tecla cuando el foco está en `Entry`/`Combobox`. Atajos nuevos van en `_bind_shortcuts` Y `_on_shortcuts` — deben coincidir.
+`_is_entry_focused()` corta atajos de una sola tecla cuando el foco está en `Entry`/`Combobox`. Atajos nuevos van en `_bind_shortcuts` Y `_on_shortcuts` — deben coincidir, **y también los que no se atan en `main_window`**: `Supr`, `Ctrl+C` y `Ctrl+V` se bindean en el canvas y en las tablas, y hasta el 2026-09-09 faltaban en la ventana `Ctrl+/` aunque son las teclas que el alumno más usa. La regresión que lo fija está en [tests/test_main_window.py](../../tests/test_main_window.py).
+
+**`F8` fuera del modo dibujo no es invisible** (2026-09-09): el indicador `ORTHO` de la barra de estado solo se muestra dibujando, así que el toggle no se veía por ningún lado — el alumno pulsaba la tecla, la pantalla no cambiaba, y el estado aparecía recién al entrar en modo dibujo. Ahora `_on_toggle_ortho` **siempre** avisa, y fuera del dibujo dice además dónde se aplica (`«ORTHO activado — se aplica al dibujar elementos (tecla D)»`). Mismo criterio para `Ctrl+S` sin cambios (el ítem de menú está gris, pero el atajo se dispara igual) y para `F11`, que además solo actualiza `_is_fullscreen` **si Tk aceptó** el cambio: invertir el flag ante un `TclError` dejaba al siguiente F11 pidiendo lo contrario de lo que se ve.
+
+**`F1` / Ayuda ▸ Manual de Usuario** dejó de ser una promesa (2026-09-09). Decía «Manual de usuario próximamente» y derivaba a los atajos: un ítem de menú que promete algo y no lo da, y los atajos no son un manual (no dicen en qué orden se arma un modelo ni dónde vive cada cosa). Ahora `_on_help` recorre el flujo real de las tres fases nombrando la ubicación de cada acción en la interfaz que existe (los 3 menús, la tecla D, F5, `Ctrl+Z`, el badge de salud). **No reintroducir** el placeholder.
 
 **Archivos recientes**: persistencia JSON en `~/.edufem/recent.json` ([config/recent_files.py](../../config/recent_files.py), `RECENT_FILES_MAX = 10`). `recent_files.add(path)` tras guardar/abrir + `_build_recent_menu()`.
 ### Otros archivos importantes

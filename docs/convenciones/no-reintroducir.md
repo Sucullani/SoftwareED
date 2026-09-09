@@ -75,6 +75,14 @@ Abreviaturas de capítulo:
 | Un botón de diálogo que no diga nada cuando no puede actuar | 🔧 Corregir con `apply_autofix` en `False`, 🔄 Re-validar con el validador caído, y 📍 Ir al ítem sobre un `target_kind="material"`: los tres eran mudos. El canal es `main_window.set_status` | [ARQ] |
 | Un `target_kind` de `model_health` sin destino en `_on_goto` | Los materiales no viven en ninguna tabla del Pre: van a `MaterialDialog(..., seleccionar=…)`; lo que no se sepa navegar se dice en la barra de estado | [ARQ] |
 | Un status label dentro del `MaterialDialog` | El campo inválido se marca en rojo (`bootstyle="danger"`) y el botón Guardar queda gris: no hace falta un widget de texto | [ARQ] |
+| Seguir con *Nuevo Proyecto* / *Cargar Ejemplo* / *Salir* sin verificar que el guardado ocurrió | Contestar «Sí, guardar» y cancelar el *Guardar Como* descartaba el modelo igual: el guardado devuelve `bool` y `_confirm_discard_changes` aborta | [ARQ] |
+| Preguntar por los cambios sin guardar con una redacción propia en cada flujo | Eran tres textos distintos para la misma decisión: la puerta única es `_confirm_discard_changes` | [ARQ] |
+| Un `bind("<Escape>")` o `<Return>` suelto en un diálogo | Va por `bind_dialog_keys` de `_dialog_helpers.py`, y su fila va en la tabla diálogo → (Escape, Return) | [ARQ] |
+| `Return` en el `HealthReportDialog` o en `pdflatex_missing_dialog` | Sus dos salidas son decisiones opuestas (corregir vs. resolver igual) o se van de la app (abre el navegador): no hay default seguro para dar por Enter | [ARQ] |
+| «Manual de usuario próximamente» detrás de `F1` | Un ítem de menú que promete algo y no lo da; los atajos no son un manual. `_on_help` recorre el flujo real de las 3 fases | [ARQ] |
+| Un atajo que no diga nada cuando no puede actuar (`Ctrl+S` sin cambios, `F8` fuera del modo dibujo) | El ítem de menú gris no llega al atajo, y el indicador `ORTHO` solo se ve dibujando: el toggle era invisible | [ARQ] |
+| Invertir `_is_fullscreen` antes de que Tk acepte el `-fullscreen` | Ante `TclError` el flag quedaba desincronizado y el siguiente `F11` pedía lo contrario de lo que se ve | [ARQ] |
+| Un `ttk.Notebook` de una sola pestaña en `ProcessTab` | Un control que no controla nada, y repetía «módulos educativos» tres veces en la misma pantalla | [ARQ] |
 
 ## Canvas, spreadsheet y Post-Proceso
 

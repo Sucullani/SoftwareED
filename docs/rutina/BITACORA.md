@@ -912,3 +912,182 @@ escrito.
 ### Área siguiente
 
 6 — Ventana, menús, atajos, barra de estado (`gui/main_window.py`, `gui/widgets/*`).
+
+---
+
+## Sesión 06 — 2026-09-09 02:10 UTC — Área: 6 — Ventana, menús, atajos, barra de estado
+
+**Commit**: (este) · **Gates**: `run_gates` verde (97/97 módulos, 0 nombres sin definir, 0 hex,
+**20**/20 tests) y también `run_gates --con-gui` bajo `xvfb` (22/22) · además dos smokes con Tk
+real: la ventana completa (F8, Ctrl+S, F5, breadcrumb, layout de Proceso) y las teclas
+`Escape` / `Return` de seis diálogos
+
+> Nota de entorno: igual que las sesiones 03–05, el sandbox vino **sin el stack y sin
+> `tkinter`**. Gate corrido con un venv de `python3.12` del sistema + `pip install -r
+> requirements.txt`, según la receta de [RUTINA.md](RUTINA.md) §8. Sin tocar
+> `requirements.txt`. **Tampoco hay `pdflatex` ni `latexmk`**: las correcciones de `tesis/`
+> siguen sin poder tomarse (§6 exige compilar antes de pushear) y esta sesión le sumó una
+> cuarta al Anexo A.
+
+### Qué se hizo y por qué
+
+El hallazgo central es una **pérdida de datos**: los tres flujos que destruyen el modelo seguían
+adelante aunque el guardado que el alumno acababa de pedir no hubiera ocurrido.
+
+- `gui/main_window.py::_confirm_discard_changes` — **nuevo**, y `_on_new_project`,
+  `_on_load_example` y `_on_exit` pasan por él. `_on_save_project`, `_on_save_as_project` y
+  `_save_to_file` devuelven ahora `bool`.
+  **Por qué**: los tres preguntaban «¿guardar los cambios?» por separado —con tres redacciones
+  distintas— y los tres llamaban `self._on_save_project()` **ignorando el resultado**. Si el
+  proyecto nunca se había guardado, ese método deriva en `_on_save_as_project`, y **cancelar el
+  filedialog no guardaba nada**: el flujo seguía, `project.reset()` (o `root.destroy()`) corría
+  igual y el modelo se perdía sin un solo mensaje. Lo mismo si fallaba la escritura: el
+  `showerror` avisaba y a continuación se destruía el modelo de todos modos. Es la peor clase de
+  acción destructiva —el alumno acababa de pedir explícitamente que no pasara— y es la regla 4
+  del canon leída desde la UX: si no hay forma de volver, no puede pasar en silencio. La
+  confirmación única usa el formato `Sí → / No → / Cancelar →` que ya usaba el import de modelo.
+- `main_window::_on_save_project` — **`Ctrl+S` sin cambios dejó de ser mudo**. El ítem de menú
+  está gris en ese estado (lo sincroniza el `postcommand`), pero el **atajo se dispara igual** y
+  no pasaba absolutamente nada. Ahora lo dice.
+- `main_window::_on_toggle_ortho` — **`F8` fuera del modo dibujo era completamente invisible**.
+  El indicador `ORTHO` de la barra solo se muestra cuando además está activo el modo dibujo, así
+  que el toggle no aparecía por ningún lado: el alumno pulsaba la tecla, la pantalla no cambiaba
+  y el estado se revelaba recién al entrar en dibujo. Ahora siempre avisa, y fuera del dibujo
+  agrega dónde se aplica («se aplica al dibujar elementos (tecla D)»). Es el ejemplo de manual
+  del «estado invisible» de [RUTINA.md](RUTINA.md) §7.
+- `main_window::_on_fullscreen` — el flag `_is_fullscreen` se invertía **antes** de que Tk
+  aceptara el cambio: ante `TclError` quedaba desincronizado y el siguiente `F11` pedía lo
+  contrario de lo que se ve. Ahora se actualiza solo si Tk aceptó, y el aviso nombra la tecla de
+  salida **porque en pantalla completa desaparece la barra de menús**, que es donde está escrita.
+- `main_window::_on_help` — **`F1` dejó de prometer un manual inexistente**. Decía «Manual de
+  usuario próximamente» y derivaba a los atajos; los atajos no son un manual (no dicen en qué
+  orden se arma un modelo ni dónde vive cada cosa). Ahora recorre las tres fases nombrando la
+  ubicación real de cada acción (los 3 menús, la tecla D, F5, `Ctrl+Z`, el badge de salud). No es
+  una feature nueva: es el ítem de menú que ya existía, cumpliendo lo que promete.
+- `main_window::_on_shortcuts` — la ventana `Ctrl+/` **no listaba las teclas que el alumno más
+  usa**: faltaban `Supr` (borrar la selección), `Esc`, `Ctrl+C`, `Ctrl+V` y `Ctrl+A`, que se
+  bindean en el canvas y en las tablas y no en `main_window` — el canon solo pedía sincronizar
+  `_bind_shortcuts` con `_on_shortcuts`, y por eso se colaron. Además `Ctrl+E` figuraba bajo
+  **Archivo**, un menú donde *Cargar Ejemplo* no está (vive en **Ayuda**): la misma clase de
+  error que la sesión 03 arregló en los mensajes del launcher. Y se acentuaron las palabras del
+  bloque de modelado.
+- `gui/dialogs/_dialog_helpers.py::bind_dialog_keys` — **nuevo**, y aplicado a los **10**
+  diálogos: el ítem `[5 / 6]` del BACKLOG. Ninguno respondía a `Escape` ni a `Return`. La tabla
+  completa quedó en `arquitectura.md`; el resumen: `Escape` = *salir sin cambiar nada*, siempre
+  lo mismo que la X del Toplevel; `Return` = **la** acción primaria, y solo cuando hay una sola y
+  pulsarla sin querer no rompe nada. Por eso `HealthReportDialog` y `pdflatex_missing_dialog`
+  **no atan Return**: en el primero las dos salidas son decisiones opuestas (corregir vs.
+  resolver igual) y en el segundo la acción principal abre el navegador. En `DxfImportDialog`
+  Return solo importa si el botón está habilitado (arranca `disabled` hasta que se lee el DXF) y,
+  si no, lo dice en el pie del preview. En `MaterialDialog` Return guarda **solo** si los 4
+  campos son válidos, y si no repinta el rojo y **nombra el campo culpable** en la barra de
+  estado (`_FIELD_LABELS` pasó a ser fuente única del form y del aviso). El handler devuelve
+  `"break"`: sin eso el `Return` de un `Entry` seguiría subiendo por los bindtags.
+- `gui/processing/proc_tab.py` — el ítem `[3 / 6]`: **desapareció el `ttk.Notebook` de una sola
+  pestaña**. Un Notebook con una pestaña es un control que no controla nada, y encima repetía
+  «módulos educativos» **tres veces** en la misma pantalla (subtítulo del banner + pestaña +
+  header del panel). Ahora el panel cuelga directo del frame de la fase, el subtítulo describe la
+  **fase** —`Del elemento al sistema K·u = F · F5 resuelve`, que además era la única pantalla
+  donde no estaba escrito cómo se resuelve— y el header del panel se queda con el nombre.
+  `pre_tab` sí conserva su Notebook (ahí conviven 5 tablas + Educación) y su pestaña pasó a
+  `🎓 Educación`, acentuada como el resto.
+- `main_window::_build_status_bar` — **tooltips en los 8 chips del breadcrumb y en el badge de
+  salud**. Los glifos `Ⓜ ① ② …` son clickeables y no decían qué abren; el nombre sale de
+  `module_launcher.module_label` (nunca la key interna) y el tooltip agrega `Ctrl+N` para M1..M7,
+  que M0 no tiene. Reusa `gui/widgets/tooltip.py`, que ya existía.
+- `main_window::_build_recent_menu` — dos proyectos con el **mismo nombre de archivo** en
+  carpetas distintas (`viga.edufem` de dos TPs) se veían como dos entradas idénticas: no había
+  forma de elegir. Ahora, y **solo** en ese caso, la entrada nombra su carpeta.
+- `main_window::_on_export_pdf` — el `os.startfile` del «¿Abrir el PDF ahora?» estaba **dentro
+  del `try/except: pass` que envolvía también al `askyesno`**: en cualquier sistema que no sea
+  Windows (y ante cualquier fallo del handler del `.pdf`) el «Sí» del alumno no abría nada ni
+  decía por qué. Ahora la pregunta está fuera y el fallo de apertura deja traza y nombra la ruta.
+- **`except Exception` del área: revisados los 43, cambiados 13.** Dejan traza con
+  `traceback.print_exc()` (convención de `undo_stack` / `post_tab` / `mesh_canvas` / `dialogs`):
+  el refresco final de `_on_state_restored` (si falla mudo, el `Ctrl+Z` **parece no haber hecho
+  nada**: la UI sigue mostrando el modelo de antes), el `validate_project` del badge (que se
+  queda diciendo «Modelo sano» sobre un modelo que ya no se validó), el `wire_canvas` de cada
+  fase y la suscripción del breadcrumb (sin ellos los paneles educativos no reaccionan a la
+  selección), las teclas que quedaban mudas (`F` de ajustar vista, `D` de dibujar —el acceso
+  principal al modo dibujo—, los dos eslabones de la cascada de `Escape`, el chip del
+  breadcrumb), los dos del PDF (snapshot del proyecto y tensiones por elemento), el
+  `_load_project_from_path`, más el render del `WebpPlayer` (que ya paraba el loop, así que la
+  traza sale **una** vez) y el `on_closed` de `CanvasOverlay` (si falla, el overlay se ve cerrado
+  pero su loop de animación sigue repintando). Los otros 30 son legítimos (`iconbitmap`, warmup
+  de mathtext, `focus_get`, teardown de Toplevels, `after_cancel`, el walk de widgets de
+  terceros). **Revisados: 153 de 274.**
+- `tests/test_main_window.py` — nuevo (20 casos, sin display: `MainWindow` con `object.__new__`
+  y dobles mínimos, como las sesiones 01–05). Sumado a `run_gates`. Cubre los cuatro caminos de
+  la confirmación de descarte (guardado OK / guardado cancelado / Cancelar / No), que los tres
+  flujos destructivos comparten la puerta y que ninguno volvió a preguntar por su cuenta, que
+  los tres métodos de guardado declaran `-> bool`, los avisos de `Ctrl+S` / `F8` / `F11`, la
+  cobertura de la ventana de atajos contra las teclas reales, el `Ctrl+E` bajo Ayuda, que `F1`
+  no vuelve a decir «próximamente», el contrato de `bind_dialog_keys`, que los 10 diálogos atan
+  Escape y que los **dos sin default seguro no atan Return**, el Return guardado del
+  `MaterialDialog`, la desambiguación de recientes y que no vuelva el Notebook de una pestaña.
+
+### Errores encontrados y corregidos
+
+- **Pérdida de datos al cancelar el guardado** (el principal, arriba): *Nuevo Proyecto*,
+  *Cargar Ejemplo* y *Salir* destruían el modelo aunque el guardado que el alumno pidió no
+  hubiera ocurrido.
+- **`F8` invisible fuera del modo dibujo** y **`Ctrl+S` mudo sin cambios**: dos teclas que no
+  producían ningún cambio en pantalla.
+- **`F11` desincronizaba `_is_fullscreen`** si Tk rechazaba el atributo.
+- **`F1` prometía un manual inexistente.**
+- **La ventana `Ctrl+/` no listaba `Supr`, `Esc`, `Ctrl+C`, `Ctrl+V` ni `Ctrl+A`**, y ubicaba
+  `Ctrl+E` en un menú donde *Cargar Ejemplo* no está.
+- **Los 8 chips del breadcrumb y el badge de salud eran clickeables sin decir qué hacían.**
+- **Dos recientes con el mismo nombre de archivo eran indistinguibles.**
+- **El «¿Abrir el PDF ahora?» se comía el «Sí»** cuando `os.startfile` no existía o fallaba.
+- **13 `except Exception` mudos** en caminos que el alumno recorre (arriba el detalle).
+- Verificado todo con Tk real bajo `xvfb`: la ventana abre con el panel de Proceso sin Notebook,
+  `Escape` cierra About / Unidades (sin convertir) / Materiales, `Return` acepta en Análisis
+  (cambia TP↔DP) y en Gravedad (con `1,5` → `gx = 1.5`), `Escape` en el reporte de salud devuelve
+  `result="cancel"`, y el Enter con `ν = 0,9` inválido escribe «Revisá Coef. de Poisson ν antes
+  de guardar el material».
+
+### DECISIÓN CONGELADA REVERTIDA
+
+Ninguna. El `Notebook` de una sola pestaña de Proceso **no** era una decisión congelada (no tenía
+fila en `no-reintroducir.md` ni motivo escrito en ningún capítulo); el ítem `[3 / 6]` del BACKLOG
+pedía justamente decidirlo. Ahora sí tiene fila, para que nadie lo reponga. Tampoco se tocó la
+regla de los **3 menús**: no se agregó ninguna entrada de menú en toda la sesión.
+
+### Pendientes visuales para el autor
+
+1. **Proceso sin Notebook.** Pestaña **⚙ PROCESO**: el panel de módulos M1…M7 debe arrancar
+   pegado al banner, sin la pestaña `🎓 Modulos Educativos` encima. El subtítulo del banner ahora
+   dice «Del elemento al sistema K·u = F · F5 resuelve». Verificar que los botones no queden
+   apretados en 1080p. Revertir: `git revert` de este commit.
+2. **Escape y Return en los diálogos.** En Unidades, Gravedad, Tipo de Elemento, Tipo de Análisis
+   y Acerca de: Escape cierra sin aplicar, Enter acepta. En Materiales, Enter guarda y con un
+   campo en rojo **no** guarda (lo dice nombrando el campo). En el reporte de salud, Escape
+   vuelve al Pre-Proceso y **Enter no hace nada**, a propósito. De paso: con el modelo
+   modificado, `Ctrl+N` → **Sí** → cancelar el *Guardar Como* debe **volver al modelo intacto**.
+3. **Las dos ventanas de texto de Ayuda.** `F1` y `Ctrl+/` son `messagebox` largos y el sandbox
+   no puede medirlos: verificar en 1080p que ninguno se corta ni se sale de la pantalla. Si el
+   manual no entra, hay que partirlo o pasarlo a un Toplevel propio (decisión del autor).
+
+### Descartado
+
+- **Un guard `_exportando` en `_on_export_pdf`.** Nada impide lanzar dos compilaciones de la
+  Memoria a la vez (el diálogo de progreso no hace `grab_set`, y eso es deliberado). Es una
+  carrera real, pero el arreglo toca el flujo de la memoria (área 10) y hoy no produce ningún
+  síntoma visible: cada worker trabaja sobre su propio snapshot. Al BACKLOG.
+- **Limpiar `_breadcrumb_visited` en *Nuevo Proyecto*.** Los chips siguen marcados como
+  visitados sobre un modelo vacío. Pero que el progreso sobreviva al cierre de un módulo es
+  deliberado, y si es "progreso del alumno" o "progreso del modelo" no está decidido en ningún
+  lado: **decide el autor**. Al BACKLOG.
+- **Renombrar el ítem de menú *Manual de Usuario*.** Sería lo más honesto si el contenido fuera
+  una guía rápida, pero la tabla `tab:atajos` del Anexo A de la tesis nombra `F1 → Manual`, y
+  §6 exige compilar el `.tex` antes de pushear (este sandbox no tiene `pdflatex`). Se dejó el
+  rótulo y se mejoró el contenido, que es la mitad que sí se puede verificar acá.
+- **Tocar `tesis/`**: sigue sin haber `pdflatex` ni `latexmk`. Las tres correcciones del Anexo A
+  siguen abiertas y ahora hay una cuarta: la ventana `Ctrl+/` lista más atajos que `tab:atajos`.
+- **Un cuarto menú, una toolbar o un botón nuevo**: ni se evaluó. La barra sigue teniendo
+  exactamente Archivo / Modelo / Ayuda, y esta sesión no agregó ninguna entrada.
+
+### Área siguiente
+
+7 — Módulos educativos M0–M3 (`education/mod00..mod03`, `overlay_module.py`).

@@ -99,7 +99,7 @@ def _project_length_unit(project):
     return lu or None
 
 
-from gui.dialogs._dialog_helpers import center_dialog
+from gui.dialogs._dialog_helpers import bind_dialog_keys, center_dialog
 class DxfImportDialog:
     """Dialogo modal para importar un DXF al proyecto actual."""
 
@@ -133,6 +133,8 @@ class DxfImportDialog:
 
         self._build()
         self._center()
+        bind_dialog_keys(self.dialog,
+                         on_escape=self._on_cancel, on_return=self._on_return)
         self.dialog.after(50, self._load_dxf)
 
     # ------------------------------------------------------------------
@@ -380,6 +382,25 @@ class DxfImportDialog:
         if target_system and target_system in UNIT_SYSTEMS:
             self.project.unit_system = target_system
         return factor
+
+    def _on_return(self):
+        """Return = Importar, pero solo cuando el botón está habilitado.
+
+        El botón arranca en `disabled` y se habilita recién cuando el DXF
+        terminó de leerse (`_load_dxf`): un Enter antes de eso entraría a
+        `_on_import` sin capas resueltas. Se dice por qué en vez de no
+        hacer nada.
+        """
+        try:
+            habilitado = str(self._import_btn.cget("state")) == "normal"
+        except tk.TclError:
+            habilitado = False
+        if not habilitado:
+            self._preview_info.configure(
+                text="Esperá a que termine de leerse el archivo DXF."
+            )
+            return
+        self._on_import()
 
     def _on_import(self):
         if not self._filepath or not os.path.isfile(self._filepath):

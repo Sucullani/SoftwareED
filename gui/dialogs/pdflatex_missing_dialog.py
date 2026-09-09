@@ -32,7 +32,7 @@ import ttkbootstrap as ttk
 from ttkbootstrap.constants import BOTH, BOTTOM, RIGHT, W, X, YES
 
 from config.settings import FONT_UI, FONT_UI_BOLD, TEXT_MUTED_FG
-from gui.dialogs._dialog_helpers import center_dialog
+from gui.dialogs._dialog_helpers import bind_dialog_keys, center_dialog
 
 
 # (nombre de la distribución, URL oficial de descarga) por plataforma.
@@ -107,6 +107,11 @@ def show_pdflatex_missing_dialog(parent: tk.Misc) -> None:
     ).pack(side=RIGHT, padx=4)
 
     top.protocol("WM_DELETE_WINDOW", top.destroy)
+    # Escape cierra. **Sin Return**: la acción principal de este diálogo
+    # abre el navegador en la página de descarga de MiKTeX, y eso no se
+    # dispara por un Enter que el alumno venía arrastrando del diálogo
+    # anterior.
+    bind_dialog_keys(top, on_escape=top.destroy)
     center_dialog(top, parent)
     try:
         top.grab_set()

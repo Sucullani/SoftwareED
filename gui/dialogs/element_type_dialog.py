@@ -67,7 +67,7 @@ _Q4_DOT_COLOR = ELEMENT_Q4_DOT_COLOR   # gris claro (matches Q4 column header)
 _Q9_DOT_COLOR = PHASE_PROC_COLOR  # naranja (matches Q9 column header)
 
 
-from gui.dialogs._dialog_helpers import center_dialog
+from gui.dialogs._dialog_helpers import bind_dialog_keys, center_dialog
 class ElementTypeDialog:
     """Ventana modal para configurar Tipo de Elemento (Q4 / Q9)."""
 
@@ -95,6 +95,10 @@ class ElementTypeDialog:
         # real antes del primer render (si no, escala a 1×1 px).
         self.dialog.after(120, self._load_video)
         self._center()
+        # Return acepta: el paso Q9 -> Q4 tiene su propia confirmación
+        # modal, así que no puede destruir nodos de un solo Enter.
+        bind_dialog_keys(self.dialog,
+                         on_escape=self._on_cancel, on_return=self._on_accept)
 
     # ─── Layout ─────────────────────────────────────────────────────────
     def _build(self):

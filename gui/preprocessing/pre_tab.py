@@ -283,7 +283,7 @@ class PreProcessTab:
 
         # Sub-pestana de modulos educativos de pre-proceso (M0 calidad de malla)
         self.education_frame = ttk.Frame(self.data_notebook)
-        self.data_notebook.add(self.education_frame, text="  🎓 Educacion  ")
+        self.data_notebook.add(self.education_frame, text="  🎓 Educación  ")
         self._build_education_panel()
 
         # Cablear callbacks bidireccionales: click en canvas selecciona
@@ -353,7 +353,7 @@ class PreProcessTab:
             modules=list_modules_for_phase("pre"),
             on_open=_on_open,
             bootstyle=f"{PHASE_PRE_BOOTSTYLE}-outline",
-            header_text="Modulos Educativos · Pre-Proceso",
+            header_text="Módulos Educativos · Pre-Proceso",
             header_color=PHASE_PRE_COLOR,
             subtitle=("Conceptos relacionados con la preparacion del modelo:\n"
                       "calidad geometrica de la malla, tipos de elemento."),

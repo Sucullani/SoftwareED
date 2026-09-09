@@ -41,7 +41,7 @@ _PREVIEW_HEAD_PX    = 14   # tamaño de la cabeza triangular
 _PREVIEW_TAG        = "gravity_preview"
 
 
-from gui.dialogs._dialog_helpers import center_dialog
+from gui.dialogs._dialog_helpers import bind_dialog_keys, center_dialog
 class GravityDialog:
     """Ventana modal para configurar el vector de gravedad (gx, gy)."""
 
@@ -69,6 +69,10 @@ class GravityDialog:
 
         self._build()
         self._center()
+        # Return acepta desde los Entry de gx / gy, que es donde está el
+        # foco mientras se tipea el vector.
+        bind_dialog_keys(self.dialog,
+                         on_escape=self._on_cancel, on_return=self._on_accept)
 
         # Live update del preview en el canvas.
         self.gx_var.trace_add("write", self._on_field_changed)

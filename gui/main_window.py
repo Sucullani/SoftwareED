@@ -14,6 +14,7 @@ from ttkbootstrap.constants import *
 from tkinter import filedialog, messagebox
 import json
 import os
+import traceback
 
 from config.settings import (
     APP_NAME, APP_VERSION, WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT,
@@ -32,6 +33,7 @@ from gui.preprocessing.pre_tab import PreProcessTab
 from gui.processing.proc_tab import ProcessTab
 from gui.postprocessing.post_tab import PostProcessTab
 from gui.preprocessing.mesh_canvas import MeshCanvas
+from gui.widgets.tooltip import ToolTip
 
 from gui.dialogs.material_dialog import MaterialDialog
 from gui.dialogs.about_dialog import AboutDialog
@@ -209,7 +211,9 @@ class MainWindow:
                 try:
                     tab.wire_canvas()
                 except Exception:
-                    pass
+                    # Sin cableado, el panel de modulos de esa fase no
+                    # reacciona a la seleccion (nunca aparece el chip #N).
+                    traceback.print_exc()
 
         # Fijar ancho inicial del panel lateral a 1/3 del ancho de pantalla.
         # El `width=420` del left_panel es ignorado por Panedwindow al
@@ -463,6 +467,15 @@ class MainWindow:
         self._breadcrumb_visited: set = set()
         self._breadcrumb_chips: dict = {}  # mod_key -> tk.Label
         self._breadcrumb_frame = ttk.Frame(self.status_frame, bootstyle="dark")
+        # Etiqueta de cada chip para el tooltip. Los glifos Ⓜ ① ② … no
+        # dicen por si solos que modulo abren, y el chip es clickeable:
+        # un control sin nombre es justo el "estado invisible" que hay
+        # que evitar. La fuente unica del nombre es `module_label`
+        # (nunca la key interna `mod03` en un string visible).
+        try:
+            from education.module_launcher import module_label as _mod_label
+        except Exception:
+            _mod_label = None
         for mod_key, label in (
             ("mod00",  "Ⓜ"),
             ("mod01",  "①"),
@@ -484,6 +497,16 @@ class MainWindow:
                 "<Button-1>",
                 lambda _e, k=mod_key: self._on_breadcrumb_click(k),
             )
+            if _mod_label is not None:
+                nombre = _mod_label(mod_key)
+                # Ctrl+1..7 abren M1..M7; M0 (calidad de malla) no tiene
+                # atajo — no inventar uno en el tooltip.
+                atajo = ""
+                if mod_key.startswith("mod") and mod_key[3:].isdigit():
+                    n = int(mod_key[3:])
+                    if 1 <= n <= 7:
+                        atajo = f"  (Ctrl+{n})"
+                ToolTip(chip, text=f"Abrir {nombre}{atajo}")
             self._breadcrumb_chips[mod_key] = chip
         # No packear el frame inicialmente — aparece al abrir el primer overlay.
 
@@ -492,7 +515,8 @@ class MainWindow:
             from education.overlay_module import subscribe_overlay_change
             subscribe_overlay_change(self._on_overlay_change)
         except Exception:
-            pass
+            # Sin la suscripcion el breadcrumb nunca se ilumina.
+            traceback.print_exc()
 
         self.info_label = ttk.Label(
             self.status_frame, text="",
@@ -520,6 +544,9 @@ class MainWindow:
         self.health_badge.pack(side=RIGHT)
         self.health_badge.bind("<Button-1>",
                                lambda _e: self._on_health_badge_click())
+        # El badge tiene cursor de mano pero nada dice que se puede abrir.
+        ToolTip(self.health_badge,
+                text="Salud del modelo — click para ver el reporte completo")
 
         self._update_status_info()
 
@@ -528,16 +555,27 @@ class MainWindow:
         self.status_label.config(text=f"  {message}")
 
     def _on_breadcrumb_click(self, mod_key: str) -> None:
-        """Click en un chip del breadcrumb: abre el módulo destino."""
+        """Click en un chip del breadcrumb: abre el módulo destino.
+
+        `open_module` ya reporta sus propios fallos (malla vacía, import
+        roto) con un modal; lo que se atrapa acá es el fallo del propio
+        launcher. Antes quedaba mudo: el chip parpadeaba y no pasaba nada.
+        """
+        # Nunca la key interna (`mod03`) en un string visible: si ni
+        # siquiera se pudo importar el launcher, se habla del módulo en
+        # genérico.
+        nombre = "el módulo educativo"
         try:
-            from education.module_launcher import open_module
+            from education.module_launcher import open_module, module_label
+            nombre = f"«{module_label(mod_key)}»"
             open_module(
                 self, self.project, mod_key,
                 mesh_canvas=getattr(self, "mesh_canvas", None),
                 elem_id=None,
             )
         except Exception:
-            pass
+            traceback.print_exc()
+            self.set_status(f"No se pudo abrir {nombre}.")
 
     def _on_overlay_change(self, main_window, active_mod_keys: set) -> None:
         """Callback de `subscribe_overlay_change`: ilumina el chip del módulo
@@ -595,6 +633,9 @@ class MainWindow:
         try:
             report = validate_project(self.project)
         except Exception:
+            # Badge congelado en el ultimo veredicto: dejar traza, sino el
+            # alumno ve "Modelo sano" sobre un modelo que ya no se valido.
+            traceback.print_exc()
             return
         self._last_health_report = report
         if report.has_errors():
@@ -670,10 +711,21 @@ class MainWindow:
             )
             return
 
+        # Dos proyectos con el mismo nombre de archivo en carpetas
+        # distintas (`viga.edufem` en dos trabajos prácticos) se veían
+        # como dos entradas idénticas: no había forma de elegir. Solo en
+        # ese caso se agrega la carpeta, para no ensanchar el menú cuando
+        # el nombre ya alcanza.
+        nombres = [os.path.basename(p) for p in paths]
         for i, path in enumerate(paths):
-            label = f"{i + 1}. {os.path.basename(path)}"
+            nombre = nombres[i]
+            if nombres.count(nombre) > 1:
+                carpeta = os.path.basename(os.path.dirname(path)) or path
+                etiqueta = f"{i + 1}. {nombre}   ({carpeta})"
+            else:
+                etiqueta = f"{i + 1}. {nombre}"
             self.recent_menu.add_command(
-                label=label,
+                label=etiqueta,
                 command=lambda p=path: self._open_recent(p),
             )
 
@@ -768,15 +820,46 @@ class MainWindow:
     # HANDLERS — ARCHIVO
     # ═════════════════════════════════════════════════════════════════════
 
-    def _on_new_project(self):
-        if self.project.is_modified:
-            resp = messagebox.askyesnocancel(
-                "Nuevo Proyecto", "¿Desea guardar los cambios?"
+    def _confirm_discard_changes(self, titulo: str, accion: str) -> bool:
+        """Pregunta qué hacer con los cambios sin guardar antes de una
+        acción que destruye el modelo en memoria (nuevo proyecto, cargar
+        ejemplo, salir). Retorna True si se puede continuar.
+
+        **Por qué existe**: los tres flujos preguntaban por separado, con
+        redacciones distintas ("¿Desea guardar los cambios?" / "Se
+        perderán los datos actuales. ¿Guardar?" / "¿Guardar cambios?") y,
+        peor, los tres **seguían adelante igual** si el guardado no se
+        completaba: contestar *Sí* y después cancelar el diálogo de
+        *Guardar Como* —o que fallara la escritura— descartaba el modelo
+        sin decir nada. Acá el guardado tiene que confirmar que ocurrió
+        (`_on_save_project` devuelve bool) para que la acción siga.
+        """
+        if not self.project.is_modified:
+            return True
+        resp = messagebox.askyesnocancel(
+            titulo,
+            "El proyecto tiene cambios sin guardar.\n\n"
+            f"Sí → Guardar y {accion}\n"
+            f"No → {accion.capitalize()} descartando los cambios\n"
+            "Cancelar → Volver al modelo",
+        )
+        if resp is None:
+            self.set_status(f"{titulo}: cancelado, el modelo sigue abierto.")
+            return False
+        if resp and not self._on_save_project():
+            # El guardado no llegó a disco (Guardar Como cancelado o error
+            # de escritura). Abortar: descartar el modelo acá sería la
+            # acción destructiva que el alumno justo pidió evitar.
+            self.set_status(
+                f"{titulo}: cancelado porque el proyecto no se guardó. "
+                "El modelo sigue abierto."
             )
-            if resp is None:
-                return
-            if resp:
-                self._on_save_project()
+            return False
+        return True
+
+    def _on_new_project(self):
+        if not self._confirm_discard_changes("Nuevo Proyecto", "crear el nuevo"):
+            return
 
         self.project.reset()
         self.undo_stack.clear()
@@ -828,6 +911,7 @@ class MainWindow:
             self._update_title()
             self._refresh_menu_state()
         except Exception as e:
+            traceback.print_exc()   # el mensaje es una linea; el traceback no
             messagebox.showerror("Error", f"No se pudo abrir el proyecto:\n{e}")
 
     def _on_load_example(self, variant: str = "canon_q4"):
@@ -840,14 +924,8 @@ class MainWindow:
                                                  tesis/anexos/validacion_sap2000.pdf)
             "cook_q4" / "cook_q9" -- membrana trapezoidal de Cook (1974)
         """
-        if self.project.is_modified:
-            resp = messagebox.askyesnocancel(
-                "Cargar Ejemplo", "Se perderán los datos actuales. ¿Guardar?"
-            )
-            if resp is None:
-                return
-            if resp:
-                self._on_save_project()
+        if not self._confirm_discard_changes("Cargar Ejemplo", "cargar el ejemplo"):
+            return
 
         # Despacho por variante: cada bloque importa el loader perezosamente
         # y compone un mensaje informativo para la status bar.
@@ -919,16 +997,26 @@ class MainWindow:
         self.proc_tab.project = self.project
         self.post_tab.project = self.project
 
-    def _on_save_project(self):
-        if not self.project.is_modified:
-            # Nada que guardar
-            return
-        if self.project.file_path is None:
-            self._on_save_as_project()
-            return
-        self._save_to_file(self.project.file_path)
+    def _on_save_project(self) -> bool:
+        """Ctrl+S / Archivo ▸ Guardar. Retorna True si, al salir, el
+        proyecto está a salvo en disco.
 
-    def _on_save_as_project(self):
+        El valor de retorno lo consume `_confirm_discard_changes`: sin él
+        una acción destructiva seguía adelante aunque el guardado se
+        hubiera cancelado.
+        """
+        if not self.project.is_modified:
+            # El ítem de menú está gris en este estado, pero el atajo
+            # Ctrl+S se dispara igual: una tecla que no hace nada y
+            # tampoco lo dice es un callejón sin salida.
+            self.set_status("No hay cambios para guardar.")
+            return True
+        if self.project.file_path is None:
+            return self._on_save_as_project()
+        return self._save_to_file(self.project.file_path)
+
+    def _on_save_as_project(self) -> bool:
+        """Archivo ▸ Guardar Como. Retorna True si se escribió el archivo."""
         filepath = filedialog.asksaveasfilename(
             title="Guardar Proyecto Como",
             defaultextension=PROJECT_FILE_EXTENSION,
@@ -937,10 +1025,12 @@ class MainWindow:
                 ("Archivos JSON", "*.json"),
             ],
         )
-        if filepath:
-            self._save_to_file(filepath)
+        if not filepath:
+            self.set_status("Guardado cancelado — el proyecto no se guardó.")
+            return False
+        return self._save_to_file(filepath)
 
-    def _save_to_file(self, filepath):
+    def _save_to_file(self, filepath) -> bool:
         try:
             # Delega en save_project (escritura atómica: tmp + fsync + replace).
             from file_io.project_io import save_project
@@ -951,8 +1041,10 @@ class MainWindow:
             self._build_recent_menu()
             self._update_title()
             self._refresh_menu_state()
+            return True
         except Exception as e:
             messagebox.showerror("Error", f"No se pudo guardar:\n{e}")
+            return False
 
     def _on_export_pdf(self):
         """Exporta la Memoria de Cálculo (PDF) — documento educativo paso
@@ -998,6 +1090,8 @@ class MainWindow:
         try:
             element_stresses, _ = compute_all_stresses(self.project, solution)
         except Exception:
+            # La memoria sale sin las tensiones por elemento: dejar traza.
+            traceback.print_exc()
             element_stresses = None
 
         # Snapshot inmutable del modelo: el progress dialog NO hace grab_set,
@@ -1007,6 +1101,9 @@ class MainWindow:
         try:
             project_snapshot = ProjectModel.from_dict(self.project.to_dict())
         except Exception:
+            # Sin copia el worker lee un project que el alumno puede estar
+            # mutando: el PDF puede salir inconsistente. Dejar traza.
+            traceback.print_exc()
             project_snapshot = self.project
 
         # Dialog de progreso (no bloqueante para la GUI; el thread worker
@@ -1062,16 +1159,24 @@ class MainWindow:
             self.set_status(
                 f"Memoria de Cálculo exportada: {os.path.basename(path)}"
             )
+            respuesta = messagebox.askyesno(
+                "Memoria de Cálculo exportada",
+                f"Documento guardado exitosamente en:\n{path}\n\n"
+                f"¿Abrir el PDF ahora?",
+            )
+            if not respuesta:
+                return
+            # `os.startfile` solo existe en Windows —la plataforma de
+            # distribucion—: en cualquier otra el AttributeError se comia
+            # el "Si" del alumno sin abrir nada ni decir por que.
             try:
-                respuesta = messagebox.askyesno(
-                    "Memoria de Cálculo exportada",
-                    f"Documento guardado exitosamente en:\n{path}\n\n"
-                    f"¿Abrir el PDF ahora?",
-                )
-                if respuesta:
-                    os.startfile(path)
+                os.startfile(path)      # noqa: attr-defined (solo Windows)
             except Exception:
-                pass
+                traceback.print_exc()
+                self.set_status(
+                    f"No se pudo abrir el PDF automáticamente. "
+                    f"Está en: {path}"
+                )
 
         import threading
         thread = threading.Thread(target=_worker, daemon=True)
@@ -1178,12 +1283,8 @@ class MainWindow:
             messagebox.showerror("Error", f"No se pudo importar el modelo:\n{e}")
 
     def _on_exit(self):
-        if self.project.is_modified:
-            resp = messagebox.askyesnocancel("Salir", "¿Guardar cambios?")
-            if resp is None:
-                return
-            if resp:
-                self._on_save_project()
+        if not self._confirm_discard_changes("Salir", "salir"):
+            return
         self.root.destroy()
 
     # ═════════════════════════════════════════════════════════════════════
@@ -1283,7 +1384,9 @@ class MainWindow:
             self._refresh_menu_state()
             self._update_title()
         except Exception:
-            pass
+            # Si el refresco falla, la UI sigue mostrando el modelo de
+            # ANTES del undo: el Ctrl+Z parece no haber hecho nada.
+            traceback.print_exc()
 
     # ═════════════════════════════════════════════════════════════════════
     # HANDLERS — MODELO (5 diálogos pop-up autónomos en orden FEM:
@@ -1372,7 +1475,8 @@ class MainWindow:
         try:
             self.mesh_canvas.fit_view()
         except Exception:
-            pass
+            traceback.print_exc()
+            self.set_status("No se pudo ajustar la vista.")
 
     def _on_toggle_draw_mode(self):
         """Atajo D: delega al pre_tab para que aplique pre-flight de
@@ -1383,7 +1487,10 @@ class MainWindow:
                 self.notebook.select(0)
             self.pre_tab._on_toggle_draw_mode()
         except Exception:
-            pass
+            # La tecla D es el acceso principal al dibujo: si falla, no
+            # puede quedarse muda.
+            traceback.print_exc()
+            self.set_status("No se pudo activar el modo dibujo.")
 
     def _on_toggle_ortho(self):
         """Atajo F8: toggle del modo ORTHO. El estado persiste en el
@@ -1395,9 +1502,18 @@ class MainWindow:
             return
         canvas.set_ortho_active(not canvas.ortho_active)
         self._update_ortho_indicator()
+        estado = "activado" if canvas.ortho_active else "desactivado"
         if canvas.draw_mode_active:
-            estado = "activado" if canvas.ortho_active else "desactivado"
             self.set_status(f"ORTHO {estado}")
+        else:
+            # Fuera del modo dibujo el indicador de la barra no se muestra
+            # (solo tiene sentido mientras se dibuja), asi que el toggle
+            # era COMPLETAMENTE invisible: el alumno pulsaba F8, no pasaba
+            # nada en pantalla, y el estado aparecia recien al entrar en
+            # modo dibujo. Se dice que queda armado y con que tecla se usa.
+            self.set_status(
+                f"ORTHO {estado} — se aplica al dibujar elementos (tecla D)"
+            )
 
     def _update_ortho_indicator(self):
         """Muestra/oculta el indicador `ORTHO` en la status bar segun
@@ -1434,7 +1550,7 @@ class MainWindow:
                 self.mesh_canvas._on_draw_escape()
                 return
         except Exception:
-            pass
+            traceback.print_exc()
         # 3) Consulta interactiva: si hay pines, limpiarlos. Si no hay
         # pines pero el modo esta activo, dejar que la cascada siga (el
         # usuario puede querer limpiar tambien una seleccion residual).
@@ -1445,7 +1561,7 @@ class MainWindow:
                 self.set_status("Probes limpiadas")
                 return
         except Exception:
-            pass
+            traceback.print_exc()
         # 4) Selecciones en canvas (limpia tambien las filas fantasma
         # via callback on_selection_changed)
         try:
@@ -1458,11 +1574,26 @@ class MainWindow:
             pass
 
     def _on_fullscreen(self):
-        self._is_fullscreen = not self._is_fullscreen
+        """F11: pantalla completa. El flag se actualiza SOLO si Tk aceptó
+        el cambio — si no, quedaba desincronizado y el siguiente F11
+        intentaba lo contrario de lo que se ve en pantalla.
+
+        En pantalla completa desaparece la barra de menús, que es donde
+        está escrito el atajo: por eso el aviso nombra la tecla de salida.
+        """
+        objetivo = not self._is_fullscreen
         try:
-            self.root.attributes("-fullscreen", self._is_fullscreen)
+            self.root.attributes("-fullscreen", objetivo)
         except tk.TclError:
-            pass
+            self.set_status(
+                "Pantalla completa no disponible en este sistema de ventanas."
+            )
+            return
+        self._is_fullscreen = objetivo
+        if objetivo:
+            self.set_status("Pantalla completa — F11 para volver a la ventana")
+        else:
+            self.set_status("Pantalla completa desactivada")
 
     def _on_next_tab(self):
         n = self.notebook.index("end")
@@ -1479,12 +1610,56 @@ class MainWindow:
     # ═════════════════════════════════════════════════════════════════════
 
     def _on_help(self):
-        messagebox.showinfo(
-            "Manual de Usuario",
-            "Manual de usuario próximamente.\n\n"
-            "Mientras tanto, use Ayuda ▸ Atajos de Teclado (Ctrl+/) "
-            "para ver las acciones disponibles.",
+        """F1 / Ayuda ▸ Manual de Usuario.
+
+        Antes decía «Manual de usuario próximamente» y mandaba a los
+        atajos: un ítem de menú que promete algo y no lo da. Los atajos
+        ya tienen su propia ventana (Ctrl+/) y no son un manual — no
+        dicen en qué orden se arma un modelo ni dónde vive cada cosa.
+        Acá va ese recorrido, que es lo que le falta al alumno que abre
+        el programa por primera vez. Cada línea nombra dónde está la
+        acción en la interfaz real (los 3 menús, las 3 fases).
+        """
+        manual = (
+            "CÓMO SE USA EDUFEM\n"
+            "─────────────────────────────\n"
+            "El flujo son las tres pestañas de la izquierda, en orden.\n\n"
+            "① PRE-PROCESO — armar el modelo\n"
+            "  • Ayuda ▸ Cargar Ejemplo (Ctrl+E) trae un caso listo:\n"
+            "    es la forma más rápida de ver todo funcionando.\n"
+            "  • Tecla D dibuja elementos clickeando en el lienzo\n"
+            "    (F8 = ORTHO; Backspace borra el último vértice).\n"
+            "  • Las 5 tablas (Nodos, Elementos, Cargas, Restricciones,\n"
+            "    Carg. Superf.) se editan con doble-click, aceptan pegado\n"
+            "    desde Excel con Ctrl+V y borran la selección con Supr.\n"
+            "  • Menú Modelo: tipo de elemento (Q4/Q9), unidades,\n"
+            "    materiales, gravedad y tipo de análisis (TP/DP).\n\n"
+            "② PROCESO — entender el cálculo\n"
+            "  • Clickeá un elemento en el lienzo y abrí los módulos\n"
+            "    M1…M7 (Ctrl+1 … Ctrl+7): mapeo, Jacobiano, B, D,\n"
+            "    rigidez y cuadratura de Gauss, fuerzas y ensamblaje.\n"
+            "  • Se dibujan sobre la malla real, no sobre un dibujito.\n\n"
+            "③ POST-PROCESO — leer los resultados\n"
+            "  • F5 resuelve. Antes valida el modelo: si falta algo, el\n"
+            "    comprobador de salud dice qué y ofrece corregirlo.\n"
+            "  • Deformada, campos de tensión, isolíneas, consulta\n"
+            "    interactiva sobre el lienzo y Vista 3D.\n"
+            "  • Ctrl+C copia la tabla o el punto consultado (pegable\n"
+            "    en Excel).\n\n"
+            "GUARDAR Y EXPORTAR\n"
+            "  • Archivo ▸ Guardar (Ctrl+S) escribe un .edufem.\n"
+            "  • Archivo ▸ Exportar ▸ Memoria de Cálculo (PDF) genera el\n"
+            "    documento paso a paso del análisis ya resuelto.\n"
+            "  • Archivo ▸ Importar acepta geometría DXF y modelos en\n"
+            "    Excel/CSV.\n\n"
+            "SI ALGO SALE MAL\n"
+            "  • Ctrl+Z deshace; el badge de la barra inferior (✓/⚠/✗)\n"
+            "    abre el reporte de salud del modelo.\n\n"
+            "MÁS AYUDA\n"
+            "  • Ayuda ▸ Teoría MEF — la teoría detrás de cada paso.\n"
+            "  • Ayuda ▸ Atajos de Teclado (Ctrl+/) — la lista completa."
         )
+        messagebox.showinfo("Manual de Usuario", manual)
 
     def _on_shortcuts(self):
         shortcuts = (
@@ -1493,16 +1668,24 @@ class MainWindow:
             "Archivo\n"
             "  Ctrl+N           Nuevo Proyecto\n"
             "  Ctrl+O           Abrir Proyecto\n"
-            "  Ctrl+E           Cargar Ejemplo\n"
             "  Ctrl+S           Guardar\n"
             "  Ctrl+Shift+S     Guardar Como\n"
             "  Ctrl+Q           Salir\n\n"
             "Edición\n"
             "  Ctrl+Z           Deshacer\n"
             "  Ctrl+Y           Rehacer\n"
-            "  Ctrl+Shift+Z     Rehacer (alternativo)\n\n"
+            "  Ctrl+Shift+Z     Rehacer (alternativo)\n"
+            "  Supr             Borrar la selección (lienzo y tablas)\n"
+            "  Esc              Cancelar / limpiar la selección\n\n"
+            "Tablas del Pre-Proceso\n"
+            "  Doble click      Editar la celda\n"
+            "  Ctrl+C           Copiar las filas seleccionadas (TSV)\n"
+            "  Ctrl+V           Pegar filas desde Excel (TSV)\n\n"
             "Análisis\n"
             "  F5               Resolver modelo\n\n"
+            "Post-Proceso\n"
+            "  Ctrl+C           Copiar la tabla o el punto consultado\n"
+            "  Ctrl+A           Seleccionar toda la tabla de resultados\n\n"
             "Educación\n"
             "  Ctrl+1           M1 · Mapeo iso + funciones N\n"
             "  Ctrl+2           M2 · Jacobiano det J\n"
@@ -1517,19 +1700,20 @@ class MainWindow:
             "  Ctrl+Tab         Siguiente Pestaña\n"
             "  Ctrl+Shift+Tab   Pestaña Anterior\n\n"
             "Modelado (estilo AutoCAD)\n"
-            "  D                Dibujar elemento (toggle, click en canvas)\n"
-            "  F8               ORTHO toggle (Shift = override instantaneo)\n"
-            "  Backspace        Borrar ultimo vertice del elemento parcial\n"
+            "  D                Dibujar elemento (toggle, click en el lienzo)\n"
+            "  F8               ORTHO toggle (Shift = override instantáneo)\n"
+            "  Backspace        Borrar el último vértice del elemento parcial\n"
             "  Esc              Cancelar elemento parcial / salir del modo\n"
             "  En el Entry:\n"
-            "    100            Coord relativa al ultimo vertice (default)\n"
+            "    100            Coord relativa al último vértice (default)\n"
             "    #150           Coord absoluta (override)\n"
-            "    @30            Relativa explicita (no-op tolerado)\n"
+            "    @30            Relativa explícita (no-op tolerado)\n"
             "    100,50         Coma = separador X -> Y\n"
-            "    8 + Enter (Y vacio + ORTHO) = distancia directa sobre\n"
+            "    8 + Enter (Y vacío + ORTHO) = distancia directa sobre\n"
             "    el eje del cursor (DDE estilo AutoCAD)\n\n"
             "Ayuda\n"
             "  F1               Manual de Usuario\n"
+            "  Ctrl+E           Cargar Ejemplo\n"
             "  Ctrl+/           Esta ventana\n"
         )
         messagebox.showinfo("Atajos de Teclado", shortcuts)

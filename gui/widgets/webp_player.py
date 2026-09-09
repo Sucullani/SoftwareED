@@ -26,6 +26,8 @@ clips cortos. Pillow ya está en las deps del proyecto.
 
 from __future__ import annotations
 
+import traceback
+
 import tkinter as tk
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import BOTH, YES
@@ -184,8 +186,11 @@ class WebpPlayer(ttk.Frame):
             self._photo = ImageTk.PhotoImage(frame)
             self._label.configure(image=self._photo)
         except Exception:
-            # Si algo falla a mitad del loop, paramos en silencio para no
-            # spammear la consola en cada tick fallido.
+            # Paramos el loop en el primer fallo. La traza sale UNA sola
+            # vez (justamente porque paramos): sin ella, un .webp corrupto
+            # deja el video congelado en el dialogo y no hay por donde
+            # empezar a mirar.
+            traceback.print_exc()
             self.stop()
             return
 

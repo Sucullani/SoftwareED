@@ -28,7 +28,7 @@ import ttkbootstrap as ttk
 from ttkbootstrap.constants import BOTH, BOTTOM, E, RIGHT, W, X, YES
 
 from config.settings import FONT_UI, FONT_UI_BOLD, TEXT_MUTED_FG
-from gui.dialogs._dialog_helpers import center_dialog
+from gui.dialogs._dialog_helpers import bind_dialog_keys, center_dialog
 
 
 _ESTILOS = [
@@ -64,6 +64,10 @@ class MemoriaStyleDialog:
 
         self._build()
         self._center(parent)
+        # Escape cancela (result=None, el llamador aborta la exportación);
+        # Return continúa con el estilo marcado.
+        bind_dialog_keys(self._top,
+                         on_escape=self._on_cancel, on_return=self._on_accept)
         self._top.wait_window()
 
     # ─── Layout ─────────────────────────────────────────────────────────────

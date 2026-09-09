@@ -38,7 +38,19 @@ from gui.preprocessing._table_helpers import to_float_flex
 from models.material import Material
 
 
-from gui.dialogs._dialog_helpers import center_dialog
+from gui.dialogs._dialog_helpers import bind_dialog_keys, center_dialog
+
+
+# Etiqueta visible de cada campo del editor. Fuente unica: la consume el
+# form Y el aviso del Return cuando algun campo bloquea el guardado.
+_FIELD_LABELS = {
+    "name":    "Nombre",
+    "E":       "Módulo de Young  E",
+    "nu":      "Coef. de Poisson ν",
+    "density": "Densidad  ρ",
+}
+
+
 class MaterialDialog:
     """Ventana de gestion de materiales del proyecto."""
 
@@ -68,6 +80,10 @@ class MaterialDialog:
         self._build()
         self._populate_list()
         self._center()
+        # Escape cierra (no hay Aceptar global: cada material se guarda
+        # con su propio botón). Return guarda el material abierto.
+        bind_dialog_keys(self.dialog,
+                         on_escape=self.dialog.destroy, on_return=self._on_return)
 
     # ═════════════════════════════════════════════════════════════════════
     # LAYOUT
@@ -165,10 +181,13 @@ class MaterialDialog:
         self.var_density = tk.StringVar()
 
         fields = [
-            ("name",    "Nombre",             self.var_name),
-            ("E",       "Módulo de Young  E", self.var_E),
-            ("nu",      "Coef. de Poisson ν", self.var_nu),
-            ("density", "Densidad  ρ",        self.var_density),
+            (clave, _FIELD_LABELS[clave], var)
+            for clave, var in (
+                ("name",    self.var_name),
+                ("E",       self.var_E),
+                ("nu",      self.var_nu),
+                ("density", self.var_density),
+            )
         ]
 
         # Los Entry se guardan por clave para poder marcar en rojo el campo que
@@ -382,6 +401,39 @@ class MaterialDialog:
         self.selected_name = None
         self._populate_list()
         self._notify_main_window()
+
+    def _on_return(self):
+        """Return dentro del diálogo = 💾 Guardar cambios.
+
+        Es la única acción primaria del panel derecho, que es donde está
+        el foco mientras se tipea. Si algún campo es inválido el botón
+        está gris: en vez de no hacer nada, se repinta la marca roja y se
+        nombra el campo culpable en la barra de estado — el mismo criterio
+        que el resto de los diálogos (ningún control visible queda mudo).
+        """
+        if not self.selected_name:
+            self._status("Elegí primero un material de la lista.")
+            return
+        malos = self.campos_invalidos()
+        if malos:
+            self._validate_live()          # repinta los Entry en rojo
+            # `split()` + `join` colapsa el doble espacio con que el form
+            # separa el símbolo de su nombre ("Densidad  ρ").
+            nombres = ", ".join(
+                " ".join(_FIELD_LABELS.get(c, c).split()) for c in malos
+            )
+            self._status(f"Revisá {nombres} antes de guardar el material.")
+            return
+        self._save_material()
+
+    def _status(self, mensaje):
+        """Canal de aviso del diálogo: la barra de estado de la ventana
+        principal (sin status label propio, ver arquitectura.md)."""
+        if self.main_window is not None:
+            try:
+                self.main_window.set_status(mensaje)
+            except Exception:
+                traceback.print_exc()
 
     def _save_material(self):
         if not self.selected_name:

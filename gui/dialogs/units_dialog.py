@@ -24,7 +24,7 @@ from config.units import (
 )
 
 
-from gui.dialogs._dialog_helpers import center_dialog
+from gui.dialogs._dialog_helpers import bind_dialog_keys, center_dialog
 class UnitsDialog:
     """Ventana modal para configurar Sistema de Unidades del proyecto."""
 
@@ -44,6 +44,8 @@ class UnitsDialog:
 
         self._build()
         self._center()
+        bind_dialog_keys(self.dialog,
+                         on_escape=self._on_cancel, on_return=self._on_accept)
 
     def _build(self):
         main = ttk.Frame(self.dialog, padding=20)

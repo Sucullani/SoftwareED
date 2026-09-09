@@ -164,7 +164,7 @@ CODE_ICONS = {
 }
 
 
-from gui.dialogs._dialog_helpers import center_dialog
+from gui.dialogs._dialog_helpers import bind_dialog_keys, center_dialog
 class HealthReportDialog:
     """Modal que presenta el HealthReport y permite aplicar auto-fixes
     o navegar a los items con problemas.
@@ -197,6 +197,11 @@ class HealthReportDialog:
 
         self._build()
         self._center()
+        # Escape = lo mismo que la X: volver al Pre-Proceso sin resolver.
+        # **Sin Return**: las dos salidas de este diálogo son decisiones
+        # opuestas (corregir los errores vs. resolver igual) y ninguna es
+        # un default seguro para dar por Enter.
+        bind_dialog_keys(self.dialog, on_escape=self._on_cancel)
 
     def show(self):
         """Bloquea hasta que el usuario decide. Retorna self.result."""

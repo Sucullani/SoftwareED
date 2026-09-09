@@ -35,6 +35,8 @@ from __future__ import annotations
 
 from typing import Callable, Optional, Tuple
 
+import traceback
+
 import tkinter as tk
 import ttkbootstrap as ttk
 
@@ -338,7 +340,11 @@ class CanvasOverlay(tk.Toplevel):
             try:
                 cb()
             except Exception:
-                pass
+                # `cb` es el `on_closed` del modulo: ahi se cancelan los
+                # `after` de animacion y se restauran los callbacks del
+                # canvas. Si falla mudo, el overlay se ve cerrado pero su
+                # loop sigue repintando.
+                traceback.print_exc()
 
     def reposition(self, x_screen: int, y_screen: int) -> None:
         """Mueve el overlay a coordenadas (x, y) de PANTALLA.

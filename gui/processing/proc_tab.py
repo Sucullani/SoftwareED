@@ -1,8 +1,13 @@
 """
 ProcessTab: Panel izquierdo de Proceso.
 
-Contiene la sub-pestana "Modulos Educativos" con M1..M7 (mapeo+shape funcs,
-Jacobiano, D, B, K+Gauss, fuerzas equivalentes, ensamblaje).
+Contiene el panel de modulos educativos M1..M7 (mapeo+shape funcs,
+Jacobiano, B, D, K+Gauss, fuerzas equivalentes, ensamblaje) **directo en
+el frame de la fase**: no hay Notebook. Lo hubo, con UNA sola pestana
+("🎓 Modulos Educativos"), o sea un control que no controlaba nada y que
+ademas repetia la palabra "modulos educativos" por tercera vez en la
+misma pantalla (banner + pestana + header del panel). El Pre-Proceso si
+tiene Notebook porque ahi conviven las 5 tablas + Educacion.
 
 Iluminacion reactiva (propuesta UX 2026): los botones de modulos
 por-elemento estan desaturados cuando no hay seleccion. Al clickear un
@@ -22,7 +27,7 @@ from gui.widgets.module_launcher_panel import render_module_buttons
 
 
 class ProcessTab:
-    """Panel de Proceso con la sub-pestana de modulos educativos."""
+    """Panel de Proceso con el lanzador de modulos educativos."""
 
     def __init__(self, parent, project, main_window):
         self.project = project
@@ -39,18 +44,21 @@ class ProcessTab:
             color=PHASE_PROC_COLOR,
             icon="⚙",
             title="PROCESO",
-            subtitle="Modulos educativos del calculo MEF",
+            # El subtitulo describe la FASE (que hace el programa acá), no
+            # el panel que viene abajo: ese ya se presenta solo con su
+            # propio header. Y nombra F5, que es la accion de la fase y no
+            # estaba escrita en ninguna parte de esta pantalla.
+            subtitle="Del elemento al sistema K·u = F  ·  F5 resuelve",
         )
 
-        self.notebook = ttk.Notebook(self.frame, bootstyle=PHASE_PROC_BOOTSTYLE)
-        self.notebook.pack(fill=BOTH, expand=YES)
+        # Panel de modulos directo en el frame de la fase (sin Notebook de
+        # una sola pestana — ver el docstring del modulo).
+        self.edu_frame = ttk.Frame(self.frame)
+        self.edu_frame.pack(fill=BOTH, expand=YES)
+        self._build_education_panel()
 
-        self.edu_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.edu_frame, text="  🎓 Modulos Educativos  ")
-        self._build_education_tab()
-
-    def _build_education_tab(self):
-        """Lista de modulos educativos de la fase de calculo."""
+    def _build_education_panel(self):
+        """Lanzador de los modulos educativos de la fase de calculo."""
         from education.module_launcher import (
             list_modules_for_phase, open_module, module_label, GLOBAL_MODULES,
         )
@@ -90,7 +98,7 @@ class ProcessTab:
             modules=list_modules_for_phase("proc"),
             on_open=_on_open,
             bootstyle=f"{PHASE_PROC_BOOTSTYLE}-outline",
-            header_text="Modulos Educativos MEF",
+            header_text="Módulos Educativos MEF",
             header_color=PHASE_PROC_COLOR,
             # El boton gris NO esta deshabilitado: abre el modulo igual y
             # este espera el click. Decirlo evita que el alumno crea que

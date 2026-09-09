@@ -38,7 +38,7 @@ VIDEO_W, VIDEO_H = 720, 480
 DIALOG_W, DIALOG_H = 760, 660
 
 
-from gui.dialogs._dialog_helpers import center_dialog
+from gui.dialogs._dialog_helpers import bind_dialog_keys, center_dialog
 class AnalysisTypeDialog:
     """Ventana modal para configurar Tipo de Análisis (TP ↔ DP)."""
 
@@ -64,6 +64,8 @@ class AnalysisTypeDialog:
         # real antes del primer render (si no, escala a 1×1 px).
         self.dialog.after(120, self._load_video)
         self._center()
+        bind_dialog_keys(self.dialog,
+                         on_escape=self._on_cancel, on_return=self._on_accept)
 
     # ─── Layout ─────────────────────────────────────────────────────────
     def _build(self):
