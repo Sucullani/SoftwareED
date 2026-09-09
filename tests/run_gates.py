@@ -47,6 +47,7 @@ TESTS_RAPIDOS = [
     "tests.test_pre_tab_delete",
     "tests.test_solve_flow",
     "tests.test_post_inspection",
+    "tests.test_dialogs",
     "tests.test_canvas_visualization",
     "tests.test_canvas_raster",       # el mas lento del grupo (~26 s)
     "tests.test_vv_extensions",
@@ -136,6 +137,59 @@ def gate_hex():
     return hallazgos
 
 
+def gate_nombres():
+    """Nombres globales usados y nunca definidos: el `NameError` que el gate de
+    imports NO ve porque solo explota cuando el alumno abre esa ventana.
+
+    Caso real (2026-09-09): `about_dialog.py` llamaba `center_dialog(...)` sin
+    importarlo — Ayuda > Acerca de levantaba `NameError` en el callback de Tk, y
+    en el `.exe` (sin consola) el traceback no lo veia nadie. Y
+    `mod05_stiffness.py` usaba `sp.latex` / `sp.expand` / `sp.pretty` sin
+    `import sympy`: los tres estaban dentro de un `except Exception`, asi que M5
+    degradaba en silencio al `repr` de la expresion y contaba "0 terminos".
+
+    El analisis es exacto, no heuristico: `symtable` (stdlib) aplica las reglas
+    de scoping reales de Python — locales, parametros, comprehensions, `global`,
+    `nonlocal`, cierres — y marca cada simbolo. Un simbolo que resuelve al scope
+    global y nunca se asigna tiene que existir en el modulo ya importado; se
+    compara contra `dir(modulo)`, que incluye lo que traiga un `import *`."""
+    import builtins
+    import symtable
+
+    def _scopes(tabla):
+        yield tabla
+        for hijo in tabla.get_children():
+            yield from _scopes(hijo)
+
+    integrados = set(dir(builtins))
+    hallazgos = []
+    for nombre in _listar_modulos():
+        ruta = os.path.join(RAIZ, nombre.replace(".", os.sep) + ".py")
+        if not os.path.isfile(ruta):
+            ruta = os.path.join(RAIZ, nombre.replace(".", os.sep), "__init__.py")
+        try:
+            modulo = importlib.import_module(nombre)
+        except Exception:                             # noqa: BLE001
+            continue                                  # ya lo reporta gate_imports
+        rel = os.path.relpath(ruta, RAIZ).replace(os.sep, "/")
+        try:
+            with open(ruta, encoding="utf-8") as fh:
+                tabla = symtable.symtable(fh.read(), rel, "exec")
+        except (SyntaxError, OSError):
+            continue                                  # idem
+        definidos = set(dir(modulo))
+        for scope in _scopes(tabla):
+            for simbolo in scope.get_symbols():
+                nom = simbolo.get_name()
+                if not simbolo.is_global() or simbolo.is_assigned():
+                    continue
+                if nom in definidos or nom in integrados or nom.startswith("__"):
+                    continue
+                donde = scope.get_name()
+                hallazgos.append(f"{rel}: '{nom}' usado en {donde}() y nunca definido")
+    return sorted(set(hallazgos))
+
+
 def _correr(modulo, timeout):
     inicio = time.time()
     try:
@@ -173,7 +227,17 @@ def main():
     else:
         print(f"  OK     {total}/{total} modulos importan")
 
-    print("\n[2] Auditoria de color (regla dura 2: cero hex fuera de config/)")
+    print("\n[2] Nombres globales sin definir (NameError latente)")
+    nombres_hits = gate_nombres()
+    if nombres_hits:
+        print(f"  FALLO  {len(nombres_hits)} nombre(s) usados y nunca definidos")
+        for hit in nombres_hits[:20]:
+            print(f"         {hit}")
+        fallas.append("nombres")
+    else:
+        print(f"  OK     0 nombres sin definir en {total} modulos")
+
+    print("\n[3] Auditoria de color (regla dura 2: cero hex fuera de config/)")
     hex_hits = gate_hex()
     if hex_hits:
         print(f"  FALLO  {len(hex_hits)} hex literales en codigo ejecutable")
@@ -191,7 +255,7 @@ def main():
     if args.con_gui:
         suite += TESTS_GUI
 
-    print(f"\n[3] Suite de tests ({len(suite)} modulos)")
+    print(f"\n[4] Suite de tests ({len(suite)} modulos)")
     for modulo in suite:
         rc, seg, salida = _correr(modulo, args.timeout)
         estado = "OK    " if rc == 0 else "FALLO "

@@ -20,6 +20,8 @@ Diseño:
 - Tema oscuro coherente con el resto del GUI (ttkbootstrap darkly).
 """
 
+import traceback
+
 import tkinter as tk
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
@@ -304,14 +306,15 @@ class HealthReportDialog:
         canvas.configure(yscrollcommand=sb.set)
         canvas.pack(side=LEFT, fill=BOTH, expand=YES)
         sb.pack(side=RIGHT, fill=Y)
-        # Scroll con rueda
-        def _on_wheel(e):
-            canvas.yview_scroll(-1 * (e.delta // 120), "units")
-        canvas.bind_all("<MouseWheel>", _on_wheel)
+        # Scroll con rueda, acotado a ESTE Toplevel. El bindtag del toplevel
+        # esta en los bindtags de todos sus descendientes, asi que una sola
+        # linea cubre la lista entera sin tocar el resto de la aplicacion.
+        # NO usar `bind_all`: este dialogo es no-modal a proposito, asi que
+        # con `bind_all` la rueda sobre el MeshCanvas hacia zoom Y scrolleaba
+        # la lista de fondo, y el `unbind_all` del cierre borraba tambien el
+        # binding global de otros componentes (el visor de Teoria).
         self._wheel_canvas = canvas
-        # Despegar el binding cuando el dialog se destruya
-        self.dialog.bind("<Destroy>",
-                         lambda _e: self._unbind_wheel(), add="+")
+        self.dialog.bind("<MouseWheel>", self._on_wheel)
 
         # Renderizar issues
         if self.report.errors:
@@ -335,11 +338,25 @@ class HealthReportDialog:
                 foreground=HEALTH_OK_COLOR, font=FONT_UI_LARGE,
             ).pack(anchor=W, pady=12)
 
-    def _unbind_wheel(self):
+    def _on_wheel(self, event):
+        """Scroll de la lista de issues. Windows manda delta = ±120 por click."""
+        canvas = getattr(self, "_wheel_canvas", None)
+        if canvas is None:
+            return
         try:
-            self._wheel_canvas.unbind_all("<MouseWheel>")
+            canvas.yview_scroll(-1 * (event.delta // 120), "units")
+        except tk.TclError:
+            pass          # el canvas ya se destruyo (re-validacion en curso)
+
+    def _set_status(self, mensaje):
+        """Escribe en la barra de estado de la ventana principal, la via unica
+        de aviso del programa. Silencioso si el dialogo se abrio suelto."""
+        if self.main_window is None:
+            return
+        try:
+            self.main_window.set_status(mensaje)
         except Exception:
-            pass
+            traceback.print_exc()
 
     def _section_label(self, parent, text, color):
         ttk.Label(
@@ -390,10 +407,14 @@ class HealthReportDialog:
                 command=lambda i=issue: self._on_goto(i),
             ).pack(side=LEFT, padx=(0, 6))
 
-        # Hint educativo (collapsible)
+        # Hint educativo (collapsible). Se guarda la referencia al boton para
+        # que `_disable_widget_recursive` NO lo apague al corregir el issue:
+        # el "¿por que era un problema?" es justo lo que el alumno quiere leer
+        # despues de arreglarlo, y quedaba inaccesible.
         hint = EDUCATIONAL_HINTS.get(issue.code)
+        card._hint_btn = None
         if hint:
-            self._build_hint_toggle(inner, hint, color)
+            card._hint_btn = self._build_hint_toggle(inner, hint, color)
 
     def _build_hint_toggle(self, parent, hint_text, color):
         """Boton collapsible '🎓 Por que es un problema?' que expande el
@@ -422,6 +443,7 @@ class HealthReportDialog:
             bootstyle="link", command=_toggle,
         )
         btn.pack(anchor=W)
+        return btn
 
     def _build_footer(self, parent):
         # El footer se reconstruye en cada re-validacion porque el texto
@@ -460,31 +482,64 @@ class HealthReportDialog:
     # ─── Callbacks ───────────────────────────────────────────────────
 
     def _on_fix(self, issue, card_widget):
-        """Aplica el auto-fix y remueve la tarjeta del DOM."""
+        """Aplica el auto-fix y marca la tarjeta como resuelta."""
         # Los autofixes mutan el project: sin snapshot previo no son
-        # reversibles con Ctrl+Z (regla dura de captura de undo).
+        # reversibles con Ctrl+Z (regla dura 4). Se captura aunque el fix
+        # pueda fallar: un nivel de undo de mas es preferible a una mutacion
+        # irreversible, y `apply_autofix` solo devuelve False en su rama
+        # defensiva (issue no fixable o entidad ya borrada a mano).
         stack = getattr(self.main_window, "undo_stack", None)
         if stack is not None:
             try:
                 stack.capture(f"corregir: {issue.code}")
             except Exception:
-                pass
+                # Sin snapshot la correccion no entra en el Ctrl+Z: se avisa,
+                # porque el alumno acaba de perder la vuelta atras.
+                traceback.print_exc()
+                self._set_status(
+                    "No se pudo guardar el paso para deshacer: esta correccion "
+                    "no se va a revertir con Ctrl+Z."
+                )
+        self._hint_btn_activo = getattr(card_widget, "_hint_btn", None)
         ok = apply_autofix(self.project, issue)
-        if ok:
-            self.fixes_applied += 1
-            # Tachar la tarjeta visualmente y deshabilitar sus botones
-            for child in card_widget.winfo_children():
-                self._disable_widget_recursive(child)
-            card_widget.configure(highlightbackground=HEALTH_OK_COLOR)
-            # Refrescar las tablas del pre_tab si existe
-            if self.main_window is not None:
-                try:
-                    self.main_window._refresh_all_tabs()
-                    self.main_window._update_status_info()
-                except Exception:
-                    pass
+        if not ok:
+            # Antes este camino era mudo: el alumno apretaba 🔧 Corregir y no
+            # pasaba absolutamente nada, ni en la tarjeta ni en la barra.
+            self._set_status(
+                "No se pudo aplicar la correccion automatica de "
+                f"«{issue.message[:60]}». Corregilo a mano con 📍 Ir al item "
+                "y despues 🔄 Re-validar."
+            )
+            return
+        self.fixes_applied += 1
+        # Tachar la tarjeta visualmente y deshabilitar sus botones
+        for child in card_widget.winfo_children():
+            self._disable_widget_recursive(child)
+        card_widget.configure(highlightbackground=HEALTH_OK_COLOR)
+        # Refrescar las tablas del pre_tab si existe
+        if self.main_window is not None:
+            try:
+                self.main_window._refresh_all_tabs()
+                self.main_window._update_status_info()
+            except Exception:
+                # Si el refresco falla, las tablas siguen mostrando el modelo
+                # de antes de la correccion: el alumno tiene que saberlo.
+                traceback.print_exc()
+                self._set_status(
+                    "Correccion aplicada, pero las tablas no se refrescaron. "
+                    "Cambia de pestaña para verlas al dia."
+                )
+                return
+        # El header (chips de conteo) y el footer siguen mostrando el reporte
+        # con el que se abrio el dialogo: se nombra el boton que lo actualiza.
+        self._set_status(
+            f"Corregido ({self.fixes_applied} en total). "
+            "Toca 🔄 Re-validar para actualizar el reporte."
+        )
 
     def _disable_widget_recursive(self, widget):
+        if widget is getattr(self, "_hint_btn_activo", None):
+            return                # el 🎓 sigue clickeable tras corregir
         try:
             widget.configure(state=DISABLED)
         except tk.TclError:
@@ -501,6 +556,15 @@ class HealthReportDialog:
             return
         kind = issue.target_kind
         target_id = issue.target_id
+        # Los issues de material no viven en ninguna tabla del Pre-Proceso:
+        # su lugar es el dialogo Modelo > Materiales. Antes caian en el
+        # `return` mudo de abajo, asi que las tarjetas de UNUSED_MATERIAL,
+        # SUSPICIOUS_YOUNG_MODULUS y GRAVITY_NO_DENSITY mostraban un boton
+        # "📍 Ir al item" que no hacia absolutamente nada (y en las dos
+        # ultimas, no fixables, era el UNICO boton de la tarjeta).
+        if kind == "material":
+            self._abrir_materiales(target_id)
+            return
         try:
             # Cambiar al Pre-Proceso (tab index 0)
             self.main_window.notebook.select(0)
@@ -515,6 +579,11 @@ class HealthReportDialog:
                 "surface":    ("surface_frame", "surface_tree"),
             }
             if kind not in mapping:
+                self._set_status(
+                    f"«Ir al item» no sabe llevarte a un objeto de tipo "
+                    f"'{kind}'. Leé el 🎓 ¿Por que es un problema? de la "
+                    f"tarjeta: dice donde corregirlo."
+                )
                 return
             frame_attr, tree_attr = mapping[kind]
             frame = getattr(pre_tab, frame_attr, None)
@@ -527,8 +596,20 @@ class HealthReportDialog:
                 tree.selection_set(iid)
                 tree.focus(iid)
                 tree.see(iid)
+            else:
+                # La fila ya no existe: la entidad se borro o se renumero
+                # mientras el dialogo (no-modal) seguia abierto.
+                self._set_status(
+                    f"El {kind} {target_id} ya no esta en la tabla. "
+                    f"Toca 🔄 Re-validar para actualizar el reporte."
+                )
         except Exception:
-            pass
+            # Sin traza, un fallo de navegacion se veia igual que un click
+            # que "no hizo nada".
+            traceback.print_exc()
+            self._set_status(
+                "No se pudo navegar al item. Buscalo a mano en el Pre-Proceso."
+            )
         # Tras navegar, traer el dialogo al frente para que la lista siga
         # visible mientras el usuario corrige el item. Se mueve el dialogo
         # a una esquina para no tapar la celda recien seleccionada.
@@ -543,6 +624,27 @@ class HealthReportDialog:
         except Exception:
             pass
 
+    def _abrir_materiales(self, nombre):
+        """Abre Modelo > Materiales con `nombre` ya seleccionado. Es el destino
+        real de los issues de material."""
+        try:
+            from gui.dialogs.material_dialog import MaterialDialog
+            MaterialDialog(
+                getattr(self.main_window, "root", self.parent),
+                self.project, self.main_window, seleccionar=nombre,
+            )
+        except Exception:
+            traceback.print_exc()
+            self._set_status(
+                "No se pudo abrir Materiales. Abrilo desde el menu "
+                "Modelo ▸ Materiales."
+            )
+            return
+        self._set_status(
+            f"Materiales abierto en «{nombre}». Al cerrarlo, toca "
+            f"🔄 Re-validar para actualizar el reporte."
+        )
+
     def _on_revalidate(self):
         """Re-corre validate_project sobre el modelo actual y reconstruye
         header, lista de issues y footer. Usado tras correcciones manuales
@@ -550,6 +652,13 @@ class HealthReportDialog:
         try:
             self.report = validate_project(self.project)
         except Exception:
+            # Antes el boton quedaba mudo: se apretaba 🔄 Re-validar y la
+            # lista seguia igual, sin forma de saber que el validador fallo.
+            traceback.print_exc()
+            self._set_status(
+                "El comprobador de salud fallo al re-validar. El reporte que "
+                "ves es el anterior."
+            )
             return
         # Destruir header y container de issues
         try:
@@ -577,7 +686,22 @@ class HealthReportDialog:
                 self.main_window._refresh_all_tabs()
                 self.main_window._update_status_info()
             except Exception:
-                pass
+                traceback.print_exc()
+        # El resultado de re-validar tiene que ser visible aunque la lista
+        # quede identica: si no, apretar el boton "no hace nada".
+        cuentas = self.report.counts_by_severity()
+        if self.report.has_errors():
+            self._set_status(
+                f"Re-validado: {cuentas['error']} error(es) y "
+                f"{cuentas['warning']} advertencia(s) siguen abiertos."
+            )
+        elif self.report.has_warnings():
+            self._set_status(
+                f"Re-validado: sin errores criticos, "
+                f"{cuentas['warning']} advertencia(s). Ya se puede resolver."
+            )
+        else:
+            self._set_status("Re-validado: modelo sano, listo para resolver.")
 
     def _on_continue(self):
         self.result = "continue"
@@ -591,7 +715,9 @@ class HealthReportDialog:
             try:
                 self.main_window.notebook.select(0)
             except Exception:
-                pass
+                # El boton promete volver al Pre-Proceso: si no ocurre, el
+                # alumno queda en otra fase sin saber por que.
+                traceback.print_exc()
         self.dialog.destroy()
 
     def _center(self):

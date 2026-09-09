@@ -25,12 +25,14 @@ gx / gy.
 """
 
 import math
+import traceback
 import tkinter as tk
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 from tkinter import messagebox
 
 from config.settings import PHASE_PROC_COLOR, TEXT_MUTED_FG
+from gui.preprocessing._table_helpers import to_float_flex
 
 
 # Constantes del preview sobre el canvas.
@@ -150,11 +152,11 @@ class GravityDialog:
         # pueden ser invalidos ("-", "1.", etc) — silenciar y mantener
         # el valor anterior.
         try:
-            self._gx_live = float(self.gx_var.get().replace(",", "."))
+            self._gx_live = to_float_flex(self.gx_var.get())
         except (ValueError, TypeError):
             pass
         try:
-            self._gy_live = float(self.gy_var.get().replace(",", "."))
+            self._gy_live = to_float_flex(self.gy_var.get())
         except (ValueError, TypeError):
             pass
         canvas = self._get_canvas()
@@ -237,16 +239,25 @@ class GravityDialog:
 
     # ─── Aceptar / Cancelar ────────────────────────────────────────────
     def _on_accept(self):
-        try:
-            gx = float(self.gx_var.get().replace(",", "."))
-            gy = float(self.gy_var.get().replace(",", "."))
-        except ValueError:
+        # Se nombra el campo y el texto rechazado, como el resto del programa
+        # (editores de celda del spreadsheet, campos numericos del Post): un
+        # "valores invalidos" generico no dice cual de los dos hay que tocar.
+        malos = []
+        valores = {}
+        for clave, var in (("gx", self.gx_var), ("gy", self.gy_var)):
+            try:
+                valores[clave] = to_float_flex(var.get())
+            except (ValueError, TypeError):
+                malos.append(f"{clave}: «{var.get()}»")
+        if malos:
             messagebox.showerror(
-                "Error",
-                "gx y gy deben ser numeros validos (separador decimal '.' o ',').",
+                "Vector de gravedad",
+                "Valor invalido en " + " y ".join(malos) + ".\n\n"
+                "Usá un numero con punto o coma decimal (ej. -9.81 o -9,81).",
                 parent=self.dialog,
             )
             return
+        gx, gy = valores["gx"], valores["gy"]
 
         include = bool(self.include_var.get())
 
@@ -261,7 +272,8 @@ class GravityDialog:
                 if stack is not None:
                     stack.capture("cambio de gravedad")
             except Exception:
-                pass
+                # Sin snapshot, este cambio queda fuera del Ctrl+Z (regla 4).
+                traceback.print_exc()
 
         self.project.gravity_x = gx
         self.project.gravity_y = gy
@@ -279,7 +291,9 @@ class GravityDialog:
                     + ("  ✓ incluida" if include else "  (no aplicada)")
                 )
             except Exception:
-                pass
+                # El titulo lleva el ● de "sin guardar" y el badge de salud
+                # mira la gravedad: si no se refrescan, mienten.
+                traceback.print_exc()
 
         self._unregister_preview()
         self.dialog.destroy()

@@ -26,12 +26,15 @@ El cambio de nombre cascadea a `element.material_name`. Captura undo
 antes de cada mutacion.
 """
 
+import traceback
+
 import tkinter as tk
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 from tkinter import messagebox
 
 from config.settings import LABEL_BG, LABEL_FG, CANVAS_SELECTED_ROW_BG, CANVAS_SELECTED_ROW_FG
+from gui.preprocessing._table_helpers import to_float_flex
 from models.material import Material
 
 
@@ -39,12 +42,16 @@ from gui.dialogs._dialog_helpers import center_dialog
 class MaterialDialog:
     """Ventana de gestion de materiales del proyecto."""
 
-    def __init__(self, parent, project, main_window=None):
+    def __init__(self, parent, project, main_window=None, *, seleccionar=None):
+        """`seleccionar`: nombre del material que queda elegido al abrir. Lo usa
+        el "📍 Ir al item" del reporte de salud para llevar al alumno al
+        material que causa el issue."""
         self.project = project
         self.main_window = main_window
         self.parent = parent
 
-        self.selected_name = None
+        self.selected_name = (seleccionar
+                              if seleccionar in project.materials else None)
         self._suppress_preview = False
 
         self.dialog = ttk.Toplevel(parent)
@@ -158,19 +165,27 @@ class MaterialDialog:
         self.var_density = tk.StringVar()
 
         fields = [
-            ("Nombre",             self.var_name),
-            ("Módulo de Young  E", self.var_E),
-            ("Coef. de Poisson ν", self.var_nu),
-            ("Densidad  ρ",        self.var_density),
+            ("name",    "Nombre",             self.var_name),
+            ("E",       "Módulo de Young  E", self.var_E),
+            ("nu",      "Coef. de Poisson ν", self.var_nu),
+            ("density", "Densidad  ρ",        self.var_density),
         ]
 
-        for i, (label, var) in enumerate(fields):
+        # Los Entry se guardan por clave para poder marcar en rojo el campo que
+        # mantiene deshabilitado el boton Guardar: sin esa marca, el unico
+        # feedback era un boton gris que no dice cual de los 4 campos esta mal.
+        # No es un status label (decision tomada, ver arquitectura.md): es el
+        # propio control el que se señala.
+        self._entries = {}
+        for i, (clave, label, var) in enumerate(fields):
             ttk.Label(edit, text=label, font=("Segoe UI", 10)).grid(
                 row=i, column=0, sticky=E, pady=4, padx=(0, 8)
             )
-            ttk.Entry(
+            entry = ttk.Entry(
                 edit, textvariable=var, font=("Segoe UI", 10), width=22,
-            ).grid(row=i, column=1, sticky=W, pady=4)
+            )
+            entry.grid(row=i, column=1, sticky=W, pady=4)
+            self._entries[clave] = entry
 
         edit.columnconfigure(1, weight=1)
 
@@ -273,32 +288,47 @@ class MaterialDialog:
             return
         self._validate_live()
 
-    def _validate_live(self):
-        """Habilita el boton Guardar si y solo si TODOS los campos son
-        validos. Sin status label — el state del boton es el feedback.
+    def campos_invalidos(self):
+        """Claves de los campos que hoy impiden guardar, en orden de fila.
+
+        Los numeros se leen con `to_float_flex`, no con `float()`: un Excel en
+        español escribe `0,3` y el resto del programa ya lo acepta (editores de
+        celda del spreadsheet desde 2026-09, campos del Post desde 2026-09).
+        Aca `0,3` en ν dejaba el boton Guardar gris para siempre, sin decir por
+        que — dos reglas distintas para escribir el mismo numero.
         """
-        ok = True
-        try:
-            E = float(self.var_E.get())
-            if E <= 0:
-                ok = False
-        except (ValueError, TypeError):
-            ok = False
-        try:
-            nu = float(self.var_nu.get())
-            if not (-1.0 < nu < 0.5):
-                ok = False
-        except (ValueError, TypeError):
-            ok = False
-        try:
-            rho = float(self.var_density.get())
-            if rho < 0:
-                ok = False
-        except (ValueError, TypeError):
-            ok = False
+        malos = []
         if not self.var_name.get().strip():
-            ok = False
-        self.save_btn.configure(state="normal" if ok else "disabled")
+            malos.append("name")
+        try:
+            if to_float_flex(self.var_E.get()) <= 0:
+                malos.append("E")
+        except (ValueError, TypeError):
+            malos.append("E")
+        try:
+            if not (-1.0 < to_float_flex(self.var_nu.get()) < 0.5):
+                malos.append("nu")
+        except (ValueError, TypeError):
+            malos.append("nu")
+        try:
+            if to_float_flex(self.var_density.get()) < 0:
+                malos.append("density")
+        except (ValueError, TypeError):
+            malos.append("density")
+        return malos
+
+    def _validate_live(self):
+        """Habilita el boton Guardar si y solo si TODOS los campos son validos,
+        y marca en rojo los que no lo son. Sigue sin haber status label (ver
+        arquitectura.md): el feedback es el estado del boton MAS el borde del
+        campo culpable, que es lo que faltaba para saber cual arreglar."""
+        malos = set(self.campos_invalidos())
+        for clave, entry in getattr(self, "_entries", {}).items():
+            try:
+                entry.configure(bootstyle="danger" if clave in malos else "default")
+            except tk.TclError:
+                pass
+        self.save_btn.configure(state="disabled" if malos else "normal")
 
     # ═════════════════════════════════════════════════════════════════════
     # ACCIONES DE LISTA
@@ -328,10 +358,22 @@ class MaterialDialog:
                 parent=self.dialog,
             )
             return
+        # Cuantos elementos se quedan sin material: borrarlo los deja
+        # apuntando a un nombre inexistente y el modelo pasa a tener un error
+        # critico (ELEM_MATERIAL_MISSING) que el alumno recien ve al resolver.
+        # La confirmacion tiene que nombrar la consecuencia, no solo el nombre.
+        en_uso = sum(1 for e in self.project.elements.values()
+                     if e.material_name == self.selected_name)
+        aviso = f"¿Eliminar '{self.selected_name}'?"
+        if en_uso:
+            aviso += (
+                f"\n\n{en_uso} elemento(s) lo tienen asignado y van a quedar "
+                f"sin material: el modelo no se va a poder resolver hasta que "
+                f"les asignes otro desde la tabla de Elementos.\n\n"
+                f"Se puede deshacer con Ctrl+Z."
+            )
         if not messagebox.askyesno(
-            "Eliminar material",
-            f"¿Eliminar '{self.selected_name}'?",
-            parent=self.dialog,
+            "Eliminar material", aviso, parent=self.dialog,
         ):
             return
         self._capture(f"eliminar material '{self.selected_name}'")
@@ -344,20 +386,28 @@ class MaterialDialog:
     def _save_material(self):
         if not self.selected_name:
             return
-        try:
-            new_name = self.var_name.get().strip()
-            if not new_name:
-                messagebox.showerror(
-                    "Error", "El nombre no puede estar vacío.",
-                    parent=self.dialog,
-                )
-                return
-            E = float(self.var_E.get())
-            nu = float(self.var_nu.get())
-            density = float(self.var_density.get())
-        except ValueError:
+        new_name = self.var_name.get().strip()
+        if not new_name:
             messagebox.showerror(
-                "Error", "Valores numéricos inválidos.",
+                "Error", "El nombre no puede estar vacío.",
+                parent=self.dialog,
+            )
+            return
+        # Misma lectura tolerante que la validacion live: si el boton Guardar
+        # esta habilitado, estos tres parseos no pueden fallar.
+        try:
+            E = to_float_flex(self.var_E.get())
+            nu = to_float_flex(self.var_nu.get())
+            density = to_float_flex(self.var_density.get())
+        except (ValueError, TypeError):
+            etiquetas = {"E": "Módulo de Young E", "nu": "Coef. de Poisson ν",
+                         "density": "Densidad ρ", "name": "Nombre"}
+            malos = ", ".join(etiquetas[c] for c in self.campos_invalidos())
+            messagebox.showerror(
+                "Error",
+                f"Revisá estos campos: {malos}.\n\n"
+                f"Los números se escriben con punto o coma decimal "
+                f"(ej. 0.3 o 0,3).",
                 parent=self.dialog,
             )
             return
@@ -399,7 +449,9 @@ class MaterialDialog:
                 self.main_window._refresh_all_tabs()
                 self.main_window._update_title()
             except Exception:
-                pass
+                # Si falla, las tablas del Pre siguen mostrando el material
+                # viejo: sin traza es indepurable.
+                traceback.print_exc()
 
     def _capture(self, label):
         """Snapshot del estado actual en el undo stack. Llamar ANTES de
@@ -409,7 +461,8 @@ class MaterialDialog:
             if stack is not None:
                 stack.capture(label)
         except Exception:
-            pass
+            # Sin snapshot esta accion queda fuera del Ctrl+Z (regla dura 4).
+            traceback.print_exc()
 
     # ═════════════════════════════════════════════════════════════════════
     # CENTRADO

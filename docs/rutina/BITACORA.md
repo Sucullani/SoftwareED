@@ -707,3 +707,208 @@ capítulo [canvas-preproceso.md](../convenciones/canvas-preproceso.md) lo deja e
 ### Área siguiente
 
 5 — Diálogos (`gui/dialogs/*`).
+
+---
+
+## Sesión 05 — 2026-09-09 00:35 UTC — Área: 5 — Diálogos
+
+**Commit**: (este) · **Gates**: `run_gates` verde (97/97 módulos, **0 nombres sin definir**,
+0 hex, **19**/19 tests) y también `run_gates --con-gui` bajo `xvfb` (21/21) · además smoke con
+Tk real del `AboutDialog`, del `MaterialDialog` (validación live + preselección) y del
+`HealthReportDialog` (rueda, Re-validar, cierre)
+
+> Nota de entorno: igual que las sesiones 03 y 04, el sandbox vino **sin el stack y sin
+> `tkinter`**. Gate corrido con un venv de `python3.12` del sistema + `pip install -r
+> requirements.txt`, según la receta de [RUTINA.md](RUTINA.md) §8. Sin tocar
+> `requirements.txt`. **Tampoco hay `pdflatex` ni `latexmk`**: las tres correcciones de
+> `tesis/` siguen sin poder tomarse (§6 exige compilar antes de pushear).
+
+### Qué se hizo y por qué
+
+El hallazgo central es un **crash real en un ítem de menú** que ningún gate podía ver, y la
+respuesta fue tanto arreglarlo como cerrar la clase entera de bug con un gate nuevo.
+
+- `gui/dialogs/about_dialog.py` — **`center_dialog` se usaba sin importarlo**. `Ayuda ▸ Acerca
+  de EduFEM` levantaba `NameError` en el callback de Tk: la ventana se armaba (los widgets se
+  empaquetan antes) pero moría al centrarse, así que aparecía **descolgada en la posición por
+  defecto** y el traceback iba a `stderr` — invisible en el `.exe`, que no tiene consola.
+  **Por qué pasó desapercibido**: `gate_imports` importa el módulo y el módulo importa bien;
+  el `NameError` solo existe cuando se ejecuta el cuerpo del `__init__`. Verificado con Tk
+  real: ahora centra en `450x350+225+175`.
+- `tests/run_gates.py::gate_nombres` — **gate nuevo [2]**: nombres globales usados y nunca
+  definidos, en los 97 módulos. Usa `symtable` de la stdlib, así que el análisis es **exacto**
+  y no heurístico — aplica las reglas de scoping reales de Python (locales, parámetros,
+  comprehensions, `global`/`nonlocal`, cierres) y compara cada símbolo global no asignado
+  contra `dir(modulo)` **ya importado**, que incluye lo que traiga un `import *` (`about_dialog`
+  hace `from ttkbootstrap.constants import *`). **Cero falsos positivos** sobre el repo entero.
+  **Por qué**: sin linter, este es el bug que más barato se cuela y más caro sale — un botón
+  de menú que revienta y nadie lo ve hasta que lo aprieta el alumno. Verificado en negativo:
+  borrando el import, el gate escupe
+  `gui/dialogs/about_dialog.py: 'center_dialog' usado en __init__() y nunca definido`.
+- `education/mod05_stiffness.py` — el gate nuevo encontró **3 usos de `sp.` sin `import sympy`**
+  (`sp.latex`, `sp.expand`+`sp.Add.make_args`, `sp.pretty`). Los tres estaban dentro de un
+  `except Exception`, así que **M5 degradaba en silencio**: el integrando simbólico se mostraba
+  como el `repr` crudo de la expresión en vez de LaTeX renderizado, el contador decía siempre
+  **"0 términos · 0 chars LaTeX"**, y la ventana del integrando completo caía a `str(expr)` en
+  lugar del pretty-print. Es área 8, pero es un error visible y se arregla en la misma sesión
+  (RUTINA §1.3). `sympy` ya es dependencia declarada (`fem/symbolic_integrand.py` la importa a
+  nivel de módulo), así que el arreglo es la línea que faltaba. Medido después: la entrada
+  K(1,1) del elemento unitario da **5 términos** y `sp.latex` devuelve
+  `\frac{218750 (\eta - 1)^{2}}{13} + …`.
+- `gui/dialogs/health_report_dialog.py` — **la rueda del mouse dejó de atarse a toda la
+  aplicación**. Era `canvas.bind_all("<MouseWheel>", …)` + `unbind_all` al cerrar, y este
+  diálogo **no es modal a propósito** (para que el alumno corrija ítems con la lista a la
+  vista). Tres consecuencias, las tres reproducidas con Tk real: (a) con el reporte abierto, la
+  rueda sobre el `MeshCanvas` hacía zoom **y** scrolleaba la lista de fondo; (b) `<Destroy>`
+  sube por el bindtag del toplevel, así que destruir el footer dentro de **🔄 Re-validar**
+  disparaba el `unbind_all` y **la rueda dejaba de scrollear la lista** (medido: `bind_all`
+  vuelve `''` después de re-validar); (c) al cerrar borraba el `<MouseWheel>` global de
+  cualquier otro componente — hoy el visor de Teoría. Ahora es
+  `self.dialog.bind("<MouseWheel>", …)`: el bindtag del toplevel ya está en los bindtags de
+  todos sus descendientes, así que cubre la ventana entera y nada más. El `MaterialDialog` ya
+  usaba el patrón correcto.
+- `health_report_dialog::_on_goto` — **"📍 Ir al ítem" era una decoración inerte** para los
+  issues con `target_kind="material"`. El mapeo `kind → (frame, tree)` solo cubre las 5 tablas
+  del Pre-Proceso y los materiales no viven en ninguna: el handler caía en un `return` mudo.
+  Afecta a `UNUSED_MATERIAL`, `SUSPICIOUS_YOUNG_MODULUS` y `GRAVITY_NO_DENSITY`, y en las dos
+  últimas —no fixables— **ese botón era el único de la tarjeta**. Ahora deriva a
+  `MaterialDialog(..., seleccionar=<nombre>)`, que es donde el propio hint educativo manda
+  ("Asigna densidad en Modelo > Materiales"). Cualquier `kind` que el mapeo no conozca, y la
+  fila que ya no existe, lo dicen en la barra de estado en vez de no hacer nada.
+- `health_report_dialog::_on_fix` — **el auto-fix fallido era mudo**: `apply_autofix` devolvía
+  `False` y no pasaba absolutamente nada, ni en la tarjeta ni en la barra. Ahora explica y
+  sugiere el camino manual. El caso exitoso también avisa y **nombra 🔄 Re-validar**, porque el
+  header (chips de conteo) y el footer siguen mostrando el reporte con el que se abrió el
+  diálogo: sin ese aviso, corregir los 2 errores dejaba la ventana diciendo "✗ Errores críticos
+  detectados · 2 error(es)". `_on_revalidate` pasó de `except Exception: return` a decir que el
+  validador falló, y **siempre** informa el resultado (aunque la lista quede igual: si no,
+  apretar el botón "no hace nada").
+- `health_report_dialog::_disable_widget_recursive` — al corregir un issue, la tarjeta se
+  deshabilitaba entera **incluido el "🎓 ¿Por qué es un problema?"**. Es justo lo que el alumno
+  quiere leer después de arreglarlo, y quedaba inaccesible. Ahora ese botón se saltea.
+- `gui/dialogs/material_dialog.py` — **`to_float_flex` en la validación y en Guardar**. Con
+  `float()`, escribir `0,3` en ν (la coma decimal de un Excel en español, que el resto del
+  programa ya acepta desde la sesión 02 en el spreadsheet y la 04 en el Post) dejaba el botón
+  **Guardar gris para siempre y sin explicación**. Y como el único feedback documentado era el
+  estado del botón, el alumno no tenía **ninguna** forma de saber cuál de los 4 campos lo estaba
+  bloqueando: ahora `campos_invalidos()` es la fuente única y `_validate_live` **marca en rojo
+  el Entry culpable** (`bootstyle="danger"`, `"default"` al volver a ser válido). No se
+  reintroduce el status label —esa decisión sigue en pie—: el feedback vive en el propio
+  control. Verificado con Tk real: `0,3` → `TEntry` + Guardar `normal`; `0,9` → `danger.TEntry`
+  + Guardar `disabled`.
+- `material_dialog::_remove_material` — **la confirmación nombra la consecuencia**. Borrar el
+  material que usan todos los elementos preguntaba solo "¿Eliminar 'Acero'?" y dejaba N
+  elementos apuntando a un nombre inexistente; el alumno se enteraba recién al resolver, con un
+  `ELEM_MATERIAL_MISSING` crítico. Ahora cuenta los elementos afectados, dice que van a quedar
+  sin material y recuerda el `Ctrl+Z`.
+- `material_dialog` — kwarg keyword-only `seleccionar=`, para que el "Ir al ítem" del reporte
+  abra el diálogo ya posicionado. Keyword-only a propósito: los 3 llamadores posicionales
+  existentes no cambian.
+- `gui/dialogs/dxf_import_dialog.py::_on_import` — **`stack.capture("importar DXF")` movido
+  ANTES de `_apply_project_unit()`** (regla dura 4). Ese método reescala las coordenadas de
+  **todos** los nodos existentes y cambia `unit_system`; capturar después dejaba esa conversión
+  fuera del `Ctrl+Z`: importar un DXF eligiendo otra unidad y deshacer devolvía los elementos
+  pero las coordenadas quedaban multiplicadas por el factor **para siempre**. El contraejemplo
+  correcto ya estaba en el repo: `ElementTypeDialog._on_accept` captura después de la
+  confirmación modal y antes de mutar.
+- `dxf_import_dialog::_collect_polylines` — **cacheado por capa**. `_refresh_preview` cuelga de
+  `<Configure>`, así que arrastrar el borde del diálogo releía y parseaba el DXF entero desde el
+  disco decenas de veces. Y su `except Exception: return []` hacía que un archivo ilegible se
+  viera **exactamente igual** que una capa vacía: el preview decía "no hay polilíneas cerradas
+  de 4 vértices en la capa X", un diagnóstico falso. Ahora deja traza y el preview distingue
+  los dos casos.
+- `gui/dialogs/gravity_dialog.py` — `to_float_flex` en lugar del `.replace(",", ".")` a mano
+  (una sola regla de número en toda la app), y el error pasó de `"gx y gy deben ser numeros
+  validos"` a **nombrar el campo y el texto rechazado** (`gx: «hola»`), como el resto del
+  programa desde la sesión 02.
+- `gui/dialogs/units_dialog.py` — cuando la conversión no se puede aplicar, el status decía
+  `Unidades: X` a secas, indistinguible del caso convertido; ahora dice **"(solo la etiqueta:
+  los valores no se pudieron convertir)"**.
+- **`except Exception` del área: revisados los 33, cambiados 9.** Dejan traza con
+  `traceback.print_exc()` (convención de `undo_stack` / `post_tab` / `mesh_canvas`): los 4
+  `stack.capture` de `health_report`, `material_dialog`, `gravity_dialog`, `units_dialog` y
+  `dxf_import_dialog` —si el snapshot falla, esa acción queda fuera del `Ctrl+Z` y el alumno
+  tiene que saberlo—, los 3 refrescos de la ventana principal (`_refresh_all_tabs` mudo deja las
+  tablas mostrando el modelo de antes de la corrección o los números del sistema de unidades
+  viejo bajo el encabezado nuevo), el `notebook.select(0)` del "Volver al Pre-Proceso" (el botón
+  promete una navegación) y el `readfile` del preview DXF. Los otros 24 son legítimos
+  (`webbrowser.open`, `grab_set`, teardown de video, `tooltip`, guards de widgets destruidos).
+  **Revisados: 110 de 274.**
+- `tests/test_dialogs.py` — nuevo (26 casos, sin display: los diálogos con `object.__new__` y
+  dobles de las variables de Tk, como las sesiones 01–04). Sumado a `run_gates`. Cubre el import
+  de `center_dialog`, la coma decimal y el campo culpable del `MaterialDialog`, el conteo de
+  elementos afectados por el borrado, la firma keyword-only de `seleccionar`, la derivación de
+  los issues de material, los dos caminos de `_on_fix`, la ausencia de `bind_all`/`unbind_all`,
+  el orden `capture` → `_apply_project_unit` y la coma decimal de la gravedad. Verificado que
+  **falla sin los arreglos**.
+
+### Errores encontrados y corregidos
+
+- **`NameError` en `Ayuda ▸ Acerca de EduFEM`** (el principal): `center_dialog` sin importar.
+  Crash real en un ítem de menú, invisible en el `.exe`.
+- **M5 degradaba en silencio** por 3 usos de `sp.` sin `import sympy`, los tres tapados por un
+  `except Exception`: LaTeX crudo en vez de renderizado y "0 términos" siempre.
+- **La rueda del mouse del reporte de salud secuestraba toda la aplicación**, y su propia lista
+  dejaba de scrollear después de 🔄 Re-validar.
+- **"📍 Ir al ítem" no hacía nada** en los 3 issues de material — y en 2 de ellos era el único
+  botón de la tarjeta.
+- **"🔧 Corregir" y "🔄 Re-validar" mudos** en sus caminos de fallo.
+- **El "🎓 ¿Por qué?" quedaba deshabilitado** justo después de corregir el issue.
+- **`ν = 0,3` bloqueaba el `MaterialDialog` para siempre**, con un botón gris que no decía qué
+  campo estaba mal.
+- **Borrar un material en uso no avisaba** que dejaba N elementos sin material.
+- **El `Ctrl+Z` del import DXF no revertía la conversión de unidades** (regla dura 4).
+- **Un DXF ilegible se reportaba como "capa sin polilíneas"**, y el preview releía el archivo
+  entero en cada evento de resize.
+
+### DECISIÓN CONGELADA REVERTIDA
+
+Ninguna. La marca en rojo del Entry inválido del `MaterialDialog` **no** revierte el "sin status
+label": esa decisión es sobre no agregar un widget de texto al diálogo, y sigue en pie — el
+feedback se puso en el propio control. La fila de `no-reintroducir.md` se actualizó para dejarlo
+escrito.
+
+### Pendientes visuales para el autor
+
+1. **Diálogo de materiales con coma decimal** (lo más visible de la sesión). `Modelo ▸
+   Materiales`, campo **ν**: tipear `0,3` → el botón **💾 Guardar cambios** debe quedar
+   habilitado (antes: gris para siempre, sin explicación). Tipear `0,9` → el borde del Entry de
+   ν se pone **rojo** y Guardar se apaga; volver a `0.3` y el borde vuelve a la normalidad.
+   Probar los 4 campos. Revertir: `git revert` de este commit.
+2. **Reporte de salud: la rueda y los botones**. `Ctrl+E`, borrar las restricciones, `F5` → en
+   el diálogo *⚕ Salud del modelo*: (a) la rueda **sobre el lienzo de atrás** debe hacer solo
+   zoom, sin mover la lista del reporte; (b) tocar **🔄 Re-validar** y comprobar que la rueda
+   **sigue** scrolleando la lista (antes se moría ahí) y que la barra de estado dice cuántos
+   errores quedan; (c) en un modelo con un material sin usar, **📍 Ir al ítem** debe abrir
+   *Materiales* con ese material seleccionado (antes no hacía nada).
+3. **M5 con el integrando simbólico**. Proceso → clickear un elemento **Q4** → `⑤ Rigidez`: la
+   fórmula de K(i,j) debe verse **renderizada en LaTeX** y el contador decir un número real de
+   términos (ej. `📏 K_(1,1): 5 términos · N chars LaTeX`). Antes salía el texto plano de la
+   expresión Python y **siempre "0 términos"**.
+
+### Descartado
+
+- **Abrir el `MaterialDialog` como no-modal** para que conviva con el reporte de salud (que
+  tampoco lo es). Hoy hace `grab_set` y funciona bien encima del reporte; quitarle el grab
+  cambia el modelo de foco de un diálogo del menú Modelo por un caso de uso lateral.
+- **Auto-revalidar el reporte después de cada 🔧 Corregir.** Reconstruiría la lista y haría
+  desaparecer la tarjeta que el alumno está mirando en el mismo click. El diseño actual —tachar
+  la tarjeta y dejar el botón Re-validar— es deliberado; solo faltaba **decir** que hay que
+  tocarlo, y eso sí se agregó.
+- **Descartar el snapshot de undo cuando `apply_autofix` devuelve `False`.** `UndoStack` no
+  expone forma de tirar el último snapshot y agregarla es tocar `models/` (área 11) por un caso
+  defensivo. Un nivel de undo de más pesa mucho menos que una mutación irreversible (regla dura
+  4), y quedó anotado en el comentario.
+- **Un `Escape` que cierre los diálogos y un `Return` que acepte.** Son 10 diálogos con
+  semánticas distintas (el de salud es no modal, el `MaterialDialog` no tiene Aceptar, el de
+  estilo de memoria devuelve `None` al cancelar) y ninguno lo tiene hoy: es una decisión de
+  diseño transversal, no un fix. Al BACKLOG.
+- **Unificar el `_LENGTH_DEFAULT_SYSTEM` del DXF con `config/units.py`.** El diccionario del
+  diálogo duplica el mapeo longitud → sistema canónico, pero moverlo es área 13
+  (interoperabilidad) y toca `config/`. Al BACKLOG.
+- **Tocar `tesis/`**: el sandbox sigue sin `pdflatex` ni `latexmk` y §6 exige compilar antes de
+  pushear. Las tres correcciones del Anexo A siguen en el BACKLOG del área 14.
+
+### Área siguiente
+
+6 — Ventana, menús, atajos, barra de estado (`gui/main_window.py`, `gui/widgets/*`).

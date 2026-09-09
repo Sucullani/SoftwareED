@@ -13,6 +13,8 @@ real, solo rotulos). Los .edufem legacy con ese sistema se migran al
 default automaticamente en `ProjectModel.from_dict`.
 """
 
+import traceback
+
 import tkinter as tk
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
@@ -84,7 +86,9 @@ class UnitsDialog:
             if stack is not None:
                 stack.capture("cambio de unidades")
         except Exception:
-            pass
+            # Sin snapshot, la conversion de TODO el modelo (coords, E, cargas)
+            # queda fuera del Ctrl+Z: es la mutacion mas masiva del menu Modelo.
+            traceback.print_exc()
 
         # Conversion automatica: aplica los factores entre los dos
         # sistemas. Si por algun motivo no es convertible (sistema legacy
@@ -122,12 +126,16 @@ class UnitsDialog:
                 self.main_window._refresh_all_tabs()
                 self.main_window._update_status_info()
                 self.main_window._update_title()
-                suffix = " (valores convertidos)" if converted else ""
+                suffix = (" (valores convertidos)" if converted
+                          else " (solo la etiqueta: los valores no se pudieron "
+                               "convertir)")
                 self.main_window.set_status(
                     f"Unidades: {self.project.unit_system}{suffix}"
                 )
             except Exception:
-                pass
+                # Si el refresco falla, las tablas siguen mostrando los numeros
+                # del sistema viejo con el encabezado del nuevo.
+                traceback.print_exc()
 
         self.dialog.destroy()
 

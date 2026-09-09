@@ -9,6 +9,7 @@ from config.settings import (
     APP_NAME, APP_VERSION, APP_AUTHOR,
     DIALOG_MUTED_FG_COLOR, ABOUT_INFO_FG_COLOR, FONT_UI_LARGE,
 )
+from gui.dialogs._dialog_helpers import center_dialog
 
 
 class AboutDialog:

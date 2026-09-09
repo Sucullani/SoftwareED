@@ -20,6 +20,7 @@ unidad (flujo SAP2000).
 from __future__ import annotations
 
 import os
+import traceback
 import tkinter as tk
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
@@ -127,6 +128,8 @@ class DxfImportDialog:
 
         self._available_layers = []
         self._preview_canvas = None
+        self._poly_cache = {}          # capa -> polilineas ya parseadas
+        self._read_error = False
 
         self._build()
         self._center()
@@ -249,6 +252,15 @@ class DxfImportDialog:
     # PREVIEW (tk.Canvas)
     # ------------------------------------------------------------------
     def _collect_polylines(self):
+        """Polilineas cerradas de 4 vertices de la capa elegida.
+
+        Cacheado por capa: `_refresh_preview` cuelga de `<Configure>`, asi que
+        arrastrar el borde del dialogo lo llamaba decenas de veces y cada una
+        releia y parseaba el DXF entero desde el disco.
+        """
+        target = self._layer_var.get()
+        if target in self._poly_cache:
+            return self._poly_cache[target]
         if not self._filepath or not os.path.isfile(self._filepath):
             return []
         try:
@@ -257,8 +269,12 @@ class DxfImportDialog:
             doc = ezdxf.readfile(self._filepath)
             msp = doc.modelspace()
         except Exception:
+            # Sin traza, un DXF ilegible se veia igual que una capa vacia: el
+            # preview decia "no hay polilineas cerradas de 4 vertices", que es
+            # un diagnostico falso.
+            traceback.print_exc()
+            self._read_error = True
             return []
-        target = self._layer_var.get()
         out = []
         for poly in msp.query("LWPOLYLINE POLYLINE"):
             if poly.dxf.layer != target:
@@ -267,6 +283,7 @@ class DxfImportDialog:
             if pts is None or len(pts) != 4:
                 continue
             out.append(pts)
+        self._poly_cache[target] = out
         return out
 
     def _refresh_preview(self):
@@ -282,14 +299,20 @@ class DxfImportDialog:
             return
 
         if not polylines:
+            if self._read_error:
+                texto = ("(no se pudo leer el archivo DXF:\n"
+                         "esta dañado o no es un DXF valido)")
+                info = "Archivo ilegible"
+            else:
+                texto = (f"(no hay polilineas cerradas de 4 vertices\n"
+                         f"en la capa '{self._layer_var.get()}')")
+                info = "0 elementos detectados"
             canvas.create_text(
-                w / 2, h / 2,
-                text=f"(no hay polilineas cerradas de 4 vertices\n"
-                     f"en la capa '{self._layer_var.get()}')",
+                w / 2, h / 2, text=texto,
                 fill=HEALTH_ERROR_LIGHT_COLOR, font=FONT_UI_LARGE,
                 justify=tk.CENTER,
             )
-            self._preview_info.configure(text="0 elementos detectados")
+            self._preview_info.configure(text=info)
             return
 
         all_pts = [p for poly in polylines for p in poly]
@@ -366,18 +389,22 @@ class DxfImportDialog:
             )
             return
 
-        conv_factor = self._apply_project_unit()
-        layer_elems = self._layer_var.get().strip() or "FEM_ELEMENTS"
-
         # Snapshot para undo: el import muta el modelo de forma masiva
-        # (potencialmente cientos de nodos + elementos). Capturar antes
-        # de cualquier mutacion permite Ctrl+Z para revertir todo.
+        # (potencialmente cientos de nodos + elementos). Va ANTES de
+        # `_apply_project_unit()`, que ya reescala las coordenadas de todos los
+        # nodos existentes y cambia `unit_system` (regla dura 4). Capturarlo
+        # despues dejaba esa conversion fuera del Ctrl+Z: el alumno importaba
+        # un DXF eligiendo otra unidad, deshacia, y las coordenadas viejas
+        # quedaban multiplicadas por el factor para siempre.
         try:
             stack = getattr(self.main_window, "undo_stack", None)
             if stack is not None:
                 stack.capture("importar DXF")
         except Exception:
-            pass
+            traceback.print_exc()
+
+        conv_factor = self._apply_project_unit()
+        layer_elems = self._layer_var.get().strip() or "FEM_ELEMENTS"
 
         try:
             summary = import_dxf(

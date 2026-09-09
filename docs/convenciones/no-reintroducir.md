@@ -69,6 +69,12 @@ Abreviaturas de capítulo:
 | Llamar `post_tab._auto_solve()` salteando el guard `auto_solve` | El `HealthReportDialog` no es modal y su `wait_window()` reentra: cada reentrada apilaba otro diálogo de salud | [ARQ] |
 | Mandar al alumno a *Archivo ▸ Cargar Ejemplo* o a un *menú Educación* | Los ejemplos viven en **Ayuda** y no hay menú Educación (la barra tiene 3 menús): eran mensajes que apuntaban a donde no hay nada | [EDU] |
 | La key interna del módulo (`mod03`) en un string visible | Es `module_launcher.module_label(mod_key)`: el alumno solo vio la etiqueta del botón | [EDU] |
+| `bind_all` / `unbind_all` de `<MouseWheel>` en un diálogo | Escribe en el bindtag `all` de toda la app: con el `HealthReportDialog` (no modal) abierto la rueda hacía zoom en el canvas **y** scrolleaba la lista, `<Destroy>` del footer al Re-validar mataba el scroll, y al cerrar borraba el binding global de otros widgets. Es `self.dialog.bind("<MouseWheel>", …)` | [ARQ] |
+| `float(texto)` en un Entry de `gui/dialogs/` | Es `to_float_flex`: `ν = 0,3` dejaba el botón Guardar del `MaterialDialog` gris para siempre y sin explicación | [ARQ] |
+| `stack.capture()` después de la primera mutación en un diálogo | `DxfImportDialog` capturaba tras `_apply_project_unit()`: la reescala de coordenadas y el cambio de `unit_system` quedaban fuera del `Ctrl+Z` (regla dura 4) | [ARQ] |
+| Un botón de diálogo que no diga nada cuando no puede actuar | 🔧 Corregir con `apply_autofix` en `False`, 🔄 Re-validar con el validador caído, y 📍 Ir al ítem sobre un `target_kind="material"`: los tres eran mudos. El canal es `main_window.set_status` | [ARQ] |
+| Un `target_kind` de `model_health` sin destino en `_on_goto` | Los materiales no viven en ninguna tabla del Pre: van a `MaterialDialog(..., seleccionar=…)`; lo que no se sepa navegar se dice en la barra de estado | [ARQ] |
+| Un status label dentro del `MaterialDialog` | El campo inválido se marca en rojo (`bootstyle="danger"`) y el botón Guardar queda gris: no hace falta un widget de texto | [ARQ] |
 
 ## Canvas, spreadsheet y Post-Proceso
 

@@ -11,15 +11,16 @@ Reglas del archivo, en [RUTINA.md](RUTINA.md) §4 y §9. Historial de lo hecho, 
 
 ## Área siguiente
 
-> **5 — Diálogos** (`gui/dialogs/*`). Capítulo a leer antes:
-> [../convenciones/arquitectura.md](../convenciones/arquitectura.md) (sección de diálogos:
-> `center_dialog`, modales vs. no modales, el `HealthReportDialog`) y siempre
-> [../convenciones/no-reintroducir.md](../convenciones/no-reintroducir.md). Ítems del BACKLOG
-> que le pertenecen y hay que drenar primero: **ninguno específico** — el área arranca
-> buscando material nuevo. Ojo con dos vecinos ya conocidos: el `HealthReportDialog` **no es
-> modal** y su `wait_window()` corre el event loop (fue la causa de los dos diálogos apilados
-> de la sesión 03), y el `pdflatex_missing_dialog` sigue siendo correcto para la versión
-> portable sin `texlive/`.
+> **6 — Ventana, menús, atajos, barra de estado** (`gui/main_window.py`, `gui/widgets/*`).
+> Capítulo a leer antes: [../convenciones/arquitectura.md](../convenciones/arquitectura.md)
+> (los 3 menús Archivo / Modelo / Ayuda y el `postcommand` que sincroniza su estado) y siempre
+> [../convenciones/no-reintroducir.md](../convenciones/no-reintroducir.md), que tiene **seis
+> filas** sobre esta área (cuarto menú, toolbar, Preferencias, *Exportar Resultados CSV*,
+> `_refresh_menu_state` explícito, reordenar el menú Modelo). Ítems del BACKLOG que le
+> pertenecen y hay que drenar primero: el **[3 / 6]** del nombre de la sub-pestaña educativa
+> (compartido con el área 3) y el **[5 / 6]** de las teclas `Escape` / `Return` en los
+> diálogos. Ojo: `main_window._on_solve` **ya no valida por su cuenta** (sesión 03, fila propia
+> en `no-reintroducir.md`), y `root.state("zoomed")` va con guard (sesión 01).
 
 Al cerrar la sesión, reemplazá esta línea por el área que sigue en la rotación de
 [RUTINA.md](RUTINA.md) §4 (1 → 2 → … → 14 → 1).
@@ -114,7 +115,14 @@ Formato: `[área Nº] descripción — evidencia — quién decide`.
   `compute_raw_grids` del visor, el `_copy_values_tsv`, el callback de cierre del
   `DetailsPanel` y `_get_units` visto desde el 3D— y 27 quedaron mudos por legítimos
   (`after_cancel`, `destroy`/`unbind` de teardown, `tooltip.hide`, `set_status`, sondeo de la
-  API privada de matplotlib para los paneles 3D, `tight_layout`). **Revisados: 77 de 274.**
+  API privada de matplotlib para los paneles 3D, `tight_layout`). Sesión 05, los 33 de
+  `gui/dialogs/` sin contar `theory_hub_dialog` (que es del área 9): 9 pasaron a dejar traza
+  —los 5 `stack.capture` (si el snapshot falla, esa acción queda fuera del `Ctrl+Z`), los 3
+  refrescos de la ventana principal (`_refresh_all_tabs` mudo deja las tablas con el modelo
+  viejo o con los números del sistema de unidades anterior bajo el encabezado nuevo) y el
+  `readfile` del preview DXF (un archivo ilegible se reportaba como "capa sin polilíneas")— y
+  24 quedaron mudos por legítimos (`webbrowser.open`, `grab_set`, teardown de video,
+  `tooltip`, guards de widgets destruidos). **Revisados: 110 de 274.**
 
 - **[transversal] Quedan 12 literales de color con NOMBRE (`"white"` / `"black"`) fuera de
   `config/`.** Esquivan la auditoría de hex de `run_gates` (busca `#RRGGBB`) pero incumplen
@@ -163,6 +171,23 @@ Formato: `[área Nº] descripción — evidencia — quién decide`.
   canvas dibuja como un punto. El flujo del placeholder ("crear con defaults y completar
   después, sin bloqueo modal") es una decisión tomada y documentada, así que cambiarlo es una
   decisión de diseño, no un fix: **decide el autor**.
+
+- **[5 / 6] Ningún diálogo responde a `Escape` ni a `Return`.** Los 10 diálogos de
+  `gui/dialogs/` se cierran solo con el botón o la X, y ninguno acepta con Enter. Es un atajo
+  que el alumno da por sentado en cualquier programa. No se hizo en la sesión 05 porque son 10
+  semánticas distintas y hay que decidirlas juntas: el `HealthReportDialog` **no es modal** y
+  su Escape debería equivaler a "Volver al Pre-Proceso" (que navega), el `MaterialDialog` no
+  tiene botón Aceptar (cada material se guarda por separado), el `MemoriaStyleDialog` devuelve
+  `None` al cancelar, y el `DxfImportDialog` tiene el botón Importar deshabilitado hasta que
+  carga el archivo. Es una decisión de diseño transversal, no un fix: definir la tabla
+  diálogo → (qué hace Escape, qué hace Return) antes de tocar nada, y documentarla en
+  `arquitectura.md` junto a `center_dialog`.
+
+- **[13 / 5] `_LENGTH_DEFAULT_SYSTEM` duplica el mapeo longitud → sistema canónico.**
+  `gui/dialogs/dxf_import_dialog.py:50` mantiene su propio dict `{"mm": "SI (N, mm, MPa)", …}`
+  y su propio `_LENGTH_TO_M`, en paralelo a `config/units.py`. Si se agrega un sistema de
+  unidades, el importador DXF no se entera. Mover ambos a `config/units.py` es área 13
+  (interoperabilidad) y toca `config/`, por eso no se hizo en la sesión 05.
 
 - **[1] La cuadrícula del canvas no está anclada al mundo.** `_draw_grid` es un empapelado en
   coordenadas de pantalla (`spacing = clamp(50·scale, 30, 200)` px, fase `offset % spacing`):
@@ -251,6 +276,25 @@ Lo que el gate no puede juzgar. Cada ítem dice qué abrir, qué mirar y cómo r
   `xvfb-run -a python -m tests.run_gates --con-gui` (antes moría en `root.state("zoomed")`).
   Correrlo en Windows de vez en cuando sigue valiendo: Xvfb no reproduce el gestor de
   ventanas ni los diálogos nativos.
+- **Diálogo de materiales con coma decimal** (sesión 05). `Modelo ▸ Materiales`, campo **ν**:
+  tipear `0,3` → **💾 Guardar cambios** debe habilitarse (antes: gris para siempre y sin
+  explicación). Tipear `0,9` → el borde del Entry de ν se pone **rojo** y Guardar se apaga;
+  volver a `0.3` y el borde vuelve a la normalidad. Probar los 4 campos. Revertir: `git revert`
+  del commit de la sesión 05.
+- **Reporte de salud: la rueda y los botones** (sesión 05). `Ctrl+E`, borrar las restricciones,
+  `F5` → en *⚕ Salud del modelo*: (a) la rueda **sobre el lienzo de atrás** debe hacer solo
+  zoom, sin mover la lista del reporte; (b) tocar **🔄 Re-validar** y comprobar que la rueda
+  **sigue** scrolleando la lista (antes se moría ahí) y que la barra de estado dice cuántos
+  errores quedan; (c) con un material sin usar, **📍 Ir al ítem** debe abrir *Materiales* con
+  ese material seleccionado (antes no hacía nada).
+- **M5 con el integrando simbólico** (sesión 05). Proceso → clickear un elemento **Q4** →
+  `⑤ Rigidez`: la fórmula de K(i,j) debe verse **renderizada en LaTeX** y el contador decir un
+  número real de términos (`📏 K_(1,1): 5 términos · N chars LaTeX`). Antes salía el texto
+  plano de la expresión Python y **siempre "0 términos"**.
+
+(*El centrado de `Ayuda ▸ Acerca de EduFEM`, que antes moría en `NameError`, no ocupa un
+pendiente visual: se verificó con Tk real bajo `xvfb` — abre en `450x350+225+175`, centrado
+sobre la ventana principal.*)
 
 ---
 
@@ -322,6 +366,40 @@ futura reabra algo ya decidido.
 - **[1 / 4] Realce y hit-test de arista no seguían la malla deformada** — cerrado por la
   sesión 04: `_draw_highlight` y `_hit_test_potential_edge` usan `_get_node_screen_pos` como
   el resto del lienzo.
+- **[5] `Ayuda ▸ Acerca de EduFEM` levantaba `NameError`** — cerrado por la sesión 05.
+  `about_dialog.py` llamaba `center_dialog(...)` sin importarlo (el archivo hace
+  `from ttkbootstrap.constants import *`, que no lo provee). La ventana se armaba pero moría al
+  centrarse, así que aparecía descolgada y el traceback iba a `stderr` — invisible en el `.exe`.
+  El gate de imports no podía verlo: el módulo importa bien, el `NameError` solo existe al
+  ejecutar el `__init__`. Nuevo `run_gates.gate_nombres` (`symtable`, exacto, 0 falsos
+  positivos) para cerrar la clase entera.
+- **[8] M5 mostraba el integrando simbólico crudo y contaba siempre "0 términos"** — cerrado
+  por la sesión 05, encontrado por `gate_nombres`. `mod05_stiffness.py` usaba `sp.latex`,
+  `sp.expand`/`sp.Add.make_args` y `sp.pretty` **sin `import sympy`**, y los tres estaban
+  dentro de un `except Exception`: degradaba en silencio al `repr` de la expresión. `sympy` ya
+  era dependencia declarada (`fem/symbolic_integrand.py`). Medido tras el arreglo: K(1,1) del
+  elemento unitario da 5 términos y `sp.latex` renderiza.
+- **[5] La rueda del reporte de salud se ataba a toda la aplicación** — cerrado por la sesión
+  05. Era `bind_all`/`unbind_all` en un diálogo **no modal**: la rueda sobre el `MeshCanvas`
+  hacía zoom y scrolleaba la lista de fondo, `<Destroy>` del footer al 🔄 Re-validar mataba el
+  scroll de la propia lista, y al cerrar borraba el binding global de otros widgets. Ahora es
+  `self.dialog.bind("<MouseWheel>", …)` sobre el Toplevel. Verificado con Tk real.
+- **[5] "📍 Ir al ítem" no hacía nada en los issues de material** — cerrado por la sesión 05.
+  El mapeo `kind → (frame, tree)` solo cubre las 5 tablas del Pre y `target_kind="material"`
+  caía en un `return` mudo; en `SUSPICIOUS_YOUNG_MODULUS` y `GRAVITY_NO_DENSITY` (no fixables)
+  era el único botón de la tarjeta. Ahora deriva a `MaterialDialog(..., seleccionar=…)`.
+- **[5] "🔧 Corregir" y "🔄 Re-validar" mudos en sus caminos de fallo** — cerrado por la sesión
+  05. Y el "🎓 ¿Por qué?" dejaba de ser clickeable justo después de corregir el issue.
+- **[5] `ν = 0,3` bloqueaba el `MaterialDialog` para siempre** — cerrado por la sesión 05 con
+  `to_float_flex` (la vía única del programa desde la sesión 02) más la marca en rojo del Entry
+  culpable: el botón Guardar gris no decía cuál de los 4 campos lo bloqueaba.
+- **[5] Borrar un material en uso no avisaba la consecuencia** — cerrado por la sesión 05: la
+  confirmación cuenta los elementos que quedan sin material y recuerda el `Ctrl+Z`.
+- **[5] El `Ctrl+Z` del import DXF no revertía la conversión de unidades** — cerrado por la
+  sesión 05 (regla dura 4): `stack.capture` estaba **después** de `_apply_project_unit()`, que
+  ya había reescalado todas las coordenadas y cambiado `unit_system`. Además el preview releía
+  el DXF entero en cada `<Configure>` y reportaba un archivo ilegible como "capa sin
+  polilíneas".
 - **[2] Docstrings de `pre_tab.py` / `_table_helpers.py` que anunciaban features eliminadas**
   (fill-down `Ctrl+D`, navegación Tab/flechas, menú contextual, `on_commit(text, direction)`)
   más 8 encabezados de sección vacíos — cerrado por la sesión 02. Eran una trampa: invitaban a

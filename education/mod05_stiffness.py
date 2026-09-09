@@ -34,6 +34,7 @@ import math
 from typing import Optional
 
 import numpy as np
+import sympy as sp          # sp.latex / sp.expand / sp.pretty del integrando simbolico
 import tkinter as tk
 import ttkbootstrap as ttk
 
