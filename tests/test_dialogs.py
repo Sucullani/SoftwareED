@@ -212,7 +212,7 @@ check(firma.parameters["seleccionar"].kind is inspect.Parameter.KEYWORD_ONLY,
 
 
 # ═════════════════════════════════════════════════════════════════════════
-print("\n[5] HealthReportDialog: '📍 Ir al item' de un material")
+print("\n[5] HealthReportDialog: 'Ir al item' de un material")
 
 from gui.dialogs.health_report_dialog import HealthReportDialog   # noqa: E402
 

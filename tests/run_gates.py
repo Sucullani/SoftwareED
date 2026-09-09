@@ -197,10 +197,15 @@ def gate_nombres():
 
 def _correr(modulo, timeout):
     inicio = time.time()
+    # El hijo debe ESCRIBIR en UTF-8, que es lo que este proceso decodifica abajo.
+    # Sin esto, en una consola Windows (cp1252) un print con un simbolo fuera de
+    # esa pagina de codigos -griegas, flechas, emoji- revienta el test con
+    # UnicodeEncodeError aunque todas sus aserciones hayan pasado.
+    entorno = dict(os.environ, PYTHONIOENCODING="utf-8")
     try:
         proc = subprocess.run(
             [sys.executable, "-m", modulo],
-            cwd=RAIZ, capture_output=True, text=True,
+            cwd=RAIZ, capture_output=True, text=True, env=entorno,
             timeout=timeout, encoding="utf-8", errors="replace",
         )
         return proc.returncode, time.time() - inicio, (proc.stdout or "") + (proc.stderr or "")

@@ -272,7 +272,7 @@ check(ConstitutiveModule._resolve_material(proy_roto, 1) == (None, None, None),
 
 m4_con = _m4(con_elemento=True)
 check(m4_con._E == 200e9 and abs(m4_con._nu_default - 0.3) < 1e-12,
-      "con elemento, E y ν siguen saliendo de SU material")
+      "con elemento, E y nu siguen saliendo de SU material")
 check(not np.allclose(m4_con._current_d(), 0.0),
       "con elemento, la D sigue teniendo valores reales")
 
