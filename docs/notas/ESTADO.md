@@ -88,10 +88,17 @@ tesis** (`tesis/`, 130 páginas, compila limpio).
   redirigiendo a fuentes ya presentes, volviendo autosuficientes las afirmaciones (Cook 23,96
   por extrapolación propia; invariancia frente a $E$ en Timoshenko) y cambiando apelaciones a
   autoridad ausente por el argumento técnico. Ver
-  [2026-09-08_bibliografia-tesis.md](2026-09-08_bibliografia-tesis.md). **Pendientes del
-  autor**: confirmar el año 2024 de los dos PDF de Miranda, y decidir si los ocho PDF de
-  `tesis/Material docente/` —material de cátedra ajeno, hoy trackeados en un repo público—
-  se sacan de HEAD. Los localizadores de página siguen sin hacerse (requieren los libros).
+  [2026-09-08_bibliografia-tesis.md](2026-09-08_bibliografia-tesis.md).
+- **2026-09-09** — **Las citas al material docente se reemplazaron por sus fuentes de origen**:
+  Álvarez de Zayas (objeto/campo/problema), Hernández-Sampieri y Mendoza 2018 (enfoque
+  cuantitativo, variables, muestra dirigida) y García-Córdoba 2005 (investigación tecnológica).
+  Motivo: los tres decks de cátedra **no tienen bibliografía** y uno de los docentes integra el
+  tribunal. Siguen 23 entradas. **Hechos también los localizadores de página** (8 citas con
+  `p.~NN`, verificados abriendo cada libro: el desfase PDF↔impresa no es constante).
+  **Pendientes del autor**: la monografía de Álvarez no trae pie de imprenta (se cita sin año);
+  y `tesis/bibliografia/Elast2DOñante.pdf` más los ocho PDF de `tesis/Material docente/` siguen
+  **trackeados en un repo público** siendo material ajeno — decidir si se sacan de HEAD (ya están
+  en el historial). Los libros nuevos sí quedaron gitignorados.
 - **2026-09-08** — **TeX Live recortado embebido: la Memoria y la Teoría ya no dependen de
   MiKTeX.** Motivo: en PCs de usuarios, MiKTeX básico abría un diálogo de instalación por cada
   paquete faltante (booktabs, tcolorbox, pgf, babel-spanish, listings…) y sin internet fallaba;

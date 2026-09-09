@@ -91,3 +91,6 @@ tools/**/media/
 # Claude Code harness runtime state (lock efimero de tareas programadas)
 .claude/scheduled_tasks.lock
 .claude/*.lock
+
+# Libros y papers de referencia de la tesis: material con copyright, no se versiona
+tesis/bibliografia/*.pdf

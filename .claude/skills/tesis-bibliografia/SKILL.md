@@ -63,10 +63,20 @@ Analisis matematico del metodo: Strang & Fix. Elasticidad: Timoshenko & Goodier.
 V&V: Roache, MMS (Salari & Knupp), benchmark de Cook (1974). Calidad de malla: reporte
 Verdict (Sandia). Stack cientifico: Harris et al. (NumPy), Virtanen et al. (SciPy).
 Educacion en ingenieria: Bishay, Lee (x2), Perez-Santiago, Suarez (ED-Elas2D).
-Validacion: manual de SAP2000 (CSI). Metodologia: el **material docente de la carrera**
-(`tesis/Material docente/`), que es la fuente normativa del Cap. de diseno metodologico y las
-unicas fuentes en espanol del .bib — Barrios (Modelo de investigacion, CIV 400) y Miranda
-(situacion problematica/objeto/campo; planteamiento del problema e hipotesis).
+Validacion: manual de SAP2000 (CSI). Metodologia (unicas fuentes en espanol del .bib):
+Alvarez de Zayas (objeto de estudio, campo de accion, problema cientifico, modelo teorico),
+Hernandez-Sampieri y Mendoza 2018 (enfoque cuantitativo, variables, muestra dirigida) y
+Garcia-Cordoba 2005 (investigacion tecnologica en ingenierias; la **hipotesis tecnologica**
+de su p. 85 es la que sostiene que esta tesis plantee hipotesis de diseno y no estadistica).
+
+**No volver a citar el material docente de la carrera** (`tesis/Material docente/`): se uso el
+2026-09-08 y se retiro el 2026-09-09. Son diapositivas sin bibliografia —material terciario sin
+fuentes— y uno de los dos docentes integra el tribunal del autor. El marco se cita en su origen.
+
+Los PDF de los libros viven en `tesis/bibliografia/` y estan **gitignorados** (material con
+copyright, repo publico). Sacar de ahi los metadatos: portada y pagina de creditos, nunca la web.
+Para un localizador de pagina, **abrir el libro y leer el numero impreso**: el desfase entre
+pagina del PDF y pagina impresa no es constante dentro de un mismo ejemplar.
 
 **Antes de agregar una entrada nueva, agota este orden** (regla del 2026-09-08): (a) redirigir
 la afirmacion a una fuente que ya esta en el .bib; (b) reescribirla para que se sostenga sola

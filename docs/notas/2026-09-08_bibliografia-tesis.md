@@ -261,10 +261,68 @@ sacarlos de HEAD no los purga.
 `07_anexo_memoria.tex`, la línea con `\texttt{ProjectModel}` del Cap. 3); los dos que introdujo
 la ecuación nueva se corrigieron partiéndola en `aligned`.
 
-## Lo único que sigue pendiente
+---
 
-Los **localizadores de página** (0 de 78 citas los usan). Sigue requiriendo los libros; la tabla
-de sitios prioritarios está más arriba, sin cambios.
+# Tercera pasada (2026-09-09): las diapositivas salen, entran los libros
+
+El autor observó que citar material docente era citar una fuente derivada, y que **Miranda es
+miembro de su tribunal**. Verifiqué los tres decks completos: **ninguno tiene diapositiva de
+bibliografía** (el único crédito en los tres es una nota al pie de Barrios a Kéry 2010, sobre
+WinBUGS y ecología, ajena al tema). Es decir, eran material terciario sin fuentes. Se fue al
+origen y **se retiraron `miranda2024objeto`, `miranda2024problema` y `barrios2021modelo`**.
+
+## Las tres entradas que las reemplazan (siguen siendo 23)
+
+Metadatos tomados de la portada y la página de créditos de cada ejemplar, no de la web:
+
+| Clave | Referencia | Estado |
+|---|---|---|
+| `alvarez_metodologia` | Álvarez de Zayas C. *Metodología de la investigación científica*. | **Sin pie de imprenta**: la monografía (80 p.) no consigna editorial, ciudad ni año. Se cita así, con `note`. **Pendiente del autor**: si consigue una edición con pie de imprenta, completar |
+| `sampieri2018metodologia` | Hernández-Sampieri R, Mendoza Torres CP. *Metodología de la investigación: las rutas cuantitativa, cualitativa y mixta*. Ciudad de México: McGraw-Hill Interamericana; 2018. ISBN 978-1-4562-6096-5 | completo |
+| `garciacordoba2005tecnologica` | García-Córdoba F. *La investigación tecnológica: investigar, idear e innovar en ingenierías y ciencias sociales*. México, D.F.: Limusa; 2005. ISBN 968-18-6597-9 | completo |
+
+**Mario Bunge, *La investigación científica* (Ariel, 2.ª ed., 1983) se dejó fuera** pese a estar
+disponible: García-Córdoba cubre el mismo terreno (ciencia frente a tecnología, carácter
+aplicado del trabajo) de forma más específica y dirigida a ingenierías, y una cuarta entrada de
+metodología habría sido redundante con lo que la tesis realmente afirma.
+
+## Localizadores de página: hechos (era el pendiente de la segunda pasada)
+
+Ocho citas llevan ahora `\autocite[p.~NN]`. Las páginas se verificaron **abriendo cada libro**,
+leyendo el número impreso en la página; no se calcularon por desplazamiento, porque el desfase
+entre página del PDF y página impresa **no es constante** (en Sampieri va de −41 a −43; en
+García-Córdoba, de −2 a −4).
+
+| Fuente | p. | Qué sostiene | Dónde se cita |
+|---|---|---|---|
+| Álvarez de Zayas | 7 | definición de problema científico y de la contradicción que lo origina | `01:15` |
+| Álvarez de Zayas | 9 | objeto de estudio | `01:17` |
+| Álvarez de Zayas | 13 | campo de acción («concepto más estrecho que el de objeto, es una parte del mismo») | `01:17` |
+| Álvarez de Zayas | 21 | modelo teórico como representación ideal del objeto | `02b:14` |
+| García-Córdoba | 75 | cap. 3, la investigación tecnológica | `02b:4` |
+| García-Córdoba | 83 | el problema tecnológico no se elige libremente: sale de un diagnóstico de la realidad | `01:11` |
+| García-Córdoba | **85** | **la hipótesis tecnológica es la solución tentativa a un problema concreto, con lógica distinta a la científica y criterio de veracidad en la práctica** | `01:44` |
+| Hernández-Sampieri | 7 | características del enfoque cuantitativo | `02b:4` |
+| Hernández-Sampieri | 137 | definición operacional de una variable | `02b:21` |
+| Hernández-Sampieri | 201 | muestra dirigida, no probabilística | `02b:74` |
+
+La de **p. 85 es la más valiosa**: respalda literalmente que la tesis plantee una *hipótesis de
+diseño* y no una hipótesis estadística, que es el punto que el tribunal puede cuestionar. Se
+aprovechó para reforzar la redacción de `01:44` con ese argumento.
+
+## Dos cambios técnicos que hicieron falta
+
+- `\autocites` separaba las citas con coma, y con localizadores eso es ambiguo:
+  `[6, p. 75, 23, p. 7]` se lee como cuatro números. Se redefinió `\multicitedelim` en
+  `preambulo.tex` → `[6, p. 75; 23, p. 7]`.
+- **`.gitignore`**: se agregó `tesis/bibliografia/*.pdf`. Los cuatro libros estaban sin ignorar
+  en un repositorio público. Nunca llegaron a commitearse, así que basta la regla.
+  **Pendiente**: `tesis/bibliografia/Elast2DOñante.pdf` (el paper de ED-Elas2D, Taylor & Francis,
+  de pago) **sí está trackeado** y ya está en el historial; sacarlo de HEAD no lo purga. Lo mismo
+  vale para los ocho PDF de `tesis/Material docente/`.
+
+**Verificación**: `pdflatex` ×3 + `biber` → 23 citekeys, cero citas o referencias indefinidas,
+132 páginas, los mismos 9 *overfull* preexistentes.
 
 ---
 
