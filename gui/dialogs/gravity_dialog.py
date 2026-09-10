@@ -41,7 +41,7 @@ _PREVIEW_HEAD_PX    = 14   # tamaño de la cabeza triangular
 _PREVIEW_TAG        = "gravity_preview"
 
 
-from gui.dialogs._dialog_helpers import bind_dialog_keys, center_dialog
+from gui.dialogs._dialog_helpers import bind_dialog_keys, size_dialog
 class GravityDialog:
     """Ventana modal para configurar el vector de gravedad (gx, gy)."""
 
@@ -52,10 +52,8 @@ class GravityDialog:
 
         self.dialog = ttk.Toplevel(parent)
         self.dialog.title("🌍  Gravedad")
-        self.dialog.geometry("440x260")
         self.dialog.transient(parent)
         self.dialog.grab_set()
-        self.dialog.resizable(False, False)
         self.dialog.protocol("WM_DELETE_WINDOW", self._on_cancel)
 
         # Estado local (no muta el project hasta Aceptar).
@@ -68,7 +66,7 @@ class GravityDialog:
         self._gy_live = float(project.gravity_y)
 
         self._build()
-        self._center()
+        size_dialog(self.dialog, parent, 440, 260)
         # Return acepta desde los Entry de gx / gy, que es donde está el
         # foco mientras se tipea el vector.
         bind_dialog_keys(self.dialog,
@@ -306,5 +304,3 @@ class GravityDialog:
         self._unregister_preview()
         self.dialog.destroy()
 
-    def _center(self):
-        center_dialog(self.dialog, self.parent, clamp_screen=True)

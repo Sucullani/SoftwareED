@@ -24,7 +24,7 @@ from config.units import (
 )
 
 
-from gui.dialogs._dialog_helpers import bind_dialog_keys, center_dialog
+from gui.dialogs._dialog_helpers import bind_dialog_keys, size_dialog
 class UnitsDialog:
     """Ventana modal para configurar Sistema de Unidades del proyecto."""
 
@@ -35,15 +35,13 @@ class UnitsDialog:
 
         self.dialog = ttk.Toplevel(parent)
         self.dialog.title("📏  Unidades")
-        self.dialog.geometry("440x180")
         self.dialog.transient(parent)
         self.dialog.grab_set()
-        self.dialog.resizable(False, False)
 
         self.unit_var = tk.StringVar(value=project.unit_system)
 
         self._build()
-        self._center()
+        size_dialog(self.dialog, parent, 440, 180)
         bind_dialog_keys(self.dialog,
                          on_escape=self._on_cancel, on_return=self._on_accept)
 
@@ -64,6 +62,9 @@ class UnitsDialog:
         self.combo.pack(fill=X)
 
         btn_bar = ttk.Frame(main)
+        # Empaquetada PRIMERO: `side=BOTTOM` sola no alcanza — Tk recorta lo
+        # último que se empaquetó, así que una barra de botones al final del
+        # _build es justo lo primero que desaparece (regla dura 23).
         btn_bar.pack(fill=X, pady=(20, 0), side=BOTTOM)
         ttk.Button(
             btn_bar, text="Cancelar", bootstyle="secondary",
@@ -144,5 +145,3 @@ class UnitsDialog:
     def _on_cancel(self):
         self.dialog.destroy()
 
-    def _center(self):
-        center_dialog(self.dialog, self.parent)

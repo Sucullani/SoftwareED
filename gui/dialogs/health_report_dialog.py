@@ -201,7 +201,8 @@ CODE_ICONS = {
 }
 
 
-from gui.dialogs._dialog_helpers import bind_dialog_keys, center_dialog
+from gui.dialogs._dialog_helpers import bind_dialog_keys, size_dialog
+from gui.scaling import fit_position, work_area
 class HealthReportDialog:
     """Modal que presenta el HealthReport y permite aplicar auto-fixes
     o navegar a los items con problemas.
@@ -224,16 +225,14 @@ class HealthReportDialog:
 
         self.dialog = ttk.Toplevel(parent)
         self.dialog.title("⚕  Salud del modelo")
-        self.dialog.geometry("780x620")
         self.dialog.transient(parent)
         # NO modal: el usuario debe poder editar la GUI principal mientras
         # el dialogo esta abierto, para corregir issues uno por uno con la
         # lista visible. Se cierra con Volver / Resolver / X (WM_DELETE).
-        self.dialog.minsize(600, 480)
         self.dialog.protocol("WM_DELETE_WINDOW", self._on_cancel)
 
         self._build()
-        self._center()
+        size_dialog(self.dialog, parent, 780, 620, minimo=(600, 420))
         # Escape = lo mismo que la X: volver al Pre-Proceso sin resolver.
         # **Sin Return**: las dos salidas de este diálogo son decisiones
         # opuestas (corregir los errores vs. resolver igual) y ninguna es
@@ -658,11 +657,15 @@ class HealthReportDialog:
         try:
             self.dialog.lift()
             self.dialog.update_idletasks()
-            # Mover a la esquina superior derecha del parent
+            # Mover a la esquina superior derecha del parent, sin salirse del
+            # area util: con la ventana principal maximizada y el dialogo alto,
+            # el borde inferior terminaba debajo de la barra de tareas.
             px = self.parent.winfo_x() + self.parent.winfo_width()
             py = self.parent.winfo_y() + 60
-            dw = self.dialog.winfo_width()
-            self.dialog.geometry(f"+{max(px - dw - 20, 0)}+{py}")
+            dw, dh = self.dialog.winfo_width(), self.dialog.winfo_height()
+            x, y = fit_position(px - dw - 20, py, dw, dh,
+                                work_area(self.parent))
+            self.dialog.geometry(f"+{x}+{y}")
         except Exception:
             pass
 
@@ -762,11 +765,6 @@ class HealthReportDialog:
                 traceback.print_exc()
         self.dialog.destroy()
 
-    def _center(self):
-        try:
-            center_dialog(self.dialog, self.parent)
-        except Exception:
-            pass
 
 
 def show_health_report(parent, report, project, main_window=None,

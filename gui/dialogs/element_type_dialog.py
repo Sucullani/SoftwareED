@@ -52,11 +52,19 @@ from models.mesh_utils import expand_q4_to_q9, shrink_q9_to_q4
 
 VIDEO_PATH = resource_path("videos", "cantilever_q4_q9.webp")
 
-# Misma anchura y video que AnalysisTypeDialog. La altura es 60 px
+# Misma anchura y video que AnalysisTypeDialog. La altura de DISENO es 60 px
 # mayor (720 vs 660) porque ElementTypeDialog tiene UN renglon de hint
-# adicional ("En Q9 los 5 nodos internos se generan automaticamente")
-# que AnalysisTypeDialog no tiene. Con 660 los botones del footer
-# quedaban clipeados fuera del area visible del Toplevel.
+# adicional ("En Q9 los 5 nodos internos se generan automaticamente").
+#
+# Estos numeros son px a 96 dpi y ya no se aplican tal cual: `size_dialog`
+# los escala por el DPI real, los agranda si el contenido pide mas y los
+# recorta al area util del monitor. Este era el peor caso del bug de campo
+# por partida doble: 720 px de alto fijos no entran en el area util de una
+# pantalla de 768 px (1366x728 con la barra de tareas), y con el escalado de
+# Windows al 125-150 % el contenido crecia dentro de una ventana que no
+# crecia. Encima era `resizable(False, False)`: sin forma de recuperar el
+# footer. El footer se empaqueta ahora PRIMERO y el video es la pieza
+# elastica (ver `_build`).
 VIDEO_W, VIDEO_H = 720, 480
 DIALOG_W, DIALOG_H = 760, 720
 
@@ -67,7 +75,7 @@ _Q4_DOT_COLOR = ELEMENT_Q4_DOT_COLOR   # gris claro (matches Q4 column header)
 _Q9_DOT_COLOR = PHASE_PROC_COLOR  # naranja (matches Q9 column header)
 
 
-from gui.dialogs._dialog_helpers import bind_dialog_keys, center_dialog
+from gui.dialogs._dialog_helpers import bind_dialog_keys, size_dialog
 class ElementTypeDialog:
     """Ventana modal para configurar Tipo de Elemento (Q4 / Q9)."""
 
@@ -82,10 +90,8 @@ class ElementTypeDialog:
 
         self.dialog = ttk.Toplevel(parent)
         self.dialog.title("🔲  Tipo de Elemento")
-        self.dialog.geometry(f"{DIALOG_W}x{DIALOG_H}")
         self.dialog.transient(parent)
         self.dialog.grab_set()
-        self.dialog.resizable(False, False)
         self.dialog.protocol("WM_DELETE_WINDOW", self._on_cancel)
 
         self.element_var = tk.StringVar(value=project.element_type)
@@ -94,7 +100,8 @@ class ElementTypeDialog:
         # Diferir carga del video para que el container tenga tamaño
         # real antes del primer render (si no, escala a 1×1 px).
         self.dialog.after(120, self._load_video)
-        self._center()
+        size_dialog(self.dialog, parent, DIALOG_W, DIALOG_H,
+                    minimo=(520, 400))
         # Return acepta: el paso Q9 -> Q4 tiene su propia confirmación
         # modal, así que no puede destruir nodos de un solo Enter.
         bind_dialog_keys(self.dialog,
@@ -105,17 +112,28 @@ class ElementTypeDialog:
         main = ttk.Frame(self.dialog, padding=18)
         main.pack(fill=BOTH, expand=YES)
 
-        self._build_video(main)
-        self._build_selector(main)
-        self._build_hint(main)
+        # El orden de empaquetado es el orden de prioridad ante la falta de
+        # espacio: Tk le da su tamaño a lo que se empaquetó primero y recorta
+        # lo último. Por eso footer, hint y selector se anclan abajo en ese
+        # orden y el video va ÚLTIMO con expand: si la pantalla obliga a
+        # encoger el diálogo, encoge el video y los botones siguen visibles.
+        # Al revés —como estaba— los botones eran lo primero en desaparecer.
         self._build_footer(main)
+        self._build_hint(main)
+        self._build_selector(main)
+        self._build_video(main)
 
     def _build_video(self, parent):
-        """Container fijo 720x480 con el WebpPlayer adentro.
-        `pack_propagate(False)` evita que el frame se ajuste al contenido."""
+        """Container 720x480 de diseño con el WebpPlayer adentro.
+
+        `pack_propagate(False)` evita que el frame se ajuste al contenido;
+        `expand` lo vuelve la pieza elástica del diálogo, la que cede espacio
+        en una pantalla chica. El WebpPlayer reescala cada frame al tamaño
+        real del label conservando la proporción, así que un video más chico
+        se sigue viendo bien."""
         container = ttk.Frame(parent, width=VIDEO_W, height=VIDEO_H)
         container.pack_propagate(False)
-        container.pack(pady=(0, 14))
+        container.pack(fill=BOTH, expand=YES, pady=(0, 14))
         self.video_frame = container
 
         self._video = WebpPlayer(
@@ -135,7 +153,7 @@ class ElementTypeDialog:
         self._icon_q9 = self._make_node_icon(grid=3, color=_Q9_DOT_COLOR)
 
         sel = ttk.Frame(parent)
-        sel.pack(fill=X, pady=(0, 6))
+        sel.pack(fill=X, side=BOTTOM, pady=(0, 6))
         sel.columnconfigure(0, weight=1, uniform="case")
         sel.columnconfigure(1, weight=1, uniform="case")
 
@@ -194,11 +212,13 @@ class ElementTypeDialog:
             font=("Segoe UI", 9, "italic"),
             foreground=TEXT_MUTED_FG,
             wraplength=700, justify=LEFT, anchor="w",
-        ).pack(fill=X, pady=(0, 14))
+        ).pack(fill=X, side=BOTTOM, pady=(0, 14))
 
     def _build_footer(self, parent):
         btn_bar = ttk.Frame(parent)
-        btn_bar.pack(fill=X)
+        # `side=BOTTOM` + empaquetado primero: la barra de botones se reserva
+        # su alto antes que nada y no se recorta nunca (regla dura 23).
+        btn_bar.pack(fill=X, side=BOTTOM)
         ttk.Button(
             btn_bar, text="Cancelar", bootstyle="secondary",
             command=self._on_cancel, width=12,
@@ -325,5 +345,3 @@ class ElementTypeDialog:
         self._stop_video()
         self.dialog.destroy()
 
-    def _center(self):
-        center_dialog(self.dialog, self.parent, clamp_screen=True)

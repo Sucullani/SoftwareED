@@ -9,7 +9,7 @@ from config.settings import (
     APP_NAME, APP_VERSION, APP_AUTHOR,
     DIALOG_MUTED_FG_COLOR, ABOUT_INFO_FG_COLOR, FONT_UI_LARGE,
 )
-from gui.dialogs._dialog_helpers import bind_dialog_keys, center_dialog
+from gui.dialogs._dialog_helpers import bind_dialog_keys, size_dialog
 
 
 class AboutDialog:
@@ -18,8 +18,6 @@ class AboutDialog:
     def __init__(self, parent):
         self.dialog = ttk.Toplevel(parent)
         self.dialog.title("Acerca de EduFEM")
-        self.dialog.geometry("450x350")
-        self.dialog.resizable(False, False)
         self.dialog.transient(parent)
         self.dialog.grab_set()
 
@@ -69,8 +67,10 @@ class AboutDialog:
             command=self.dialog.destroy, width=12
         ).pack()
 
-        # Centrar (helper compartido: nada de dimensiones hardcodeadas)
-        center_dialog(self.dialog, parent)
+        # 450x350 fijos recortaban el boton Cerrar: el contenido pide
+        # 390 px de alto. `size_dialog` toma 450x350 como piso, crece hasta lo
+        # que el contenido necesita y recorta contra el area util real.
+        size_dialog(self.dialog, parent, 450, 350)
 
         # Escape y Return cierran: el diálogo tiene una sola acción posible.
         bind_dialog_keys(

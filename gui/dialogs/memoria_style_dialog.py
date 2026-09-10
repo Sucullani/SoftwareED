@@ -28,7 +28,7 @@ import ttkbootstrap as ttk
 from ttkbootstrap.constants import BOTH, BOTTOM, E, RIGHT, W, X, YES
 
 from config.settings import FONT_UI, FONT_UI_BOLD, TEXT_MUTED_FG
-from gui.dialogs._dialog_helpers import bind_dialog_keys, center_dialog
+from gui.dialogs._dialog_helpers import bind_dialog_keys, size_dialog
 
 
 _ESTILOS = [
@@ -53,17 +53,15 @@ class MemoriaStyleDialog:
 
         self._top = ttk.Toplevel(parent)
         self._top.title("Estilo de Memoria de Cálculo")
-        self._top.geometry("460x210")
         self._top.transient(parent)
         self._top.grab_set()
-        self._top.resizable(False, False)
         self._top.protocol("WM_DELETE_WINDOW", self._on_cancel)
 
         # Default: educativo (balance recomendado para el alumno)
         self._style_var = tk.StringVar(value="educativo")
 
         self._build()
-        self._center(parent)
+        size_dialog(self._top, parent, 460, 210)
         # Escape cancela (result=None, el llamador aborta la exportación);
         # Return continúa con el estilo marcado.
         bind_dialog_keys(self._top,
@@ -131,5 +129,3 @@ class MemoriaStyleDialog:
         self.result = None
         self._top.destroy()
 
-    def _center(self, parent) -> None:
-        center_dialog(self._top, parent)

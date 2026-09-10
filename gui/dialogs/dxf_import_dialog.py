@@ -99,7 +99,7 @@ def _project_length_unit(project):
     return lu or None
 
 
-from gui.dialogs._dialog_helpers import bind_dialog_keys, center_dialog
+from gui.dialogs._dialog_helpers import bind_dialog_keys, size_dialog
 class DxfImportDialog:
     """Dialogo modal para importar un DXF al proyecto actual."""
 
@@ -114,10 +114,8 @@ class DxfImportDialog:
 
         self.dialog = ttk.Toplevel(parent)
         self.dialog.title("📐  Importar desde AutoCAD (DXF)")
-        self.dialog.geometry("760x500")
         self.dialog.transient(parent)
         self.dialog.grab_set()
-        self.dialog.resizable(True, True)
 
         # Preseleccionar con la longitud del proyecto actual.
         proj_len = _project_length_unit(project)
@@ -132,7 +130,7 @@ class DxfImportDialog:
         self._read_error = False
 
         self._build()
-        self._center()
+        size_dialog(self.dialog, parent, 760, 500, minimo=(560, 400))
         bind_dialog_keys(self.dialog,
                          on_escape=self._on_cancel, on_return=self._on_return)
         self.dialog.after(50, self._load_dxf)
@@ -502,5 +500,3 @@ class DxfImportDialog:
     def _on_cancel(self):
         self.dialog.destroy()
 
-    def _center(self):
-        center_dialog(self.dialog, self.parent)

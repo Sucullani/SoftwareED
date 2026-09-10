@@ -34,11 +34,17 @@ VIDEO_PATH = resource_path("videos", "tension_deformacion_plana.webp")
 
 # Tamaño del video. Nativo: 900×600 (3:2). Lo escalamos a 720×480 para
 # que el diálogo entre cómodo en pantallas comunes sin perder calidad.
+# Medidas de DISENO (px a 96 dpi). `size_dialog` las escala por el DPI de
+# la pantalla, las agranda si el contenido pide mas y las recorta al area
+# util del monitor. Fijas, en un equipo con el escalado de Windows al 150 %
+# las fuentes crecian 1,5x dentro de un dialogo que no crecia, y la barra
+# Aceptar/Cancelar —lo ultimo que se empaquetaba— era lo primero en
+# desaparecer.
 VIDEO_W, VIDEO_H = 720, 480
 DIALOG_W, DIALOG_H = 760, 660
 
 
-from gui.dialogs._dialog_helpers import bind_dialog_keys, center_dialog
+from gui.dialogs._dialog_helpers import bind_dialog_keys, size_dialog
 class AnalysisTypeDialog:
     """Ventana modal para configurar Tipo de Análisis (TP ↔ DP)."""
 
@@ -50,10 +56,8 @@ class AnalysisTypeDialog:
 
         self.dialog = ttk.Toplevel(parent)
         self.dialog.title("🔬  Tipo de Análisis")
-        self.dialog.geometry(f"{DIALOG_W}x{DIALOG_H}")
         self.dialog.transient(parent)
         self.dialog.grab_set()
-        self.dialog.resizable(False, False)
         self.dialog.protocol("WM_DELETE_WINDOW", self._on_cancel)
 
         # Selector TP/DP. La variable NO muta el project hasta Aceptar.
@@ -63,7 +67,8 @@ class AnalysisTypeDialog:
         # Diferir la carga del video para que el widget tenga tamaño
         # real antes del primer render (si no, escala a 1×1 px).
         self.dialog.after(120, self._load_video)
-        self._center()
+        size_dialog(self.dialog, parent, DIALOG_W, DIALOG_H,
+                    minimo=(520, 380))
         bind_dialog_keys(self.dialog,
                          on_escape=self._on_cancel, on_return=self._on_accept)
 
@@ -72,9 +77,15 @@ class AnalysisTypeDialog:
         main = ttk.Frame(self.dialog, padding=18)
         main.pack(fill=BOTH, expand=YES)
 
-        self._build_video(main)
-        self._build_selector(main)
+        # El orden de empaquetado es el orden de prioridad ante la falta de
+        # espacio: Tk le da su tamaño a lo que se empaquetó primero y recorta
+        # lo último. Por eso el footer va PRIMERO (anclado abajo) y el video
+        # ÚLTIMO con expand: si la pantalla obliga a encoger el diálogo,
+        # encoge el video y los botones siguen visibles. Al revés —como
+        # estaba— los botones eran lo primero en desaparecer.
         self._build_footer(main)
+        self._build_selector(main)
+        self._build_video(main)
 
     def _build_video(self, parent):
         """Container de tamaño fijo (720×480) que aloja el WebpPlayer.
@@ -83,7 +94,11 @@ class AnalysisTypeDialog:
         importar el primer ciclo de Configure."""
         container = ttk.Frame(parent, width=VIDEO_W, height=VIDEO_H)
         container.pack_propagate(False)
-        container.pack(pady=(0, 14))
+        # `expand` lo vuelve la pieza elástica del diálogo: es lo que cede
+        # espacio en una pantalla chica. El WebpPlayer reescala cada frame al
+        # tamaño real del label conservando la proporción, así que un video
+        # más chico se sigue viendo bien.
+        container.pack(fill=BOTH, expand=YES, pady=(0, 14))
         self.video_frame = container
 
         self._video = WebpPlayer(
@@ -99,7 +114,7 @@ class AnalysisTypeDialog:
         es Deformación Plana'. No hay otro texto que justifique esto
         porque la disposición lo dice todo."""
         sel = ttk.Frame(parent)
-        sel.pack(fill=X, pady=(0, 16))
+        sel.pack(fill=X, side=BOTTOM, pady=(0, 16))
         sel.columnconfigure(0, weight=1, uniform="case")
         sel.columnconfigure(1, weight=1, uniform="case")
 
@@ -117,7 +132,9 @@ class AnalysisTypeDialog:
 
     def _build_footer(self, parent):
         btn_bar = ttk.Frame(parent)
-        btn_bar.pack(fill=X)
+        # `side=BOTTOM` + empaquetado primero: la barra de botones se reserva
+        # su alto antes que nada y no se recorta nunca (regla dura 23).
+        btn_bar.pack(fill=X, side=BOTTOM)
 
         ttk.Button(
             btn_bar, text="Cancelar", bootstyle="secondary",
@@ -207,5 +224,3 @@ class AnalysisTypeDialog:
             except Exception:
                 pass
 
-    def _center(self):
-        center_dialog(self.dialog, self.parent)

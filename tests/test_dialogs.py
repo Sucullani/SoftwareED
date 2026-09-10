@@ -124,7 +124,7 @@ def _fuente(rel):
 
 
 # ═════════════════════════════════════════════════════════════════════════
-print("\n[1] about_dialog: center_dialog importado")
+print("\n[1] about_dialog: size_dialog importado")
 
 arbol = ast.parse(_fuente("gui/dialogs/about_dialog.py"))
 importados = set()
@@ -132,9 +132,9 @@ for nodo in ast.walk(arbol):
     if isinstance(nodo, (ast.Import, ast.ImportFrom)):
         for alias in nodo.names:
             importados.add(alias.asname or alias.name.split(".")[0])
-check("center_dialog" in importados,
-      "about_dialog importa center_dialog",
-      "sin el import, Ayuda > Acerca de levanta NameError al centrarse")
+check("size_dialog" in importados,
+      "about_dialog importa size_dialog",
+      "sin el import, Ayuda > Acerca de levanta NameError al dimensionarse")
 
 
 # ═════════════════════════════════════════════════════════════════════════

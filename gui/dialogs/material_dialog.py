@@ -38,7 +38,7 @@ from gui.preprocessing._table_helpers import to_float_flex
 from models.material import Material, POISSON_MAX, POISSON_MIN
 
 
-from gui.dialogs._dialog_helpers import bind_dialog_keys, center_dialog
+from gui.dialogs._dialog_helpers import bind_dialog_keys, size_dialog
 
 
 # Etiqueta visible de cada campo del editor. Fuente unica: la consume el
@@ -68,18 +68,17 @@ class MaterialDialog:
 
         self.dialog = ttk.Toplevel(parent)
         self.dialog.title("🧱  Materiales")
-        # Altura: padding(28) + header(32) + paned con editor de 4 entries
-        # + Guardar (~210) + breathing room. 460 px asegura que Nuevo/Eliminar
-        # del panel izquierdo y Guardar del panel derecho queden visibles
-        # sin scroll en pantallas de 768 px con taskbar.
-        self.dialog.geometry("680x460")
         self.dialog.transient(parent)
         self.dialog.grab_set()
-        self.dialog.minsize(640, 440)
 
         self._build()
         self._populate_list()
-        self._center()
+        # 680x460 es la medida de DISEÑO (px a 96 dpi): padding(28) +
+        # header(32) + paned con editor de 4 entries + Guardar (~210). El
+        # contenido pide 740 px de ancho, así que `size_dialog` crece hasta
+        # ahí —antes el panel derecho quedaba cortado— y después recorta
+        # contra el área útil de la pantalla real.
+        size_dialog(self.dialog, parent, 680, 460, minimo=(560, 400))
         # Escape cierra (no hay Aceptar global: cada material se guarda
         # con su propio botón). Return guarda el material abierto.
         bind_dialog_keys(self.dialog,
@@ -556,5 +555,3 @@ class MaterialDialog:
     # CENTRADO
     # ═════════════════════════════════════════════════════════════════════
 
-    def _center(self):
-        center_dialog(self.dialog, self.parent)

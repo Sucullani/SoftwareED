@@ -20,10 +20,10 @@ from config.settings import (
     APP_NAME, APP_VERSION, WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT,
     PROJECT_FILE_EXTENSION, PROJECT_FILE_DESCRIPTION,
     PHASE_PRE_COLOR, MENU_DISABLED_FG,
-    FONT_UI, FONT_UI_LARGE, HEALTH_OK_COLOR, OVERLAY_ACCENT_AMBER,
-    STATUS_BAR_BG_COLOR, BREADCRUMB_VISITED_FG_COLOR,
-    BREADCRUMB_INACTIVE_FG_COLOR,
+    FONT_UI, FONT_UI_LARGE, HEALTH_OK_COLOR,
+    STATUS_BAR_BG_COLOR,
 )
+from config.settings import ELEMENT_Q9 as ELEMENT_Q9_LABEL
 from config import recent_files
 from models.project import ProjectModel
 from models.mesh_utils import auto_expand_if_q9
@@ -33,6 +33,7 @@ from gui.preprocessing.pre_tab import PreProcessTab
 from gui.processing.proc_tab import ProcessTab
 from gui.postprocessing.post_tab import PostProcessTab
 from gui.preprocessing.mesh_canvas import MeshCanvas
+from gui.scaling import center_on_parent, scaled, work_area
 from gui.widgets.tooltip import ToolTip
 
 from gui.dialogs.material_dialog import MaterialDialog
@@ -52,8 +53,8 @@ class MainWindow:
         self.root = ttk.Window(
             title=f"{APP_NAME} v{APP_VERSION}",
             themename="darkly",
-            minsize=(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT),
         )
+        self._apply_minsize()
         # Arrancar maximizada. `state("zoomed")` es la via de Windows —la
         # plataforma de distribucion— pero en X11 y macOS Tk la rechaza con
         # TclError y la app moria en el constructor. Se degrada a los dos
@@ -66,10 +67,8 @@ class MainWindow:
             try:
                 self.root.attributes("-zoomed", True)     # varios WM de X11
             except tk.TclError:
-                self.root.geometry(
-                    f"{self.root.winfo_screenwidth()}x"
-                    f"{self.root.winfo_screenheight()}+0+0"
-                )
+                _x, _y, _w, _h = work_area(self.root)
+                self.root.geometry(f"{_w}x{_h}+{_x}+{_y}")
         self._is_fullscreen = False
         # Guard de una sola compilacion de la Memoria a la vez: el dialogo de
         # progreso NO hace grab_set a proposito (la GUI sigue viva mientras el
@@ -113,8 +112,13 @@ class MainWindow:
 
         # ─── Construir interfaz ─────────────────────────────────────────
         self._build_menu_bar()
-        self._build_main_layout()
+        # La barra de estado se empaqueta ANTES del layout principal: Tk le da
+        # su tamaño a lo que se empaquetó primero y recorta lo último, asi que
+        # construirla al final la volvia la primera victima cuando la ventana
+        # no entraba en la pantalla (regla dura 23). El area central, que es
+        # la que tiene `expand`, absorbe la diferencia.
         self._build_status_bar()
+        self._build_main_layout()
         self._bind_shortcuts()
 
         # ─── Estado inicial ─────────────────────────────────────────────
@@ -130,6 +134,24 @@ class MainWindow:
         # ventana puede mostrarse y este setup corre apenas el loop queda idle,
         # mucho antes de que el usuario abra un modulo educativo.
         self.root.after_idle(self._init_matplotlib_style)
+
+    def _apply_minsize(self):
+        """Fija el tamaño mínimo de la ventana contra la pantalla real.
+
+        El mínimo tiene que CRECER con el DPI —en un equipo con el escalado
+        de Windows al 150 % las fuentes se dibujan 1,5 veces más grandes y el
+        mismo layout necesita 1,5 veces más píxeles— pero sin pasarse nunca
+        del escritorio disponible. Con `minsize=(1200, 700)` fijo, en un
+        portátil de 1366x768 —área útil 1366x728 con la barra de tareas— la
+        ventana maximizada no podía encogerse por debajo de esos 700 px y la
+        barra de estado terminaba debajo de la barra de tareas; en una
+        pantalla más chica se iba también el borde derecho.
+        """
+        area = work_area(self.root)
+        self.root.minsize(
+            min(scaled(self.root, WINDOW_MIN_WIDTH), max(640, area[2] - 40)),
+            min(scaled(self.root, WINDOW_MIN_HEIGHT), max(480, area[3] - 40)),
+        )
 
     def _init_matplotlib_style(self):
         """Configura mathtext (CM) y calienta el cache de fuentes.
@@ -176,7 +198,8 @@ class MainWindow:
         self.main_paned.pack(fill=BOTH, expand=YES, padx=3, pady=(3, 0))
 
         # ─── Panel izquierdo: Notebook con 3 pestanas ───────────────────
-        self.left_panel = ttk.Frame(self.main_paned, width=420)
+        self.left_panel = ttk.Frame(self.main_paned,
+                                    width=scaled(self.root, 420))
         self.main_paned.add(self.left_panel, weight=2)
 
         self.notebook = ttk.Notebook(self.left_panel, bootstyle="primary")
@@ -228,10 +251,10 @@ class MainWindow:
         self.root.after(150, self._set_initial_sash)
 
     def _set_initial_sash(self):
-        """Fija la posicion del sash del Panedwindow en 1/3 del ancho de
-        la pantalla. Idempotente: si el Panedwindow aun no tiene ancho
-        real (el `state('zoomed')` puede tardar un par de ticks en
-        propagar el resize), reagenda."""
+        """Fija la posicion del sash del Panedwindow en 1/3 del ancho util.
+        Idempotente: si el Panedwindow aun no tiene ancho real (el
+        `state('zoomed')` puede tardar un par de ticks en propagar el
+        resize), reagenda."""
         try:
             self.main_paned.update_idletasks()
             paned_width = self.main_paned.winfo_width()
@@ -241,10 +264,13 @@ class MainWindow:
             if paned_width < 100:
                 self.root.after(80, self._set_initial_sash)
                 return
-            x = max(320, self.root.winfo_screenwidth() // 3)
-            # Clampear al ancho real del Panedwindow para que el sash no
-            # quede fuera de rango (deja al menos 200 px al panel derecho).
-            x = min(x, paned_width - 200)
+            # 1/3 del ancho REAL del Panedwindow, no de la pantalla: en un
+            # escritorio chico (o con la ventana sin maximizar) un tercio de
+            # la pantalla se comia el canvas entero.
+            x = max(scaled(self.root, 320), paned_width // 3)
+            # Clampear para que el sash no quede fuera de rango (deja al
+            # menos 200 px de diseño al panel derecho).
+            x = min(x, paned_width - scaled(self.root, 200))
             self.main_paned.sashpos(0, x)
         except (tk.TclError, IndexError):
             self.root.after(100, self._set_initial_sash)
@@ -464,64 +490,10 @@ class MainWindow:
         )
         # No pack inicial — se gestiona desde _update_ortho_indicator.
 
-        # Breadcrumb del pipeline FEM. Mini-tira de chips Ⓜ ① ② ③ ④ ⑤ ⑥ ⑦
-        # que se ilumina cuando hay un módulo overlay activo. Click en chip
-        # abre ese módulo manteniendo el elemento actual. Comparte conjunto
-        # de visitados con la sesión (no se persiste). Se autoinicializa
-        # invisible (pack_forget) hasta que se abra el primer overlay.
-        self._breadcrumb_visited: set = set()
-        self._breadcrumb_chips: dict = {}  # mod_key -> tk.Label
-        self._breadcrumb_frame = ttk.Frame(self.status_frame, bootstyle="dark")
-        # Etiqueta de cada chip para el tooltip. Los glifos Ⓜ ① ② … no
-        # dicen por si solos que modulo abren, y el chip es clickeable:
-        # un control sin nombre es justo el "estado invisible" que hay
-        # que evitar. La fuente unica del nombre es `module_label`
-        # (nunca la key interna `mod03` en un string visible).
-        try:
-            from education.module_launcher import module_label as _mod_label
-        except Exception:
-            _mod_label = None
-        for mod_key, label in (
-            ("mod00",  "Ⓜ"),
-            ("mod01",  "①"),
-            ("mod02",  "②"),
-            ("mod03",  "③"),
-            ("mod04",  "④"),
-            ("mod05",  "⑤"),
-            ("mod06",  "⑥"),
-            ("mod07",  "⑦"),
-        ):
-            chip = tk.Label(
-                self._breadcrumb_frame, text=label,
-                fg=BREADCRUMB_INACTIVE_FG_COLOR, bg=STATUS_BAR_BG_COLOR,
-                font=("Segoe UI", 10, "bold"), padx=6, pady=4,
-                cursor="hand2",
-            )
-            chip.pack(side=LEFT)
-            chip.bind(
-                "<Button-1>",
-                lambda _e, k=mod_key: self._on_breadcrumb_click(k),
-            )
-            if _mod_label is not None:
-                nombre = _mod_label(mod_key)
-                # Ctrl+1..7 abren M1..M7; M0 (calidad de malla) no tiene
-                # atajo — no inventar uno en el tooltip.
-                atajo = ""
-                if mod_key.startswith("mod") and mod_key[3:].isdigit():
-                    n = int(mod_key[3:])
-                    if 1 <= n <= 7:
-                        atajo = f"  (Ctrl+{n})"
-                ToolTip(chip, text=f"Abrir {nombre}{atajo}")
-            self._breadcrumb_chips[mod_key] = chip
-        # No packear el frame inicialmente — aparece al abrir el primer overlay.
-
-        # Subscribirse a cambios de overlay activo para iluminar chips.
-        try:
-            from education.overlay_module import subscribe_overlay_change
-            subscribe_overlay_change(self._on_overlay_change)
-        except Exception:
-            # Sin la suscripcion el breadcrumb nunca se ilumina.
-            traceback.print_exc()
+        # (El breadcrumb glifico Ⓜ ① … ⑦ que vivia aca se fue el 2026-09-09:
+        # la cadena del metodo es ahora la tira `N › J › B › D › kₑ › F › K`
+        # del banner de Proceso — gui/widgets/method_strip.py —, siempre
+        # visible en su fase y con nombre en cada chip.)
 
         self.info_label = ttk.Label(
             self.status_frame, text="",
@@ -559,69 +531,25 @@ class MainWindow:
         """Actualiza el mensaje de la barra de estado."""
         self.status_label.config(text=f"  {message}")
 
-    def _on_breadcrumb_click(self, mod_key: str) -> None:
-        """Click en un chip del breadcrumb: abre el módulo destino.
-
-        `open_module` ya reporta sus propios fallos (malla vacía, import
-        roto) con un modal; lo que se atrapa acá es el fallo del propio
-        launcher. Antes quedaba mudo: el chip parpadeaba y no pasaba nada.
-        """
-        # Nunca la key interna (`mod03`) en un string visible: si ni
-        # siquiera se pudo importar el launcher, se habla del módulo en
-        # genérico.
-        nombre = "el módulo educativo"
-        try:
-            from education.module_launcher import open_module, module_label
-            nombre = f"«{module_label(mod_key)}»"
-            open_module(
-                self, self.project, mod_key,
-                mesh_canvas=getattr(self, "mesh_canvas", None),
-                elem_id=None,
-            )
-        except Exception:
-            traceback.print_exc()
-            self.set_status(f"No se pudo abrir {nombre}.")
-
-    def _on_overlay_change(self, main_window, active_mod_keys: set) -> None:
-        """Callback de `subscribe_overlay_change`: ilumina el chip del módulo
-        activo + marca todos los visitados acumulados.
-
-        Solo reacciona a eventos del propio `main_window`.
-        """
-        if main_window is not self:
-            return
-        if not hasattr(self, "_breadcrumb_chips"):
-            return
-        # Acumular visitados (no se "olvidan" al cerrar el módulo).
-        self._breadcrumb_visited.update(active_mod_keys)
-        # Mostrar / ocultar el frame: visible solo si hay actividad alguna
-        # (overlay abierto AHORA o módulo ya visitado en esta sesión).
-        has_any = bool(active_mod_keys) or bool(self._breadcrumb_visited)
-        try:
-            if has_any:
-                self._breadcrumb_frame.pack(side=LEFT, padx=(2, 4))
-            else:
-                self._breadcrumb_frame.pack_forget()
-        except tk.TclError:
-            return
-        # Pintar cada chip según estado.
-        for mod_key, chip in self._breadcrumb_chips.items():
-            if mod_key in active_mod_keys:
-                chip.configure(fg=OVERLAY_ACCENT_AMBER)  # activo
-            elif mod_key in self._breadcrumb_visited:
-                chip.configure(fg=BREADCRUMB_VISITED_FG_COLOR)  # visitado
-            else:
-                chip.configure(fg=BREADCRUMB_INACTIVE_FG_COLOR)  # no visitado
-
     def _update_status_info(self):
-        """Actualiza la informacion del modelo en la barra de estado."""
+        """Actualiza la informacion del modelo en la barra de estado.
+
+        Los conteos van en terminos del sistema que la malla genera: `2N`
+        GDL y cuantos quedan como incognitas tras aplicar las restricciones
+        (el tamano de K_red), que es lo que el Proceso muestra en detalle.
+        """
         at = self.project.analysis_type
         et = self.project.element_type.split(' ')[0]
         self.analysis_label.config(text=f"{at} | {et}")
+        n_dof = self.project.total_dof
+        try:
+            n_free = n_dof - len(self.project.get_restrained_dofs())
+        except Exception:
+            n_free = n_dof
         self.info_label.config(
             text=f"Nodos: {self.project.num_nodes}  |  "
                  f"Elementos: {self.project.num_elements}  |  "
-                 f"GDL: {self.project.total_dof}"
+                 f"GDL: {n_dof} ({n_free} incógnitas)"
         )
         self._update_health_badge()
 
@@ -1753,9 +1681,10 @@ class MainWindow:
     def _on_tab_changed(self, _event):
         """Callback cuando se cambia de pestana."""
         tab_index = self.notebook.index(self.notebook.select())
-        tab_names = ["Pre-Proceso", "Proceso", "Post-Proceso"]
-        if tab_index < len(tab_names):
-            self.set_status(f"Pestaña activa: {tab_names[tab_index]}")
+        # La barra de estado dice que hace el metodo en la fase que se abre,
+        # con los numeros del modelo actual, en vez de repetir el nombre de
+        # la pestana ("Pestaña activa: Proceso").
+        self.set_status(self._phase_message(tab_index))
 
         if tab_index == 0:
             # Volver a Pre-Proceso: el canvas debe mostrar solo geometria,
@@ -1790,6 +1719,30 @@ class MainWindow:
 
         self.mesh_canvas.redraw()
         self._refresh_menu_state()
+
+    def _phase_message(self, tab_index):
+        """Mensaje de la barra de estado al entrar a una fase: que hace el
+        metodo ahi, con los numeros del modelo actual."""
+        p = self.project
+        n_dof = p.total_dof
+        try:
+            n_res = len(p.get_restrained_dofs())
+        except Exception:
+            n_res = 0
+        if tab_index == 0:
+            if not p.elements:
+                return ("Pre-Proceso: discretizá el dominio — tecla D dibuja "
+                        "elementos, Ctrl+E carga un ejemplo")
+            return (f"Pre-Proceso: {p.num_nodes} nodos · {p.num_elements} "
+                    f"elementos → {n_dof} GDL ({n_dof - n_res} incógnitas) · "
+                    f"el badge de salud dice qué falta")
+        if tab_index == 1:
+            k = 18 if p.element_type == ELEMENT_Q9_LABEL else 8
+            return (f"Proceso: cada elemento aporta su kₑ ({k}×{k}) a "
+                    f"K ({n_dof}×{n_dof}); {n_res} GDL restringidos dejan "
+                    f"{n_dof - n_res} incógnitas · F5 resuelve K·u = F")
+        return ("Post-Proceso: de u salen ε = B·u y σ = D·ε en cada "
+                "elemento; los apoyos devuelven R = K·u − F")
 
     def _refresh_all_tabs(self):
         """Refresca todas las pestanas con los datos actuales."""
@@ -1829,7 +1782,9 @@ class _PDFProgressDialog:
             self.top = tk.Toplevel(parent)
             self.top.title("Generando Memoria de Cálculo")
             self.top.transient(parent)
-            self.top.resizable(False, False)
+            # Sin `resizable(False, False)`: esta ventana se ajusta a su
+            # contenido, pero si la etapa que muestra el label es más larga
+            # que la pantalla, el alumno tiene que poder agrandarla.
             # No grab_set — el usuario puede seguir mirando la GUI.
             frame = ttk.Frame(self.top, padding=16)
             frame.pack(fill=BOTH, expand=YES)
@@ -1845,20 +1800,8 @@ class _PDFProgressDialog:
             )
             self._bar.pack(fill="x")
             self._bar.start(12)
-            # Centrar respecto al padre.
-            self.top.update_idletasks()
-            try:
-                px = parent.winfo_rootx()
-                py = parent.winfo_rooty()
-                pw = parent.winfo_width()
-                ph = parent.winfo_height()
-                w = self.top.winfo_width()
-                h = self.top.winfo_height()
-                x = px + (pw - w) // 2
-                y = py + (ph - h) // 2
-                self.top.geometry(f"+{x}+{y}")
-            except Exception:
-                pass
+            # Centrar respecto al padre, dentro del area util.
+            center_on_parent(self.top, parent)
             # Bloquear cierre con la X (hasta que termine).
             self.top.protocol("WM_DELETE_WINDOW", lambda: None)
         except Exception:

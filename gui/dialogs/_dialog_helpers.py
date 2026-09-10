@@ -2,37 +2,44 @@
 Helpers compartidos por los diálogos de gui/dialogs/.
 
 Centraliza lógica que estaba duplicada verbatim en cada diálogo (auditoría
-2026-05): centrado del Toplevel sobre el parent (`center_dialog`) y las
-teclas `Escape` / `Return` (`bind_dialog_keys`).
+2026-05): dimensionado y centrado del Toplevel (`size_dialog`, `center_dialog`)
+y las teclas `Escape` / `Return` (`bind_dialog_keys`).
 """
 
 from __future__ import annotations
 
+from gui.scaling import center_on_parent, fit_window
 
-def center_dialog(win, parent, *, clamp_screen=False):
-    """Centra `win` (un Toplevel) sobre `parent`.
+
+def center_dialog(win, parent):
+    """Centra `win` (un Toplevel) sobre `parent`, dentro del área útil.
 
     Reemplaza las ~7 copias de `_center()` que vivían en cada diálogo.
+    Es solo para recentrar una ventana que ya tiene su tamaño: los diálogos
+    usan `size_dialog`, que dimensiona y centra en un paso.
 
-    clamp_screen=False: clampa solo a coords >= 0 (variante simple).
-    clamp_screen=True: además clampa contra el tamaño de pantalla dejando
-        ~50 px de margen inferior (variante usada por los diálogos altos
-        con video, ElementType / Analysis... y Gravity).
+    Ya no existe el parámetro `clamp_screen` (2026-09-10): elegía entre
+    clampar contra coordenadas negativas o contra el borde inferior de la
+    pantalla, y `gui.scaling.center_on_parent` clampa SIEMPRE contra el área
+    útil del monitor —barra de tareas descontada, monitor correcto en
+    multi-monitor—, que es lo que las dos variantes aproximaban.
     """
-    win.update_idletasks()
-    w = win.winfo_width()
-    h = win.winfo_height()
-    x = parent.winfo_x() + (parent.winfo_width() - w) // 2
-    y = parent.winfo_y() + (parent.winfo_height() - h) // 2
-    if clamp_screen:
-        sw = win.winfo_screenwidth()
-        sh = win.winfo_screenheight()
-        x = max(0, min(x, sw - w))
-        y = max(0, min(y, sh - h - 50))
-    else:
-        x = max(x, 0)
-        y = max(y, 0)
-    win.geometry(f"+{x}+{y}")
+    center_on_parent(win, parent)
+
+
+def size_dialog(win, parent, ancho, alto, *, minimo=None,
+                redimensionable=True):
+    """Dimensiona y centra un diálogo en un solo paso.
+
+    `ancho`/`alto` son píxeles de diseño a 96 dpi (los mismos números que
+    antes iban en `geometry("AxB")`). `gui.scaling.fit_window` los escala por
+    el DPI de la pantalla, los agranda si el contenido pide más y los recorta
+    al área útil real. Con el número fijo, en un equipo con el escalado de
+    Windows al 150 % las fuentes crecían 1,5x dentro de un diálogo que no
+    crecía y la barra de botones quedaba fuera.
+    """
+    return fit_window(win, ancho, alto, parent=parent, minimo=minimo,
+                      redimensionable=redimensionable)
 
 
 def bind_dialog_keys(win, *, on_escape=None, on_return=None):

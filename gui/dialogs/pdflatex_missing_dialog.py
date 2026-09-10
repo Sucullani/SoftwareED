@@ -40,7 +40,8 @@ from tkinter import messagebox
 from ttkbootstrap.constants import BOTH, BOTTOM, RIGHT, W, X, YES
 
 from config.settings import FONT_UI, FONT_UI_BOLD, TEXT_MUTED_FG
-from gui.dialogs._dialog_helpers import bind_dialog_keys, center_dialog
+from gui.dialogs._dialog_helpers import bind_dialog_keys
+from gui.scaling import clamp_window, center_on_parent
 
 
 # (nombre de la distribución, URL oficial de descarga) por plataforma.
@@ -70,7 +71,6 @@ def show_pdflatex_missing_dialog(
     top = ttk.Toplevel(parent)
     top.title("Falta LaTeX para generar el PDF")
     top.transient(parent)
-    top.resizable(False, False)
 
     main = ttk.Frame(top, padding=20)
     main.pack(fill=BOTH, expand=YES)
@@ -141,7 +141,12 @@ def show_pdflatex_missing_dialog(
     # dispara por un Enter que el alumno venía arrastrando del diálogo
     # anterior.
     bind_dialog_keys(top, on_escape=top.destroy)
-    center_dialog(top, parent)
+    # Este dialogo no fija tamano: se ajusta a su texto. Aun asi hay que
+    # recortarlo contra el area util —con la fuente del sistema mas grande
+    # el bloque de texto se pasa de pantalla y el boton de descarga queda
+    # fuera— y despues centrarlo dentro de ella.
+    clamp_window(top, parent=parent)
+    center_on_parent(top, parent)
     try:
         top.grab_set()
     except Exception:
