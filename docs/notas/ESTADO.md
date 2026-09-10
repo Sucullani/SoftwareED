@@ -24,6 +24,48 @@ tesis** (`tesis/`, 130 páginas, compila limpio).
 
 ## Decisiones abiertas (esperan al autor)
 
+- **Validación visual del dimensionado de ventanas (2026-09-10)**: se arregló el reporte
+  *"la app se descuadra en otros equipos, los botones no se ven o quedan cortados"*. La
+  causa no era la que parecía: la app corre **con** conciencia de DPI (`ttk.Window(hdpi=True)`
+  llama a `SetProcessDPIAware`), así que con el escalado de Windows al 125-150 % las fuentes
+  —y con ellas los widgets— crecen 1,25-1,5× dentro de ventanas cuyo tamaño estaba escrito
+  en píxeles fijos, y Tk recorta lo último empaquetado: la barra de botones. `AboutDialog` y
+  `MaterialDialog` ya se recortaban **al 100 %**. Ahora todo Toplevel pasa por
+  [gui/scaling.py](../../gui/scaling.py) (regla dura 23) y las barras de botones se
+  empaquetan primero. Está **sin commit**. Qué mirar: *Modelo → Tipo de Elemento* y *Tipo de
+  Análisis* (el video ahora es la pieza elástica) y *Modelo → Materiales* (abre ~740 px de
+  ancho, el que su contenido siempre pidió). Para reproducir otro equipo:
+  `set EDUFEM_AREA_UTIL=1280x680 && python main.py`. Detalle en
+  [2026-09-10_ventanas-contra-la-pantalla-real.md](2026-09-10_ventanas-contra-la-pantalla-real.md).
+- **Validación visual del rediseño de la capa visual y de la pasada sobre los módulos
+  (2026-09-09)**: cuadrícula anclada al mundo, franja lectora, lente de Proceso (índices de
+  GDL, numeración local + ejes ξη + PG del elemento seleccionado), tira del método en el
+  banner de Proceso, reacciones en el Post; y en los módulos: esqueleto de K + cabecera del
+  sistema en **M7** (donde el autor pidió que viviera la lectura del sistema, que había nacido
+  como panel propio de Proceso), ejes ξη con los mismos colores en el cuadrado natural y sobre
+  el elemento en M1/M2/M3/M5, unidades y `fmt` en M6, descripciones del panel de módulos sin
+  recortes. Está **sin commit**; el guion de qué abrir y qué mirar está en
+  [../rutina/BACKLOG.md](../rutina/BACKLOG.md) (*Pendientes visuales*, primer ítem) y el
+  razonamiento y las alternativas descartadas en
+  [2026-09-09_rediseno-capa-visual.md](2026-09-09_rediseno-capa-visual.md). Dos decisiones
+  chicas van adentro: si los visitados de la tira se limpian con *Nuevo Proyecto* (hoy no) y
+  si la capa de GDL debe quedar prendida también en Pre por default (hoy solo Proceso).
+- **Validación visual de la Memoria de Cálculo rediseñada (2026-09-09)**: sin índice impreso
+  ni hojas apaisadas, portada de una hoja (ficha a dos columnas + diagrama del modelo + mapa
+  del cálculo), contornos en grilla 2×2, matrices anchas en bloques de columnas y tablas
+  topeadas con muestreo. Medido sobre PDFs reales: llenado 95–97 %, 0 hojas flojas, 0 overfull,
+  0 apaisadas; Cook Q9 32×32 pasó de **493 hojas a 24**. Aparecieron y se corrigieron ocho
+  bugs de producto, seis de ellos **preexistentes**: la Memoria **no compilaba** para mallas
+  de 11–12 nodos; la tabla de recuperación imprimía **ε = 0 junto a σ ≠ 0**; la verificación
+  de equilibrio ignoraba las cargas superficiales y declaraba **roto con residuo del 100 %**
+  el ejemplo Cook del propio menú Ayuda; el `κ₂` se medía sobre la `K` sin restricciones
+  —singular por construcción— y marcaba **`Crítico` en todos los modelos**; el formato
+  factorizado imprimía **64 celdas de 324 como `0.00`** en la `kₑ` del Q9, que no tiene ni un
+  cero; las tablas recortadas mandaban al alumno a una **exportación que no tiene resultados**;
+  la flecha de carga se dibujaba fuera de la figura. Está **sin commit**; el guion de
+  qué exportar y qué mirar está en [../rutina/BACKLOG.md](../rutina/BACKLOG.md)
+  (*Pendientes visuales*) y el razonamiento y lo descartado en
+  [2026-09-09_memoria-aprovecha-la-hoja.md](2026-09-09_memoria-aprovecha-la-hoja.md).
 - **Marco metodológico de la tesis** frente al canon del tribunal (UATF): objeto/campo,
   formulación del problema como interrogante, 3 vs. 4 capítulos, preliminares. Ver
   `tesis/README.md`.
@@ -80,6 +122,64 @@ tesis** (`tesis/`, 130 páginas, compila limpio).
 
 ## Hecho recientemente
 
+- **2026-09-09** — **Las tres fuentes que el autor no tiene, resueltas; `.bib` ajustado a sus
+  ejemplares.** `roache1998verification` → **`oberkampf2010vv`** (que sí tiene);
+  `perezsantiago2023fem` se retiró y **volvió el mismo día**, porque el autor consiguió el PDF:
+  las cuatro fuentes que lo habían reemplazado se dieron de baja por inflar la bibliografía; `cook1974membrane` → atribución en prosa, porque **Cook 2002 no
+  contiene la membrana de Cook** (verificado). Además se corrigieron las **9 entradas que
+  declaraban una edición distinta de la que el autor tiene** y **30 pasajes de prosa** cuya
+  fuente no los sostenía: la contradicción de `tab:comparativa` (los simuladores de Lee pasan a
+  licencia «Comercial» y a «2D/3D»: están embebidos en VisualFEA), «modos propios de vibración»
+  → «de la matriz de rigidez», el umbral de Verdict (**es 0,30, no 0,50**), la paleta jet, el
+  ordenamiento de mínimo grado y el «0,05 %» de la nota de Cook, que no salía de ningún GCI
+  calculado. 25 entradas, 132 páginas, cero citas indefinidas.
+  El `.bib` queda en **22 entradas**, todas con el ejemplar en mano salvo Roache y Cook 1974,
+  que se sustituyeron. Detalle en
+  [2026-09-08_bibliografia-tesis.md](2026-09-08_bibliografia-tesis.md).
+
+- **2026-09-09** — **Bibliografía: Vancouver puro en el cuerpo + respaldo documental
+  verificado.** Se retiraron los localizadores de página de las citas (decisión del autor: el
+  cuerpo queda `[7]` a secas) y se trasladaron a **`tesis/respaldo_citas/respaldo_citas.pdf`**
+  (44 pág.), que registra por cada cita el ejemplar consultado, la página impresa y el pasaje
+  textual que la sostiene. Auditoría multiagente de los 22 PDF de `tesis/bibliografia/`
+  (42 agentes, 147 respaldos localizados); copias con los pasajes resaltados en
+  `tesis/bibliografia/resaltados/` (gitignorado, copyright). **Dos resultados que esperan al
+  autor**: (1) el `.bib` declara **ediciones que no son las que él tiene** — Zienkiewicz
+  7.ª/2013 vs. **6.ª/2005**, Bathe 2.ª/2014 vs. **Prentice Hall 1996**, Strang 2.ª/2008 vs.
+  **1.ª/1973**, Timoshenko 3.ª/1970 vs. **2.ª/1951**, Hughes Dover 2000 vs. **Prentice-Hall
+  1987**; (2) **contradicciones internas** en `tab:comparativa` (los simuladores de Lee
+  figuran con licencia «Libre» pero están embebidos en VisualFEA, que el propio párrafo
+  llama «cerrados y de pago»; y como «2D» cuando el artículo documenta sólidos 3D de 20
+  nodos). Detalle en [2026-09-08_bibliografia-tesis.md](2026-09-08_bibliografia-tesis.md).
+  Faltan en la carpeta **Roache 1998 y Cook 1974**: no se pudieron verificar.
+
+- **2026-09-09** — **Rediseño de la capa visual, el lienzo y la interacción: "la interfaz
+  enseña el método"** (pedido del autor con libertad total; sin commit, espera validación
+  visual). El mismo modelo se mira con **tres lentes** según la fase: (a) *geometría* en Pre,
+  con la **cuadrícula anclada al mundo** (serie 1-2-5, ejes X=0/Y=0 rotulados, paso en el
+  readout) y una **franja lectora** al pie del lienzo que describe en términos del MEF lo que
+  hay bajo el cursor (nodo: coordenadas, índices de GDL, restricción, carga, elementos que lo
+  comparten; elemento: conectividad antihoraria, material, espesor, área, GDL → tamaño de kₑ)
+  o la pista de gesto de la fase; (b) *sistema discreto* en Proceso: los dos **índices de GDL
+  en K** junto a cada nodo (los restringidos tachados), la **lente del elemento seleccionado**
+  (numeración local 1..4, ejes ξη según la convención del motor, puntos de Gauss físicos), el
+  banner con la **tira del método** `N › J › B › D › kₑ › F › K` (chips clickeables 1:1 con
+  M1..M7, con estado inactivo/visitado/activo; reemplaza al breadcrumb de la barra de estado);
+  (c) *campo* en Post: contorno + **reacciones en los apoyos** (`R = K·u − F`, flechas que
+  llegan al nodo desde afuera con rótulo en la cola, toggle en el panel del Post). Además:
+  subtítulos de banner con el orden del método, barra de estado con `GDL: 18 (12 incógnitas)`
+  y mensajes por fase con los números del modelo. **Segunda tanda, módulos educativos** (pedido
+  del autor): la vista viva del sistema K·u = F que había nacido como panel propio de Proceso
+  **se fundió en M7** (esqueleto gris de K bajo el heatmap —la forma que la malla decide, que
+  cada kₑ rellena— + cabecera `2N GDL · restringidos → incógnitas · bloques ≠ 0 · semiancho`;
+  lógica pura en `education/components/system_structure.py`); los ejes ξη del cuadrado natural
+  de M1/M2/M3/M5 pasaron a flechas naranja/violeta y esos módulos dibujan los mismos ejes sobre
+  el elemento real con el glifo compartido `gui/preprocessing/canvas_glyphs.py`; M6 rotula con
+  `fmt` y unidades (cierra el ítem [8] del BACKLOG); el panel de módulos envuelve las
+  descripciones al ancho real. Lógica pura en `canvas_logic.py`; widget nuevo
+  `method_strip.py`; tests `test_canvas_lens` (sin display) y `test_canvas_lens_gui` (Tk, abre
+  M7 de verdad) en el gate. Gate verde. Nota:
+  [2026-09-09_rediseno-capa-visual.md](2026-09-09_rediseno-capa-visual.md).
 - **2026-09-08** — **Bibliografía de la tesis auditada, saneada y con los vacíos cerrados**
   (23 entradas, todas con ≥2 citas; se retiró `oberkampf2010verification` y se sumaron las tres
   del **material docente de la carrera**, que estaba en `tesis/Material docente/` y es la fuente

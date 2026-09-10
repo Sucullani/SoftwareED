@@ -39,10 +39,11 @@ python tools/build_texlive.py         # -> vendor/texlive (TeX Live recortado, u
 pyinstaller --noconfirm build.spec    # -> dist/EduFEM.exe (onefile, ~101 MB)
 ```
 
-**Gate de verificación**: `python -m tests.run_gates` (~30 s, sin pantalla) importa los 97
+**Gate de verificación**: `python -m tests.run_gates` (~1,5 min, sin pantalla) importa los 100
 módulos, detecta con `symtable` los nombres globales usados y nunca definidos (el `NameError`
 que solo explota al abrir esa ventana), audita los hex literales de `gui/` y `education/` y
-corre la suite headless completa.
+corre la suite headless completa — incluida `test_memoria_calculo --sin-compilar`, que
+verifica las invariantes del documento generando el `.tex` sin llamar a pdflatex.
 Sale 0 o 1. Flags: `--con-latex`, `--con-vv`, `--con-gui` (este último necesita un Tk real:
 en Windows directo, en Linux con `xvfb-run -a python -m tests.run_gates --con-gui`). Es la condición de push de la
 rutina de mejora continua ([docs/rutina/RUTINA.md](docs/rutina/RUTINA.md)).
@@ -54,8 +55,8 @@ Tests — scripts printout, se corren sueltos con `python -m tests.<nombre>`:
 | Motor FEM | `test_solver_regression` (motor por lotes vs. versión legible, ≤ 1e-9) · `test_fem` (Q4/Q9 + cargas superficiales) · `test_vv_extensions` · `test_noncontiguous_ids` |
 | V&V | `vv_mms` (convergencia) · `vv_timoshenko` (+ SAP2000) · `vv_cook` |
 | Modelo | `test_serialization` · `test_undo_stack` · `test_node_cascade` · `test_unit_conversion` · `test_q9_q4_cycle` |
-| GUI e interacción | `test_draw_mode` · `test_pick_ghost` · `test_selection_integration` · `test_canvas_delete` (borrado multi desde el canvas, sin display) · `test_pre_tab_delete` (borrado y pegado desde las 5 tablas, sin display) · `test_dialogs` (`gui/dialogs/`: validación, navegación del reporte de salud, orden del undo, sin display) · `test_canvas_visualization` · `test_canvas_raster` (paridad píxel a píxel del rasterizado, isolíneas y contorno de la memoria) |
-| Otros | `test_memoria_calculo` · `test_latex_runtime` (resolución del compilador, ruta ASCII, errores) · `test_probe_query` · `bench_timing` · `generate_example_dxf` |
+| GUI e interacción | `test_draw_mode` · `test_pick_ghost` · `test_selection_integration` · `test_canvas_delete` (borrado multi desde el canvas, sin display) · `test_pre_tab_delete` (borrado y pegado desde las 5 tablas, sin display) · `test_dialogs` (`gui/dialogs/`: validación, navegación del reporte de salud, orden del undo, sin display) · `test_canvas_visualization` · `test_canvas_lens` (cuadrícula del mundo, lente del elemento, textos del lector, patrón de K; sin display) · `test_canvas_lens_gui` (lentes por fase, GDL, reacciones, esqueleto de K en M7 y tira del método con Tk real) · `test_canvas_raster` (paridad píxel a píxel del rasterizado, isolíneas y contorno de la memoria) · `test_dpi_layout` (dimensionado de ventanas contra la pantalla real, sin display) · `test_dpi_layout_gui` (abre cada ventana simulando 4 pantallas y escalados de Windows, con Tk real) |
+| Otros | `test_memoria_calculo` (con `--sin-compilar` corre solo lo que no necesita pdflatex; así entra en el gate rápido) · `test_latex_runtime` (resolución del compilador, ruta ASCII, errores) · `test_probe_query` · `bench_timing` · `generate_example_dxf` |
 
 **Empaquetado**: PyInstaller en modo onefile → un `dist/EduFEM.exe` autoextraíble; el
 bootloader descomprime a `sys._MEIPASS` y lanza la app como proceso hijo. Bundlea
@@ -162,7 +163,8 @@ no una preferencia.
     `education/module_launcher.py`. Cualquier `importlib` nuevo replica ese patrón.
 18. **La barra tiene exactamente 3 menús** (Archivo / Modelo / Ayuda). Toda acción nueva
     entra en uno de esos tres; no hay toolbar ni menús *Editar* / *Ver* / *Análisis*.
-19. **Diálogos: centrar con `center_dialog`** de `gui/dialogs/_dialog_helpers.py`.
+19. **Diálogos: dimensionar y centrar con `size_dialog`** de
+    `gui/dialogs/_dialog_helpers.py` (`center_dialog` solo recentra, sin tocar el tamaño).
 20. **Strings LaTeX de la memoria en ASCII**: `\sigma`, `\to`, `\le` — nunca σ,
     → o ≤ literales (rompen la compilación en cp1252).
 21. **Regresión numérica**: cualquier cambio en `assembly` / `batch` / `solver` / `stress`
@@ -171,6 +173,15 @@ no una preferencia.
 22. **Sin numba ni JIT.** El rendimiento sale de vectorizar por lotes en NumPy
     (`fem/batch.py`, `gui/preprocessing/canvas_raster.py`); la versión legible elemento a
     elemento se conserva como referencia pedagógica y oráculo, nunca se reemplaza.
+23. **Ninguna ventana fija su tamaño en píxeles.** Todo `Toplevel` se dimensiona con
+    `size_dialog` / `fit_window` de [gui/scaling.py](gui/scaling.py), que escala la medida
+    de diseño por el DPI real, la agranda si el contenido pide más y la recorta al área
+    útil del monitor. Nada de `geometry("AxB")`, `minsize(...)` ni
+    `resizable(False, False)`: la app corre con conciencia de DPI, así que con el escalado
+    de Windows al 125-150 % las fuentes crecen 1,25-1,5× dentro de una ventana que no
+    crece. Y **la barra de botones se empaqueta ANTES** que el área elástica (Tk recorta lo
+    último empaquetado, que es justo lo que el alumno necesita ver). Gate:
+    `python -m tests.test_dpi_layout` y `--con-gui` para `test_dpi_layout_gui`.
 
 ### Auditoría pre-merge
 

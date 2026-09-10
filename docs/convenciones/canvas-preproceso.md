@@ -174,7 +174,7 @@ Tags estándar en `_configure_row_tags`:
 - **Focus-and-context** (`focus_mode` ∈ `{"auto","on","off"}`, `_focus_active`/`_focus_keep`): al seleccionar en mallas grandes (≥ `CANVAS_FOCUS_MIN_ELEMENTS`=60, o forzado con `"on"`), el contexto NO seleccionado se **atenúa** a `CANVAS_GHOST_COLOR` (reusa la maquinaria `ghost_geometry`) — la selección + su anillo de vecinos quedan nítidos y destacan por contraste. En `"auto"` no afecta mallas chicas.
 - **Silueta del dominio** (`boundary_emphasis`, default on): las aristas de contorno (`boundary_edges`, las que pertenecen a un solo elemento) se realzan en `CANVAS_BOUNDARY_COLOR` sobre las internas. Solo desde `CANVAS_BOUNDARY_MIN_ELEMENTS`=12.
 - **Culling por viewport**: los items cuyo bbox cae fuera del viewport + margen (`_CULL_MARGIN_FRAC` = padding del gradient) no se crean — recorta el árbol Tk en mallas grandes (la principal palanca de rendimiento). Deshabilitado si el canvas aún no tiene tamaño (`winfo<=1`).
-- **Barra del viewport + menú de capas (reformulada 2026-05)**: minimalista y consciente de la fase. La barra es solo el **título-menú** `Modelo MEF ▾` (izq, patrón Rhino — el título ES el menú) + el readout de coords (der, `TEXT_MUTED_FG`, no hex). El glifo del título indica la fase activa (`set_phase("pre"|"proc"|"post")` desde `MainWindow._on_tab_changed`: 📐/⚙/📊). El menú del título es un **panel de capas (visibilidad)** que arma `_build_view_menu`: `🧹 Vista limpia (solo malla)` (aísla la geometría en un click — esconde Números/Cargas/Restricciones/Cuadrícula y restaura al desmarcar, vía `_toggle_clean_view` + snapshot `_clean_view_prev`) · checkbuttons **`Números`** (nodos+elementos, `auto`↔`never`) · **`🔵 Nodos`** (`show_nodes`) · **`🟧 Cargas`** (`show_loads`, cubre nodales+superficiales) · **`🔺 Restricciones`** (`show_constraints`) · **`Cuadrícula`** (`show_grid`) · y por último **`Ajustar vista`** (encuadre, accel. `F`). Helpers: `_set_layer(attr,value)` (setea el flag + sale de Vista limpia + redraw), `_set_labels_visible`, `_sync_layer_vars`. Los glifos 🔵🟧🔺 son pistas-leyenda del color del símbolo en el canvas. `show_loads`/`show_constraints` ya existían y condicionaban el `redraw`; se sumaron `show_nodes`/`show_grid` (guards en `redraw`). **`Elementos` NO es toggleable** a propósito (ocultar la malla deja nodos/cargas flotando). **Eliminados del menú/barra**: `Limpiar Resultados` (botón) — redundante con la navegación (Pre/Proc ya invoca `clear_results_overlay()`; se borró el wrapper `clear_results` y sus 2 callers `Nuevo`/`Cargar Ejemplo` usan `clear_results_overlay()` directo); `Ajustar` como **botón** (ahora vive dentro del menú); y los toggles `Atenuar contexto al seleccionar` y `Resaltar silueta del borde` — solo gatillan en mallas grandes (≥60 / ≥12 elementos) → invisibles en modelos didácticos, quedan en automático interno (`focus_mode="auto"` / `boundary_emphasis=True`; sus setters/atributos siguen como API). **No reintroducir**: el botón `Limpiar Resultados`, el método `clear_results`, el menubutton "Vista" separado, el botón `Ajustar` en la barra (vive en el menú), los toggles de foco/silueta en el menú, un toggle de `Elementos`, ni controles de resultado (deformada/escala, VM·σx·σy·τxy, isolíneas, 🧊 3D) en esta barra — **viven en el panel del Post** ([post_tab.py](../../gui/postprocessing/post_tab.py), regla "una sola vía"). El **clic derecho NO hostea menús de visualización**: hace pan (drag, en las 3 fases — redundante con el botón central para mouses sin rueda-click) y en Post abre el `DetailsPanel` del probe (`probe_overlay._on_right_click`); overloadearlo rompería el pan y chocaría con el probe.
+- **Barra del viewport + menú de capas (reformulada 2026-05)**: minimalista y consciente de la fase. La barra es solo el **título-menú** `Modelo MEF ▾` (izq, patrón Rhino — el título ES el menú) + el readout de coords (der, `TEXT_MUTED_FG`, no hex; desde el 2026-09-09 lleva la **unidad de longitud** del proyecto y el **paso vigente de la cuadrícula**: `x: 7.000  y: 4.000 mm · cuadrícula 1 mm`, vía `_update_coord_readout`). El glifo del título indica la fase activa (`set_phase("pre"|"proc"|"post")` desde `MainWindow._on_tab_changed`: 📐/⚙/📊). El menú del título es un **panel de capas (visibilidad)** que arma `_build_view_menu`: `🧹 Vista limpia (solo malla)` (aísla la geometría en un click — esconde Números/Cargas/Restricciones/Cuadrícula y restaura al desmarcar, vía `_toggle_clean_view` + snapshot `_clean_view_prev`) · checkbuttons **`Números`** (nodos+elementos, `auto`↔`never`) · **`🔵 Nodos`** (`show_nodes`) · **`🟧 Cargas`** (`show_loads`, cubre nodales+superficiales) · **`🔺 Restricciones`** (`show_constraints`) · **`Cuadrícula`** (`show_grid`) · **`GDL (índices en K·u = F)`** (`show_dofs`, la capa de la lente del sistema — ver *Lentes por fase*; Proceso la enciende sola en `set_phase`, acá se prende en cualquier fase) · y por último **`Ajustar vista`** (encuadre, accel. `F`). Helpers: `_set_layer(attr,value)` (setea el flag + sale de Vista limpia + redraw), `_set_labels_visible`, `_sync_layer_vars`. Los glifos 🔵🟧🔺 son pistas-leyenda del color del símbolo en el canvas. `show_loads`/`show_constraints` ya existían y condicionaban el `redraw`; se sumaron `show_nodes`/`show_grid` (guards en `redraw`). **`Elementos` NO es toggleable** a propósito (ocultar la malla deja nodos/cargas flotando). **Eliminados del menú/barra**: `Limpiar Resultados` (botón) — redundante con la navegación (Pre/Proc ya invoca `clear_results_overlay()`; se borró el wrapper `clear_results` y sus 2 callers `Nuevo`/`Cargar Ejemplo` usan `clear_results_overlay()` directo); `Ajustar` como **botón** (ahora vive dentro del menú); y los toggles `Atenuar contexto al seleccionar` y `Resaltar silueta del borde` — solo gatillan en mallas grandes (≥60 / ≥12 elementos) → invisibles en modelos didácticos, quedan en automático interno (`focus_mode="auto"` / `boundary_emphasis=True`; sus setters/atributos siguen como API). **No reintroducir**: el botón `Limpiar Resultados`, el método `clear_results`, el menubutton "Vista" separado, el botón `Ajustar` en la barra (vive en el menú), los toggles de foco/silueta en el menú, un toggle de `Elementos`, ni controles de resultado (deformada/escala, VM·σx·σy·τxy, isolíneas, 🧊 3D) en esta barra — **viven en el panel del Post** ([post_tab.py](../../gui/postprocessing/post_tab.py), regla "una sola vía"). El **clic derecho NO hostea menús de visualización**: hace pan (drag, en las 3 fases — redundante con el botón central para mouses sin rueda-click) y en Post abre el `DetailsPanel` del probe (`probe_overlay._on_right_click`); overloadearlo rompería el pan y chocaría con el probe.
 
 **Colormap de resultados** (**jet para TODO desde 2026-05-31**): el canvas usa **jet** (`config/colormaps.py`, LUTs en numpy puro sin matplotlib). `set_result_values`/`set_element_result_grid` eligen el LUT via `_select_colormap`: **jet** (arcoíris clásico ANSYS/SAP2000) para **todo** — magnitudes no negativas (VM, |u|) Y campos con signo (σx/σy/τxy/Ux/Uy). Los campos con signo se re-centran `vmin/vmax` simétricamente (verde = cero, azul = compresión, rojo = tracción; `is_diverging_range` usa umbral **relativo** — VM con ruido numérico negativo NO se re-centra). **Jet reemplazó a turbo Y a coolwarm** (pedido del usuario "cambia todo a JET" — un solo arcoíris para todos los campos, como ANSYS). Jet NO es perceptualmente uniforme — la ex-regla "no jet" queda **sobrescrita por decisión del usuario** (documentada en `config/colormaps.py`). `coolwarm`, `turbo` y `viridis` se conservan definidos pero ya NO se usan en los campos de resultado (`coolwarm`/`turbo` sin uso ahí; `viridis`/`coolwarm` solo en superficies pedagógicas de módulos educativos como M2). El rasterizador vectorizado (`gui/preprocessing/canvas_raster.py`, sin Tk ni JIT; paridad píxel a píxel con `tests/test_canvas_raster.py`) indexa el LUT. **La vista 3D del Post** ([gui/postprocessing/surface_3d_viewer.py](../../gui/postprocessing/surface_3d_viewer.py)) **y la Memoria de Cálculo** ([file_io/figure_export.py](../../file_io/figure_export.py)) siguen al canvas con el MISMO jet — coherencia cromática 2D↔3D↔PDF. Desde el 2026-09-06 la memoria además comparte el **kernel**: `figure_export._fill_field` llama a `canvas_raster.rasterize_triangles` (mismo orden de triángulos, 0 píxeles distintos; el test lo cubre en `test_figure_export_field`). Es la única dependencia de `file_io/` hacia `gui/`, y es deliberada: `canvas_raster.py` es NumPy puro sin Tk y duplicar el rasterizador sería peor. La **colorbar** (`_draw_colorbar`) muestra la unidad del sistema activo entre corchetes (`Von Mises [Pa]`, vía `result_unit` que `post_tab` pasa a los setters) y formatea los ticks con notación científica para magnitudes grandes/chicas (`_fmt_colorbar_value`: `2.5e7` en vez de `25000000.00`). Su texto usa `CANVAS_COLORBAR_TEXT_COLOR` y las isolíneas `CANVAS_ISOLINE_COLOR` — antes eran el literal `"white"`, que esquivaba la auditoría de hex pero incumplía igual la regla dura 2.
 
@@ -225,6 +225,84 @@ Highlight amarillo aplica igual a los 3. **No** introducir aristas curvas — la
 - **Tablas de Cargas / Restricciones / Surface Loads**: el mismo tag `orphan_node` se aplica a las filas cuyo nodo asociado está huérfano. Una surface load se marca si CUALQUIERA de los 2 extremos es huérfano.
 - **Sin badge textual** — el color comunica el estado.
 
+### Lentes por fase — el lienzo enseña el método (rediseño 2026-09-09)
+
+El mismo modelo se mira con **tres lentes**, una por fase, y el cambio de pestaña cambia lo
+que el lienzo dibuja: geometría (Pre), sistema discreto (Proceso) y campo (Post).
+`MeshCanvas.set_phase` fija los defaults de cada lente; `redraw()` documenta en un comentario
+la **pila de capas** completa, de abajo hacia arriba (cuadrícula del mundo → malla original
+fantasma → campo → elementos → nodos → índices de GDL → cargas → superficiales →
+restricciones → reacciones → realce de aristas → lente del elemento → isolíneas → colorbar →
+icono de ejes → preview del dibujo → capas educativas → franja lectora). Lógica pura y
+testeable sin Tk en [canvas_logic.py](../../gui/preprocessing/canvas_logic.py); regresiones en
+[tests/test_canvas_lens.py](../../tests/test_canvas_lens.py) (sin display) y
+[tests/test_canvas_lens_gui.py](../../tests/test_canvas_lens_gui.py) (Tk real, `--con-gui`).
+
+- **Cuadrícula anclada al mundo** (`_draw_grid`, todas las fases). Dejó de ser un empapelado
+  en píxeles de pantalla: el paso es de la serie **1-2-5 en unidades del modelo**
+  (`grid_step`, elegido para medir ~`GRID_TARGET_PX` = 70 px), cada `GRID_MAJOR_EVERY` = 5
+  pasos hay una línea mayor **rotulada con su valor sobre los ejes X=0 / Y=0**, y los ejes se
+  dibujan más marcados (`CANVAS_GRID_MAJOR_COLOR`, `CANVAS_GRID_ORIGIN_COLOR`,
+  `CANVAS_GRID_LABEL_COLOR`). Las líneas llevan tag `world` (viajan con el pan y escalan con
+  el zoom junto a la malla; el redraw del fin de interacción re-elige el paso) y cubren el
+  viewport + el margen del culling. Motivo: el alumno tipea coordenadas en la tabla de Nodos y
+  en el Entry del modo dibujo, y la cuadrícula vieja no caía en valores redondos ni ubicaba
+  el origen. Si el origen queda fuera de pantalla los rótulos se van con él (el readout del
+  cursor sigue diciendo dónde estamos). **No reintroducir** la cuadrícula en píxeles de
+  pantalla (`spacing = clamp(50·scale)`, tag `screen`).
+- **Capa de GDL** (`show_dofs`, `_draw_dof_tags`, tag `dofs`): junto a cada nodo, los dos
+  índices globales de sus GDL en K (`u → 2i`, `v → 2i+1`, con `i` el ordinal de
+  `node_index_map`, o sea el rango `0..2N−1` de la tesis). El GDL **restringido va tachado**
+  (fuente `overstrike`) y en `CANVAS_DOF_FIXED_COLOR` = color de las restricciones: es la fila
+  y la columna que se eliminan al reducir el sistema. Default por fase: **Proceso la
+  enciende**, Pre y Post la apagan (`set_phase`); el menú del título la prende donde sea. Solo
+  en LOD `near` y, en mallas más grandes que `LOD_MIN_ELEMENTS_FOR_GATING`, recién cuando la
+  arista media mide `DOF_TAGS_MIN_EDGE_PX` = 90 px (duplican el texto de cada nodo y a zoom
+  medio saturaban Cook 8×8). Vista limpia la apaga y la restaura como a las otras capas.
+- **Lente del elemento seleccionado** (`_draw_element_lens`, tag `lens`, solo en Proceso con
+  UN elemento seleccionado y **sin overlay educativo activo** — cuando hay uno, el módulo
+  dibuja su propia versión con sus tags `edu_*`): numeración local **1..4** en discos
+  amarillos desplazados hacia adentro (el número global del nodo va hacia afuera), los **ejes
+  naturales ξ y η** desde el centroide (`element_local_frame`: ξ apunta al punto medio de la
+  arista N2–N3, η al de N3–N4 — la convención isoparamétrica de `fem/shape_functions.py`;
+  `CANVAS_XI_AXIS_COLOR` / `CANVAS_ETA_AXIS_COLOR`) y los **puntos de Gauss** en coordenadas
+  físicas (`gauss_physical_points`: `x = Σ Nᵢ(ξ_p, η_p) xᵢ` con las N y los PG del motor, 2×2
+  en Q4 y 3×3 en Q9; `GAUSS_CANONICAL_COLOR`). Las decoraciones de la lente escalan con el
+  zoom con techo propio `LENS_SCALE_MAX_FACTOR` = 1,6 (con el 2,5 general los discos tapaban
+  los nodos vecinos).
+- **Franja lectora** (`_draw_inspector`, tags `screen` + `inspector`, siempre arriba de todo y
+  al pie del lienzo, `CANVAS_INSPECTOR_*`): describe **en términos del MEF** lo que hay bajo
+  el cursor. Elemento: `Elemento 3 · Q4 — nodos 4→5→8→7 (antihorario) · material · t · A ·
+  GDL 6 7 8 9 14 15 12 13 → kₑ 8×8` (Q9: 8 GDL y `… (+10)`, `kₑ 18×18`, `+ 5 internos`).
+  Nodo: `Nodo 5 — (7.000, 4.000) mm · GDL u₅→8, v₅→9 · libre | empotrado | rodillo · F = (…) N ·
+  compartido por 4 elementos`. Sin nada debajo, la **pista de gesto de la fase**
+  (`phase_hint`: Pre, Pre sin malla, dibujando, Proceso, Post). Textos en
+  `canvas_logic.node_summary` / `element_summary` / `phase_hint`, con `fmt` y la unidad del
+  proyecto. Hit-test en `_update_inspector`: nodo (radio 10 px, `nearest_node` sobre un cache
+  numpy `_node_xy_cache` que `redraw` invalida) antes que elemento (`_hover_highlight_eid` si
+  el hover está habilitado, si no `_hit_test_element_at`). **En Post no consulta** (la sonda
+  manda: muestra la pista), tampoco dibujando ni con el viewport en movimiento, ni por encima
+  de 3000 elementos. `_set_inspector_target` repinta SOLO la franja y avisa a los
+  `hover_listeners`.
+- **Reacciones en los apoyos** (`_draw_reactions`, tag `reactions`, Post con solución):
+  `R = K·u − F` en cada GDL restringido (`solution["reactions"]`, que `post_tab` pasa con
+  `set_reactions` en `_on_result_changed`), como flecha que **llega al nodo desde afuera con la
+  punta en el nodo** — la misma gramática que las cargas: la punta de una fuerza está en su
+  punto de aplicación, como en un diagrama de cuerpo libre — en `CANVAS_REACTION_COLOR` y con
+  rótulo `Rx=` / `Ry=` en la cola, que queda del lado de afuera del modelo. Toggle `Mostrar
+  reacciones en los apoyos` en *Inspección del campo* del panel del Post (default on; los
+  controles de resultado viven ahí, regla "una sola vía"). `clear_results_overlay` la
+  descarta al volver a Pre/Proc. **No reintroducir** la flecha con la cola en el nodo (los
+  rótulos caían sobre los del valor nodal y sobre la colorbar).
+- **Glifo compartido de los ejes ξη** ([canvas_glyphs.py](../../gui/preprocessing/canvas_glyphs.py),
+  `draw_natural_axes(canvas, to_screen, pts, *, factor, tags)`): lo usan la lente de arriba y
+  las capas de M1/M2/M3/M5 cuando están abiertas (la lente se retira y el módulo dibuja los
+  mismos ejes con el mismo glifo), y sus dos colores son los de los ejes del cuadrado natural
+  de esos módulos (`edu_plot_style.draw_natural_axes_mpl`). Sin Tk en los imports: recibe el
+  canvas como argumento y se testea con un doble en `test_canvas_lens`. Es la única pieza de
+  dibujo de `gui/preprocessing/` que `education/` importa, a propósito: duplicar la flecha en
+  cinco lugares era peor.
+
 ### Identidad visual por fase
 
 | Fase | Icono | Color | Bootstyle |
@@ -233,4 +311,4 @@ Highlight amarillo aplica igual a los 3. **No** introducir aristas curvas — la
 | PROCESO | ⚙ | `PHASE_PROC_COLOR` `#fd7e14` | `warning` |
 | POST-PROCESO | 📊 | `PHASE_POST_COLOR` `#198754` | `success` |
 
-Banner con `gui/widgets/phase_banner.py::build_phase_banner`. Pre-Proceso y Proceso tienen su sub-pestaña "🎓 Educación" (la crea `pre_tab` / `proc_tab`); **el Post no la tiene** — no hay módulos educativos en esa fase.
+Banner con `gui/widgets/phase_banner.py::build_phase_banner`. Los subtítulos son **el método de la fase**, no una lista de cosas: Pre `Malla → material → apoyos → cargas`, Post `u → ε = B·u → σ = D·ε → R = K·u − F`; el de Proceso es la **tira del método** (`subtitle=None` + `gui/widgets/method_strip.py`, ver [arquitectura.md](arquitectura.md)). Pre-Proceso tiene su sub-pestaña "🎓 Educación" (la crea `pre_tab`) y Proceso monta su panel de módulos directo en el frame; **el Post no tiene módulos educativos**.

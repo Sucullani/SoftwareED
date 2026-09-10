@@ -2,7 +2,7 @@
 Gate de verificacion de EduFEM: una sola orden que la rutina de mejora continua
 (docs/rutina/RUTINA.md) debe pasar antes de commitear.
 
-    python -m tests.run_gates              # gate rapido (~1 min, sin pantalla)
+    python -m tests.run_gates              # gate rapido (~1,5 min, sin pantalla)
     python -m tests.run_gates --con-latex  # + memoria PDF y runtime de LaTeX
     python -m tests.run_gates --con-vv     # + verificacion y validacion (lento)
     python -m tests.run_gates --con-gui    # + tests que necesitan un Tk real
@@ -12,6 +12,9 @@ sin salida 0 no se pushea.
 
 Los tres niveles existen porque el entorno decide que se puede correr:
 - El gate rapido no toca Tk ni pdflatex: corre en cualquier sandbox headless.
+  Incluye `tests.test_memoria_calculo --sin-compilar`, que genera el .tex y
+  verifica las invariantes del documento sin llamar al compilador; los cuatro
+  tests que sacan un PDF de verdad se saltan solos y quedan para --con-latex.
 - --con-latex necesita el TeX Live embebido (vendor/texlive) o un pdflatex en PATH.
 - --con-gui necesita un display: en Windows directo; en Linux,
   `xvfb-run -a python -m tests.run_gates --con-gui`.
@@ -49,18 +52,28 @@ TESTS_RAPIDOS = [
     "tests.test_solve_flow",
     "tests.test_post_inspection",
     "tests.test_dialogs",
+    "tests.test_dpi_layout",           # ventanas contra la pantalla real
     "tests.test_main_window",
     "tests.test_edu_modules_m0_m3",
     "tests.test_edu_modules_m4_m7",
     "tests.test_edu_components",
     "tests.test_canvas_visualization",
+    "tests.test_canvas_lens",         # cuadricula, lente, lector, sistema K
     "tests.test_canvas_raster",       # el mas lento del grupo (~26 s)
     "tests.test_vv_extensions",
     "tests.test_interop",
+    # Sin compilar PDF: los 4 tests que necesitan pdflatex se saltan
+    # solos y quedan para --con-latex. Los otros 38 solo generan el
+    # .tex, y son los que protegen las invariantes del documento (sin
+    # indice, sin apaisadas, sin ceros falsos, equilibrio,
+    # condicionamiento). Sin esto, el gate rapido -que es la condicion
+    # de push- no las miraba nunca.
+    "tests.test_memoria_calculo --sin-compilar",
 ]
 TESTS_LATEX = ["tests.test_latex_runtime", "tests.test_memoria_calculo"]
 TESTS_VV = ["tests.vv_mms", "tests.vv_timoshenko", "tests.vv_cook"]
-TESTS_GUI = ["tests.test_draw_mode", "tests.test_selection_integration"]
+TESTS_GUI = ["tests.test_draw_mode", "tests.test_selection_integration",
+             "tests.test_canvas_lens_gui", "tests.test_dpi_layout_gui"]
 
 
 def _listar_modulos():
@@ -196,6 +209,9 @@ def gate_nombres():
 
 
 def _correr(modulo, timeout):
+    """Corre `python -m <modulo>`. La entrada puede traer argumentos pegados
+    (`"tests.test_memoria_calculo --sin-compilar"`): se separan por espacios."""
+    modulo, *extra = modulo.split()
     inicio = time.time()
     # El hijo debe ESCRIBIR en UTF-8, que es lo que este proceso decodifica abajo.
     # Sin esto, en una consola Windows (cp1252) un print con un simbolo fuera de
@@ -204,7 +220,7 @@ def _correr(modulo, timeout):
     entorno = dict(os.environ, PYTHONIOENCODING="utf-8")
     try:
         proc = subprocess.run(
-            [sys.executable, "-m", modulo],
+            [sys.executable, "-m", modulo, *extra],
             cwd=RAIZ, capture_output=True, text=True, env=entorno,
             timeout=timeout, encoding="utf-8", errors="replace",
         )

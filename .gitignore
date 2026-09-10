@@ -94,3 +94,8 @@ tools/**/media/
 
 # Libros y papers de referencia de la tesis: material con copyright, no se versiona
 tesis/bibliografia/*.pdf
+tesis/bibliografia/resaltados/
+
+# Guias de estilo de terceros en tesis/normas/: mismo criterio que los papers.
+# Las guias propias (guia_*.tex / .pdf) SI se versionan.
+tesis/normas/Tavares*.pdf

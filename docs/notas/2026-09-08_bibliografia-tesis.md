@@ -351,3 +351,363 @@ Analysis*) **sí está en Internet Archive en préstamo digital**
 localizadores de página más caros del pendiente 1 (tamaños 3D, reparto de cargas de arista,
 pesos de extrapolación 1,866 / 0,134). Con una cuenta gratuita se puede leer y anotar los
 números de página sin comprarlo.
+
+---
+
+# Cuarta pasada (2026-09-09): Vancouver puro + respaldo documental verificado
+
+El autor aportó **los PDF de casi toda la bibliografía** en `tesis/bibliografia/` y pidió tres
+cosas: decidir sobre los localizadores, renombrar los documentos y dejar un documento aparte
+con fuente, página y contexto de cada cita, resaltando los pasajes en los propios PDF.
+
+## Decisión: Vancouver puro en el cuerpo
+
+Se retiraron los 9 localizadores de página del cuerpo (`\autocite[p.~NN]` â†’ `\autocite`), y
+la multicita `\autocites` volvió a ser `\autocite{a,b}`. Se quitó del preámbulo la
+redefinición de `\multicitedelim`, que quedaba sin uso. La tesis compila en 132 páginas, sin
+citas indefinidas. **El localizador no se perdió: vive en el documento de respaldo.**
+
+## Renombrado y limpieza
+
+Los 22 PDF pasaron a `Autor AÑO - Título.pdf`, con el **año del ejemplar real**, no el que
+declaraba el `.bib` (por eso el renombrado se hizo después de identificarlos, no antes).
+Se eliminó un duplicado exacto de ED-Elas2D (verificado por MD5, no por nombre).
+
+## Auditoría multiagente de las 22 fuentes
+
+Workflow de 42 agentes (2 por documento: identificar contra el `.bib`, y localizar el pasaje
+que respalda cada cita). Resultado: **147 respaldos localizados**, cada uno con su página
+impresa leída del encabezado o pie de la propia página.
+
+### Discrepancias de edición â€” 5 de gravedad alta
+
+El `.bib` declara ediciones que **no son las que el autor tiene**:
+
+| Clave | El `.bib` declara | El ejemplar es |
+|---|---|---|
+| `zienkiewicz2013fem` | 7.ª ed., 2013, ISBN 978-1-85617-633-0 | **6.ª ed., 2005**, ISBN 0 7506 6320 0 |
+| `bathe2014fem` | *Finite Element Procedures*, 2.ª ed., 2014, ed. del autor | **Prentice Hall, 1996**, ISBN 0-13-301458-4 |
+| `strang2008analysis` | 2.ª ed., 2008, Wellesley-Cambridge | **1.ª ed., 1973, Prentice-Hall**, ISBN 0-13-032946-0 |
+| `timoshenko1970elasticity` | 3.ª ed., 1970 | **2.ª ed., 1951**, sin ISBN impreso |
+| `hughes2000fem` | Dover, 2000 (reimpresión) | **Prentice-Hall, 1987**, ISBN 0-13-317025-X |
+
+Menores: `csi2017sap2000` (media â€” «Berkeley, CA» no figura impreso en ninguna de las 569
+páginas), `onate2009structural` (Barcelona/CIMNE-Springer, no Dordrecht; el DOI no figura
+impreso), `cook2002concepts` («New York» no figura; la única ciudad impresa es Hoboken),
+`reddy2006introduction` (el ejemplar es la *International Edition*, con otro ISBN).
+
+**Esperan decisión del autor**: o se ajusta el `.bib` a los ejemplares consultados â€”lo
+honesto: se cita lo que se leyóâ€” o se consiguen las ediciones declaradas. Con Vancouver puro
+el riesgo baja (no hay páginas que contrastar), pero la referencia sigue describiendo un libro
+distinto del que se usó.
+
+### Contradicciones internas de la tesis (hallazgo no buscado)
+
+La verificación destapó afirmaciones que la fuente citada **no sostiene**:
+
+- **`tab:comparativa`, fila «Simuladores interactivos»**: la columna *Licencia* dice «Libre»,
+  pero los simuladores de Lee están **embebidos en VisualFEA**, que el propio párrafo de
+  `02_marco_teorico.tex:11` califica de «cerrados y de pago». La tabla se contradice con su
+  propio texto introductorio, cuatro renglones antes.
+- **Misma fila, columna 2D**: el artículo documenta sólidos 3D de 20 nodos, placas y láminas
+  degeneradas. La celda debería decir «2D y 3D».
+- **«visualización de los modos propios de vibración»** (`02_marco_teorico.tex:11` y
+  `04_resultados.tex:223`): el artículo trata autovalores de la **matriz de rigidez** (modos de
+  cuerpo rígido, hourglass, shear locking); los modos de vibración aparecen solo como
+  extensión. Conviene decir «modos propios de la matriz de rigidez».
+- Otras afirmaciones marcadas sin respaldo localizable en su fuente: el mínimo
+  `q_SJ >= 0,50` atribuido a Verdict, la paleta *jet* atribuida al manual de SAP2000, el
+  ordenamiento de mínimo grado atribuido al artículo de SciPy, «la integral carece de primitiva
+  elemental» atribuida a Hughes, y la identificación Q4 â†” puntos de Barlow en la regla 2×2
+  atribuida a Zienkiewicz.
+
+## Entregables
+
+- **`tesis/respaldo_citas/respaldo_citas.tex` y `.pdf`** (44 páginas): estado de las 21
+  fuentes, discrepancias de edición, afirmaciones sin respaldo y catálogo de los 147 respaldos
+  con página impresa y pasaje textual en bloque amarillo. **Acompaña a la tesis, no forma parte
+  de ella.** Se versiona.
+- **`tesis/bibliografia/resaltados/`**: copia de cada PDF con los pasajes marcados â€”53
+  resaltados en amarillo sobre el texto y 85 notas amarillas ancladas en las páginas
+  escaneadas, donde no hay capa de texto que buscar; 138 de 142 pasajes quedaron marcados.
+  Los originales no se tocan. **Gitignorado** (copyright).
+
+## Trampas encontradas
+
+- El desfase entre página del PDF y página impresa **no es constante dentro de un mismo
+  ejemplar** (Sampieri va de âˆ’41 a âˆ’43; García-Córdoba de âˆ’2 a âˆ’4). Un localizador se verifica
+  abriendo la página, nunca calculándolo.
+- `babel-spanish` vuelve activa la comilla recta: un `"` del OCR se come la letra siguiente
+  (`Inc.z` en vez de `Inc.,`). Hay que escaparla como `\textquotedbl{}`.
+- `soul` (`\hl`) no tolera pasajes largos ni matemáticas; para resaltar bloques va `tcolorbox`.
+- Las griegas sueltas del OCR (Ïƒ, Ï„) rompen la compilación igual que en la regla dura 20: el
+  generador las manda a modo matemático.
+- `fitz.search_for` no cruza saltos de línea: hay que partir el pasaje en frases cortas y
+  probar en dos pasadas.
+
+## Faltan dos fuentes
+
+`roache1998verification` y `cook1974membrane` no están en la carpeta. Son las que sostienen
+toda la V&V y el benchmark de la membrana: no se pudieron verificar ni resaltar.
+
+---
+
+# Quinta pasada (2026-09-09): las 3 fuentes ausentes, resueltas
+
+El autor no dispone de tres fuentes citadas y los libros son caros. Se resolvieron con lo que
+sí tiene o con acceso abierto. Workflow de 6 agentes (5 investigando en paralelo + 1
+consolidador). El `.bib` pasa de 23 a **25 entradas**.
+
+## Las tres sustituciones
+
+| Baja | Alta | Razón |
+|---|---|---|
+| `roache1998verification` (7 citas) | **`oberkampf2010vv`** | El autor **sí tiene** Oberkampf y Roy 2010, que se había dado de baja el 2026-09-08 por redundante con Roache. Cubre las 8 citas; en 6 la prosa queda respaldada tal cual. |
+| `perezsantiago2023fem` (9 citas) | **`linero2012pefica`** (español, acceso abierto) + `wulandana2024balancing`, `wheatley2020ethical`, `le2019teaching` (ASEE, texto completo gratuito) | Wiley, de pago. Las 9 citas sostenían tres afirmaciones distintas; ninguna fuente sola las cubre. |
+| `cook1974membrane` (3 citas) | atribución en prosa + `cook2002concepts` | **Cook 2002 NO contiene la membrana de Cook** (verificado página por página sobre el escaneo). Sirve para el fenómeno, no para la atribución. Se reescribió para que la atribución viva en la prosa («debe su nombre a R. D. Cook») sin citar un artículo que no se consultó. |
+
+## Correcciones de fondo que trajo la revisión
+
+- **Terminología «validación».** Para Oberkampf y Roy la validación exige mediciones
+  experimentales; esta tesis contrasta contra una solución analítica y contra SAP2000, que es
+  comparación código a código — y el propio libro advierte que eso *no sustituye* a la
+  verificación rigurosa del código. Se acotó el alcance en el marco teórico y en las
+  conclusiones. **No** se barrieron los usos laxos del resto del Cap. 4: sería una campaña
+  terminológica mayor y tocaría labels con referencias cruzadas. Queda a criterio del autor.
+- **El umbral `q_SJ >= 0,50` no es de Verdict.** Verdict fija **0,30** para el cuadrilátero;
+  0,50 es el del triángulo y el hexaedro. Se reescribió declarando que EduFEM eleva el corte
+  por prudencia pedagógica. Era un dato numérico mal atribuido.
+- **El «0,05 %» de la nota al pie de Cook no sale de ningún cálculo declarado**:
+  `tests/vv_cook.py` no computa GCI (verificado). Se suavizó a lo que la evidencia propia
+  sostiene. Si el autor quiere el número, hay que calcular el GCI y declarar el procedimiento.
+- **Contradicción de `tab:comparativa`, resuelta**: los simuladores de Lee pasan de licencia
+  «Libre» a **«Comercial»** y de «2D» a **«2D/3D»** — están embebidos en VisualFEA, que el
+  propio párrafo llama «cerrados y de pago», y el artículo documenta sólidos de 20 nodos.
+- **«modos propios de vibración» → «modos propios de la matriz de rigidez»** en los dos
+  lugares donde aparecía.
+- **La paleta jet** ya no se atribuye al manual de SAP2000, que no habla de paletas de color.
+- **El ordenamiento de mínimo grado** ya no se atribuye al artículo de SciPy: se declara como
+  elección de EduFEM (`MMD_AT_PLUS_A`) sobre la interfaz que SciPy expone de SuperLU.
+- **«la integral carece de primitiva elemental»** ya no se atribuye a Hughes, que no lo dice.
+
+Total: **30 ediciones de prosa**, cada una con verificación de que el texto viejo aparecía
+exactamente una vez en su archivo. Y las **9 entradas del `.bib` corregidas al ejemplar real**
+(Zienkiewicz 6.ª/2005, Bathe 1996, Strang 1973, Timoshenko 1951, Hughes 1987, más los campos
+menores de `csi`, `onate`, `cook` y `reddy`).
+
+**Verificación**: 25 citekeys, cero citas indefinidas, 132 páginas, 8 *overfull* (uno menos que
+antes). `respaldo_citas` regenerado a 46 páginas, con las 9 entradas ya marcadas COINCIDE.
+
+## Pendiente crítico del autor
+
+**Las 4 fuentes nuevas de enseñanza no están descargadas ni leídas.** Sus metadatos vienen de
+CrossRef y del sitio del editor, no de un ejemplar en mano; en el documento de respaldo figuran
+como `NO_VERIFICABLE`. Si no se descargan y se leen, se reproduce exactamente el problema que
+esta campaña intenta cerrar. Enlaces (`peer.asee.org` devuelve 403 a clientes automatizados:
+hay que bajarlos desde un navegador):
+
+- Linero y Garzón 2012 — https://educacioneningenieria.org/index.php/edi/article/view/242
+- Wulandana 2024 — doi 10.18260/1-2--49428
+- Wheatley 2020 — doi 10.18260/1-2--34161
+- Le, Roberts y Duva 2019 — doi 10.18260/1-2--33348
+
+Si al abrirlos alguno no sostiene lo que se le atribuye, hay que repuntear esa cita.
+
+## Trampa encontrada
+
+Un `cat >> nota.md <<'EOF'` desde Git Bash en esta máquina escribe el heredoc en **cp1252**, no
+en UTF-8, y corrompe el archivo a medias. Para anexar a un `.md` con acentos, usar Python con
+`encoding='utf-8'` explícito. La sección de la cuarta pasada se reparó al detectarlo.
+
+---
+
+# Sexta pasada (2026-09-09): Pérez-Santiago vuelve, las cuatro sustituciones se van
+
+El autor pidió **una sola fuente** en lugar de las cuatro que habían reemplazado a
+Pérez-Santiago —con razón: inflaban la bibliografía— y, mientras se buscaba ese sustituto
+único, **consiguió el artículo original**. Eso vuelve innecesaria toda la sustitución.
+
+## Qué se hizo
+
+- **Alta de `perezsantiago2023fem`**, con los datos leídos del propio PDF: la cita del editor
+  impresa en el artículo es `Comput Appl Eng Educ. 2023;31:1159-1173`, DOI `10.1002/cae.22627`.
+  **El número de fascículo no figura en el ejemplar**, así que la entrada no lo declara (el
+  `.bib` viejo traía `number = {5}`, que venía del catálogo, no de la fuente).
+- **Bajas de `linero2012pefica`, `wulandana2024balancing`, `wheatley2020ethical` y
+  `le2019teaching`.** No llegaron a defenderse nunca: el autor no las había leído.
+- **8 citas repunteadas** de vuelta a la clave única.
+- El PDF quedó como
+  `tesis/bibliografia/Perez-Santiago y Campos 2023 - FEM Education in Undergraduate Studies.pdf`.
+
+El `.bib` queda en **22 entradas** (25 − 4 + 1), y la tesis en **131 páginas**, sin citas
+indefinidas.
+
+## Verificación del respaldo, ahora sí contra el ejemplar
+
+Con el PDF en mano se comprobaron las tres afirmaciones. Desfase: **página impresa = página del
+PDF + 1158**.
+
+| Afirmación | p. | Pasaje |
+|---|---|---|
+| El MEF es parte del currículo | 1160 | «this work may also support other undergraduate degree programs where FEM/FEA is part of the curriculum» |
+| El software comercial como caja negra | 1160 | «Other authors are concerned about learners using commercial software like a "black box"» |
+| Se privilegia lo práctico sobre lo conceptual | 1159 (resumen) | «specialists agree on the importance of including a mixture of theoretical and applied topics in the syllabus **but prefer practical skills over fundamental concepts**» |
+| Unir fundamento y operación es el objetivo formativo | 1168 | «This would allow the student to connect the theoretical fundamentals with the operation of FEA codes» |
+
+**Dos precisiones que la lectura del artículo obligó a hacer en la prosa:**
+
+1. La afirmación de la «caja negra» el artículo la **reporta de otros autores** (su ref. 28), no
+   la enuncia como hallazgo propio. Es un uso legítimo como estado de la cuestión, pero la
+   tesis no debe presentarlo como resultado del estudio.
+2. La tesis decía que la carencia conceptual «dificulta diagnosticar resultados anómalos o
+   evaluar la calidad de una malla». **Esa formulación no está en el artículo.** Lo que sí
+   dice, y es más fuerte, es que los expertos consultados prefieren las destrezas prácticas
+   sobre los conceptos fundamentales y que el egresado debe saber **planificar, verificar y
+   validar** su análisis. La prosa de `02_marco_teorico.tex:9` y `04_resultados.tex` se
+   reescribió a eso. De paso, «Estudios con perspectiva industrial» pasó a «Un estudio que
+   recoge la opinión de expertos de la industria y de la academia»: es un solo estudio, no
+   varios, y decirlo en plural exageraba la base.
+
+## Lección para la próxima
+
+Antes de salir a buscar sustitutos de una fuente cara, conviene preguntar al autor si puede
+conseguirla: la sustitución costó dos pasadas y terminó revertida. La regla de la skill —agotar
+(a) redirigir, (b) reescribir, (c) argumento propio, (d) declarar el límite, antes de (e) entrada
+nueva— debería incluir un paso previo: **(0) preguntar si el autor puede conseguir el ejemplar.**
+
+
+---
+
+# Septima pasada (2026-09-09): las fuentes que se habian quedado sin resaltar
+
+El autor detecto que Alvarez y Oberkampf no tenian copia marcada. No era que
+faltaran los pasajes —los dos estaban documentados en el respaldo— sino que el
+script de resaltado **los saltaba en silencio**. Al abrirlo aparecieron cuatro
+defectos encadenados, y los cuatro afectaban a todo el corpus, no solo a esas dos.
+
+## Los cuatro defectos
+
+1. **Alvarez nunca se abrio.** La ficha proponia el nombre `Alvarez de Zayas sf - ...`
+   y el archivo en disco se llama `Alvarez de Zayas (sin fecha) - ...`. El script hacia
+   `if not os.path.exists(...): continue`, sin decir nada.
+2. **Oberkampf no tenia pagina de PDF.** Los ocho respaldos traian la pagina *impresa*
+   en prosa ("13 (Seccion 1.2.3.3); 14 (aforismo de Blottner); ...") y el campo
+   `pagina_pdf` vacio, asi que ningun respaldo llegaba a marcarse y el archivo ni
+   siquiera se guardaba.
+3. **Solo se usaba la primera pagina de cada respaldo.** El campo suele traer rangos y
+   listas (`'161-163, 179'`, `'477, 480, 481, 483'`) y el lector tomaba el primer
+   numero con `re.search(r'\d+')`. Todo pasaje repartido en varias paginas quedaba
+   marcado a un tercio.
+4. **La busqueda era literal.** `search_for` no encuentra `definitions` cuando el PDF
+   trae la ligadura `deﬁnitions`, ni atraviesa los guiones de corte de linea.
+
+## Que se hizo
+
+- `tesis/respaldo_citas/resaltar.py` **pasa a estar versionado** (antes vivia en un
+  temporal de sesion) y ahora **informa al final todo lo que no pudo marcar**. Ese
+  silencio era la causa de que el problema durara seis pasadas.
+- `tesis/respaldo_citas/paginas.py`, nuevo: construye el mapa pagina impresa <-> pagina
+  del PDF **leyendo el folio de cada pagina**, no calculando un desfase. En Oberkampf
+  el desfase es +16 hasta la impresa 370 y **+24 desde la 371**; suponerlo constante
+  mandaba la marca de la p. 749 a la 741. Cada pagina aporta varios numeros candidatos
+  (folio, numero de capitulo) y se elige el que concuerda con sus vecinas.
+- Coincidencia por **secuencia de palabras normalizadas** cuando la busqueda literal
+  falla: atraviesa ligaduras, guiones de corte y saltos de columna.
+- `gen_respaldo.py` tambien lee ahora el `verificado.json` versionado. Los tres scripts
+  del directorio quedan reproducibles sin el scratchpad.
+- Escritura tolerante: se guarda aparte y se reemplaza, para no perder el trabajo de una
+  fuente entera cuando el PDF esta abierto en un visor.
+
+## Resultado
+
+De **20 a 22 PDF marcados**, y de 68 a **98 resaltados** (las notas amarillas bajan de
+87 a 57). Alvarez queda con 5 resaltados sobre 5 pasajes; Oberkampf con 7 de 8.
+
+Las 57 notas restantes **no son fallos**: 44 caen en los cinco libros que son escaneo
+puro sin capa de texto (Bathe, Cook, Garcia-Cordoba, Hughes, Reddy) y 6 en las paginas
+3-12 de Suarez, que es un PDF hibrido —sus paginas 1, 2 y 13 tienen texto y el resto son
+imagen—. En una pagina sin texto no hay nada que resaltar: la nota amarilla en la esquina
+es lo unico posible.
+
+## Verificacion, que era el encargo real
+
+Los 8 pasajes de Oberkampf y los 5 de Alvarez se comprobaron **contra el ejemplar**, no
+contra la ficha. En Oberkampf, 51 de 53 paginas quedaron confirmadas por el folio impreso
+en el encabezado; las dos restantes se leyeron a mano (la p. 208 es apertura de capitulo y
+lleva el folio al pie; la p. 749 estaba mal mapeada y se corrigio). En Alvarez las cinco
+paginas —7, 8, 13, 21 y 22— contienen literalmente el pasaje declarado.
+
+Un hallazgo de paso: en Zienkiewicz el pasaje de la p. impresa 147 estaba anotado en la
+pagina 161 del PDF cuando esta en la 163. La pagina impresa del respaldo era correcta; el
+numero de PDF estaba corrido en dos, asi que la marca caia en la pagina equivocada.
+
+## Leccion
+
+Un script que salta lo que no entiende no tiene errores: tiene huecos invisibles. El
+resumen final que enumera lo no marcado vale mas que cualquiera de los cuatro arreglos.
+
+---
+
+# Octava pasada (2026-09-10): auditoría con 60 agentes, dos bugs corregidos, cero bajas
+
+El autor pidió volver a cotejar las 22 entradas contra los ejemplares y evaluar si la
+bibliografía podía reducirse. Se orquestó un workflow de cuatro fases: cotejo por entrada,
+análisis de solape, refutación adversarial de cada baja propuesta (tres lentes: sustituto,
+pérdida, tribunal) y síntesis. Informe completo en
+[2026-09-09_diagnostico-bibliografia.md](2026-09-09_diagnostico-bibliografia.md).
+
+## Resultado del cotejo
+
+**20 COINCIDE, 1 DISCREPA, 1 NO_VERIFICABLE.** Ninguna entrada está mal identificada. Dos
+errores de hecho, ambos corregidos:
+
+1. **`perezsantiago2023fem` no declaraba el fascículo, y el comentario decía que no figuraba
+   en el ejemplar. Era falso.** La cita del editor impresa no lo trae, pero la marca de agua
+   de descarga de Wiley, en 14 de las 15 páginas, dice `10990542, 2023, 5`. Se agregó
+   `number = {5}`. Este error lo había introducido yo en la sexta pasada, mirando solo la
+   cita impresa.
+2. **`02_marco_teorico.tex:406` atribuía a Salari y Knupp la cláusula sobre integrar las
+   normas de error con un punto de Gauss más por dirección.** El informe SAND2000-1444 no
+   contiene «Gauss» ni «quadrature» ni una vez. El respaldo real es Oberkampf y Roy p. 320:
+   «the numerical approximations used in its evaluation must be of at least the same order of
+   accuracy as the underlying discretization scheme» y «the errors due to the numerical
+   quadrature can interact with the numerical errors in the discrete solution and adversely
+   impact the observed order of accuracy». Se cambió la cita y se explicitó el motivo técnico,
+   que antes quedaba implícito.
+
+`salari2000mms` queda con 4 citas y `oberkampf2010vv` con 11. Total: 160 citas, 131 páginas,
+cero citas indefinidas.
+
+## Reducción: se propusieron 5 bajas, sobrevivieron 2, no se ejecutó ninguna
+
+`salari2000mms` (ninguna lente la refutó) y `reddy2006introduction` (una). Se descartaron
+`strang2008analysis`, `onate2009structural` y `bathe2014fem`, refutadas 2 de 3 cada una.
+
+Lo interesante es por qué cayeron Strang y Oñate: sus citas sí son redirigibles, pero
+quitarlas dejaría una tesis de MEF sin análisis numérico puro y sin encuadre de ingeniería
+civil. Se refutaron por perfil de bibliografía, no por cobertura. Ese es el argumento si el
+tribunal pregunta por qué están.
+
+**Decisión del autor: no dar de baja nada, «quizá en un futuro».** No reabrir sin que lo pida.
+
+## Un descarte que conviene registrar
+
+Se evaluó `02_marco_teorico.tex:298`, donde von Mises co-cita a Timoshenko y a Cook. En
+Timoshenko «Mises» aparece una sola vez y en una nota bibliográfica al pie, así que parecía
+un segundo error. **No lo es**: la oración es compuesta —tensiones principales y von Mises— y
+Timoshenko cubre las principales (Arts. 9 y 68). Además, la búsqueda de texto sobre el PDF de
+Cook devuelve cero para cualquier término, porque son 733 páginas de escaneo sin capa de
+texto: eso no prueba ausencia.
+
+## Dos defectos de mi propio andamiaje
+
+- El agente de síntesis escribió que la frase de Gauss «queda respaldada por el co-citado», y
+  esa línea citaba a Salari **sola**. Corregido en el informe.
+- La primera versión del informe declaró cuatro entradas «sin ficha en el lote» y dedujo un
+  dato «por diferencia». Fue culpa mía: pasé el JSON de la síntesis con `.slice(0, 90000)` y
+  se cortó. Se rehízo la síntesis con los datos completos y un control explícito de que la
+  tabla debe tener 22 filas. **Truncar la entrada de un agente sin que el agente lo sepa
+  produce alucinaciones con forma de dato faltante.**
+
+La corrida también se cortó a mitad por límite de sesión (26 de 54 agentes). El
+`resumeFromRunId` replayó los completos desde caché y solo rehizo los 28 que faltaban.

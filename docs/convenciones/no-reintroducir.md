@@ -50,11 +50,15 @@ Abreviaturas de capítulo:
 | No reintroducir | Motivo (resumen) | Cap. |
 |---|---|---|
 | Un cuarto menú (*Editar*, *Ver*, *Análisis*, *Educación*) o una toolbar | Diseño de 3 menús: Archivo / Modelo / Ayuda | [ARQ] |
+| El breadcrumb glífico `Ⓜ ① … ⑦` en la barra de estado | Aparecía recién al abrir el primer módulo y no decía qué era; la cadena del método es la tira `N › J › B › D › kₑ › F › K` del banner de Proceso (2026-09-09) | [ARQ] |
+| `Pestaña activa: <fase>` en la barra de estado al cambiar de pestaña | Repetía el nombre de la pestaña; `_phase_message` dice qué hace el método en esa fase con los números del modelo | [ARQ] |
+| Un `Notebook` o un subtítulo estático en el banner de Proceso | El banner lleva la tira del método (`subtitle=None`); el panel de módulos y la vista del sistema van directo en el frame | [ARQ] |
 | Menú de *Preferencias / Configuración* | Defaults sanos hardcodeados en `config/settings.py` | [ARQ] |
 | La entrada de menú *Exportar Resultados CSV* | Los resultados se copian del Post con `Ctrl+C` (TSV) | [ARQ] |
 | Llamadas explícitas a `_refresh_menu_state` tras mutaciones | Lo sincroniza el `postcommand` del menú Archivo | [ARQ] |
 | Reordenar el menú Modelo | El orden Elemento → Unidades → Material → Gravedad → Análisis es el flujo FEM | [ARQ] |
-| Un `_center()` local en un diálogo nuevo | Usar `center_dialog` de `_dialog_helpers.py` | [ARQ] |
+| Un `_center()` local en un diálogo nuevo | Usar `size_dialog` de `_dialog_helpers.py` (dimensiona y centra) | [ARQ] |
+| `geometry("AxB")`, `minsize(...)` o `resizable(False, False)` en un Toplevel | `size_dialog` / `fit_window` de `gui/scaling.py`: el tamaño fijo en px recorta los botones en cualquier equipo con el escalado de Windows al 125 %+ (regla dura 23) | [ARQ] |
 | `Material.color`, swatch, paleta o colorchooser | El atributo no lo consumía ni el solver ni el canvas | [ARQ] |
 | Scrollbar visible, botón Duplicar o footer *Cerrar* en `MaterialDialog` | Scroll por rueda; la X del Toplevel cierra | [ARQ] |
 | En `GravityDialog`: Labelframes, botón preset, labels de unidad, hints | La flecha en vivo sobre el canvas hace el trabajo pedagógico | [ARQ] |
@@ -95,6 +99,11 @@ Abreviaturas de capítulo:
 | Atajos en tablas más allá de `Delete` / `Ctrl+C` / `Ctrl+V` | Sin Insert, F2, Ctrl+G/R/M/L/U/I, hint `<FocusIn>` ni menú contextual | [CAN] |
 | `tree.selection_set` desde el callback canvas → spreadsheet | Disparaba `<<TreeviewSelect>>` async sin guard y congelaba la GUI | [CAN] |
 | Zebra striping (`even`/`odd`) en Treeview | Compite con los 4 estados semánticos de fila | [CAN] |
+| La cuadrícula en píxeles de pantalla (`spacing = clamp(50·scale)`, tag `screen`) | Desde el 2026-09-09 está anclada al mundo (serie 1-2-5, ejes X=0/Y=0 rotulados): la de pantalla no caía en valores redondos ni ubicaba el origen | [CAN] |
+| Índices de GDL siempre encendidos, o encendidos por default en Pre/Post | Son la lente de Proceso (`set_phase`); en mallas densas van gateados por `DOF_TAGS_MIN_EDGE_PX` | [CAN] |
+| La lente del elemento (1..4, ξη, PG) con un overlay educativo abierto | El módulo dibuja su propia versión con tags `edu_*`; se duplicaría | [CAN] |
+| La flecha de reacción con la cola en el nodo | Sus rótulos caían sobre los del valor nodal y la colorbar; llega desde afuera con la punta en el nodo, como las cargas | [CAN] |
+| Un panel propio "Sistema K·u = F" en la fase Proceso (`SystemView`, listeners de hover/redraw del lienzo) | Decisión del autor (2026-09-09): la lectura estructural vive en M7 como esqueleto de K + cabecera; la lógica pura quedó en `education/components/system_structure.py` | [ARQ] |
 | Azul `#1f6feb` para la fila seleccionada | La selección es amarilla, venga del canvas o de la tabla | [CAN] |
 | Migrar a `tksheet` | Descartado | [CAN] |
 | El botón "Aceptar todas con defaults" de las filas fantasma | No resuelve el caso real; para creación masiva está el paste TSV | [CAN] |
@@ -153,7 +162,10 @@ Abreviaturas de capítulo:
 | Subíndices Unicode tipográficos (`ᵧ`) | Faltan en DejaVu Sans Mono: usar sufijos ASCII | [EDU] |
 | Expanders para la fórmula principal de un módulo | Destruye la jerarquía visual: el expander es excepcional | [EDU] |
 | Duplicar código de `fem/` en `education/` | Los módulos solo visualizan | [EDU] |
-| Los literales `#4fa3ff` / `#3a5278` locales | Viven en `EDU_NATURAL_*` de settings | [EDU] |
+| Los literales `#4fa3ff` / `#3a5278` locales, o una cruz gris igual para ξ y η en el cuadrado natural | El contorno vive en `EDU_NATURAL_OUTLINE_COLOR`; los ejes son flechas con `CANVAS_XI_AXIS_COLOR` / `CANVAS_ETA_AXIS_COLOR` (`draw_natural_axes_mpl`), los mismos que las flechas ξη sobre el elemento real | [EDU] |
+| El vuelo Bézier de M7 o una segunda imagen de K en su panel | Cero objetos volando desde 2026-05; el esqueleto de K se dibuja BAJO el heatmap (celdas nulas transparentes), no como patrón aparte | [EDU] |
+| `q=[+0, -50]` o `Fx=+0.00` en M6 (decimales a mano, sin unidad, signo `+`) | Es `fmt(v, 'force')` + la unidad del proyecto (`config.units.get_unit_labels`) | [EDU] |
+| Calcular el `wraplength` de las descripciones del panel de módulos desde el `<Configure>` de la fila | `winfo_width()` del botón vale 1 antes de mapearse y el texto quedaba recortado; se ata al `<Configure>` del propio label | [EDU] |
 | Un panel que sigue mostrando el elemento **deseleccionado** | El default de la base solo limpia la capa del lienzo: hay que sobrescribir `on_element_deselected` | [EDU] |
 | Placeholders que se leen como un resultado válido (`np.eye`) con `element is None` | Sin elemento los números van a **cero** y el título nombra el estado | [EDU] |
 
@@ -197,6 +209,25 @@ Abreviaturas de capítulo:
 | Encabezados de tabla de la Memoria sin la unidad del sistema | El Pre rotula `X [mm]` y el Post `sigma_x [MPa]`: la vía única es `MemoriaCalculo._u(kind)` | [MEM] |
 | θp y σVM en la misma línea de `equation*` | `\qquad` no da punto de corte y la línea se pasaba 44 pt del margen | [MEM] |
 | Exportar la Memoria sin el guard `_exportando_pdf` | El diálogo de progreso no es modal: dos threads escribiendo el mismo `.pdf` | [MEM] |
+| El índice impreso de la Memoria (`td.toc()`) | Dos hojas que nadie lee; para navegar están los marcadores del PDF, que `hyperref` sigue generando | [MEM] |
+| `\begin{landscape}` en la Memoria | `pdflscape` hace `\clearpage` **antes y después**: una matriz apaisada costaba tres hojas, dos casi vacías. Las matrices anchas van en bloques de columnas (`matrix_blocks`) | [MEM] |
+| `_build_intro` / `_build_resumen_visual` como capítulos con hoja propia | El mapa del cálculo y el diagrama del modelo comparten la portada (`_insertar_mapa_calculo` / `_insertar_diagrama_modelo`); eran tres hojas al 30-45 % | [MEM] |
+| El diagrama del modelo detrás de `if self._prose` | El estilo `directo` quedaba sin **ninguna** vista del modelo aunque todas sus tablas citan números de nodo | [MEM] |
+| Mostrar un render de 900 px en `0.5\textwidth` | Las fuentes de `figure_export` son absolutas en píxeles: los rótulos caen a 3,3 pt. Se achica el render **y** el ancho de impresión juntos | [MEM] |
+| Volcar la malla entera en una tabla | Cook Q9 32×32 daba 24 184 filas = 468 hojas de volcado. El tope es `_TABLA_MAX_FILAS` con muestreo; el censo completo es la exportación a CSV | [MEM] |
+| Sumar sólo `project.nodal_loads` para verificar el equilibrio | `F` del solver trae además las fuerzas equivalentes de superficie y las másicas: con presión de borde el residuo daba **100 %** y la membrana de Cook salía `Crítico` estando sana | [MEM] |
+| Medir `κ₂` con veredicto sobre la `K` sin restricciones | Es singular por construcción (3 modos de cuerpo rígido): daba ~1e17 y `Crítico` en **todos** los modelos. El indicador va sobre `K_ff` | [MEM] |
+| Un formato de matriz/vector con decimales fijos sin mirar el rango dinámico | Aplastaba a `0.00` toda entrada bajo el 0,5 % del máximo: 64 celdas de 324 en la `k_e` del Q9, que no tiene ni un cero. Es `TheoryDoc._decidir_formato`, compartido por las tres rutas | [MEM] |
+| Mandar una tabla de resultados recortada a «Archivo, Exportar, Modelo Excel/CSV» | Ese ZIP lleva **sólo el modelo**: cero desplazamientos, tensiones, reacciones y métricas. Los resultados completos están en la tabla del Post-Proceso (`Ctrl+A`, `Ctrl+C`); los puntos de Gauss y la calidad no están completos en ningún lado, y ahí la nota va con `donde=None` | [MEM] |
+| Un pie de tabla topeada con un criterio fijo | El criterio no es el mismo en las cinco tablas: lo pasa quien llama (`criterio=`). El texto fijo nombraba filas que no estaban | [MEM] |
+| Rellenar con ceros lo que no se pudo calcular | El fallback de la tabla de recuperación reintroducía el `ε = 0` junto a `σ ≠ 0`. Se omiten las columnas | [MEM] |
+| `fmt(v, "stress")` dentro de una ecuación de sustitución | Dos decimales aplastan a `-0.00` una tensión menor que 0,005, en la fórmula que existe para rehacer la cuenta. Es `_tension_en_ecuacion` | [MEM] |
+| Leer una clave de `gauss_stresses` sin comprobar que existe | `strain` no existe: la tabla de recuperación imprimía **ε = 0 junto a σ ≠ 0**, contradiciendo la `σ = D·ε` de la misma hoja | [MEM] |
+| El colofón «Documento generado por EduFEM» como texto del cuerpo, con `\vfill` | Se llevaba una **hoja entera** cuando el capítulo ⑨ terminaba cerca del borde, y el `\vfill` falseaba la medición de llenado. Va en `\thispagestyle{edufemUltima}` | [MEM] |
+| `needspace` antes de cada `\section` / `\subsection` de la Memoria | Se probó y medido: **tres hojas** de más (16 → 19) y la tinta por hoja del 58 % al 48 %. Un encabezado viudo ocasional cuesta menos que eso | [MEM] |
+| Armar la `_View` de `render_mesh_diagram` sin el margen de las flechas | Se dibujan desde afuera hacia el nodo: la cola caía 47 px **fuera** de la imagen y cruzaba el título. Es `_flechas_de_carga` + `_margen_de_flechas` | [MEM] |
+| Emitir una `bmatrix` sin declarar `MaxMatrixCols` | `amsmath` corta en 10 columnas y **no avisa**: aborta con `Extra alignment tab` y el alumno no recibe ningún PDF. Es `TheoryDoc.ensure_matrix_cols(n)` | [MEM] |
+| La `D` numérica en el capítulo ① **y** en la formulación elemental | Se imprime una sola vez, junto a la `k_e` que la usa; ① sólo la emite si ese capítulo no se va a construir | [MEM] |
 
 ---
 

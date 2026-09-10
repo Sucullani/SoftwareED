@@ -34,7 +34,11 @@ Leelo antes de cambiar comportamiento acá; abajo van solo las trampas que rompe
   el error a un `O(h^{p+2})` artificial.
 - **Recursos**: `config.settings.resource_path(*parts)`, nunca rutas relativas al CWD.
   Espejo en `gui/fonts_loader.py::_resources_root` — mantener ambos en sync.
-- **Diálogos**: firma `(parent, project, main_window=None)` y centrado con `center_dialog`
-  de `gui/dialogs/_dialog_helpers.py`.
+- **Diálogos**: firma `(parent, project, main_window=None)`; se dimensionan y centran con
+  `size_dialog` de `gui/dialogs/_dialog_helpers.py`. **Ningún Toplevel fija `geometry("AxB")`,
+  `minsize` ni `resizable(False, False)`** (regla dura 23): la app corre con conciencia de DPI,
+  así que con el escalado de Windows al 125 % las fuentes crecen dentro de una ventana que no
+  crece, y Tk recorta lo último empaquetado. Por eso la barra de botones se empaqueta
+  **primero** (`side=BOTTOM`) y el área elástica última con `expand`.
 - **Validación**: `_check_xxx(project, report)` en `models/model_health.py` + hint en
   `EDUCATIONAL_HINTS`. La GUI muestra el reporte, no valida por su cuenta.

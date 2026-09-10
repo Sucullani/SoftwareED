@@ -186,18 +186,14 @@ Formato: `[área Nº] descripción — evidencia — quién decide`.
   medido (haría falta una malla más fina que Cook 32×32) y porque alejarse del canvas sin
   evidencia contradice el criterio de coherencia entre fases.
 
-- **[6] `_on_new_project` no limpia el breadcrumb de módulos visitados.** `_breadcrumb_visited`
-  acumula por sesión y sobrevive a *Nuevo Proyecto*: los chips siguen marcados como visitados
-  sobre un modelo vacío. Es deliberado que sobreviva al **cierre** de un módulo (indicador de
-  progreso de la sesión), pero no está decidido qué debe pasar al empezar un proyecto nuevo:
-  **decide el autor** si el progreso es del alumno (se conserva) o del modelo (se limpia).
-
-- **[8] `_refresh_status` y los chips de carga de M6 no pasan por `fmt(value, kind)`** (regla
-  dura 8). Hoy son `f"N{nid}:  Fx={fx:+.2f}   Fy={fy:+.2f}"` y
-  `q=[{sl.q_start:+.0f}, {sl.q_end:+.0f}]`: decimales hardcodeados y **sin unidades**, en el
-  único módulo cuyo resultado es un vector de fuerzas con unidades del proyecto. Encontrado por
-  la sesión 09, que no lo tomó porque cambia todas las líneas del panel y ya gastaba sus 3
-  pendientes visuales en los dos hallazgos grandes del área. Es el próximo turno del área 8.
+- **[6 / 3] `_on_new_project` no limpia los módulos visitados de la tira del método.** Desde
+  el 2026-09-09 el breadcrumb de la barra de estado es la tira `N › J › B › D › kₑ › F › K`
+  del banner de Proceso (`gui/widgets/method_strip.py`); sus visitados (`MethodStrip.visited`,
+  y el ✓ del panel de módulos) acumulan por sesión y sobreviven a *Nuevo Proyecto*: los chips
+  siguen en blanco sobre un modelo vacío. Es deliberado que sobrevivan al **cierre** de un
+  módulo (indicador de progreso de la sesión), pero no está decidido qué debe pasar al empezar
+  un proyecto nuevo: **decide el autor** si el progreso es del alumno (se conserva) o del
+  modelo (se limpia; existe `MethodStrip.reset_visited()` para eso).
 
 - **[7 / 12] El heatmap de det J de M2 recalcula 144 `compute_jacobian` + 169
   `natural_to_physical` por redraw.** `_draw_jacobian_heatmap` (`_HEATMAP_N=12`) es el punto más
@@ -258,14 +254,17 @@ Formato: `[área Nº] descripción — evidencia — quién decide`.
   la sesión 12. Arreglo natural: dos líneas en `convert_units` (`bc.ux_value *= fl`) más su
   caso en `tests/test_unit_conversion.py`.
 
-- **[1] La cuadrícula del canvas no está anclada al mundo.** `_draw_grid` es un empapelado en
-  coordenadas de pantalla (`spacing = clamp(50·scale, 30, 200)` px, fase `offset % spacing`):
-  las líneas no caen en valores redondos de X/Y, así que no ayudan a estimar una coordenada
-  ni a ubicar el origen — y el alumno tipea coordenadas en la tabla de Nodos y en el Entry del
-  modo dibujo. Propuesta para el próximo turno del área 1: paso en unidades del mundo de la
-  serie 1-2-5 elegido para que caiga entre ~40 y ~120 px, línea del origen (X=0, Y=0) más
-  marcada y el paso vigente rotulado junto al readout de coords. Es un cambio **visual**: va
-  con pendiente visual y criterio de reversión.
+- **[14] Las capturas de la GUI en la tesis quedaron una revisión atrás del software.** El
+  rediseño de la capa visual del 2026-09-09 (ver
+  [../notas/2026-09-09_rediseno-capa-visual.md](../notas/2026-09-09_rediseno-capa-visual.md))
+  cambió lo que se ve en `fig_app_completa`, `fig_lienzo_lod`, `fig_postproceso`,
+  `fig_timoshenko_contorno`, `fig_cook_deformed` y las ocho `fig_modulo_m*`: cuadrícula con
+  ejes rotulados, franja lectora al pie del lienzo, banner de Proceso con la tira del método,
+  vista del sistema K·u = F, reacciones en el Post. El **texto** del Anexo A sigue siendo
+  cierto (la barra de estado resume salud, análisis y GDL), pero conviene sumar una frase por
+  cada pieza nueva. Se regeneran con `tesis/figuras/gui_capture.py` (Windows, PrintWindow) y
+  hay que **compilar la tesis** antes de pushear ([RUTINA.md](RUTINA.md) §6). Esperar a que el
+  autor valide visualmente el rediseño (pendientes visuales de abajo) antes de regenerarlas.
 
 ### Heredado de otras revisiones
 
@@ -281,6 +280,96 @@ Formato: `[área Nº] descripción — evidencia — quién decide`.
 ## Pendientes visuales para el autor
 
 Lo que el gate no puede juzgar. Cada ítem dice qué abrir, qué mirar y cómo revertir.
+
+- **Dimensionado de ventanas contra la pantalla real** (2026-09-10; nota en
+  [../notas/2026-09-10_ventanas-contra-la-pantalla-real.md](../notas/2026-09-10_ventanas-contra-la-pantalla-real.md)).
+  Ningún Toplevel fija ya su tamaño en píxeles: todos pasan por `gui/scaling.py`, que escala
+  la medida de diseño por el DPI, la agranda si el contenido pide más y la recorta al área
+  útil del monitor. Qué mirar:
+  1. *Modelo → Tipo de Elemento* y *Tipo de Análisis*: el video es ahora la **pieza
+     elástica** del diálogo (antes tenía 720×480 fijos). En esta pantalla debería verse
+     igual; achicá el diálogo a mano —ahora es redimensionable— y confirmá que el video
+     encoge conservando la proporción y que `Aceptar`/`Cancelar` no se van nunca.
+  2. *Modelo → Materiales*: abre **~740 px de ancho** en lugar de 680, que es lo que su
+     contenido siempre pidió; el campo Nombre ya muestra "Acero Estructural" entero en vez
+     de "Acero E".
+  3. *Ayuda → Acerca de*: aparece el botón `Cerrar`, que a 96 dpi salía a medias y con el
+     escalado al 125 % no se veía.
+  4. Opcional, para ver el equipo del reporte sin tocar Windows:
+     `set EDUFEM_AREA_UTIL=1280x680 && python main.py`.
+
+  Revertir: `git checkout -- gui/ education/components/theory_viewer.py` y borrar
+  `gui/scaling.py` (los tests `test_dpi_layout*` quedan en rojo, que es la señal de que se
+  volvió al estado con el bug).
+
+- **Rediseño de la capa visual** (2026-09-09, **el más importante**; nota en
+  [../notas/2026-09-09_rediseno-capa-visual.md](../notas/2026-09-09_rediseno-capa-visual.md)).
+  `Ctrl+E` y recorrer las tres fases:
+  1. **Pre** — la cuadrícula cae en valores redondos (líneas mayores rotuladas `5`, `10`
+     bajo el eje X y a la izquierda del eje Y; el readout dice `x: … y: … mm · cuadrícula
+     1 mm`); al pasar el cursor por el nodo 5 la franja del pie del lienzo dice `Nodo 5 ·
+     (7.000, 4.000) mm · GDL u₅→8, v₅→9 · libre · compartido por 4 elementos`, y por un
+     elemento, su conectividad, material, espesor, área y `GDL … → kₑ 8×8`. Con la rueda, la
+     cuadrícula escala con la malla y la franja no se mueve.
+  2. **Proceso** — cada nodo muestra sus dos índices de GDL (`12·13`), y los de los nodos
+     apoyados van **tachados** en naranja. El banner dice `⚙ PROCESO N › J › B › D › kₑ › F ›
+     K`: abrir `③` (botón o `Ctrl+3`) pone el chip `B` en ámbar, cerrarlo lo deja blanco.
+     Clickear el elemento 1: discos amarillos `1..4` hacia adentro de cada vértice, flechas
+     `ξ` (naranja, hacia la arista 2–3) y `η` (violeta, hacia la 3–4) desde el centroide y 4
+     puntos cian (Gauss); con `Ctrl+2` abierto la lente se retira y **M2 dibuja los mismos
+     ejes ξη con los mismos colores**, que son también los de los ejes de su cuadrado natural
+     (flechas naranja y violeta; igual en `Ctrl+1`, `Ctrl+3` y `Ctrl+5`). Probar con Cook Q9
+     (289 nodos): a zoom medio **sin** índices de GDL (aparecen al acercar).
+     `Ctrl+7` (**⑦ Ensamblaje**): antes de tocar *Siguiente*, K muestra un **esqueleto gris**
+     (los bloques 2×2 que la malla hará ≠ 0) bajo las bandas rojas de las restricciones, y
+     arriba `9 nodos → 2N = 18 GDL · 6 GDL restringidos → 12 incógnitas / 49 de 81 bloques ≠ 0
+     (60 %) · semiancho de banda 9 GDL`; cada *Siguiente* rellena bloques con valores y deja
+     grises los que faltan. `Ctrl+6` con una carga superficial: los chips dicen `q = 0.00 →
+     -50.00 N/mm · θ = 90.0°` y el estado `Fx = -50.00 Fy = 0.00 N` (con la unidad del
+     proyecto). En el panel de Proceso las descripciones de los módulos **envuelven** en dos
+     líneas en vez de cortarse ("Integral imposible → suma en PGs (cuadratura interactiva)").
+     Ya **no** hay panel "Sistema K·u = F" en la pestaña: vive en M7 por decisión del autor.
+  3. **Post** — en cada apoyo, flechas naranja claro que llegan al nodo desde afuera con
+     `Rx=` / `Ry=` en la cola (`Ry` de los nodos 1, 3 y 6 suman 1000); el toggle *Mostrar
+     reacciones en los apoyos* las apaga. Con la deformada activa siguen a la malla deformada.
+  Menú del título del lienzo: `GDL (índices en K·u = F)` prende la capa en Pre; `🧹 Vista
+  limpia` la apaga y la restaura. Revertir: `git revert` del commit del rediseño (toca
+  `config/settings.py`, `gui/preprocessing/{mesh_canvas,canvas_logic,pre_tab}.py`,
+  `gui/processing/*`, `gui/widgets/{method_strip,phase_banner}.py`,
+  `gui/postprocessing/post_tab.py`, `gui/main_window.py`, `education/overlay_module.py` y
+  los tests `test_canvas_lens*`).
+
+- **Memoria de Cálculo rediseñada para aprovechar la hoja** (2026-09-09; nota en
+  [../notas/2026-09-09_memoria-aprovecha-la-hoja.md](../notas/2026-09-09_memoria-aprovecha-la-hoja.md)).
+  Exportar la Memoria del **ejemplo canónico Q4** y del **Q9**, en los **dos** estilos
+  (*Archivo ▸ Exportar ▸ Memoria de Cálculo*), y mirar:
+  1. **Hoja 1** — título, ficha del modelo **a dos columnas** (Proyecto / Análisis / Elemento /
+     Unidades / Nodos / Elementos a la izquierda; GDL / Restricciones / Cargas / Fecha /
+     Modelo a la derecha), el **diagrama del modelo** con los números de nodo **legibles**, y
+     —solo en `educativo`— «¿Qué resuelve el MEF y cómo?» con `K u = F` y el mapa del cálculo.
+     **No** hay índice ni sumario, y **no** hay hoja en blanco entre la portada y el capítulo 1.
+     El `directo` también trae el diagrama del modelo (antes no tenía ninguno).
+  2. **Ninguna hoja apaisada.** La `B` (3×18) y la `kₑ` (18×18) del Q9 salen en **bloques de
+     columnas** rotulados `B [1-8]`, `B [9-18]`, `kₑ [1-9]`, `kₑ [10-18]`, en vertical.
+  3. **Contornos** — los cuatro (`σx`, `σy`, `τxy`, `σVM`) en **grilla 2×2**, dos filas de dos,
+     en una sola hoja, con las escalas de color legibles.
+  4. **Tabla «recuperación ε = B·uₑ → σ = D·ε»** (post-proceso): las columnas `εx`, `εy`, `γxy`
+     tienen que traer **números distintos de cero** y coherentes con las σ de la misma fila
+     (antes decían `0.0000e+00` al lado de σ ≠ 0).
+  5. Con **Cook Q9 32×32** (`Ayuda ▸ Cargar Ejemplo`): la Memoria tiene que salir en ~25 hojas
+     y en menos de 15 s. Las tablas de nodos y elementos dicen *«Se listan 40 de 4225 nodos…»*
+     y no vuelcan la malla entera (antes: **493 hojas**).
+  6. Ojear que **no haya hojas a medio llenar** ni texto saliéndose del margen derecho.
+  7. **Números que antes estaban mal** (los encontró la auditoría; ver la nota). En el
+     capítulo *Diagnóstico*: `κ₂(K_ff)` tiene que dar un número chico con veredicto verde
+     **OK** (antes decía `κ₂(K) 2.4e+17` en rojo `Crítico` en todos los modelos), y el
+     `Residuo de equilibrio relativo` tiene que ser ~1e-13 y **OK** también con la membrana
+     de Cook, que se carga por presión de borde (antes: `1.00e+00`, `Crítico`). En la `kₑ`
+     del Q9 no puede haber celdas `0.00`: esa matriz no tiene ningún cero.
+  Revertir: `git checkout` de `file_io/memoria_calculo.py`, `file_io/figure_export.py`,
+  `education/components/theory_builder.py`, `config/settings.py`,
+  `tests/test_memoria_calculo.py` y
+  `docs/convenciones/{memoria-calculo,no-reintroducir}.md`.
 
 - **Post-Proceso y Memoria tras la vectorización y la corrección de la extrapolación Q4**
   (abierto desde el 2026-09-07, ver [../notas/ESTADO.md](../notas/ESTADO.md)). Abrir la GUI
@@ -495,6 +584,16 @@ sobre la ventana principal.*)
 
 Se mueve acá lo resuelto, con la sesión que lo cerró. Se conserva: evita que una sesión
 futura reabra algo ya decidido.
+
+- **[8] `_refresh_status` y los chips de carga de M6 no pasan por `fmt(value, kind)`** —
+  **CERRADO el 2026-09-09** en la pasada de coherencia de los módulos: chips
+  `q = 0.00 → -50.00 N/mm · θ = 90.0°` y estado `Fx = -50.00 Fy = 0.00 N`, con `fmt` y la
+  unidad del proyecto (`get_unit_labels`). Pendiente visual arriba.
+
+- **[1] La cuadrícula del canvas no está anclada al mundo** — **CERRADO el 2026-09-09** por el
+  rediseño de la capa visual: paso de la serie 1-2-5 en unidades del modelo
+  (`canvas_logic.grid_step`), líneas mayores rotuladas sobre los ejes X=0 / Y=0, ejes
+  marcados, paso vigente en el readout de coordenadas. Pendiente visual arriba.
 
 - **[transversal] Los `except Exception` de `gui/` + `education/`** — **CERRADO por la
   sesión 10**: las 9 áreas con archivos de `gui/` o `education/` pasaron por su turno.

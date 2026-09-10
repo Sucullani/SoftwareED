@@ -21,7 +21,7 @@ SoftwareED/
 ├─ file_io/             .edufem (JSON), CSV/ZIP, DXF, memoria PDF, figuras Pillow
 ├─ gui/                 tkinter + ttkbootstrap
 │  ├─ preprocessing/    spreadsheet de 5 tablas + MeshCanvas
-│  ├─ processing/       fase de proceso
+│  ├─ processing/       fase de proceso: tira del método + lanzador de módulos
 │  ├─ postprocessing/   contornos, probe, vista 3D, panel de detalles
 │  ├─ dialogs/          pop-ups del menú Modelo, DXF, salud, theory hub
 │  └─ widgets/          tooltip, banner de fase, panel de módulos, WebpPlayer
@@ -89,7 +89,7 @@ Si movés un documento citado desde un comentario del código, actualizá tambi�
 | Módulo educativo | `education/modNN_nombre.py` | El prefijo `mod` es obligatorio (`build.spec`) + registrarlo en los 4 dicts de `module_launcher.py` |
 | Widget reutilizable de GUI | `gui/widgets/` | |
 | Pieza reutilizable de módulos educativos | `education/components/` | |
-| Diálogo (pop-up) | `gui/dialogs/` | Firma `(parent, project, main_window=None)` + `center_dialog` |
+| Diálogo (pop-up) | `gui/dialogs/` | Firma `(parent, project, main_window=None)` + `size_dialog` (nunca `geometry` fija) |
 | Constante, color, tolerancia, decimales | `config/settings.py` | **Nunca** un literal en el sitio de uso |
 | Script de test / validación | `tests/test_*.py` o `tests/vv_*.py` | Tipo printout, se corre con `python -m tests.X` |
 | Script de build / empaquetado | `tools/` | No se importa desde la app; `build_all.ps1` lo encadena |
