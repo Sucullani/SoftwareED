@@ -1,0 +1,639 @@
+% =====================================================================
+%  guia_vancouver.tex  --  Guia de referencia de la norma Vancouver
+%  Documento de trabajo del autor. NO forma parte de la tesis.
+%  Compilar desde tesis/guia_vancouver/:   pdflatex guia_vancouver
+%  (dos pasadas, por el indice de contenidos)
+% =====================================================================
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}\usepackage[T1]{fontenc}\usepackage{lmodern}
+\usepackage[spanish,es-noquoting]{babel}
+\usepackage[margin=2.3cm,top=2.6cm,bottom=2.4cm]{geometry}
+\usepackage{longtable,booktabs,array,xcolor,fancyhdr,titlesec,enumitem,hyperref}
+\usepackage{fancyvrb}
+\usepackage[most]{tcolorbox}
+\usepackage{microtype}
+
+\definecolor{tinta}{RGB}{28,34,44}
+\definecolor{gris}{RGB}{110,116,126}
+\definecolor{acento}{RGB}{23,86,140}
+\definecolor{fondo}{RGB}{246,247,249}
+\definecolor{marco}{RGB}{206,212,220}
+\definecolor{bien}{RGB}{22,110,70}
+\definecolor{ojo}{RGB}{160,84,10}
+
+\hypersetup{colorlinks=true,linkcolor=acento,urlcolor=acento,
+  pdftitle={La norma Vancouver aplicada a la tesis EduFEM},
+  pdfauthor={Hedy Yhassmany Oyola Sucullani}}
+
+\pagestyle{fancy}\fancyhf{}
+\fancyhead[L]{\small\color{gris} Norma Vancouver --- guía de referencia}
+\fancyhead[R]{\small\color{gris}\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\titleformat{\section}{\large\bfseries\color{acento}}{\thesection.}{0.6em}{}
+\titlespacing*{\section}{0pt}{14pt}{6pt}
+\titleformat{\subsection}{\normalsize\bfseries\color{tinta}}{\thesubsection}{0.6em}{}
+\titlespacing*{\subsection}{0pt}{10pt}{4pt}
+\setlist{nosep,leftmargin=1.5em}
+
+% --- Caja de ficha por tipo de fuente ---
+\newtcolorbox{ficha}[1]{
+  enhanced, breakable, colback=white, colframe=marco, boxrule=0.5pt,
+  arc=2pt, left=8pt, right=8pt, top=7pt, bottom=7pt,
+  before skip=9pt, after skip=9pt,
+  title={#1}, coltitle=white, colbacktitle=acento,
+  fonttitle=\bfseries\small, attach boxed title to top left={xshift=8pt,yshift=-7pt},
+  boxed title style={arc=1pt,boxrule=0pt,left=5pt,right=5pt,top=2pt,bottom=2pt}}
+
+% --- Caja de nota al margen del texto ---
+\newtcolorbox{nota}{
+  enhanced, breakable, colback=fondo, colframe=fondo, boxrule=0pt,
+  borderline west={2.2pt}{0pt}{acento},
+  left=8pt, right=8pt, top=5pt, bottom=5pt, before skip=8pt, after skip=8pt}
+
+% --- Rotulos internos de cada ficha ---
+\newcommand{\rot}[1]{\vspace{2pt}\par{\footnotesize\bfseries\color{gris}\MakeUppercase{#1}}\par\vspace{1pt}}
+\newcommand{\refv}[1]{\par{\small #1}\par}
+\newcommand{\plantilla}[1]{\par{\small\itshape\color{tinta} #1}\par}
+\newcommand{\anot}[1]{{\color{gris}\footnotesize #1}}
+
+\begin{document}
+
+% =====================================================================
+\begin{center}
+{\LARGE\bfseries\color{tinta} La norma Vancouver}\\[4pt]
+{\large\color{tinta} Plantillas y ejemplos por tipo de fuente}\\[10pt]
+{\color{gris} Tesis EduFEM --- documento de trabajo del autor}\\[10pt]
+\begin{minipage}{0.9\textwidth}\small
+Esta guía reúne lo que la norma Vancouver dice \emph{en sus fuentes oficiales} y lo aplica a
+las 22 fuentes que la tesis cita hoy. Para cada tipo de fuente hay tres cosas: la
+\textbf{plantilla} (qué elementos van y en qué orden), un \textbf{ejemplo} construido con una
+fuente real de la tesis y la \textbf{entrada \texttt{.bib}} que lo produce. Al final está la
+revisión de lo que la tesis imprime hoy frente a lo que pide la norma.\\[5pt]
+Este documento no forma parte de la tesis.
+\end{minipage}
+\end{center}
+\vspace{6pt}\hrule\vspace{10pt}
+
+{\small\tableofcontents}
+\vspace{6pt}\hrule
+
+% =====================================================================
+\section{Qué es la norma Vancouver y quién la define}
+
+En 1978, un grupo reducido de directores de revistas médicas generales se reunió de manera
+informal en Vancouver (Columbia Británica, Canadá) para acordar un formato uniforme de los
+manuscritos que recibían. Se los conoció como el «Grupo de Vancouver», y de ahí viene el
+nombre del estilo. Su documento, los \emph{Uniform Requirements for Manuscripts Submitted to
+Biomedical Journals}, se publicó ese mismo año; los formatos de las referencias
+bibliográficas no los redactó el grupo, sino la \textbf{National Library of Medicine} de
+Estados Unidos ---y esa división de trabajo, de 1978, es la que sigue vigente hoy---. El
+grupo se institucionalizó después como \textbf{ICMJE} (International Committee of Medical
+Journal Editors).
+
+Hoy la norma vive en dos documentos, y conviene saber qué dice cada uno porque resuelven
+preguntas distintas:
+
+\begin{itemize}\setlength{\itemsep}{4pt}
+\item \textbf{ICMJE}, \emph{Recommendations for the Conduct, Reporting, Editing, and
+  Publication of Scholarly Work in Medical Journals} (última actualización: enero de 2026).
+  Fija los \emph{principios}: cómo se numeran las citas, en qué orden, qué se puede citar y
+  qué no. No da el formato de cada tipo de fuente: remite explícitamente al NLM.
+\item \textbf{NLM} (National Library of Medicine, EE.\,UU.), \emph{Citing Medicine: The NLM
+  Style Guide for Authors, Editors, and Publishers}, 2.ª ed., de Karen Patrias, con Dan
+  Wendling como editor técnico. Es el manual completo: 26 capítulos, uno por tipo de fuente,
+  con las reglas de puntuación elemento por elemento. Su resumen operativo es la página
+  \emph{Sample References}, que es la que se consulta en el día a día.
+\end{itemize}
+
+\begin{nota}
+\textbf{Vancouver, estilo ICMJE y estilo NLM son el mismo estilo.} Los tres nombres aparecen
+en la bibliografía sobre citación y designan lo mismo; \emph{Citing Medicine} es la
+encarnación actual del sistema Vancouver. Si un reglamento pide «normas Vancouver», lo que
+hay que seguir es esto.
+\end{nota}
+
+\subsection*{Una advertencia que aplica a esta tesis}
+
+Vancouver nació en biomedicina y su manual está escrito desde ahí: los ejemplos son de
+revistas médicas y algunas reglas presuponen que la revista está indexada en el catálogo del
+NLM. Una tesis de ingeniería civil usa el mismo esqueleto, pero hay dos puntos donde no puede
+seguir la letra:
+
+\begin{itemize}
+\item Las revistas de ingeniería en general \textbf{no están en el catálogo del NLM}, de modo
+  que la abreviatura del título no se puede «buscar»: hay que construirla (§\ref{sec:reglas},
+  regla 5).
+\item El documento está en \textbf{español}, y la norma está pensada para textos en inglés.
+  Donde la norma dice \texttt{In:}, \texttt{editors}, \texttt{p.} o \texttt{2nd ed.}, un
+  documento en español escribe \texttt{En:}, \texttt{editores}, \texttt{p.} y \texttt{2.ª
+  ed.} Es la adaptación habitual y no es un error, siempre que se aplique de forma uniforme.
+\end{itemize}
+
+% =====================================================================
+\section{Las siete reglas que gobiernan todas las referencias}
+\label{sec:reglas}
+
+Antes de las plantillas conviene fijar las reglas transversales. Casi todos los errores de
+una bibliografía Vancouver son incumplimientos de alguna de estas siete.
+
+\begin{enumerate}\setlength{\itemsep}{6pt}
+
+\item \textbf{Numeración por orden de aparición.} Las referencias se numeran
+  «consecutivamente en el orden en que se mencionan por primera vez en el texto». El número
+  se asigna la primera vez y \emph{se reutiliza} cada vez que la fuente vuelve a citarse. La
+  lista final va en ese orden, no alfabético.
+  \anot{En tu tesis lo garantiza \texttt{sorting=none} en el preámbulo.}
+
+\item \textbf{Autores: apellido, espacio, iniciales pegadas.} Sin coma entre apellido e
+  iniciales, sin punto tras cada inicial, sin espacio entre iniciales, máximo dos iniciales
+  por autor. Los autores se separan entre sí con \textbf{coma}.
+  \par\vspace{3pt}\hspace{1.5em}\begin{minipage}{0.9\textwidth}\small
+  \textcolor{bien}{\textbf{Bien:}} Bathe KJ \quad\textbullet\quad Lee JY, Ryu HR
+  \quad\textbullet\quad Timoshenko SP, Goodier JN\\
+  \textcolor{ojo}{\textbf{Mal:}} Bathe, K.-J. \quad\textbullet\quad Lee J. Y. y Ryu H.-R.
+  \end{minipage}
+
+\item \textbf{Cuántos autores se listan.} Acá hay una diferencia real entre los dos documentos
+  oficiales, y hay que elegir uno:
+  \par\vspace{3pt}
+  \begin{minipage}{0.95\textwidth}\small
+  \begin{itemize}
+  \item \emph{Citing Medicine} dice: «Give all authors, regardless of the number» ---todos,
+    sin importar cuántos.
+  \item La página \emph{Sample References} del NLM (la convención ICMJE, la más difundida)
+    dice: «List the first six authors followed by \emph{et al.}»
+  \end{itemize}
+  \end{minipage}
+  \par\vspace{3pt}
+  \anot{Tu tesis usa la segunda: seis y \emph{et al.} (\texttt{maxbibnames=6},
+  \texttt{minbibnames=6}). Es la correcta para NumPy, que tiene 26 autores, y SciPy, que
+  tiene 35.}
+
+\item \textbf{Mayúsculas del título: sólo la primera palabra.} La norma es explícita:
+  «capitalize only the first word of a title, proper nouns, proper adjectives, acronyms, and
+  initialisms». Es decir, el título va como una oración, no en \emph{title case} inglés,
+  aunque en la portada del libro aparezca con todas las iniciales en mayúscula.
+  \par\vspace{3pt}\hspace{1.5em}\begin{minipage}{0.9\textwidth}\small
+  \textcolor{bien}{\textbf{Bien:}} The finite element method: its basis and fundamentals\\
+  \textcolor{ojo}{\textbf{Mal:}} The Finite Element Method: Its Basis and Fundamentals
+  \end{minipage}
+  \par\vspace{3pt}
+  \anot{Las siglas y nombres propios se conservan: NumPy, SciPy, Python, ED-Elas2D, SAP2000.}
+
+\item \textbf{El título de la revista va abreviado.} Se abrevian las palabras significativas
+  y se omiten artículos, conjunciones y preposiciones. La abreviatura oficial se busca en el
+  \emph{NLM Catalog}; si la revista no está ahí ---el caso de casi toda la ingeniería--- se
+  construye con la norma ISO 4, usando la \emph{List of Title Word Abbreviations} (LTWA) del
+  Centro Internacional del ISSN. En estilo NLM la abreviatura va \textbf{sin puntos}.
+  \par\vspace{3pt}\hspace{1.5em}\begin{minipage}{0.9\textwidth}\small
+  Computer Applications in Engineering Education $\rightarrow$ \textbf{Comput Appl Eng Educ}\\
+  European Journal of Engineering Education $\rightarrow$ \textbf{Eur J Eng Educ}\\
+  Nature Methods $\rightarrow$ \textbf{Nat Methods} \quad\textbullet\quad
+  Nature $\rightarrow$ \textbf{Nature} \anot{(de una sola palabra: no se abrevia)}
+  \end{minipage}
+
+\item \textbf{Rangos de página comprimidos.} No se repiten los dígitos que ya aparecieron en
+  el número inicial.
+  \par\vspace{3pt}\hspace{1.5em}\begin{minipage}{0.9\textwidth}\small
+  1159\,-\,1173 $\rightarrow$ \textbf{1159-73} \quad\textbullet\quad
+  872\,-\,886 $\rightarrow$ \textbf{872-86} \quad\textbullet\quad
+  157\,-\,169 $\rightarrow$ \textbf{157-69} \quad\textbullet\quad
+  1007\,-\,1027 $\rightarrow$ \textbf{1007-27}
+  \end{minipage}
+
+\item \textbf{La puntuación del pie de imprenta es fija:} \texttt{Lugar: Editorial; año.}
+  Dos puntos después del lugar, \textbf{punto y coma} antes del año, punto final. Las
+  ciudades de EE.\,UU. y Canadá llevan la abreviatura de dos letras del estado o provincia
+  entre paréntesis; las demás llevan el país sólo si hace falta para desambiguar.
+  \par\vspace{3pt}\hspace{1.5em}\begin{minipage}{0.9\textwidth}\small
+  Upper Saddle River (NJ): Prentice Hall; 1996. \quad\textbullet\quad
+  Oxford: Elsevier Butterworth-Heinemann; 2005.
+  \end{minipage}
+\end{enumerate}
+
+\subsection*{Dos reglas más que vas a necesitar}
+
+\textbf{Títulos que no están en inglés.} Si el título está en alfabeto latino ---el caso del
+español--- se \textbf{deja tal cual}, en su idioma original. La traducción entre corchetes es
+para lenguas que hay que romanizar o traducir (chino, japonés, ruso, árabe) o para cuando el
+documento que escribís está en inglés. En una tesis en español, tus fuentes en español van sin
+corchetes y tus fuentes en inglés también van sin traducir.
+
+\textbf{Datos que no existen.} Cuando un ejemplar no consigna lugar, editorial o año, la norma
+no permite omitir el elemento en silencio: se declara la ausencia entre corchetes
+---\texttt{[place unknown]}, \texttt{[publisher unknown]}, \texttt{[date unknown]}---, que en
+un documento en español se escribe \texttt{[lugar desconocido]}, \texttt{[editorial
+desconocida]}, \texttt{[fecha desconocida]}. Esto te aplica directamente en la monografía de
+Álvarez de Zayas.
+
+% =====================================================================
+\section{Los cuatro tipos que usás hoy}
+
+Las 22 fuentes de \texttt{referencias.bib} se reparten en cuatro tipos: 12 libros, 7 artículos
+de revista, 2 informes técnicos y 1 manual de organización. Una ficha por tipo.
+
+% ---------------------------------------------------------------------
+\begin{ficha}{A \textperiodcentered\ LIBRO COMPLETO \hfill \normalfont\texttt{@book} \textperiodcentered\ 12 entradas}
+\rot{plantilla}
+\plantilla{Autor AA, Autor BB, Autor CC. Título del libro: subtítulo. Edición. Lugar
+(Estado): Editorial; año.}
+\anot{La edición se omite si es la primera. La paginación total (\texttt{245 p.}) es opcional
+y en una tesis no se pone.}
+
+\rot{ejemplo --- tu fuente [1]}
+\refv{Zienkiewicz OC, Taylor RL, Zhu JZ. The finite element method: its basis and
+fundamentals. 6.ª ed. Oxford: Elsevier Butterworth-Heinemann; 2005.}
+
+\rot{ejemplo --- tu fuente en español}
+\refv{García-Córdoba F. La investigación tecnológica: investigar, idear e innovar en
+ingenierías y ciencias sociales. México (DF): Limusa; 2005.}
+
+\rot{ejemplo --- ejemplar sin pie de imprenta}
+\refv{Álvarez de Zayas C. Metodología de la investigación científica. [lugar desconocido]:
+[editorial desconocida]; [fecha desconocida].}
+
+\rot{entrada .bib}
+\begin{Verbatim}[fontsize=\small,xleftmargin=4pt]
+@book{zienkiewicz2013fem,
+  author    = {Zienkiewicz, O. C. and Taylor, R. L. and Zhu, J. Z.},
+  title     = {The Finite Element Method: Its Basis and Fundamentals},
+  edition   = {6},
+  publisher = {Elsevier Butterworth-Heinemann},
+  location  = {Oxford},
+  year      = {2005},
+}
+\end{Verbatim}
+\anot{Campos mínimos: \texttt{author}, \texttt{title}, \texttt{publisher}, \texttt{location},
+\texttt{year}. \texttt{location}, no \texttt{address}. El \texttt{isbn} es opcional y sólo si
+lo leíste de la página de créditos.}
+\end{ficha}
+
+% ---------------------------------------------------------------------
+\begin{ficha}{B \textperiodcentered\ ARTÍCULO DE REVISTA \hfill \normalfont\texttt{@article} \textperiodcentered\ 7 entradas}
+\rot{plantilla}
+\plantilla{Autor AA, Autor BB. Título del artículo. Abrev Revista.
+año;volumen(fascículo):pág-pág. doi:10.xxxx/yyyy}
+\anot{Sin comillas en el título del artículo, sin la palabra «En:» y sin coma antes del año.
+Todo el bloque final va pegado: punto y coma, paréntesis, dos puntos.}
+
+\rot{ejemplo --- dos autores}
+\refv{Lee JY, Ryu HR. Interactive simulation of eigenmodes for instruction of finite element
+behavior. Comput Appl Eng Educ. 2015;23(6):872-86. doi:10.1002/cae.21659}
+
+\rot{ejemplo --- más de seis autores}
+\refv{Harris CR, Millman KJ, van der Walt SJ, Gommers R, Virtanen P, Cournapeau D, et al.
+Array programming with NumPy. Nature. 2020;585(7825):357-62.
+doi:10.1038/s41586-020-2649-2}
+
+\rot{ejemplo --- sin número de fascículo}
+\refv{Pérez-Santiago R, Campos E. FEM education in undergraduate studies: industry-informed
+research. Comput Appl Eng Educ. 2023;31:1159-73. doi:10.1002/cae.22627}
+\anot{El fascículo se omite cuando el ejemplar no lo consigna. No se inventa.}
+
+\rot{entrada .bib}
+\begin{Verbatim}[fontsize=\small,xleftmargin=4pt]
+@article{lee2015eigenmodes,
+  author       = {Lee, Jae Young and Ryu, Hee-Ryong},
+  title        = {Interactive Simulation of Eigenmodes for Instruction
+                  of Finite Element Behavior},
+  journaltitle = {Computer Applications in Engineering Education},
+  volume       = {23},
+  number       = {6},
+  pages        = {872--886},
+  year         = {2015},
+  doi          = {10.1002/cae.21659},
+}
+\end{Verbatim}
+\anot{\texttt{journaltitle}, no \texttt{journal}. Las páginas se escriben completas en el
+\texttt{.bib} (con doble guion); comprimirlas es tarea del estilo, no tuya.}
+\end{ficha}
+
+% ---------------------------------------------------------------------
+\begin{ficha}{C \textperiodcentered\ INFORME CIENTÍFICO O TÉCNICO \hfill \normalfont\texttt{@techreport} \textperiodcentered\ 2 entradas}
+\rot{plantilla}
+\plantilla{Autor AA, Autor BB. Título del informe. Lugar (Estado): Institución; año. Informe
+n.º: XXXX.}
+\anot{En inglés el rótulo es \texttt{Report No.:}; si hay contrato o subvención se agregan
+después como \texttt{Contract No.:} o \texttt{Grant No.:}. La institución ocupa el lugar de la
+editorial.}
+
+\rot{ejemplo --- tu fuente de MMS}
+\refv{Salari K, Knupp P. Code verification by the method of manufactured solutions.
+Albuquerque (NM): Sandia National Laboratories; 2000. Informe n.º: SAND2000-1444.}
+
+\rot{ejemplo --- cinco autores}
+\refv{Stimpson CJ, Ernst CD, Knupp P, Pébay PP, Thompson D. The Verdict geometric quality
+library. Albuquerque (NM): Sandia National Laboratories; 2007. Informe n.º: SAND2007-1751.}
+
+\rot{entrada .bib}
+\begin{Verbatim}[fontsize=\small,xleftmargin=4pt]
+@techreport{salari2000mms,
+  author      = {Salari, Kambiz and Knupp, Patrick},
+  title       = {Code Verification by the Method of Manufactured Solutions},
+  institution = {Sandia National Laboratories},
+  location    = {Albuquerque, NM},
+  number      = {SAND2000-1444},
+  year        = {2000},
+}
+\end{Verbatim}
+\anot{El número del informe va en \texttt{number}: es el dato que permite recuperarlo del
+repositorio de Sandia, y sin él la referencia no identifica el documento.}
+\end{ficha}
+
+% ---------------------------------------------------------------------
+\begin{ficha}{D \textperiodcentered\ MANUAL U OBRA DE UNA ORGANIZACIÓN \hfill \normalfont\texttt{@manual} \textperiodcentered\ 1 entrada}
+\rot{plantilla}
+\plantilla{Organización. Título del manual. Versión o revisión. Lugar (Estado): Organización;
+año.}
+\anot{Cuando no hay autor personal, \textbf{la organización ocupa el lugar del autor} y se
+escribe completa, sin invertir nada. Si además es la editora, la norma permite abreviarla en
+la posición de editorial: «Berkeley (CA): The Company;».}
+
+\rot{ejemplo --- tu manual de SAP2000}
+\refv{Computers \& Structures, Inc. CSI analysis reference manual for SAP2000, ETABS, SAFE and
+CSiBridge. Rev. 18. \textcolor{ojo}{[lugar]}: Computers \& Structures, Inc.; 2017.}
+\anot{\textcolor{ojo}{Falta el lugar de edición}: hay que leerlo de la portada o de la página
+de créditos del PDF del manual y agregarlo al \texttt{.bib}.}
+
+\rot{entrada .bib}
+\begin{Verbatim}[fontsize=\small,xleftmargin=4pt]
+@manual{csi2017sap2000,
+  author  = {{Computers \& Structures, Inc.}},
+  title   = {{CSI} Analysis Reference Manual for {SAP2000}, {ETABS},
+             {SAFE} and {CSiBridge}},
+  version = {Rev. 18},
+  location = {...},          % <-- leer de la portada del manual
+  year    = {2017},
+}
+\end{Verbatim}
+\anot{Las llaves dobles \texttt{\{\{...\}\}} son obligatorias: sin ellas biber lee «Inc.» como
+apellido y «Computers \& Structures» como nombre de pila. Y no pongas \texttt{author} y
+\texttt{organization} a la vez: el estilo imprime los dos y la editorial sale duplicada.}
+\end{ficha}
+
+% =====================================================================
+\section{Los tipos que todavía no usás pero podrías necesitar}
+
+Si en la defensa o en una revisión aparece una fuente de otro tipo, estas son las cinco
+plantillas que cubren lo que razonablemente puede salir en esta tesis. Los ejemplos marcados
+\anot{[NLM]} son los ejemplos oficiales del manual, reproducidos tal cual para que sirvan de
+patrón de puntuación.
+
+\subsection*{Capítulo o parte de un libro \hfill \normalfont\small\texttt{@incollection}}
+\plantilla{Autor del capítulo. Título del capítulo. En: Editor AA, Editor BB, editores.
+Título del libro. Edición. Lugar: Editorial; año. p. inicio-fin.}
+\refv{\anot{[NLM]} Meltzer PS, Kallioniemi A, Trent JM. Chromosome alterations in human solid
+tumors. In: Vogelstein B, Kinzler KW, editors. The genetic basis of human cancer. New York:
+McGraw-Hill; 2002. p. 93-113.}
+\anot{El único caso en que Vancouver escribe \texttt{p.} antes de las páginas es este y el de
+las actas de congreso; en los artículos de revista no lleva rótulo.}
+
+\subsection*{Ponencia publicada en actas de congreso \hfill \normalfont\small\texttt{@inproceedings}}
+\plantilla{Autor AA, Autor BB. Título de la ponencia. En: Editor AA, editor. Título de las
+actas; año mes días; ciudad, país. Lugar: Editorial; año. p. inicio-fin.}
+\refv{\anot{[NLM]} Christensen S, Oppacher F. An analysis of Koza's computational effort
+statistic for genetic programming. In: Foster JA, Lutton E, Miller J, Ryan C, Tettamanzi AG,
+editors. Genetic programming. EuroGP 2002: Proceedings of the 5th European Conference on
+Genetic Programming; 2002 Apr 3-5; Kinsdale, Ireland. Berlin: Springer; 2002. p. 182-91.}
+\anot{Fijate que la fecha del congreso y la de publicación de las actas son dos datos
+distintos y van los dos.}
+
+\subsection*{Tesis \hfill \normalfont\small\texttt{@thesis}}
+\plantilla{Autor AA. Título de la tesis [tesis de licenciatura]. Lugar (Estado):
+Universidad; año.}
+\refv{\anot{[NLM]} Borkowski MM. Infant sleep and feeding: a telephone survey of Hispanic
+Americans [dissertation]. Mount Pleasant (MI): Central Michigan University; 2002.}
+\anot{El tipo de trabajo va entre corchetes después del título: \texttt{[tesis de
+licenciatura]}, \texttt{[tesis de maestría]}, \texttt{[tesis doctoral]}.}
+
+\subsection*{Documento o sitio web \hfill \normalfont\small\texttt{@online}}
+\plantilla{Autor u organización. Título [Internet]. Lugar: Editor; año [citado año mes día].
+Disponible en: URL}
+\refv{Oyola Sucullani HY. EduFEM: software educativo de elementos finitos [Internet]. GitHub;
+2026 [citado 2026 sep 10]. Disponible en: https://github.com/Sucullani/SoftwareED}
+\anot{Los dos elementos que distinguen una fuente en línea son el designador
+\texttt{[Internet]} tras el título y la \textbf{fecha de consulta} entre corchetes: sin ella la
+referencia no dice a qué versión del sitio te referís. Hoy tu tesis pone el repositorio en
+nota al pie, que es una alternativa legítima: la nota no entra en la numeración de
+referencias.}
+
+\subsection*{Programa de computadora \hfill \normalfont\small\texttt{@software}}
+\plantilla{Autor u organización. Nombre: descripción. Versión X.Y [software]. Fecha [citado
+año mes día]. Disponible en: URL}
+\refv{\anot{[NLM]} Hayes B, Tesar B, Zurow K. OTSoft: Optimality Theory Software. Version
+2.3.2 [software]. 2013 Jan 14 [cited 2015 Feb 14]. Available from:
+https://linguistics.ucla.edu/people/hayes/otsoft/}
+
+\begin{nota}
+\textbf{NumPy y SciPy están bien citados como artículos, no como software.} Ambos proyectos
+publicaron un artículo en \emph{Nature} y \emph{Nature Methods} respectivamente y piden
+explícitamente que se cite ese artículo. Citar la biblioteca como programa sería
+técnicamente admisible pero peor: el artículo es la fuente citable, con DOI permanente y
+autoría acreditada.
+\end{nota}
+
+% =====================================================================
+\section{Tus 22 fuentes en Vancouver}
+
+Inventario de lo que hay en \texttt{referencias.bib}, agrupado por tipo. Sirve como control:
+cualquier fuente nueva tiene que caer en una de estas cuatro filas o abrir una fila nueva con
+su plantilla de la §4.
+
+\vspace{4pt}
+{\small
+\begin{longtable}{@{}p{3.3cm}p{1.0cm}p{11.0cm}@{}}
+\toprule
+\textbf{Tipo} & \textbf{N.º} & \textbf{Fuentes} \\
+\midrule\endhead
+Libro \newline \anot{\texttt{@book}} & 12 &
+Zienkiewicz \textperiodcentered\ Bathe \textperiodcentered\ Cook \textperiodcentered\ Hughes
+\textperiodcentered\ Reddy \textperiodcentered\ Oñate \textperiodcentered\ Timoshenko
+\textperiodcentered\ Strang \textperiodcentered\ Oberkampf \textperiodcentered\ Álvarez de
+Zayas \textperiodcentered\ Hernández-Sampieri \textperiodcentered\ García-Córdoba \\
+\addlinespace[3pt]
+Artículo \newline \anot{\texttt{@article}} & 7 &
+Harris (NumPy) \textperiodcentered\ Virtanen (SciPy) \textperiodcentered\ Bishay
+\textperiodcentered\ Lee 2015a \textperiodcentered\ Lee y Ryu 2015b \textperiodcentered\
+Suárez (ED-Elas2D) \textperiodcentered\ Pérez-Santiago y Campos \\
+\addlinespace[3pt]
+Informe técnico \newline \anot{\texttt{@techreport}} & 2 &
+Salari y Knupp (MMS, SAND2000-1444) \textperiodcentered\ Stimpson (Verdict, SAND2007-1751) \\
+\addlinespace[3pt]
+Manual \newline \anot{\texttt{@manual}} & 1 &
+CSI, manual de referencia de SAP2000 \\
+\bottomrule
+\end{longtable}}
+
+\begin{nota}
+\textbf{Las tres revistas que citás y su abreviatura NLM/ISO 4:} \emph{Computer Applications
+in Engineering Education} $\rightarrow$ Comput Appl Eng Educ (cuatro artículos);
+\emph{European Journal of Engineering Education} $\rightarrow$ Eur J Eng Educ (uno);
+\emph{Nature} y \emph{Nature Methods} $\rightarrow$ Nature y Nat Methods (uno cada una). Las
+dos últimas son las únicas de tu bibliografía que figuran en el catálogo del NLM; las dos
+primeras hay que abreviarlas con la LTWA.
+\end{nota}
+
+% =====================================================================
+\section{Lo que imprime tu tesis hoy frente a lo que pide la norma}
+
+Tu preámbulo no carga un estilo Vancouver: arma uno aproximado sobre el estilo
+\texttt{numeric-comp} de \texttt{biblatex}, con \texttt{sorting=none} y ajustes en el formato
+de los nombres.
+Eso resuelve lo esencial ---numeración por orden de aparición y apellido con iniciales--- pero
+deja diferencias en la puntuación. La tabla separa lo que es \textbf{error corregible} de lo
+que es \textbf{decisión ya tomada} y documentada en \texttt{tesis/README.md}.
+
+\vspace{4pt}
+{\small
+\begin{longtable}{@{}p{2.5cm}p{4.3cm}p{4.3cm}p{3.9cm}@{}}
+\toprule
+\textbf{Elemento} & \textbf{Lo que imprime hoy} & \textbf{Lo que pide Vancouver} &
+\textbf{Veredicto} \\
+\midrule\endhead
+
+Iniciales con guion &
+\texttt{Bathe K.-J.} \newline \texttt{Ryu H.-R.} &
+\texttt{Bathe KJ} \newline \texttt{Ryu HR} &
+\textcolor{ojo}{\textbf{Error corregible.}} Una línea en el preámbulo (§7). \\
+\addlinespace[3pt]
+
+Lugar de edición &
+Cook 2002 y el manual de CSI salen sin lugar &
+El lugar es obligatorio en libros y manuales &
+\textcolor{ojo}{\textbf{Falta un dato.}} Leerlo de la portada de cada ejemplar. \\
+\addlinespace[3pt]
+
+Título del artículo &
+Entre comillas: \newline \guillemotleft Interactive Simulation\ldots\guillemotright &
+Sin comillas &
+Limitación de \texttt{numeric-comp}. \\
+\addlinespace[3pt]
+
+Enlace a la revista &
+\texttt{En: Computer Applications\ldots} &
+La revista sigue directo, sin \texttt{En:} &
+Limitación de \texttt{numeric-comp}. \\
+\addlinespace[3pt]
+
+Bloque final del artículo &
+\texttt{23.2 (2015), págs. 157-169} &
+\texttt{2015;23(2):157-69} &
+Limitación de \texttt{numeric-comp}. \\
+\addlinespace[3pt]
+
+Editorial y año &
+\texttt{Oxford: Elsevier\ldots, 2005} &
+\texttt{Oxford: Elsevier\ldots; 2005} &
+Limitación de \texttt{numeric-comp}. \\
+\addlinespace[3pt]
+
+Nombre de la revista &
+Completo, sin abreviar &
+Abreviado (Comput Appl Eng Educ) &
+\textcolor{bien}{\textbf{Decisión tomada}} por legibilidad en un texto en español. \\
+\addlinespace[3pt]
+
+Último separador de autores &
+\texttt{Taylor RL y Zhu JZ} &
+\texttt{Taylor RL, Zhu JZ} &
+\textcolor{bien}{\textbf{Decisión tomada}}: es la convención de babel-spanish. \\
+\addlinespace[3pt]
+
+Mayúsculas del título &
+\emph{Title Case} inglés, como en la portada &
+Sólo la primera palabra y los nombres propios &
+Decisión del autor. Es lo único de esta tabla que se arregla editando el \texttt{.bib}. \\
+\addlinespace[3pt]
+
+Clave y año &
+\texttt{zienkiewicz2013fem} para un libro de 2005 &
+--- &
+\textcolor{bien}{\textbf{Sin efecto.}} Con estilo numérico el lector nunca ve la clave. \\
+\bottomrule
+\end{longtable}}
+
+\begin{nota}
+\textbf{Las cuatro filas de «limitación de \texttt{numeric-comp}» tienen una única causa y una
+única solución posible}: existe en CTAN el paquete \texttt{biblatex-vancouver}, que implementa
+el estilo completo y se activa con \texttt{style=vancouver}. Cambiarlo reescribiría de golpe
+la puntuación de las 22 referencias ---y también revertiría las dos decisiones ya tomadas
+(abreviaría las revistas y pondría coma en vez de «y»)---. Es una decisión de una sola vez, no
+un arreglo parcial: o se adopta el estilo entero o se deja el actual documentado como
+«numérico secuencial tipo Vancouver», que es lo que hoy dice el \texttt{README}.
+\end{nota}
+
+% =====================================================================
+\section{Las dos correcciones concretas}
+
+\subsection*{1. Iniciales de nombres compuestos}
+
+\texttt{biblatex} define \texttt{\textbackslash bibinithyphendelim} como \texttt{.-}, y por eso
+Klaus-Jürgen sale \texttt{K.-J.} y Hee-Ryong sale \texttt{H.-R.} en vez de \texttt{KJ} y
+\texttt{HR}. Los tres \texttt{\textbackslash renewcommand} que hoy hay en el preámbulo
+(\texttt{bibinitperiod}, \texttt{bibinitdelim} y el que falta) los cubre de una sola vez la
+opción \texttt{terseinits}:
+
+\begin{Verbatim}[fontsize=\small,xleftmargin=4pt]
+\usepackage[backend=biber,
+            style=numeric-comp,
+            sorting=none,
+            terseinits=true,     % <-- reemplaza los tres \renewcommand
+            ...
+\end{Verbatim}
+\anot{La opción fija \texttt{bibinitperiod}, \texttt{bibinitdelim} y
+\texttt{bibinithyphendelim} en vacío, que es exactamente el formato Vancouver.}
+
+\subsection*{2. Lugares de edición faltantes}
+
+Dos entradas no tienen \texttt{location} y la norma lo exige: \texttt{cook2002concepts} y
+\texttt{csi2017sap2000}. El dato se lee de la portada o de la página de créditos del ejemplar
+---no de la web--- y se agrega como \texttt{location = \{Ciudad, ST\}}.
+
+% =====================================================================
+\section{Checklist antes de entregar}
+
+\begin{enumerate}\setlength{\itemsep}{3pt}
+\item ¿Cada entrada del \texttt{.bib} tiene los campos mínimos de su ficha (§3)?
+\item ¿Todos los libros y manuales tienen \texttt{location}?
+\item ¿Hay algún DOI, ISBN o número de página que no hayas leído del ejemplar? Si no lo
+  confirmaste, el campo se borra: una entrada corta y correcta vale más que una completa e
+  inventada.
+\item ¿Corriste \texttt{biber} después de tocar el \texttt{.bib}? Si una cita sale como
+  \texttt{[?]}, es eso.
+\item ¿Toda entrada del \texttt{.bib} se cita al menos una vez? \texttt{biblatex} no imprime
+  las no citadas, así que una entrada huérfana no da error: desaparece en silencio.
+\item ¿Las citas nuevas quedaron registradas en \texttt{respaldo\_citas.tex} con su página?
+\end{enumerate}
+
+% =====================================================================
+\section{Fuentes de esta guía}
+
+Todo lo que dice este documento sale de los textos oficiales de la norma, no de guías de
+terceros:
+
+\begin{enumerate}\setlength{\itemsep}{3pt}
+\item International Committee of Medical Journal Editors. Recommendations for the conduct,
+  reporting, editing, and publication of scholarly work in medical journals [Internet]. ICMJE;
+  act. enero de 2026 [citado 2026 sep 10]. Disponible en:
+  \url{https://www.icmje.org/recommendations/}
+\item Patrias K. Citing medicine: the NLM style guide for authors, editors, and publishers
+  [Internet]. 2.ª ed. Wendling DL, editor técnico. Bethesda (MD): National Library of
+  Medicine (US); 2007- [act. 2 oct. 2015; citado 2026 sep 10]. Disponible en:
+  \url{https://www.ncbi.nlm.nih.gov/books/NBK7256/}
+\item National Library of Medicine. Samples of formatted references for authors of journal
+  articles [Internet]. Bethesda (MD): NLM [citado 2026 sep 10]. Disponible en:
+  \url{https://www.nlm.nih.gov/bsd/uniform_requirements.html}
+\item NLM Catalog: journals referenced in the NCBI databases [Internet]. Bethesda (MD): NLM
+  [citado 2026 sep 10]. Disponible en: \url{https://www.ncbi.nlm.nih.gov/nlmcatalog/journals}
+  \anot{--- para buscar la abreviatura oficial de una revista.}
+\item ISSN International Centre. List of title word abbreviations (LTWA) [Internet] [citado
+  2026 sep 10]. Disponible en: \url{https://www.issn.org/services/online-services/access-to-the-ltwa/}
+  \anot{--- para construir la abreviatura de una revista que no está en el catálogo del NLM.}
+\end{enumerate}
+
+\vspace{8pt}\hrule\vspace{4pt}
+\anot{Las cinco referencias de arriba están escritas en Vancouver, con las plantillas de este
+mismo documento, a modo de ejemplo final.}
+
+\end{document}
