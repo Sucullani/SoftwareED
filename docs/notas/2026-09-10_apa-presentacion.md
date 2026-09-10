@@ -43,7 +43,7 @@ Son decisiones del autor. **No las "corrijas" a la letra de APA sin preguntarle.
   imagen y los 29 entornos `figure` de los capítulos traen el `\caption` al final.
   `\floatstyle{plaintop}` + `\restylefloat{figure}` lo resuelve desde el preámbulo. No
   editar los capítulos para esto.
-- **El doble espacio costó 10 hojas, no 45.** Medido: original 131 · APA a 1,5 → 119 ·
+- **El doble espacio costó 12 hojas, no 45.** Medido: original 131 · APA a 1,5 → 120 ·
   APA a doble → 143. El margen de 2,54 cm ensancha la caja de texto y compensa casi todo.
   El interlineado es una línea en `preambulo.tex` si el autor quiere volver a 1,5.
 - **Tablas, `longtable` y `lstlisting` van a espacio sencillo** vía

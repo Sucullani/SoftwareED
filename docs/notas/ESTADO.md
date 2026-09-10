@@ -28,7 +28,7 @@ tesis** (`tesis/`, 130 páginas, compila limpio).
   presentación (márgenes 2,54 cm, doble espacio, sangría 1,27 cm, texto sin justificar,
   paginación arriba a la derecha, títulos y rótulos APA) y **sigue citando en Vancouver**.
   131 hojas → 143. Está commiteado y en `origin/main`. Quedan dos cosas que decide el autor:
-  (a) si el interlineado se queda en **doble** (norma, 143 hojas) o baja a **1,5** (119
+  (a) si el interlineado se queda en **doble** (norma, 143 hojas) o baja a **1,5** (120
   hojas; es una línea en `preambulo.tex`); (b) si los ~90 títulos pasan a **Title Case**,
   que es lo que pide APA pero contradice la ortografía del español. Qué se aplicó, qué no y
   por qué: [2026-09-10_apa-presentacion.md](2026-09-10_apa-presentacion.md).
