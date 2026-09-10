@@ -41,8 +41,9 @@ from config.settings import (
     ELEMENT_Q9, EDU_LABEL_BG, EDU_FG_MUTED,
     EDU_M6_EDGE_COLOR, OVERLAY_ACCENT_BLUE, HEALTH_ERROR_COLOR,
     OVERLAY_ACCENT_AMBER, EDU_MATRIX_TEXT_COLOR, EDU_STATUS_FG_COLOR,
-    EDU_MARKER_OUTLINE_COLOR,
+    EDU_MARKER_OUTLINE_COLOR, fmt,
 )
+from config.units import get_unit_labels
 
 
 _TAG = "edu_m6"
@@ -134,10 +135,18 @@ class EquivalentForcesModule(CanvasOverlayModule):
         for w in self._chips_frame.winfo_children():
             w.destroy()
         loads = self._all_surface_loads()
+        # Unidades del proyecto y decimales por magnitud (regla dura 8): el
+        # resultado de M6 es un vector de FUERZAS, asi que sus chips y su
+        # estado dicen en que unidad estan. Antes era `q=[+0, -50]` sin
+        # unidad y con decimales a mano.
+        units = self._units()
+        u_q = "/".join(x for x in (units.get("fuerza", ""),
+                                   units.get("longitud", "")) if x)
         for idx, sl in enumerate(loads):
-            label = (f"#{idx + 1}  N{sl.node_start}→N{sl.node_end}  "
-                     f"q=[{sl.q_start:+.0f}, {sl.q_end:+.0f}]  "
-                     f"θ={sl.angle:+.0f}°")
+            label = (f"#{idx + 1}  N{sl.node_start}→N{sl.node_end}  ·  "
+                     f"q = {fmt(sl.q_start, 'force')} → "
+                     f"{fmt(sl.q_end, 'force')} {u_q}  ·  "
+                     f"θ = {fmt(sl.angle, 'angle')}°").replace("  ·  θ", "  ·  θ")
             style = ("warning-toolbutton" if idx == self._active_idx
                        else "secondary-outline-toolbutton")
             btn = ttk.Button(
@@ -347,12 +356,24 @@ class EquivalentForcesModule(CanvasOverlayModule):
         if self._active_idx is None or not self._F:
             self._lbl_status.configure(text="")
             return
-        # Listado conciso por nodo (start, [mid,] end).
+        # Listado conciso por nodo (start, [mid,] end), con la unidad de
+        # fuerza del proyecto y los decimales de `fmt` (regla dura 8).
+        fu = self._units().get("fuerza", "")
         lines = []
         for i, nid in enumerate(self._node_ids):
             fx, fy = self._F[i]
-            lines.append(f"N{nid}:  Fx={fx:+.2f}   Fy={fy:+.2f}")
+            lines.append(
+                f"N{nid}:  Fx = {fmt(fx, 'force')}   Fy = {fmt(fy, 'force')} {fu}"
+                .rstrip()
+            )
         self._lbl_status.configure(text="\n".join(lines))
+
+    def _units(self) -> dict:
+        """Etiquetas de unidades del sistema activo del proyecto."""
+        try:
+            return get_unit_labels(self.project.unit_system)
+        except Exception:
+            return {}
 
 
 # ─── Helpers libres ────────────────────────────────────────────────

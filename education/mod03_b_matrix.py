@@ -63,8 +63,10 @@ from fem.gauss_quadrature import get_gauss_points_for_element
 from config.settings import (
     EDU_FREE_POINT_COLOR, EDU_AXES_BG, EDU_FG, EDU_FG_MUTED, EDU_LABEL_BG,
     EDU_MARKER_OUTLINE_COLOR,
-    EDU_NATURAL_OUTLINE_COLOR, EDU_NATURAL_AXES_COLOR, OVERLAY_ACCENT_BLUE,
+    EDU_NATURAL_OUTLINE_COLOR, CANVAS_XI_AXIS_COLOR, CANVAS_ETA_AXIS_COLOR,
+    OVERLAY_ACCENT_BLUE,
 )
+from gui.preprocessing.canvas_glyphs import draw_natural_axes
 
 
 # Tag canvas — identifica TODOS los items de M3 para borrarlos en cada
@@ -223,6 +225,12 @@ class BMatrixModule(CanvasOverlayModule):
             return
         if coords is None or len(coords) < 4:
             return
+
+        # Ejes ξ, η sobre el elemento real, con los colores del cuadrado
+        # natural del panel: las derivadas de B se toman respecto de ESTOS
+        # ejes y J⁻¹ las lleva a x, y (glifo compartido con la lente).
+        draw_natural_axes(mesh.canvas, mesh.world_to_screen, coords[:4],
+                          tags=(_TAG,))
 
         pts_natural, _ = get_gauss_points_for_element(self.element_type)
 
@@ -398,8 +406,8 @@ class BMatrixModule(CanvasOverlayModule):
         sq = np.array([[-1, -1], [1, -1], [1, 1], [-1, 1], [-1, -1]])
         ax.plot(sq[:, 0], sq[:, 1], color=EDU_NATURAL_OUTLINE_COLOR, lw=1.0)
         ax.fill(sq[:, 0], sq[:, 1], color=EDU_NATURAL_OUTLINE_COLOR, alpha=0.06)
-        ax.axhline(0, color=EDU_NATURAL_AXES_COLOR, lw=0.8, alpha=0.85)
-        ax.axvline(0, color=EDU_NATURAL_AXES_COLOR, lw=0.8, alpha=0.85)
+        from education.components.edu_plot_style import draw_natural_axes_mpl
+        draw_natural_axes_mpl(ax)
         try:
             pts_natural, _ = get_gauss_points_for_element(self.element_type)
             for i, (gx, gy) in enumerate(pts_natural):
@@ -415,9 +423,9 @@ class BMatrixModule(CanvasOverlayModule):
                  family="monospace", ha="center", va="top")
         ax.text(-1.0, -1.2, "-1", color=EDU_FG_MUTED, fontsize=7,
                  family="monospace", ha="center", va="top")
-        ax.text(1.3, 0.02, "ξ", color=EDU_FG_MUTED, fontsize=9,
+        ax.text(1.3, 0.02, "ξ", color=CANVAS_XI_AXIS_COLOR, fontsize=9,
                  family="monospace", fontweight="bold", ha="left", va="center")
-        ax.text(0.02, 1.3, "η", color=EDU_FG_MUTED, fontsize=9,
+        ax.text(0.02, 1.3, "η", color=CANVAS_ETA_AXIS_COLOR, fontsize=9,
                  family="monospace", fontweight="bold", ha="left", va="center")
         ax.set_xlim(-1.45, 1.45); ax.set_ylim(-1.45, 1.45)
         ax.set_title("B se evalúa en el cuadrado natural  (ξ, η)",

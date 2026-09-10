@@ -180,6 +180,85 @@ LOD_MIN_ELEMENTS_FOR_GATING = 12
 CANVAS_BOUNDARY_MIN_ELEMENTS = 12
 CANVAS_FOCUS_MIN_ELEMENTS    = 60
 
+# ─── Cuadricula anclada al mundo (rediseño 2026-09-09) ────────────────────
+# La cuadricula deja de ser un empapelado en pixeles de pantalla y pasa a
+# vivir en coordenadas del modelo: las lineas caen en valores redondos de X
+# e Y (serie 1-2-5 elegida para que el paso mida ~GRID_TARGET_PX en
+# pantalla), cada GRID_MAJOR_EVERY pasos hay una linea mayor rotulada sobre
+# los ejes, y los ejes X=0 / Y=0 se destacan. Asi la cuadricula enseña el
+# sistema de coordenadas en el que el alumno tipea los nodos.
+CANVAS_GRID_MAJOR_COLOR  = "#3b3d5a"   # linea mayor (cada GRID_MAJOR_EVERY pasos)
+CANVAS_GRID_ORIGIN_COLOR = "#5b5e86"   # ejes X=0 e Y=0 del mundo
+CANVAS_GRID_LABEL_COLOR  = "#7a7e9a"   # rotulos de valor sobre los ejes
+GRID_TARGET_PX   = 70                  # tamano deseado del paso en pantalla
+GRID_MAJOR_EVERY = 5                   # una linea mayor cada N pasos
+GRID_MAX_LINES   = 400                 # tope defensivo de lineas por eje
+
+# ─── Lente del sistema discreto (fase Proceso) ────────────────────────────
+# En Proceso el lienzo muestra la estructura algebraica de la malla: los dos
+# GDL de cada nodo con su indice global en K (el restringido va tachado, en
+# el color de las restricciones: es la fila/columna que se elimina al aplicar
+# la condicion de contorno) y, sobre el elemento seleccionado, la numeracion
+# local 1..4, los ejes naturales (ξ, η) y sus puntos de Gauss.
+CANVAS_DOF_FREE_COLOR    = "#8fa3b8"   # indice de GDL libre (gris azulado)
+CANVAS_DOF_FIXED_COLOR   = "#ffa726"   # indice de GDL restringido (= restriccion)
+CANVAS_XI_AXIS_COLOR     = "#ff9f43"   # eje natural ξ sobre el elemento
+CANVAS_ETA_AXIS_COLOR    = "#ce93d8"   # eje natural η sobre el elemento
+CANVAS_LOCAL_NODE_FG     = "#1a1c20"   # numero local 1..4 dentro del disco amarillo
+# Los indices de GDL duplican el texto de cada nodo: en una malla densa a
+# zoom medio (Cook 8x8 con aristas de ~60 px) saturan el lienzo aunque la
+# numeracion ya se vea. Se dibujan solo en mallas didacticas (<= el umbral de
+# gating del LOD) o cuando la arista media mide al menos esto en pantalla.
+DOF_TAGS_MIN_EDGE_PX     = 90.0
+# Las decoraciones de la lente (discos de numeracion local) escalan con el
+# zoom como el resto, pero con techo propio: a x2,5 un disco de 7 px pasaba a
+# 17 px de radio y tapaba los nodos vecinos.
+LENS_SCALE_MAX_FACTOR    = 1.6
+
+# ─── Franja lectora del lienzo (inspector) ────────────────────────────────
+# Banda fija al pie del lienzo que describe, en terminos del MEF, lo que hay
+# bajo el cursor (elemento: conectividad, material, espesor, area, GDL y
+# tamano de k_e; nodo: coordenadas, GDL, restriccion, carga, elementos) o,
+# si no hay nada, el gesto disponible en la fase activa.
+CANVAS_INSPECTOR_BG        = "#15161c"
+CANVAS_INSPECTOR_BORDER    = "#2e3140"
+CANVAS_INSPECTOR_FG        = "#c9ccd6"   # cuerpo del texto
+CANVAS_INSPECTOR_HEAD_FG   = "#8be9fd"   # cabecera ("Elemento 3 · Q4"), = hover
+CANVAS_INSPECTOR_HINT_FG   = "#7a7e8a"   # pista de gesto cuando no hay target
+CANVAS_INSPECTOR_HEIGHT_PX = 24
+
+# ─── Reacciones en los apoyos (fase Post) ─────────────────────────────────
+# Tras resolver, cada GDL restringido muestra su reaccion R = K·u − F como
+# flecha que llega al nodo DESDE AFUERA del modelo, con la punta en el nodo
+# —la misma gramatica que las cargas: "una fuerza es una flecha cuya punta
+# esta en su punto de aplicacion", como en un diagrama de cuerpo libre—,
+# en otro color y con rotulo `Rx=` / `Ry=` en la cola. El alumno ve el
+# equilibrio entre lo que aplico y lo que devuelven los apoyos.
+CANVAS_REACTION_COLOR = "#ffcc80"       # naranja claro, familia de restriccion
+SHADOW_REACTION       = "#3a2a10"
+
+# ─── Esqueleto de K en M7 (Ensamblaje) ────────────────────────────────────
+# Antes de ensamblar nada, M7 dibuja el patron de bloques que la malla ya
+# decidio (dos nodos comparten un bloque 2x2 si un elemento los contiene a
+# ambos): es la FORMA de K; cada k_e ensamblado la rellena con valores. La
+# lectura estructural (2N GDL, restringidos, incognitas, bloques, semiancho)
+# va en la cabecera del modulo. Vivio unas horas como panel propio de la
+# fase Proceso (2026-09-09) y el autor decidio que pertenece a M7.
+EDU_M7_SKELETON_COLOR      = "#3b3d4a"   # bloque futuro fuera de la diagonal
+EDU_M7_SKELETON_DIAG_COLOR = "#4b4e60"   # bloque diagonal (siempre no nulo)
+EDU_M7_SKELETON_MAX_PX     = 400         # lado maximo de la imagen bineada
+
+# ─── Tira del metodo (banner de Proceso) ──────────────────────────────────
+# Chips N › J › B › D › kₑ › F › K en el banner de la fase: la cadena del
+# calculo que recorre el alumno, 1:1 con los modulos ①..⑦. Reemplaza al
+# breadcrumb glifico de la barra de estado (mismos tres estados).
+METHOD_CHIP_BG          = "#a8540d"     # chip en reposo sobre el banner naranja
+METHOD_CHIP_INACTIVE_FG = "#f6d5b4"     # modulo no visitado
+METHOD_CHIP_VISITED_FG  = "#ffffff"     # visitado en la sesion
+METHOD_CHIP_ACTIVE_BG   = "#ffd54f"     # overlay abierto ahora (= OVERLAY_ACCENT_AMBER)
+METHOD_CHIP_ACTIVE_FG   = "#3a2a10"
+METHOD_ARROW_FG         = "#ffe3c4"     # el "›" entre chips
+
 # ─── Post / probes (consulta interactiva de resultados) ───────────────────
 # Probes pinneadas: marcador 📍 con etiqueta P1, P2, ... sobre el canvas
 # en la fase Post. Hover sobre la malla muestra tooltip flotante con
@@ -255,6 +334,10 @@ HEALTH_INFO_COLOR     = "#4fc3f7"   # azul — info / neutro
 PHASE_PRE_COLOR  = "#0d6efd"   # Azul
 PHASE_PROC_COLOR = "#fd7e14"   # Naranja
 PHASE_POST_COLOR = "#198754"   # Verde
+# Gris neutro de las cajas que NO pertenecen a una fase (la caja "info" de la
+# Memoria y de la Teoría). Vivía como hex suelto en `theory_builder`, sin
+# origen acá: era el único de los cuatro colores del .tex sin constante.
+PHASE_INFO_COLOR = "#6c757d"   # Gris
 
 PHASE_PRE_BOOTSTYLE  = "info"
 PHASE_PROC_BOOTSTYLE = "warning"
@@ -309,7 +392,12 @@ GAUSS_LABEL_OUTLINE_COLOR = "#1f1f29"   # outline sutil del disco filled
 # Cuadrado natural [-1,1]² — estilo de referencia de M1, compartido por el
 # render matplotlib (mod01) y el tk.Canvas (GaussCoordReadout en M2/M4/M5).
 EDU_NATURAL_OUTLINE_COLOR = "#4fa3ff"   # contorno del cuadrado natural
-EDU_NATURAL_AXES_COLOR    = "#3a5278"   # ejes ξ, η (cruz en el origen)
+# Los ejes ξ y η del cuadrado natural usan CANVAS_XI_AXIS_COLOR y
+# CANVAS_ETA_AXIS_COLOR (arriba, lente del sistema): son los MISMOS ejes que
+# la lente y las capas de M1/M2/M3/M5 dibujan sobre el elemento real, y el
+# alumno los reconoce por el color en los dos espacios. (El ex
+# `EDU_NATURAL_AXES_COLOR` #3a5278, una cruz gris igual para ambos, se
+# retiro el 2026-09-09.)
 EDU_FREE_POINT_COLOR      = "#d68a7a"   # marcador de punto LIBRE (no-Gauss)
 EDU_MARKER_OUTLINE_COLOR  = "#ffffff"   # outline blanco de marcadores sobre fondo variable
 EDU_SURFACE_LO_COLOR      = "#ff7043"   # naranja-rojo: det J cerca de 0 / negativo (M2)
@@ -485,8 +573,6 @@ DETAILS_NAT_FG_COLOR           = "#aaaaaa"   # Color del texto de la linea de co
 RESULT_CELL_HIGHLIGHT_FG       = "#000000"   # Color del texto (negro) del overlay amarillo que resalta ...
 PROBE_TOOLTIP_BORDER_COLOR     = "#555"   # Color de borde por defecto del tooltip del probe (ProbeTo...
 STATUS_BAR_BG_COLOR            = "#1c1e22"   # Fondo de los widgets tk.Label de la barra de estado (ORTH...
-BREADCRUMB_VISITED_FG_COLOR    = "#ffffff"   # Foreground del chip del breadcrumb del pipeline FEM cuand...
-BREADCRUMB_INACTIVE_FG_COLOR   = "#555"   # Foreground del chip del breadcrumb no visitado / inactivo...
 OVERLAY_CLOSE_HOVER_COLOR      = "#c0392b"   # Fondo rojo del boton cerrar del CanvasOverlay al pasar el...
 PHASE_BANNER_TITLE_FG_COLOR    = "#ffffff"   # Foreground del titulo del banner de fase (texto blanco so...
 PHASE_BANNER_SUBTITLE_FG_COLOR = "#f0f0f0"   # Foreground del subtitulo del banner de fase (gris muy cla...

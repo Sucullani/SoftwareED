@@ -61,6 +61,7 @@ from config.settings import (
 )
 from fem.probe_query import compute_raw_grids
 from fem.shape_functions import get_shape_functions
+from gui.scaling import fit_window
 
 
 # Mapeo de result_type (radio button del post) -> clave en grids de
@@ -193,7 +194,10 @@ class Surface3DViewer(tk.Toplevel):
                   post_tab, main_window):
         super().__init__(parent)
         self.title("🧊  Vista 3D del campo")
-        self.geometry(f"{self.DEFAULT_WIDTH}x{self.DEFAULT_HEIGHT}")
+        # Medidas de diseño: `fit_window` las recorta al area util real.
+        fit_window(self, self.DEFAULT_WIDTH, self.DEFAULT_HEIGHT,
+                   parent=parent, minimo=(520, 420),
+                   crecer_con_contenido=False)
         self.transient(parent)
         # NO grab_set -- usuario puede seguir tocando el post mientras
 

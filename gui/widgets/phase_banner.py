@@ -20,7 +20,9 @@ def build_phase_banner(parent, color, icon, title, subtitle, *, height=46):
     color      : hex del color de la fase (PHASE_*_COLOR).
     icon       : emoji o glyph corto (ej. "PRE").
     title      : nombre de la fase (ej. "PRE-PROCESO").
-    subtitle   : descripcion corta (ej. "Definir geometria...").
+    subtitle   : descripcion corta (ej. "Definir geometria..."), o None para
+                 que el caller monte otra cosa a la derecha del titulo (la
+                 tira del metodo de Proceso, `gui/widgets/method_strip.py`).
     height     : altura en px (default 46).
 
     Retorna el Frame creado por si el caller necesita mas customizacion.
@@ -35,10 +37,11 @@ def build_phase_banner(parent, color, icon, title, subtitle, *, height=46):
         font=("Segoe UI Semibold", 13),
     ).pack(side="left", padx=(14, 0), pady=8)
 
-    tk.Label(
-        banner, text=subtitle,
-        bg=color, fg=PHASE_BANNER_SUBTITLE_FG_COLOR,
-        font=FONT_UI,
-    ).pack(side="left", padx=(10, 14), pady=8)
+    if subtitle:
+        tk.Label(
+            banner, text=subtitle,
+            bg=color, fg=PHASE_BANNER_SUBTITLE_FG_COLOR,
+            font=FONT_UI,
+        ).pack(side="left", padx=(10, 14), pady=8)
 
     return banner

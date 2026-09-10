@@ -6,6 +6,7 @@ Uso: ToolTip(button, text="Guardar (Ctrl+S)")
 import tkinter as tk
 
 from config.settings import FONT_UI, TOOLTIP_BG_COLOR, TOOLTIP_FG_COLOR
+from gui.scaling import fit_position, work_area
 
 
 class ToolTip:
@@ -53,7 +54,6 @@ class ToolTip:
 
         self._tip_window = tw = tk.Toplevel(self.widget)
         tw.wm_overrideredirect(True)
-        tw.wm_geometry(f"+{x}+{y}")
         tw.attributes("-topmost", True)
 
         label = tk.Label(
@@ -70,6 +70,15 @@ class ToolTip:
             justify="left",
         )
         label.pack()
+
+        # La posicion se fija DESPUES de crear el label: recien ahi se sabe
+        # cuanto mide el tooltip y se lo puede meter entero en el area util.
+        # Sin esto, el tooltip de un boton pegado al borde derecho o inferior
+        # de la pantalla salia fuera del escritorio y no se leia.
+        tw.update_idletasks()
+        x, y = fit_position(x, y, tw.winfo_reqwidth(), tw.winfo_reqheight(),
+                            work_area(self.widget))
+        tw.wm_geometry(f"+{x}+{y}")
 
     def _hide(self):
         if self._tip_window is not None:

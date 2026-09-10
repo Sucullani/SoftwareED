@@ -13,6 +13,7 @@ tooltip:
 
 import tkinter as tk
 
+from gui.scaling import work_area
 from config.settings import (
     LABEL_BG, LABEL_FG, FONT_UI_BOLD, FONT_MONO_SMALL,
     PROBE_PIN_COLOR, GAUSS_SNAP_COLOR, PROBE_NODE_SNAP_COLOR,
@@ -147,11 +148,11 @@ class ProbeTooltip:
         h = self._tip.winfo_reqheight()
 
         # Auto-flip si se sale por la derecha / abajo de la pantalla.
-        try:
-            screen_w = self._tip.winfo_screenwidth()
-            screen_h = self._tip.winfo_screenheight()
-        except tk.TclError:
-            screen_w = screen_h = 99999
+        # Contra el AREA UTIL, no contra la pantalla entera: con la barra de
+        # tareas abajo, un panel volcado al borde inferior quedaba con sus
+        # ultimas lineas tapadas.
+        _ax, _ay, _aw, _ah = work_area(self._tip)
+        screen_w, screen_h = _ax + _aw, _ay + _ah
         if root_x + w > screen_w - 4:
             root_x = self.parent.winfo_rootx() + int(sx) - w - self.OFFSET_X
         if root_y + h > screen_h - 4:

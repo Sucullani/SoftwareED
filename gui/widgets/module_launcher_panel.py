@@ -228,15 +228,22 @@ def render_module_buttons(parent, modules, on_open, *, bootstyle="info-outline",
 
         panel._register(mod_key, btn, chip)
 
-        def _update_wrap(event, lbl=desc_label, b=btn, c=chip):
+        # Wrap de la descripcion al ancho que REALMENTE le queda. Antes se
+        # calculaba en el <Configure> de la fila con `btn.winfo_width()`, que
+        # en la primera pasada vale 1 (el boton todavia no esta mapeado): el
+        # wraplength salia como el ancho entero de la fila, el texto no
+        # envolvia y quedaba recortado ("Integral imposible → suma en PGs
+        # (cuac"). La fila no vuelve a cambiar de tamano, asi que no habia
+        # segunda oportunidad. El propio label recibe su <Configure> con el
+        # ancho que pack le asigno (fill=X, expand=YES = lo que sobra tras el
+        # boton y el chip), que es exactamente el wraplength correcto — y se
+        # vuelve a disparar cuando el chip `#N ✓` aparece y le quita lugar.
+        def _wrap_to_width(event, lbl=desc_label):
             try:
-                btn_w = b.winfo_width()
-                chip_w = c.winfo_width()
-                avail = event.width - btn_w - chip_w - 25
-                lbl.configure(wraplength=max(60, avail))
+                lbl.configure(wraplength=max(60, event.width - 4))
             except TclError:
                 pass
 
-        row.bind("<Configure>", _update_wrap)
+        desc_label.bind("<Configure>", _wrap_to_width)
 
     return panel

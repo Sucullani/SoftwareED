@@ -67,9 +67,10 @@ from config.settings import (
     EDU_AXES_BG, EDU_LABEL_BG, EDU_FG, EDU_FG_MUTED,
     EDU_SURFACE_LO_COLOR, EDU_FREE_POINT_COLOR,
     EDU_MARKER_OUTLINE_COLOR,
-    EDU_NATURAL_OUTLINE_COLOR, EDU_NATURAL_AXES_COLOR,
+    EDU_NATURAL_OUTLINE_COLOR, CANVAS_XI_AXIS_COLOR, CANVAS_ETA_AXIS_COLOR,
     OVERLAY_ACCENT_BLUE, fmt,
 )
+from gui.preprocessing.canvas_glyphs import draw_natural_axes
 
 
 _TAG = "edu_m2_jac"
@@ -251,6 +252,12 @@ class JacobianModule(CanvasOverlayModule):
         # constante para Q4 rectangulares, suave para trapecios moderados,
         # con zonas rojas para elementos casi-degenerados.
         self._draw_jacobian_heatmap(mesh, coords, dN_fn)
+
+        # Ejes ξ, η sobre el elemento real (encima del heatmap), con los
+        # colores del cuadrado natural del panel: J es la derivada de ESTE
+        # mapeo (glifo compartido con la lente de Proceso del lienzo).
+        draw_natural_axes(mesh.canvas, mesh.world_to_screen, coords[:4],
+                          tags=(_TAG,))
 
         # ── 2) PGs sobre el heatmap (anclas discretas con valor numérico) ──
         dets = []
@@ -562,8 +569,8 @@ class JacobianModule(CanvasOverlayModule):
         sq = np.array([[-1, -1], [1, -1], [1, 1], [-1, 1], [-1, -1]])
         ax.plot(sq[:, 0], sq[:, 1], color=EDU_NATURAL_OUTLINE_COLOR, lw=1.0)
         ax.fill(sq[:, 0], sq[:, 1], color=EDU_NATURAL_OUTLINE_COLOR, alpha=0.06)
-        ax.axhline(0, color=EDU_NATURAL_AXES_COLOR, lw=0.8, alpha=0.85)
-        ax.axvline(0, color=EDU_NATURAL_AXES_COLOR, lw=0.8, alpha=0.85)
+        from education.components.edu_plot_style import draw_natural_axes_mpl
+        draw_natural_axes_mpl(ax)
         # Puntos de Gauss del orden activo (snap targets, donde se evalúa J).
         # El PG SELECCIONADO cambia de color (naranja `_C_MARKER`) al clickearlo
         # — feedback directo de cuál PG está activo; el resto en cian.
@@ -583,9 +590,9 @@ class JacobianModule(CanvasOverlayModule):
                  family="monospace", ha="center", va="top")
         ax.text(-1.0, -1.2, "-1", color=EDU_FG_MUTED, fontsize=7,
                  family="monospace", ha="center", va="top")
-        ax.text(1.3, 0.02, "ξ", color=EDU_FG_MUTED, fontsize=9,
+        ax.text(1.3, 0.02, "ξ", color=CANVAS_XI_AXIS_COLOR, fontsize=9,
                  family="monospace", fontweight="bold", ha="left", va="center")
-        ax.text(0.02, 1.3, "η", color=EDU_FG_MUTED, fontsize=9,
+        ax.text(0.02, 1.3, "η", color=CANVAS_ETA_AXIS_COLOR, fontsize=9,
                  family="monospace", fontweight="bold", ha="left", va="center")
         ax.set_xlim(-1.45, 1.45); ax.set_ylim(-1.45, 1.45)
         ax.set_title("Cuadrado natural  (ξ, η)",

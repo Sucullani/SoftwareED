@@ -51,11 +51,22 @@ from config.settings import (
     CANVAS_ELEM_LABEL_ON_FIELD_COLOR, CANVAS_ELEM_LABEL_COLOR,
     CANVAS_COLORBAR_BORDER_COLOR, CANVAS_COLORBAR_TEXT_COLOR,
     CANVAS_ISOLINE_COLOR,
+    # Rediseño 2026-09-09: cuadricula del mundo, lente del sistema, lector
+    # y reacciones.
+    CANVAS_GRID_MAJOR_COLOR, CANVAS_GRID_ORIGIN_COLOR, CANVAS_GRID_LABEL_COLOR,
+    CANVAS_DOF_FREE_COLOR, CANVAS_DOF_FIXED_COLOR,
+    CANVAS_XI_AXIS_COLOR, CANVAS_ETA_AXIS_COLOR, CANVAS_LOCAL_NODE_FG,
+    CANVAS_INSPECTOR_BG, CANVAS_INSPECTOR_BORDER, CANVAS_INSPECTOR_FG,
+    CANVAS_INSPECTOR_HEAD_FG, CANVAS_INSPECTOR_HINT_FG,
+    CANVAS_INSPECTOR_HEIGHT_PX, CANVAS_REACTION_COLOR, SHADOW_REACTION,
+    GAUSS_CANONICAL_COLOR, DOF_TAGS_MIN_EDGE_PX, LENS_SCALE_MAX_FACTOR,
+    LOD_MIN_ELEMENTS_FOR_GATING,
 )
 from config.colormaps import (
     JET_LUT, t_to_hex, value_to_hex,
     is_diverging_range, symmetric_bounds,
 )
+from config.units import get_unit_labels
 from models.mesh_utils import (
     classify_nodes, classify_orphan_status, auto_expand_if_q9,
     median_edge_length, boundary_edges, focus_keep_sets,
@@ -63,7 +74,11 @@ from models.mesh_utils import (
 from gui.preprocessing.canvas_logic import (
     lod_level, bbox_visible, point_visible, label_visible_for_item,
     label_globally_visible,
+    grid_step, grid_range, is_major_line, grid_label,
+    element_local_frame, gauss_physical_points,
+    node_summary, element_summary, phase_hint, nearest_node,
 )
+from gui.preprocessing.canvas_glyphs import draw_natural_axes
 # Margen de culling = padding del raster del gradient (coherencia: el area
 # que NO se rasteriza coincide con la que no se dibuja en vectores).
 _CULL_MARGIN_FRAC = _GRADIENT_PAD_FRAC
@@ -151,6 +166,25 @@ class MeshCanvas(ttk.Frame):
         self.show_mesh_edges = True
         self.show_nodes = True
         self.show_grid = True
+        # ─── Lentes por fase (rediseño 2026-09-09) ────────────────────────
+        # El mismo modelo se mira con tres lentes segun la fase: geometria
+        # (Pre), sistema discreto (Proc: indices de GDL en K, numeracion local
+        # y ejes naturales del elemento seleccionado, puntos de Gauss) y campo
+        # (Post: contorno + reacciones en los apoyos). `set_phase` fija los
+        # defaults; el menu del titulo deja prender la capa de GDL en
+        # cualquier fase.
+        self.show_dofs = False
+        self.show_reactions = True
+        self.reactions = None          # vector R (2N) tras resolver, o None
+        # Franja lectora al pie del lienzo: (kind, id) de la entidad bajo el
+        # cursor — ("node", nid) | ("element", eid) | None (pista de fase).
+        self._inspector_target = None
+        # Cache (ids, xy) de las coordenadas nodales para el hit-test de
+        # nodos del lector (numpy, O(1) Python por evento). Se invalida en
+        # cada redraw.
+        self._node_xy_cache = None
+        # Paso vigente de la cuadricula del mundo (se muestra en el readout).
+        self._grid_step_world = None
         # Snapshot de capas previo a "Vista limpia" (para restaurar al toggle).
         self._clean_view_prev = None
         # ─── Visualizacion progresiva (auditoria UX 2026-05) ───────────────
@@ -519,6 +553,7 @@ class MeshCanvas(ttk.Frame):
         self._var_loads = tk.BooleanVar(value=self.show_loads)
         self._var_constraints = tk.BooleanVar(value=self.show_constraints)
         self._var_grid = tk.BooleanVar(value=self.show_grid)
+        self._var_dofs = tk.BooleanVar(value=self.show_dofs)
 
         # Power-move: aislar la malla en un click (ideal para una captura).
         menu.add_checkbutton(
@@ -545,6 +580,13 @@ class MeshCanvas(ttk.Frame):
             label="Cuadrícula", variable=self._var_grid,
             command=lambda: self._set_layer("show_grid",
                                             self._var_grid.get()))
+        # Capa del sistema discreto: los dos indices de GDL de cada nodo en
+        # K (el restringido, tachado). Proceso la enciende sola (set_phase);
+        # aca el alumno puede prenderla en Pre o Post.
+        menu.add_checkbutton(
+            label="GDL  (índices en K·u = F)", variable=self._var_dofs,
+            command=lambda: self._set_layer("show_dofs",
+                                            self._var_dofs.get()))
 
         menu.add_separator()
         menu.add_command(label="Ajustar vista", accelerator="F",
@@ -580,12 +622,14 @@ class MeshCanvas(ttk.Frame):
                 "loads": self.show_loads,
                 "constraints": self.show_constraints,
                 "grid": self.show_grid,
+                "dofs": self.show_dofs,
             }
             self.node_label_mode = "never"
             self.elem_label_mode = "never"
             self.show_loads = False
             self.show_constraints = False
             self.show_grid = False
+            self.show_dofs = False
         else:
             prev = self._clean_view_prev or {}
             lbl_mode = "auto" if prev.get("labels", True) else "never"
@@ -594,6 +638,7 @@ class MeshCanvas(ttk.Frame):
             self.show_loads = prev.get("loads", True)
             self.show_constraints = prev.get("constraints", True)
             self.show_grid = prev.get("grid", True)
+            self.show_dofs = prev.get("dofs", False)
             self._clean_view_prev = None
         self._sync_layer_vars()
         self.redraw()
@@ -605,16 +650,31 @@ class MeshCanvas(ttk.Frame):
         self._var_loads.set(self.show_loads)
         self._var_constraints.set(self.show_constraints)
         self._var_grid.set(self.show_grid)
+        self._var_dofs.set(self.show_dofs)
 
     def set_phase(self, phase):
         """Actualiza el glifo del titulo del viewport segun la fase activa
-        (📐 Pre / ⚙ Proc / 📊 Post): el titulo del canvas pasa a ser un
-        indicador de fase ademas del menu de display. Invocado desde
-        MainWindow._on_tab_changed en cada cambio de pestana.
+        (📐 Pre / ⚙ Proc / 📊 Post) y fija la **lente** de esa fase: el
+        titulo del canvas pasa a ser un indicador de fase ademas del menu de
+        display. Invocado desde MainWindow._on_tab_changed en cada cambio de
+        pestana (que despues llama `redraw()`).
+
+        Lente por fase (rediseño 2026-09-09): Proceso enciende la capa de
+        GDL —es la fase del sistema K·u = F— y Pre/Post la apagan. El alumno
+        puede volver a prenderla desde el menu del titulo en cualquier fase;
+        el cambio de pestana restablece el default de la fase nueva.
         """
         self._phase = phase if phase in self._PHASE_GLYPH else "pre"
         self._title_mb.configure(
             text=f"{self._PHASE_GLYPH[self._phase]}  Modelo MEF")
+        self.show_dofs = (self._phase == "proc")
+        self._clean_view_prev = None
+        self._inspector_target = None
+        try:
+            self._var_clean.set(False)
+            self._sync_layer_vars()
+        except (AttributeError, tk.TclError):
+            pass
 
     # ═════════════════════════════════════════════════════════════════════
     # TRANSFORMACION DE COORDENADAS
@@ -680,6 +740,18 @@ class MeshCanvas(ttk.Frame):
         # El redraw completo borro la capa 'hover'; resetear su estado para
         # que el proximo <Motion> la regenere sobre el elemento bajo cursor.
         self._hover_highlight_eid = None
+        # Las coordenadas nodales pudieron cambiar (edicion, undo, unidades):
+        # el cache del hit-test de nodos del lector se rearma en el proximo
+        # <Motion>.
+        self._node_xy_cache = None
+        # ── Pila de capas (de abajo hacia arriba) ─────────────────────────
+        #   cuadricula del mundo → malla original (fantasma, si deformada)
+        #   → campo (raster) → elementos → nodos → indices de GDL (lente del
+        #   sistema) → cargas → cargas superficiales → restricciones →
+        #   reacciones (lente de campo) → realce de aristas → lente del
+        #   elemento seleccionado (numeracion local, ejes ξη, PGs) →
+        #   isolineas → colorbar → icono de ejes → preview del modo dibujo →
+        #   capas educativas → franja lectora.
         if self.show_grid:
             self._draw_grid()
 
@@ -714,6 +786,8 @@ class MeshCanvas(ttk.Frame):
         if self.show_nodes:
             self._draw_nodes(roles=roles, orphan_status=orphan_status,
                              lod=lod, keep_nodes=keep_nodes)
+        if self.show_dofs:
+            self._draw_dof_tags(roles=roles, lod=lod, keep_nodes=keep_nodes)
 
         if self.show_loads:
             self._draw_loads(orphan_status=orphan_status)
@@ -723,8 +797,17 @@ class MeshCanvas(ttk.Frame):
             self._draw_surface_loads(orphan_status=orphan_status)
         if self.show_constraints:
             self._draw_constraints(orphan_status=orphan_status)
+        # Lente de campo: tras resolver, cada apoyo muestra su reaccion
+        # R = K·u − F frente a la carga que el alumno aplico (equilibrio).
+        if (self._phase == "post" and self.show_reactions
+                and self.reactions is not None):
+            self._draw_reactions()
 
         self._draw_highlight()
+        # Lente del sistema (Proceso): el elemento seleccionado muestra su
+        # numeracion local 1..4, sus ejes naturales (ξ, η) y sus puntos de
+        # Gauss — el objeto sobre el que trabajan los modulos ①..⑦.
+        self._draw_element_lens()
 
         # Colorbar e isolineas: ambos modos los soportan (nodal o per-element).
         # Las isolineas se dibujan SIEMPRE (incluso si `_interacting` esta
@@ -752,6 +835,9 @@ class MeshCanvas(ttk.Frame):
         # modulo pueda limpiar sus dibujos sin tocar nada mas.
         for layer in list(self._overlay_layers):
             self._run_overlay_layer(layer)
+
+        # Franja lectora: siempre arriba de todo y anclada a pantalla.
+        self._draw_inspector()
 
     def _run_overlay_layer(self, layer):
         """Ejecuta una capa educativa aislando sus fallos.
@@ -789,33 +875,87 @@ class MeshCanvas(ttk.Frame):
     # ═════════════════════════════════════════════════════════════════════
 
     def _draw_grid(self):
+        """Cuadricula anclada al MUNDO (rediseño 2026-09-09).
+
+        Antes era un empapelado en pixeles de pantalla (`spacing = 50·scale`
+        acotado, fase `offset % spacing`): las lineas no caian en valores
+        redondos de X/Y, no ayudaban a estimar una coordenada ni a ubicar el
+        origen, y el alumno tipea coordenadas en la tabla de Nodos y en el
+        Entry del modo dibujo. Ahora:
+
+        - el paso es de la serie 1-2-5 en unidades del modelo, elegido para
+          medir ~GRID_TARGET_PX en pantalla (`canvas_logic.grid_step`);
+        - cada GRID_MAJOR_EVERY pasos hay una linea mayor, rotulada con su
+          valor sobre los ejes X=0 / Y=0, que se dibujan mas marcados;
+        - las lineas van con tag "world": se mueven con el pan y escalan con
+          el zoom junto a la malla, y el redraw del final de cada
+          interaccion re-elige el paso. Cubren el viewport + el mismo margen
+          que el culling, asi el pan no descubre el borde antes del redraw.
+
+        El paso vigente se muestra junto al readout de coordenadas.
+        """
         w = self.canvas.winfo_width()
         h = self.canvas.winfo_height()
         if w <= 1 or h <= 1:
             return
-        spacing = max(30, int(50 * self.scale))
-        if spacing > 200:
-            spacing = 200
-        # Iterar SOLO el rango visible (antes range(-20, 60) fijo: desperdicia
-        # iteraciones fuera de pantalla y, peor, omite lineas en viewports
-        # anchos cuando spacing es chico). Las lineas estan en
-        # sx = i*spacing + (offset_x % spacing), fase en [0, spacing).
-        phase_x = self.offset_x % spacing
-        for i in range(0, math.ceil((w - phase_x) / spacing) + 1):
-            sx = i * spacing + phase_x
-            if 0 <= sx <= w:
-                self.canvas.create_line(
-                    sx, 0, sx, h, fill=CANVAS_GRID_COLOR, width=1, dash=(2, 6),
-                    tags=("screen", "grid"),
-                )
-        phase_y = self.offset_y % spacing
-        for i in range(0, math.ceil((h - phase_y) / spacing) + 1):
-            sy = i * spacing + phase_y
-            if 0 <= sy <= h:
-                self.canvas.create_line(
-                    0, sy, w, sy, fill=CANVAS_GRID_COLOR, width=1, dash=(2, 6),
-                    tags=("screen", "grid"),
-                )
+        step = grid_step(self.scale)
+        self._grid_step_world = step
+        margin_x = w * _CULL_MARGIN_FRAC
+        margin_y = h * _CULL_MARGIN_FRAC
+        x_lo, y_hi = self.screen_to_world(-margin_x, -margin_y)
+        x_hi, y_lo = self.screen_to_world(w + margin_x, h + margin_y)
+        xs = grid_range(x_lo, x_hi, step)
+        ys = grid_range(y_lo, y_hi, step)
+        if not xs or not ys:
+            return
+        top = self.world_to_screen(0.0, ys[-1])[1]
+        bottom = self.world_to_screen(0.0, ys[0])[1]
+        left = self.world_to_screen(xs[0], 0.0)[0]
+        right = self.world_to_screen(xs[-1], 0.0)[0]
+        origin_tol = step * 1e-6
+
+        def _style(value):
+            if abs(value) < origin_tol:
+                return {"fill": CANVAS_GRID_ORIGIN_COLOR, "width": 1.5}
+            if is_major_line(value, step):
+                return {"fill": CANVAS_GRID_MAJOR_COLOR, "width": 1}
+            return {"fill": CANVAS_GRID_COLOR, "width": 1, "dash": (2, 6)}
+
+        for x in xs:
+            sx = self.world_to_screen(x, 0.0)[0]
+            self.canvas.create_line(sx, top, sx, bottom, tags=("world", "grid"),
+                                    **_style(x))
+        for y in ys:
+            sy = self.world_to_screen(0.0, y)[1]
+            self.canvas.create_line(left, sy, right, sy, tags=("world", "grid"),
+                                    **_style(y))
+
+        # Rotulos de las lineas mayores sobre los ejes del mundo (debajo del
+        # eje X, a la izquierda del eje Y): la cuadricula ES el sistema de
+        # coordenadas. Si el origen queda fuera de pantalla los rotulos se
+        # van con el (el readout del cursor sigue diciendo donde estamos).
+        ox, oy = self.world_to_screen(0.0, 0.0)
+        font = ("Consolas", 7)
+        for x in xs:
+            if abs(x) < origin_tol or not is_major_line(x, step):
+                continue
+            sx = self.world_to_screen(x, 0.0)[0]
+            self.canvas.create_text(
+                sx, oy + 5, text=grid_label(x), anchor=tk.N,
+                fill=CANVAS_GRID_LABEL_COLOR, font=font, tags=("world", "grid"),
+            )
+        for y in ys:
+            if abs(y) < origin_tol or not is_major_line(y, step):
+                continue
+            sy = self.world_to_screen(0.0, y)[1]
+            self.canvas.create_text(
+                ox - 5, sy, text=grid_label(y), anchor=tk.E,
+                fill=CANVAS_GRID_LABEL_COLOR, font=font, tags=("world", "grid"),
+            )
+        self.canvas.create_text(
+            ox - 5, oy + 5, text="0", anchor=tk.NE,
+            fill=CANVAS_GRID_LABEL_COLOR, font=font, tags=("world", "grid"),
+        )
 
     def _draw_axes(self):
         margin = 40
@@ -1542,6 +1682,68 @@ class MeshCanvas(ttk.Frame):
                     tags=("world", "nodes"),
                 )
 
+    def _draw_dof_tags(self, roles=None, lod="near", keep_nodes=None):
+        """Lente del sistema: junto a cada nodo, los indices globales de sus
+        dos GDL en K (`u → 2i`, `v → 2i+1`, con `i` el ordinal del nodo). El
+        GDL restringido va TACHADO y en el color de las restricciones: es la
+        fila y la columna que se eliminan al aplicar la condicion de
+        contorno. Solo en zoom cercano (LOD 'near'), como la numeracion, y en
+        mallas densas recien cuando la arista media mide DOF_TAGS_MIN_EDGE_PX
+        en pantalla: duplican el texto de cada nodo y a zoom medio saturaban
+        (Cook 8x8 con aristas de ~60 px).
+        """
+        if self.ghost_geometry or lod != "near":
+            return
+        if len(self.project.elements) > LOD_MIN_ELEMENTS_FOR_GATING:
+            edge_px = self._median_edge_px()
+            if edge_px is not None and edge_px < DOF_TAGS_MIN_EDGE_PX:
+                return
+        if roles is None:
+            roles = self._classify_nodes()
+        restrained = set(self.project.get_restrained_dofs())
+        idx_map = self.project.node_index_map
+        w = self.canvas.winfo_width()
+        h = self.canvas.winfo_height()
+        margin = (float("inf") if (w <= 1 or h <= 1)
+                  else max(w, h) * _CULL_MARGIN_FRAC)
+        f = self._decoration_factor()
+        font_free = ("Consolas", 7)
+        font_fixed = ("Consolas", 7, "overstrike")
+        for nid in self.project.nodes:
+            if (keep_nodes is not None and nid not in keep_nodes
+                    and nid not in self.selected_nodes):
+                continue
+            idx = idx_map.get(nid)
+            if idx is None:
+                continue
+            sx, sy = self._get_node_screen_pos(nid)
+            if not point_visible(sx, sy, w, h, margin):
+                continue
+            r = (CANVAS_NODE_RADIUS if roles.get(nid, "corner") == "corner"
+                 else CANVAS_NODE_MID_RADIUS) * f
+            x = sx + r + 5
+            y = sy + r + 2
+            base = 2 * idx
+            for k, dof in enumerate((base, base + 1)):
+                if k == 1:
+                    sep = self.canvas.create_text(
+                        x, y, text="·", anchor=tk.NW, fill=CANVAS_DOF_FREE_COLOR,
+                        font=font_free, tags=("world", "dofs"),
+                    )
+                    bb = self.canvas.bbox(sep)
+                    if bb:
+                        x = bb[2]
+                fixed = dof in restrained
+                tid = self.canvas.create_text(
+                    x, y, text=str(dof), anchor=tk.NW,
+                    fill=CANVAS_DOF_FIXED_COLOR if fixed else CANVAS_DOF_FREE_COLOR,
+                    font=font_fixed if fixed else font_free,
+                    tags=("world", "dofs"),
+                )
+                bb = self.canvas.bbox(tid)
+                if bb:
+                    x = bb[2]
+
     def _draw_loads(self, orphan_status=None):
         f = self._decoration_factor()        # reescalado con el zoom
         arrow_len = 44 * f
@@ -1798,6 +2000,68 @@ class MeshCanvas(ttk.Frame):
                         tags=("world", "constraints"),
                     )
 
+    def _draw_reactions(self):
+        """Lente de campo (Post): la reaccion R = K·u − F de cada GDL
+        restringido, como flecha que llega al nodo DESDE AFUERA en la
+        direccion de R, con la punta en el nodo — la misma gramatica que las
+        cargas (la punta de una fuerza esta en su punto de aplicacion), en
+        naranja claro y con el rotulo `Rx=` / `Ry=` en la cola, que queda
+        del lado de afuera del modelo, donde hay lugar. Es el diagrama de
+        cuerpo libre del alumno: lo que aplico (rojo) contra lo que devuelven
+        los apoyos. Sigue la malla deformada si esta activa, como todo.
+        """
+        R = np.asarray(self.reactions, dtype=float).ravel()
+        if R.size == 0:
+            return
+        tol = max(float(np.max(np.abs(R))) * 1e-9, NUMERICAL_TOLERANCE)
+        idx_map = self.project.node_index_map
+        f = self._decoration_factor()
+        arrow_len = 44 * f
+        head = (10 * f, 14 * f, 5 * f)
+        head_shadow = (12 * f, 16 * f, 6 * f)
+        lw = 2 * f
+        lw_shadow = lw + 3 * f
+        for bc in self.project.boundary_conditions.values():
+            idx = idx_map.get(bc.node_id)
+            if idx is None or bc.node_id not in self.project.nodes:
+                continue
+            sx, sy = self._get_node_screen_pos(bc.node_id)
+            base = 2 * idx
+            if bc.restrain_x and base < R.size and abs(R[base]) > tol:
+                d = 1 if R[base] > 0 else -1             # sentido de R
+                x_start = sx - d * arrow_len             # la cola, afuera
+                self.canvas.create_line(
+                    x_start, sy, sx, sy, fill=SHADOW_REACTION, width=lw_shadow,
+                    arrow=tk.LAST, arrowshape=head_shadow,
+                    tags=("world", "reactions"),
+                )
+                self.canvas.create_line(
+                    x_start, sy, sx, sy, fill=CANVAS_REACTION_COLOR, width=lw,
+                    arrow=tk.LAST, arrowshape=head, tags=("world", "reactions"),
+                )
+                self._draw_label_with_bg(
+                    x_start - d * 4, sy, f"Rx={fmt(R[base], 'force')}",
+                    fg=CANVAS_REACTION_COLOR, anchor=tk.E if d > 0 else tk.W,
+                    tags=("world", "reactions"),
+                )
+            if bc.restrain_y and base + 1 < R.size and abs(R[base + 1]) > tol:
+                d = -1 if R[base + 1] > 0 else 1        # pantalla: +y hacia abajo
+                y_start = sy - d * arrow_len             # la cola, afuera
+                self.canvas.create_line(
+                    sx, y_start, sx, sy, fill=SHADOW_REACTION, width=lw_shadow,
+                    arrow=tk.LAST, arrowshape=head_shadow,
+                    tags=("world", "reactions"),
+                )
+                self.canvas.create_line(
+                    sx, y_start, sx, sy, fill=CANVAS_REACTION_COLOR, width=lw,
+                    arrow=tk.LAST, arrowshape=head, tags=("world", "reactions"),
+                )
+                self._draw_label_with_bg(
+                    sx + 8 * f, y_start, f"Ry={fmt(R[base + 1], 'force')}",
+                    fg=CANVAS_REACTION_COLOR, anchor=tk.W,
+                    tags=("world", "reactions"),
+                )
+
     def _draw_highlight(self):
         # Las aristas potenciales (para SurfaceLoad) no tienen render propio
         # fuera de las aristas del elemento contenedor: se superpone una linea
@@ -1833,6 +2097,175 @@ class MeshCanvas(ttk.Frame):
                 x1, y1, x2, y2, fill=CANVAS_SELECTED_COLOR, width=2.5 * f,
                 capstyle=tk.ROUND, tags=("world", "highlight"),
             )
+
+    # ═════════════════════════════════════════════════════════════════════
+    # LENTE DEL ELEMENTO (Proceso) Y FRANJA LECTORA — rediseño 2026-09-09
+    # ═════════════════════════════════════════════════════════════════════
+
+    def _draw_element_lens(self):
+        """Sobre el UNICO elemento seleccionado, en Proceso: su numeracion
+        local 1..4 (discos amarillos hacia adentro de cada vertice), sus ejes
+        naturales ξ y η desde el centroide (ξ apunta a la arista N2-N3, η a
+        la N3-N4: la convencion isoparametrica del motor) y sus puntos de
+        Gauss en coordenadas fisicas. Es el objeto sobre el que trabajan los
+        modulos ①..⑦; cuando uno esta abierto, la lente se retira (el modulo
+        dibuja su propia version de estas cosas con sus tags `edu_*`).
+        """
+        if self._phase != "proc" or len(self.selected_elements) != 1:
+            return
+        if self._overlay_layers or self.ghost_geometry:
+            return
+        eid = next(iter(self.selected_elements))
+        elem = self.project.elements.get(eid)
+        if elem is None:
+            return
+        pts = []
+        for nid in elem.node_ids:
+            node = self.project.nodes.get(nid)
+            if node is None:
+                return
+            pts.append((node.x, node.y))
+        frame = element_local_frame(pts)
+        if frame is None:
+            return
+        # Techo propio del reescalado: los discos de numeracion local tapaban
+        # los nodos vecinos con el factor maximo de las demas decoraciones.
+        f = min(self._decoration_factor(), LENS_SCALE_MAX_FACTOR)
+        tags = ("world", "lens")
+        cx, cy = self.world_to_screen(*frame["centroid"])
+        # Ejes ξ, η: el mismo glifo que M1/M2/M3/M5 pintan sobre el elemento
+        # cuando estan abiertos (gui/preprocessing/canvas_glyphs.py).
+        draw_natural_axes(self.canvas, self.world_to_screen, pts[:4],
+                          factor=f, tags=tags)
+        # Puntos de Gauss del elemento real (2x2 en Q4, 3x3 en Q9).
+        r = 3 * f
+        for x, y in gauss_physical_points(pts, self.project.element_type):
+            sx, sy = self.world_to_screen(float(x), float(y))
+            self.canvas.create_oval(
+                sx - r, sy - r, sx + r, sy + r, fill=GAUSS_CANONICAL_COLOR,
+                outline=CANVAS_BG_COLOR, width=1, tags=tags,
+            )
+        # Numeracion local 1..4, desplazada hacia el centroide para no pisar
+        # el numero global del nodo (que va hacia afuera).
+        rr = 7 * f
+        for k, (x, y) in enumerate(pts[:4], start=1):
+            sx, sy = self.world_to_screen(x, y)
+            vx, vy = cx - sx, cy - sy
+            L = math.hypot(vx, vy)
+            if L == 0:
+                continue
+            px = sx + vx / L * 16 * f
+            py = sy + vy / L * 16 * f
+            self.canvas.create_oval(
+                px - rr, py - rr, px + rr, py + rr, fill=CANVAS_SELECTED_COLOR,
+                outline=CANVAS_BG_COLOR, width=1, tags=tags,
+            )
+            self.canvas.create_text(
+                px, py, text=str(k), fill=CANVAS_LOCAL_NODE_FG,
+                font=("Segoe UI", 8, "bold"), anchor=tk.CENTER, tags=tags,
+            )
+
+    def _inspector_text(self):
+        """(cabecera, cuerpo, es_pista) de la franja lectora."""
+        t = self._inspector_target
+        units = get_unit_labels(self.project.unit_system)
+        if t is not None:
+            kind, ident = t
+            if kind == "node" and ident in self.project.nodes:
+                head, body = node_summary(self.project, ident, units=units)
+                return head, body, False
+            if kind == "element" and ident in self.project.elements:
+                head, body = element_summary(self.project, ident, units=units)
+                return head, body, False
+        head, body = phase_hint(
+            self._phase, draw_mode=self.draw_mode_active,
+            has_elements=bool(self.project.elements),
+        )
+        return head, body, True
+
+    def _draw_inspector(self):
+        """Franja fija al pie del lienzo (tags "screen": el pan y el zoom no
+        la mueven). Cabecera en el color de hover + cuerpo; o la pista de
+        gesto de la fase, atenuada, cuando no hay nada bajo el cursor."""
+        w = self.canvas.winfo_width()
+        h = self.canvas.winfo_height()
+        if w < 60 or h < 60:
+            return
+        self.canvas.delete("inspector")
+        H = CANVAS_INSPECTOR_HEIGHT_PX
+        y0 = h - H
+        tags = ("screen", "inspector")
+        self.canvas.create_rectangle(
+            0, y0, w, h, fill=CANVAS_INSPECTOR_BG, outline="", tags=tags)
+        self.canvas.create_line(
+            0, y0, w, y0, fill=CANVAS_INSPECTOR_BORDER, tags=tags)
+        head, body, is_hint = self._inspector_text()
+        ty = y0 + H / 2
+        tid = self.canvas.create_text(
+            10, ty, text=head, anchor=tk.W,
+            fill=CANVAS_INSPECTOR_HINT_FG if is_hint else CANVAS_INSPECTOR_HEAD_FG,
+            font=("Segoe UI Semibold", 9), tags=tags,
+        )
+        bb = self.canvas.bbox(tid)
+        x = (bb[2] if bb else 10) + 10
+        self.canvas.create_text(
+            x, ty, text=body, anchor=tk.W,
+            fill=CANVAS_INSPECTOR_HINT_FG if is_hint else CANVAS_INSPECTOR_FG,
+            font=("Segoe UI", 9), tags=tags,
+        )
+
+    def _set_inspector_target(self, target):
+        """Cambia la entidad bajo el cursor y repinta SOLO la franja."""
+        if target == self._inspector_target:
+            return
+        self._inspector_target = target
+        self._draw_inspector()
+
+    def _node_xy(self):
+        """(ids, xy) de todos los nodos, cacheado hasta el proximo redraw."""
+        if self._node_xy_cache is None:
+            ids = list(self.project.nodes.keys())
+            if ids:
+                xy = np.array([[self.project.nodes[n].x, self.project.nodes[n].y]
+                               for n in ids], dtype=float)
+            else:
+                xy = np.zeros((0, 2))
+            self._node_xy_cache = (ids, xy)
+        return self._node_xy_cache
+
+    def _update_inspector(self, wx, wy):
+        """Hit-test del lector: nodo (radio 10 px) antes que elemento. En
+        Post, dibujando o con el viewport en movimiento no consulta nada
+        (la pista de fase queda)."""
+        if (self._phase == "post" or self.draw_mode_active
+                or self._interacting or self._panning
+                or len(self.project.elements) > 3000):
+            self._set_inspector_target(None)
+            return
+        ids, xy = self._node_xy()
+        nid = nearest_node(xy, ids, wx, wy, 10.0 / max(self.scale, 1e-12))
+        if nid is not None:
+            self._set_inspector_target(("node", nid))
+            return
+        if self._hover_enabled():
+            eid = self._hover_highlight_eid
+        else:
+            eid = self._hit_test_element_at(wx, wy)
+        self._set_inspector_target(("element", eid) if eid is not None else None)
+
+    def _update_coord_readout(self, wx, wy):
+        """Readout `x: … y: … mm · cuadrícula 1 mm`: coordenadas del cursor
+        con la unidad de longitud del proyecto y el paso vigente de la
+        cuadricula del mundo."""
+        units = get_unit_labels(self.project.unit_system)
+        lu = units.get("longitud", "")
+        step = self._grid_step_world
+        step_txt = ""
+        if self.show_grid and step:
+            step_txt = f"   ·   cuadrícula {grid_label(step)} {lu}".rstrip()
+        self.coord_label.config(
+            text=f"x: {fmt(wx, 'length')}  y: {fmt(wy, 'length')} {lu}{step_txt}"
+        )
 
     def _draw_surface_loads(self, orphan_status=None):
         """Dibuja todas las cargas superficiales como trapezoide + flechitas.
@@ -2214,9 +2647,7 @@ class MeshCanvas(ttk.Frame):
 
     def _on_mouse_move(self, event):
         wx, wy = self.screen_to_world(event.x, event.y)
-        self.coord_label.config(
-            text=f"x: {fmt(wx, 'length')}  y: {fmt(wy, 'length')}"
-        )
+        self._update_coord_readout(wx, wy)
         # Hook educativo: si hay un listener de hover-elemento (M0 lo usa
         # para el radar flotante), notificar cuando el elemento bajo el
         # cursor cambia. Throttling implicito: solo emitimos cuando el id
@@ -2237,6 +2668,8 @@ class MeshCanvas(ttk.Frame):
         # en cian + su numero, aunque la numeracion global este apagada
         # (patron "query" de Abaqus/ANSYS). Auditoria UX 2026-05.
         self._update_hover_highlight(wx, wy)
+        # Franja lectora + listeners de hover (vista del sistema del Proceso).
+        self._update_inspector(wx, wy)
         # Modo dibujo: detectar snap a corner existente y refrescar
         # preview. Throttling: solo redraw si cambia el snap candidate o
         # hay puntos pendientes (linea preview al cursor).
@@ -2338,6 +2771,7 @@ class MeshCanvas(ttk.Frame):
         if self._hover_highlight_eid is not None:
             self.canvas.delete("hover")
             self._hover_highlight_eid = None
+        self._set_inspector_target(None)
 
     # ─── Hit-tests para cargas / restricciones / surface ────────────────
 
@@ -3403,6 +3837,15 @@ class MeshCanvas(ttk.Frame):
         self.isoline_count = count
         self.redraw()
 
+    def set_reactions(self, reactions, *, show=None):
+        """Vector de reacciones R (2N, del solucionador) que la lente de
+        campo dibuja en los apoyos; None lo apaga. `show` fija ademas la
+        capa. NO redibuja: el Post encadena `set_result_values`, que si."""
+        self.reactions = (None if reactions is None
+                          else np.asarray(reactions, dtype=float).ravel())
+        if show is not None:
+            self.show_reactions = bool(show)
+
     def clear_results_overlay(self):
         """Resetea el overlay de resultados (deformada, mapa de color,
         isolineas) sin tocar el status bar. Llamar al volver de Post a
@@ -3416,6 +3859,7 @@ class MeshCanvas(ttk.Frame):
         self.displacements = None
         self.deform_scale = 0
         self.show_isolines = False
+        self.reactions = None
         self._gradient_cache_key = None  # invalidar cache al limpiar resultados
         # Tambien liberamos el PIL Image del bitmap previo. Sin esto, un
         # zoom suave posterior (con `_interacting=True`) mostraria el campo

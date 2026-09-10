@@ -31,6 +31,7 @@ import ttkbootstrap as ttk
 import fitz  # PyMuPDF
 from PIL import Image, ImageTk
 
+from gui.scaling import fit_window
 from config.settings import USER_CONFIG_DIR, THEORY_VIEWER_BG_COLOR
 from .theory_builder import TheoryDoc
 
@@ -68,7 +69,10 @@ class TheoryViewer(ttk.Toplevel):
     ):
         super().__init__(parent)
         self.title(title)
-        self.geometry("900x820")
+        # 900x820 de DISEÑO. Fijos, no entraban ni en la pantalla del equipo
+        # de desarrollo (768 px de alto): el pie del visor quedaba abajo de la
+        # barra de tareas. `fit_window` los recorta al area util real.
+        fit_window(self, 900, 820, parent=parent, minimo=(560, 420))
 
         self._zoom = zoom
         # Nombre del documento en prosa ("la Teoría MEF"): lo consume el
@@ -124,7 +128,7 @@ class TheoryViewer(ttk.Toplevel):
         # accion primaria que dar por Enter en un visor de lectura.
         from gui.dialogs._dialog_helpers import bind_dialog_keys, center_dialog
         bind_dialog_keys(self, on_escape=self.destroy)
-        center_dialog(self, parent, clamp_screen=True)
+        center_dialog(self, parent)
 
         self._build_and_render(doc_builder, title, subtitle)
 

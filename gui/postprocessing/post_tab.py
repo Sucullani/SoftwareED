@@ -61,7 +61,8 @@ class PostProcessTab:
             color=PHASE_POST_COLOR,
             icon="📊",
             title="POST-PROCESO",
-            subtitle="Resultados · esfuerzos · interpretacion pedagogica",
+            # La cadena del post-proceso: del vector solucion a los campos.
+            subtitle="u  →  ε = B·u  →  σ = D·ε  →  R = K·u − F",
         )
 
         # Banner de salud removido del Post: el badge ✓/⚠/✗ del status bar
@@ -247,6 +248,17 @@ class PostProcessTab:
             probe_frame, text="Mostrar puntos Gauss",
             variable=self.probe_show_gauss_var, bootstyle="info-round-toggle",
             command=self._on_probe_gauss_toggled,
+        ).pack(anchor=W, padx=15, pady=(0, 4))
+
+        # Reacciones en los apoyos (lente de campo, rediseño 2026-09-09):
+        # R = K·u − F en cada GDL restringido, como flecha desde el nodo. Es
+        # el equilibrio del modelo a la vista: lo que el alumno aplico
+        # (rojo) contra lo que devuelven los apoyos (naranja claro).
+        self.show_reactions_var = tk.BooleanVar(value=True)
+        ttk.Checkbutton(
+            probe_frame, text="Mostrar reacciones en los apoyos",
+            variable=self.show_reactions_var, bootstyle="warning-round-toggle",
+            command=self._on_result_changed,
         ).pack(anchor=W, padx=15, pady=(0, 8))
 
     # ═════════════════════════════════════════════════════════════════════
@@ -808,6 +820,12 @@ class PostProcessTab:
             and self.probe_smooth_var.get() == "raw"
         )
 
+        # Reacciones en los apoyos (no redibuja: lo hace set_result_values).
+        var = getattr(self, "show_reactions_var", None)
+        canvas.set_reactions(
+            self.solution.get("reactions"),
+            show=(var.get() if var is not None else True),
+        )
         # Configurar isolineas y deformada antes (no dependen del modo).
         canvas.set_isolines(
             self.show_isolines_var.get(),

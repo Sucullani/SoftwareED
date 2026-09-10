@@ -40,6 +40,7 @@ import traceback
 import tkinter as tk
 import ttkbootstrap as ttk
 
+from gui.scaling import fit_position, fit_size, scaled, work_area
 from config.settings import (
     PHASE_PRE_COLOR, PHASE_PROC_COLOR, PHASE_POST_COLOR,
     OVERLAY_BG, OVERLAY_BORDER, OVERLAY_TITLE_FG,
@@ -212,9 +213,12 @@ class CanvasOverlay(tk.Toplevel):
         # Forzamos un layout pass para que winfo_req* refleje el contenido
         # ya empaquetado por build_overlay().
         self.update_idletasks()
-        w, h = self._fixed_size
-        final_w = int(w) if w is not None else self.winfo_reqwidth()
-        final_h = int(h) if h is not None else self.winfo_reqheight()
+        final_w, final_h = self._tamano_final()
+        # Un overlay de alto automático (OVERLAY_HEIGHT=None) puede pedir más
+        # alto que la pantalla —M2 y M5 lo hacen en un escritorio de 680 px
+        # útiles— y ahí su última fila quedaba fuera. `_tamano_final` recorta;
+        # `fit_position` además garantiza que el panel entre entero.
+        sx, sy = fit_position(sx, sy, final_w, final_h, work_area(self))
         self.geometry(f"{final_w}x{final_h}+{int(sx)}+{int(sy)}")
         # Tras el layout pass, build_overlay() ya pobló el body (incluso con
         # widgets matplotlib pesados). Bloqueamos el wheel sobre TODO el árbol
@@ -239,13 +243,27 @@ class CanvasOverlay(tk.Toplevel):
             return
         try:
             self.update_idletasks()
-            w, h = self._fixed_size
-            final_w = int(w) if w is not None else self.winfo_reqwidth()
-            final_h = int(h) if h is not None else self.winfo_reqheight()
+            final_w, final_h = self._tamano_final()
             self.geometry(f"{final_w}x{final_h}")
             self._consume_wheel_recursive()
         except tk.TclError:
             pass
+
+    def _tamano_final(self) -> Tuple[int, int]:
+        """Tamaño del overlay: el fijo que declara el módulo
+        (`OVERLAY_WIDTH/HEIGHT`, px de diseño) o el que pide su contenido,
+        recortado siempre al área útil de la pantalla.
+
+        El recorte es la diferencia entre un panel usable y uno con su última
+        fila fuera de pantalla: el alto de estos paneles sale del contenido, y
+        en un equipo con escalado alto el escritorio disponible es bastante
+        más chico que el del equipo de desarrollo.
+        """
+        w, h = self._fixed_size
+        ancho = scaled(self, w) if w is not None else self.winfo_reqwidth()
+        alto = scaled(self, h) if h is not None else self.winfo_reqheight()
+        area = work_area(self)
+        return fit_size(ancho, alto, 1.0, area[2], area[3])
 
     def _consume_wheel_recursive(self) -> None:
         """Bind <MouseWheel> -> 'break' en este Toplevel y todos sus descendants.

@@ -66,12 +66,15 @@ from config.settings import (
     ANALYSIS_PLANE_STRESS, ANALYSIS_PLANE_STRAIN,
     ELEMENT_Q4, ELEMENT_Q9,
     EDU_FIG_BG, EDU_AXES_BG, EDU_LABEL_BG, EDU_FG, EDU_FG_MUTED,
-    EDU_NATURAL_OUTLINE_COLOR, EDU_NATURAL_AXES_COLOR,
+    EDU_NATURAL_OUTLINE_COLOR, CANVAS_XI_AXIS_COLOR, CANVAS_ETA_AXIS_COLOR,
     HEALTH_WARNING_COLOR, HEALTH_ERROR_COLOR,
     OVERLAY_ACCENT_AMBER, EDU_INTEGRAND_TEXT_COLOR,
     EDU_MARKER_OUTLINE_COLOR,
 )
 
+
+from gui.preprocessing.canvas_glyphs import draw_natural_axes
+from gui.scaling import fit_position, fit_window, work_area
 
 # Tag de la capa overlay sobre el canvas (PGs interactivos).
 _TAG = "edu_m5_pg"
@@ -457,6 +460,11 @@ class StiffnessElementModule(CanvasOverlayModule):
             return
         n_nodes = self.element.num_nodes
         coords = coords[:n_nodes]
+        # Ejes ξ, η sobre el elemento real, con los colores del cuadrado
+        # natural del panel: la cuadratura recorre ESTOS ejes (glifo
+        # compartido con la lente de Proceso del lienzo).
+        draw_natural_axes(mesh.canvas, mesh.world_to_screen, coords[:4],
+                          tags=(_TAG,))
         try:
             pts, _ = get_gauss_points_2d(self._order)
         except Exception:
@@ -586,8 +594,8 @@ class StiffnessElementModule(CanvasOverlayModule):
         sq = np.array([[-1, -1], [1, -1], [1, 1], [-1, 1], [-1, -1]])
         ax.plot(sq[:, 0], sq[:, 1], color=EDU_NATURAL_OUTLINE_COLOR, lw=1.0)
         ax.fill(sq[:, 0], sq[:, 1], color=EDU_NATURAL_OUTLINE_COLOR, alpha=0.06)
-        ax.axhline(0, color=EDU_NATURAL_AXES_COLOR, lw=0.8, alpha=0.85)
-        ax.axvline(0, color=EDU_NATURAL_AXES_COLOR, lw=0.8, alpha=0.85)
+        from education.components.edu_plot_style import draw_natural_axes_mpl
+        draw_natural_axes_mpl(ax)
         try:
             pts, _ = get_gauss_points_2d(self._order)
         except Exception:
@@ -605,12 +613,14 @@ class StiffnessElementModule(CanvasOverlayModule):
                  family="monospace", ha="center", va="top")
         ax.text(-1.0, -1.2, "-1", color=EDU_FG_MUTED, fontsize=7,
                  family="monospace", ha="center", va="top")
-        ax.text(1.3, 0.02, "ξ", color=EDU_FG_MUTED, fontsize=9,
+        ax.text(1.3, 0.02, "ξ", color=CANVAS_XI_AXIS_COLOR, fontsize=9,
                  family="monospace", fontweight="bold", ha="left", va="center")
-        ax.text(0.02, 1.3, "η", color=EDU_FG_MUTED, fontsize=9,
+        ax.text(0.02, 1.3, "η", color=CANVAS_ETA_AXIS_COLOR, fontsize=9,
                  family="monospace", fontweight="bold", ha="left", va="center")
         ax.set_xlim(-1.45, 1.45); ax.set_ylim(-1.45, 1.45)
-        ax.set_title("Cuadratura en el cuadrado natural  (ξ, η)",
+        # Corto: el subplot mide ~200 px y el titulo largo se recortaba por
+        # los dos lados ("iadratura en el cuadrado natural (ξ,").
+        ax.set_title("Cuadratura en  (ξ, η)",
                       color=EDU_NATURAL_OUTLINE_COLOR, fontsize=9,
                       fontweight="bold", pad=4)
         ax.set_xticks([]); ax.set_yticks([])
@@ -762,11 +772,17 @@ class StiffnessElementModule(CanvasOverlayModule):
                 self._full_window = None
         top = tk.Toplevel(self._mesh.canvas)
         top.title(f"Integrando K_({self._i},{self._j}) — expresión completa")
-        top.geometry("900x700")
         top.configure(bg=EDU_AXES_BG)
+        # 900x700 de diseño, recortados al area util (ver gui/scaling.py).
+        fit_window(top, 900, 700, parent=self._mesh.canvas,
+                   minimo=(520, 400), centrar=False,
+                   crecer_con_contenido=False)
         try:
-            top.geometry(f"+{self._mesh.canvas.winfo_rootx() + 80}"
-                         f"+{self._mesh.canvas.winfo_rooty() + 60}")
+            _area = work_area(self._mesh.canvas)
+            _x, _y = fit_position(self._mesh.canvas.winfo_rootx() + 80,
+                                  self._mesh.canvas.winfo_rooty() + 60,
+                                  top.winfo_width(), top.winfo_height(), _area)
+            top.geometry(f"+{_x}+{_y}")
         except tk.TclError:
             pass
         try:

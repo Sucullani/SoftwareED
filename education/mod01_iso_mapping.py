@@ -53,10 +53,11 @@ from education.components.iso_inverse import (
     iso_inverse_map, natural_to_physical, element_coords,
 )
 from fem.shape_functions import get_shape_functions
+from gui.preprocessing.canvas_glyphs import draw_natural_axes
 from config.settings import (
     ELEMENT_Q4, ELEMENT_Q9,
     EDU_AXES_BG, EDU_LABEL_BG, EDU_FG_MUTED,
-    EDU_NATURAL_OUTLINE_COLOR, EDU_NATURAL_AXES_COLOR,
+    EDU_NATURAL_OUTLINE_COLOR, CANVAS_XI_AXIS_COLOR, CANVAS_ETA_AXIS_COLOR,
     GAUSS_CANONICAL_COLOR, EDU_FREE_POINT_COLOR, EDU_MARKER_OUTLINE_COLOR,
     HEALTH_ERROR_COLOR, OVERLAY_ACCENT_BLUE,
     EDU_M1_VERTEX_NODE_COLOR, EDU_M1_CENTER_NODE_COLOR,
@@ -216,6 +217,12 @@ class IsoMappingModule(CanvasOverlayModule):
         coords = self._element_coords()
         if coords is None or len(coords) < self._explore_n:
             return
+
+        # Ejes ξ, η sobre el elemento real, con los mismos colores que en el
+        # cuadrado natural del panel: el mapeo se lee en los dos espacios
+        # (glifo compartido con la lente de Proceso del lienzo).
+        draw_natural_axes(mesh.canvas, mesh.world_to_screen, coords[:4],
+                          tags=(_TAG,))
 
         try:
             xy = natural_to_physical(
@@ -489,8 +496,8 @@ class IsoMappingModule(CanvasOverlayModule):
         sq = np.array([[-1, -1], [1, -1], [1, 1], [-1, 1], [-1, -1]])
         ax.plot(sq[:, 0], sq[:, 1], color=_C_BLUE, lw=1.0)
         ax.fill(sq[:, 0], sq[:, 1], color=_C_BLUE, alpha=0.06)
-        ax.axhline(0, color=EDU_NATURAL_AXES_COLOR, lw=0.8, alpha=0.85)
-        ax.axvline(0, color=EDU_NATURAL_AXES_COLOR, lw=0.8, alpha=0.85)
+        from education.components.edu_plot_style import draw_natural_axes_mpl
+        draw_natural_axes_mpl(ax)
         corners = sq[:4]
         ax.scatter(corners[:, 0], corners[:, 1], s=110,
                     c=_C_ORANGE, edgecolors=EDU_MARKER_OUTLINE_COLOR,
@@ -525,10 +532,10 @@ class IsoMappingModule(CanvasOverlayModule):
                  fontsize=7, family="monospace", ha="center", va="top")
         ax.text(-1.0, -1.18, "-1", color=EDU_FG_MUTED,
                  fontsize=7, family="monospace", ha="center", va="top")
-        ax.text( 1.30,  0.02, "ξ", color=EDU_FG_MUTED,
+        ax.text( 1.30,  0.02, "ξ", color=CANVAS_XI_AXIS_COLOR,
                  fontsize=9, family="monospace", fontweight="bold",
                  ha="left", va="center")
-        ax.text( 0.02,  1.30, "η", color=EDU_FG_MUTED,
+        ax.text( 0.02,  1.30, "η", color=CANVAS_ETA_AXIS_COLOR,
                  fontsize=9, family="monospace", fontweight="bold",
                  ha="left", va="center")
         ax.set_xlim(-1.4, 1.4); ax.set_ylim(-1.4, 1.4)

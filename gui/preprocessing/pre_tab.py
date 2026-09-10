@@ -243,7 +243,10 @@ class PreProcessTab:
             color=PHASE_PRE_COLOR,
             icon="📐",
             title="PRE-PROCESO",
-            subtitle="Geometria · cargas · restricciones · materiales",
+            # El subtitulo es el orden del metodo, no una lista de cosas:
+            # discretizar, decir de que esta hecho, donde se apoya y que lo
+            # carga. Corto: el banner mide ~440 px y el titulo ocupa 150.
+            subtitle="Malla → material → apoyos → cargas",
         )
 
         self.data_notebook = ttk.Notebook(self.frame, bootstyle=PHASE_PRE_BOOTSTYLE)

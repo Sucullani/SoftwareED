@@ -67,8 +67,9 @@ _ACTIVE: dict = {}
 # Listeners notificados cuando `_ACTIVE` cambia (activate / cleanup).
 # Cada listener recibe `(main_window, active_module_keys: set[str])` donde
 # `active_module_keys` son los `mod_key` resueltos vía el module_launcher
-# (p. ej. "mod04"). Usado por el breadcrumb del status bar para iluminar
-# el chip del módulo activo.
+# (p. ej. "mod04"). Lo consume la tira del método del banner de Proceso
+# (`gui/widgets/method_strip.py`, chips N › J › B › D › kₑ › F › K) para
+# iluminar el chip del módulo activo y acumular los visitados.
 _OVERLAY_CHANGE_LISTENERS: list = []
 
 
@@ -99,7 +100,7 @@ def _notify_overlay_change(main_window) -> None:
         try:
             cb(main_window, active_keys)
         except Exception:
-            # Hoy el único listener es el breadcrumb de la barra de estado: si
+            # Hoy el único listener es la tira del método de Proceso: si
             # falla mudo, el chip del módulo queda encendido (o apagado) sin
             # relación con lo que está abierto.
             traceback.print_exc()

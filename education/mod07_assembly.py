@@ -29,6 +29,17 @@ Rediseño 2026-05 (post pase UX: "el vuelo Bézier genera mucho ruido visual"):
        (sumar contribuciones por elemento al global, una columna o
        una matriz, según el operador).
 
+    4. **Esqueleto de K + cabecera del sistema** (rediseño 2026-09-09):
+       antes de ensamblar nada, K ya tiene FORMA — la malla decide qué
+       bloques 2×2 serán ≠ 0 (dos nodos comparten bloque si un elemento
+       los contiene a ambos). M7 la dibuja como esqueleto gris bajo el
+       heatmap y cada kₑ ensamblado la rellena con valores. Arriba, la
+       lectura estructural: `N nodos → 2N GDL · restringidos → incógnitas
+       · bloques ≠ 0 · semiancho de banda`. La lógica es pura
+       (`education/components/system_structure.py`). Vivió unas horas como
+       panel propio de la fase Proceso; el autor decidió que pertenece a
+       M7, que es donde K se construye.
+
 Reglas de la capa canvas:
     * Tags `edu_m7_*`. Limpiados al inicio de cada `draw_canvas_layer`.
     * NO hay tile transitorio fuera de la capa — todo vive en la capa,
@@ -48,6 +59,9 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 from education.overlay_module import CanvasOverlayModule
+from education.components.system_structure import (
+    node_block_pairs, system_summary, render_pattern,
+)
 
 from fem.stiffness import element_stiffness
 from fem.assembly import assemble_global_system
@@ -61,7 +75,13 @@ from config.settings import (
     EDU_NATURAL_OUTLINE_COLOR, GAUSS_ACTIVE_COLOR, GAUSS_HALO_COLOR,
     EDU_MARKER_OUTLINE_COLOR, HEALTH_ERROR_COLOR, OVERLAY_ACCENT_BLUE,
     MOHR_GRID_COLOR, EDU_MATRIX_TEXT_COLOR,
+    EDU_M7_SKELETON_COLOR, EDU_M7_SKELETON_DIAG_COLOR, EDU_M7_SKELETON_MAX_PX,
 )
+
+
+def _hex_to_rgb(color: str) -> tuple:
+    color = color.lstrip("#")
+    return tuple(int(color[i:i + 2], 16) for i in (0, 2, 4))
 
 
 # Tags canvas — el primer paso de draw_canvas_layer es delete(_TAG_BASE).
@@ -118,6 +138,9 @@ class AssemblyModule(CanvasOverlayModule):
         n_dof = self.project.total_dof
         self._K = np.zeros((n_dof, n_dof))
         self._F = np.zeros(n_dof)
+        # Esqueleto: la forma de K que la malla decide (imagen RGB bineada,
+        # dibujada bajo el heatmap hasta que cada k_e la rellena).
+        self._skeleton_img = self._build_skeleton_image()
         self._assembled: set = set()
         self._anim_running = False
         self._pulse_after_id: Optional[str] = None
@@ -171,6 +194,21 @@ class AssemblyModule(CanvasOverlayModule):
                         bootstyle="info-round-toggle",
                         command=self._on_reduced_toggle).pack(side="left",
                                                                 padx=2)
+
+        # ── Cabecera del sistema: lo que la malla decide antes de ensamblar ──
+        self._lbl_system = tk.Label(
+            body, text="", bg=EDU_AXES_BG, fg=EDU_FG,
+            font=("Consolas", 8), justify="left", anchor="w",
+        )
+        self._lbl_system.pack(fill="x", pady=(0, 1))
+        self._lbl_skeleton = tk.Label(
+            body, bg=EDU_AXES_BG, fg=EDU_FG_MUTED, font=("Segoe UI", 8),
+            justify="left", anchor="w",
+            text=("Esqueleto gris: la forma de K que la malla ya decidió. "
+                  "Cada kₑ ensamblado la rellena."),
+        )
+        self._lbl_skeleton.pack(fill="x", pady=(0, 3))
+        self._refresh_system_text()
 
         # ── Heatmap K / F / sistema ─────────────────────────────
         self._fig = Figure(figsize=(4.8, 4.6), dpi=100)
@@ -269,6 +307,66 @@ class AssemblyModule(CanvasOverlayModule):
                                       tags=(_TAG_BASE, tag))
             mesh.canvas.create_line(*flat, fill=EDU_MARKER_OUTLINE_COLOR, width=1,
                                       tags=(_TAG_BASE, tag))
+        except tk.TclError:
+            pass
+
+    # ── Esqueleto de K + cabecera del sistema ──────────────────────
+    def _build_skeleton_image(self):
+        """Imagen RGB del patrón de bloques que la malla hará ≠ 0 en K, a
+        nivel de nodo (cada bloque = 2×2 GDL), lista para `imshow` bajo el
+        heatmap con `extent` en GDL. Con `size = n_dof` cada píxel es un
+        GDL; por encima de `EDU_M7_SKELETON_MAX_PX` se binea (varios nodos
+        por píxel: basta con que uno tenga bloque). None si no hay malla."""
+        try:
+            n_nodes, rows, cols = node_block_pairs(self.project)
+        except Exception:
+            traceback.print_exc()
+            return None
+        if n_nodes == 0:
+            return None
+        size = min(self.project.total_dof, EDU_M7_SKELETON_MAX_PX)
+        return render_pattern(
+            n_nodes, rows, cols, size,
+            bg=_hex_to_rgb(EDU_AXES_BG),
+            block=_hex_to_rgb(EDU_M7_SKELETON_COLOR),
+            diag=_hex_to_rgb(EDU_M7_SKELETON_DIAG_COLOR),
+            dim=1.0, grid=None,
+        )
+
+    def _draw_skeleton(self, ax, n: int) -> None:
+        """Pinta el esqueleto bajo los valores (solo en la vista global: la
+        reducida ya es "lo que queda", sin forma futura que mostrar)."""
+        if self._show_reduced or self._skeleton_img is None:
+            return
+        try:
+            ax.imshow(self._skeleton_img,
+                      extent=(-0.5, n - 0.5, n - 0.5, -0.5),
+                      interpolation="nearest", zorder=0)
+        except Exception:
+            # Sin esqueleto el heatmap sigue siendo correcto: solo se
+            # pierde la forma anticipada de K.
+            traceback.print_exc()
+
+    def _refresh_system_text(self) -> None:
+        """Cabecera con los números del sistema que la malla genera."""
+        lbl = getattr(self, "_lbl_system", None)
+        if lbl is None:
+            return
+        try:
+            s = system_summary(self.project)
+        except Exception:
+            traceback.print_exc()
+            return
+        pct = (int(round(100.0 * s["n_blocks"] / s["n_blocks_total"]))
+               if s["n_blocks_total"] else 0)
+        texto = (
+            f"{s['n_nodes']} nodos → 2N = {s['n_dof']} GDL  ·  "
+            f"{s['n_restrained']} GDL restringidos → {s['n_free']} incógnitas\n"
+            f"{s['n_blocks']} de {s['n_blocks_total']} bloques ≠ 0 ({pct} %)  ·  "
+            f"semiancho de banda {s['half_bandwidth_dof']} GDL"
+        )
+        try:
+            lbl.configure(text=texto)
         except tk.TclError:
             pass
 
@@ -660,6 +758,9 @@ class AssemblyModule(CanvasOverlayModule):
         vmax = float(np.max(np.abs(M))) or 1.0
         nz = 1e-12 * vmax
 
+        # Esqueleto (forma de K que la malla decide) debajo de los valores.
+        self._draw_skeleton(ax, n)
+
         if n > 40:
             ax.set_xlim(-0.5, n - 0.5)
             ax.set_ylim(n - 0.5, -0.5)
@@ -670,11 +771,14 @@ class AssemblyModule(CanvasOverlayModule):
                 sizes = 6 + 30 * (mags / vmax)
                 ax.scatter(ix, iy, s=sizes, c=M[iy, ix],
                            cmap="coolwarm", vmin=-vmax, vmax=vmax,
-                           edgecolors="none", alpha=0.85)
+                           edgecolors="none", alpha=0.85, zorder=2)
             suffix = " · sparsity"
         else:
-            ax.imshow(M, cmap="coolwarm", vmin=-vmax, vmax=vmax,
-                       interpolation="nearest")
+            # Las celdas todavía nulas quedan transparentes: se ve el
+            # esqueleto a través de ellas hasta que un k_e las rellena.
+            ax.imshow(np.ma.masked_where(np.abs(M) <= nz, M),
+                       cmap="coolwarm", vmin=-vmax, vmax=vmax,
+                       interpolation="nearest", zorder=1)
             if n <= 16:
                 for i in range(n):
                     for j in range(n):

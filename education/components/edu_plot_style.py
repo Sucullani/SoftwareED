@@ -98,6 +98,30 @@ def apply_edu_style_2d(ax, *, show_spines: bool = False,
         pass
 
 
+def draw_natural_axes_mpl(ax, *, lw: float = 0.9) -> None:
+    """Ejes del cuadrado natural como flechas de −1 a +1: ξ (horizontal,
+    η = 0) y η (vertical, ξ = 0), con los MISMOS colores que la lente del
+    lienzo y las capas de M1/M2/M3/M5 usan para las flechas ξ, η sobre el
+    elemento real (`gui/preprocessing/canvas_glyphs.draw_natural_axes`).
+    Rediseño 2026-09-09: reemplaza a la cruz gris `axhline/axvline` igual
+    para los dos ejes — el alumno reconoce por el color "esta dirección del
+    elemento" en "este eje del cuadrado"."""
+    from config.settings import CANVAS_XI_AXIS_COLOR, CANVAS_ETA_AXIS_COLOR
+    for xy, xytext, color in (((1.0, 0.0), (-1.0, 0.0), CANVAS_XI_AXIS_COLOR),
+                              ((0.0, 1.0), (0.0, -1.0), CANVAS_ETA_AXIS_COLOR)):
+        try:
+            ax.annotate(
+                "", xy=xy, xytext=xytext,
+                arrowprops=dict(arrowstyle="->", color=color, lw=lw,
+                                alpha=0.9, shrinkA=0, shrinkB=0),
+                zorder=3,
+            )
+        except Exception:
+            # La cruz de ejes es decorativa: sin ella el cuadrado sigue
+            # siendo legible (contorno, ±1 y rotulos ξ/η).
+            pass
+
+
 def apply_edu_style_3d(ax) -> None:
     """Estilo edu para axes 3D: panes transparentes, líneas finas,
     ticks mutados. Hace que la superficie 3D 'flote' sobre el overlay
