@@ -72,7 +72,7 @@ from config.settings import (
     ANALYSIS_PLANE_STRESS,
     ELEMENT_Q4, ELEMENT_Q9,
     NUMERICAL_TOLERANCE,
-    fmt,
+    fmt, fmt_escala,
 )
 
 # Tolerancia para considerar "no nulo" en estadísticas de K (nnz, banda).
@@ -252,6 +252,33 @@ class MemoriaCalculo:
     # Estilos válidos. Ver docstring del módulo y CLAUDE.md.
     STYLES = ("educativo", "directo")
 
+    # Tope de GDL para mostrar K literal. Por encima va el patrón de
+    # dispersión. NO subirlo: lo que manda no es `MaxMatrixCols` sino el
+    # ancho de la hoja — una K de 22 o 24 columnas se sale del papel aun en
+    # `\tiny` (ver `_mostrar_matriz_K`).
+    _K_LITERAL_MAX_DOF = 18
+
+    # Ancho máximo de una matriz emitida de una sola pieza. Por encima se
+    # parte en bloques de columnas (`TheoryDoc.matrix_blocks`): 18 columnas
+    # no entran en A4 portrait ni con el `arraycolsep` al mínimo.
+    _MATRIX_INLINE_MAX_COLS = 12
+
+    # Umbral de rango dinámico de los vectores globales (F, u, R). Alto a
+    # propósito: ver `_vector_compacto`.
+    _VECTOR_FACTOR_THRESHOLD = 1e12
+
+    # Tope de GDL para emitir un vector global ENTERO. Por encima se muestra
+    # un extracto. `equation*` NO admite salto de página, así que un vector
+    # de 8450 GDL (Cook Q9 32×32, un ejemplo del propio menú Ayuda) se
+    # convertía en una caja indivisible de 705 renglones: pdflatex reportaba
+    # `Overfull \vbox (6010 pt too high)`, unos 2,1 m de números impresos
+    # fuera de la hoja, invisibles e irrecuperables. El límite medido son
+    # ~68 renglones de 12 entradas (~820 GDL); 120 deja margen de sobra.
+    _VECTOR_LITERAL_MAX_DOF = 120
+
+    # Tope de filas de las tablas de volcado. Ver `_longtable_topeada`.
+    _TABLA_MAX_FILAS = 40
+
     def __init__(self, project, solution, element_stresses, nodal_stresses,
                  *, mesh_diagram=None, contour_figures=None,
                  style: str = "educativo"):
@@ -269,6 +296,11 @@ class MemoriaCalculo:
         self._mq_cache = None
         self._health_cache = None
         self._units_cache = None
+        # Elemento estrella memoizado: las tablas de los capítulos 2 y 3 lo
+        # necesitan para priorizar sus nodos (`_nodos_de_interes`) y esos
+        # capítulos se construyen ANTES de la formulación elemental.
+        self._showcase_cache = -1
+        self._compact_cache = -1
 
         title = TheoryDoc.escape(self.TITLE)
         subtitle = TheoryDoc.escape(
@@ -290,14 +322,27 @@ class MemoriaCalculo:
         td.package("longtable")
         td.package("caption")
         td.package("fancyhdr")
-        # Q9 tiene B (3×18) y kₑ (18×18); subimos el límite de columnas.
-        td.raw(r"\setcounter{MaxMatrixCols}{20}")
+        # Q9 tiene B (3×18) y kₑ (18×18); subimos el límite de columnas de
+        # amsmath. `matrix_blocks` sube el suyo solo, pero la K literal y las
+        # matrices emitidas de una pieza no pasan por ahí: este piso es el que
+        # las cubre. El tope real de la K lo pone `_K_LITERAL_MAX_DOF`.
+        td.ensure_matrix_cols(26)
         td.raw(r"\pagestyle{fancy}")
         td.raw(r"\fancyhf{}")
         proj_name_safe = TheoryDoc.escape(proj.project_name)
         td.raw(r"\fancyhead[L]{\small Memoria de Cálculo}")
         td.raw(rf"\fancyhead[R]{{\small {proj_name_safe}}}")
         td.raw(r"\fancyfoot[C]{\small \thepage}")
+        # Estilo de la ÚLTIMA hoja: el mismo encabezado más el colofón sobre
+        # el número de página. Ver `_build_pie`.
+        colofon = (rf"\emph{{Documento generado por "
+                   rf"{TheoryDoc.escape(APP_NAME)} v{APP_VERSION}.}}")
+        td.raw(r"\fancypagestyle{edufemUltima}{"
+               r"\fancyhf{}"
+               r"\fancyhead[L]{\small Memoria de Cálculo}"
+               rf"\fancyhead[R]{{\small {proj_name_safe}}}"
+               rf"\fancyfoot[C]{{\scriptsize {colofon}\\[2pt]\small \thepage}}"
+               r"}")
         td.raw(r"\renewcommand{\headrulewidth}{0.4pt}")
         td.raw(r"\setlength{\parskip}{4pt plus 1pt minus 1pt}")
         td.raw(r"\setlength{\parindent}{0pt}")
@@ -329,15 +374,22 @@ class MemoriaCalculo:
 
     def _build_pipeline(self) -> None:
         self._build_cover()
-        self._td.toc()
-        if self._prose:
-            # Mapa del cálculo (one-pager) + recorrido visual: solo educativo.
-            self._build_intro()
-            self._build_resumen_visual()
+        # SIN indice impreso (pedido del autor, 2026-09-09): son dos hojas
+        # que el alumno no lee. La Memoria se consulta para verificar un
+        # numero o seguir un paso, y para eso sirven los marcadores del PDF
+        # (hyperref los sigue generando: el visor los muestra al costado y
+        # son navegables) y los encabezados de cada hoja, no un sumario
+        # impreso. No reintroducir `self._td.toc()`.
         self._build_cap_problema()
         self._build_cap_discretizacion()
         self._build_cap_calidad()
-        showcase_id = self._select_showcase_element()
+        # `_showcase_id()`, no `_select_showcase_element()`: el memoizado ya
+        # corrió en el capítulo 1 y además envuelve el cálculo en un guard.
+        # La llamada directa lo repetía —recorriendo todos los elementos por
+        # segunda vez— y, si levantaba, la excepción salía de `build()`, que
+        # está FUERA del `try` que la traduce a `MemoriaCalculoError`: el
+        # alumno recibía la traza cruda en vez del mensaje accionable.
+        showcase_id = self._showcase_id()
         compact_ids = self._compact_showcase_ids()
         if compact_ids is not None:
             # Modo compacto: desarrollar TODOS los elementos paso a paso.
@@ -484,35 +536,48 @@ class MemoriaCalculo:
         except Exception:
             digest = "—"
 
+        # Ficha a DOS columnas: la de una sola columna gastaba media hoja y
+        # obligaba a mandar el mapa del cálculo y el diagrama del modelo a
+        # dos hojas más, las tres al 30-45 % de ocupación (medido).
+        n_sup = len(getattr(proj, "surface_loads", []) or [])
         info = [
             ("Proyecto", TheoryDoc.escape(proj.project_name)),
-            ("Fecha de generación", datetime.now().strftime("%d/%m/%Y %H:%M")),
-            ("Tipo de análisis", TheoryDoc.escape(proj.analysis_type)),
-            ("Tipo de elemento", TheoryDoc.escape(proj.element_type)),
-            ("Sistema de unidades", TheoryDoc.escape(proj.unit_system)),
+            ("Análisis", TheoryDoc.escape(proj.analysis_type)),
+            ("Elemento", TheoryDoc.escape(proj.element_type)),
+            ("Unidades", TheoryDoc.escape(proj.unit_system)),
             ("Nodos", str(proj.num_nodes)),
             ("Elementos", str(proj.num_elements)),
-            ("Grados de libertad (GDL)", str(proj.total_dof)),
-            ("Hash del modelo", rf"\texttt{{{digest}}}"),
-            ("Generado por", f"{TheoryDoc.escape(APP_NAME)} v{APP_VERSION}"),
+            ("GDL", str(proj.total_dof)),
+            ("Restricciones", str(len(proj.boundary_conditions))),
+            ("Cargas nodales", str(len(proj.nodal_loads))),
+            ("Cargas superficiales", str(n_sup) if n_sup else "ninguna"),
+            ("Fecha", datetime.now().strftime("%d/%m/%Y %H:%M")),
+            ("Modelo", rf"\texttt{{{digest}}}"),
         ]
-        td.values(info)
+        td.values_2col(info)
         if self._prose:
-            td.raw(r"\vspace{1em}")
             td.para(
-                r"\emph{Este documento desarrolla paso a paso el análisis "
-                r"por Elementos Finitos del proyecto, siguiendo el "
-                r"procedimiento clásico de la formulación isoparamétrica: "
-                r"planteo del problema, discretización, formulación "
-                r"elemental, ensamblaje, condiciones de contorno, "
-                r"resolución del sistema lineal y post-proceso de "
-                r"tensiones. La teoría utilizada es la habitual de los "
-                r"textos del MEF; los valores numéricos corresponden al "
-                r"modelo concreto del usuario.}"
+                r"\emph{Desarrollo paso a paso del análisis por Elementos "
+                r"Finitos de este modelo, con la formulación isoparamétrica "
+                r"clásica. La teoría es la habitual de los textos del MEF; "
+                r"los números son los del modelo.}"
             )
-        td.raw(r"\newpage")
+        # El diagrama del modelo y el mapa del cálculo COMPARTEN esta hoja con
+        # la ficha (antes cada uno tenía la suya, las tres al 30-45 %). Primero
+        # el modelo — es la continuación natural de la ficha — y después el
+        # mapa, que hace de puente al capítulo 1.
+        self._insertar_diagrama_modelo()
+        if self._prose:
+            self._insertar_mapa_calculo()
+        # SIN `\newpage`: el capítulo 1 arranca donde termine la portada. El
+        # salto forzado dejaba media hoja en blanco y no compra nada en un
+        # documento que se consulta, no se hojea.
 
-    def _build_intro(self) -> None:
+    def _insertar_mapa_calculo(self) -> None:
+        """Mapa del cálculo: el gancho de tres líneas más la infografía del
+        recorrido. Va EN la portada, no en hoja propia: solo ocupaba el 30 %
+        de una hoja. Es además el índice visual que reemplaza al sumario
+        impreso que se quitó."""
         td = self._td
         td.raw(r"\section*{¿Qué resuelve el MEF y cómo?}")
         td.raw(r"\addcontentsline{toc}{section}{¿Qué resuelve el MEF y cómo?}")
@@ -540,7 +605,8 @@ class MemoriaCalculo:
                       caption=r"Recorrido del cálculo: el dato que viaja "
                               r"entre etapas (malla $\to \mathbf{k}_e \to "
                               r"\mathbf{K},\mathbf{F} \to \mathbf{u} \to "
-                              r"\boldsymbol\sigma$).",
+                              r"\boldsymbol\sigma$). Cada estación es un "
+                              r"capítulo de esta memoria.",
                       label="fig:pipeline_map", width=r"\textwidth")
         else:
             # Degradación: enumerate textual si Pillow falla.
@@ -557,27 +623,41 @@ class MemoriaCalculo:
             td.raw(r"\item \textbf{Post-proceso} — tensiones, principales, "
                    r"von Mises, contornos.")
             td.raw(r"\end{enumerate}")
-        td.raw(r"\newpage")
 
-    def _build_resumen_visual(self) -> None:
-        td = self._td
-        img = self._mesh_diagram
+    def _insertar_diagrama_modelo(self) -> None:
+        """Diagrama de la malla con nodos, apoyos y cargas. Se emite en los
+        DOS estilos: es la única vista del modelo que tiene el lector para
+        ubicar los números de nodo que citan todas las tablas, y el
+        `directo` la necesita tanto como el `educativo` (antes solo la
+        recibía el educativo, y encima en hoja propia al 45 %)."""
+        # Tamaño según cuánto hay que meter adentro. Las fuentes de
+        # `figure_export` son de tamaño ABSOLUTO en píxeles, así que el cuerpo
+        # con que se imprime un número de nodo es `13 px * ancho_pt / ancho_px`:
+        # encoger el render Y el ancho de impresión en la misma proporción deja
+        # el texto igual de legible (~6,8 pt, el cuerpo del pie de figura) y
+        # ahorra alto de hoja. Lo que NO se puede es mostrar el render grande en
+        # poco ancho: los números caen a 3,5 pt.
+        #   - malla chica: render y figura chicos, comparte hoja con la ficha.
+        #   - malla densa: ancho completo, que los rótulos no se pisen.
+        chica = self._project.num_nodes <= 40
+        px = (560, 420) if chica else (900, 680)
+        ancho = r"0.62\textwidth" if chica else r"\textwidth"
+        img = self._compacta(self._mesh_diagram) if chica else self._mesh_diagram
         if img is None:
             try:
                 from file_io.figure_export import render_mesh_diagram
-                img = render_mesh_diagram(self._project)
+                img = render_mesh_diagram(self._project,
+                                          width=px[0], height=px[1])
             except Exception:
                 img = None
-        if img is None:
-            return
-        td.raw(r"\section*{Resumen visual del modelo}")
         path = self._save_figure(img, "mesh_diagram")
-        if path is not None:
-            td.figure(path,
-                      caption="Discretización del modelo: nodos, elementos, "
-                              "restricciones y cargas aplicadas.",
-                      label="fig:mesh", width=r"0.92\textwidth")
-        td.raw(r"\newpage")
+        if path is None:
+            return
+        self._td.figure(path,
+                        caption="Discretización del modelo: nodos, elementos, "
+                                "restricciones y cargas aplicadas. Los números "
+                                "de nodo son los que citan todas las tablas.",
+                        label="fig:mesh", width=ancho)
 
     # ------------------------------------------------------------------
     # Capítulo 1: planteo del problema
@@ -623,28 +703,17 @@ class MemoriaCalculo:
             td.values([("Hipótesis", caso), ("Elemento", elem_desc)])
 
         self._matriz_D_teorica()
-        self._matriz_D_numerica_si_unico_material()
+        # La D NUMÉRICA se imprime una sola vez, en la formulación elemental
+        # (§ "Matriz constitutiva D del material asignado"), junto a la
+        # $\mathbf{k}_e$ que la usa. Acá se emite sólo si ese capítulo no se
+        # va a construir, para que el documento nunca quede sin ella.
+        if not self._habra_formulacion_elemental():
+            self._matriz_D_numerica_si_unico_material()
 
-        td.subsection_numbered("Funciones de forma")
-        # Fórmula de las N_i: SIEMPRE (es la base del isoparamétrico).
-        if is_q4:
-            td.equation(
-                r"N_i(\xi,\eta)=\tfrac{1}{4}(1+\xi_i\xi)(1+\eta_i\eta), "
-                r"\quad i=1,\dots,4"
-            )
-        else:
-            td.equation(
-                r"N_i(\xi,\eta)=L_a(\xi)\,L_b(\eta), \quad i=1,\dots,9"
-            )
-        if self._prose:
-            td.educational_teaser(
-                r"Las mismas $N_i$ interpolan geometría \emph{y} "
-                r"desplazamiento ($\mathbf{x}=\sum N_i\mathbf{x}_i$, "
-                r"$\mathbf{u}=\sum N_i\mathbf{u}_i$): eso es "
-                r"\emph{isoparamétrico}. La rigidez se integra con Gauss "
-                + (r"$2\times2$." if is_q4 else r"$3\times3$."),
-                phase="proc",
-            )
+        # SIN subsección "1.1 Funciones de forma": era el enunciado de las
+        # $N_i$ más una caja idéntica, palabra por palabra, a la de la
+        # formulación elemental. La fórmula se emite ahora donde están sus
+        # números, en "Funciones de forma en los puntos de Gauss".
 
     def _matriz_D_teorica(self) -> None:
         td = self._td
@@ -752,12 +821,13 @@ class MemoriaCalculo:
         if not proj.nodes:
             self._td.para(r"\emph{Sin nodos definidos.}")
             return
+        claves = sorted(proj.nodes.keys())
         rows = [[str(nid), fmt(proj.nodes[nid].x, "length"),
-                 fmt(proj.nodes[nid].y, "length")]
-                for nid in sorted(proj.nodes.keys())]
+                 fmt(proj.nodes[nid].y, "length")] for nid in claves]
         u = self._u("longitud")
-        self._longtable(headers=["ID", "$X$" + u, "$Y$" + u], rows=rows,
-                        col_align="rrr")
+        self._longtable_topeada(
+            headers=["ID", "$X$" + u, "$Y$" + u], rows=rows, col_align="rrr",
+            claves=claves, destacadas=self._nodos_de_interes(), que="nodos")
 
     def _tabla_elementos(self) -> None:
         proj = self._project
@@ -775,8 +845,9 @@ class MemoriaCalculo:
                        "Espesor" + self._u("longitud"), "Material"]
             col_align = "rrrrrrl"
             n_cols = 4
+        claves = sorted(proj.elements.keys())
         rows = []
-        for eid in sorted(proj.elements.keys()):
+        for eid in claves:
             elem = proj.elements[eid]
             nids = list(elem.node_ids)
             while len(nids) < n_cols:
@@ -785,12 +856,32 @@ class MemoriaCalculo:
             row.append(fmt(elem.thickness, "length"))
             row.append(TheoryDoc.escape(elem.material_name))
             rows.append(row)
+        # Elementos destacados: el que el documento desarrolla paso a paso y
+        # los que tocan el nodo mas solicitado.
+        destacados = set()
+        eid_star = self._showcase_id()
+        if eid_star is not None:
+            destacados.add(eid_star)
+        _v, n_vmax, _m = self._max_vm()
+        if n_vmax is not None:
+            destacados.update(e for e, el in proj.elements.items()
+                              if n_vmax in el.node_ids)
         # Q9: 12 columnas rozan el ancho de A4 portrait (con la unidad del
         # espesor en el encabezado se pasaban 5,7 pt) -> scriptsize, el mismo
         # tratamiento que la tabla de N en puntos de Gauss.
         if is_q9:
             self._td.raw(r"{\scriptsize")
-        self._longtable(headers=headers, rows=rows, col_align=col_align)
+        self._longtable_topeada(headers=headers, rows=rows,
+                                col_align=col_align, compacta=is_q9,
+                                claves=claves, destacadas=destacados,
+                                que="elementos",
+                                criterio="el elemento desarrollado y los que "
+                                         "tocan el nodo de mayor von Mises",
+                                # En Q9 el CSV del modelo escribe
+                                # solo N1..N4: no recupera la
+                                # conectividad completa.
+                                donde=(None if is_q9
+                                       else self._DONDE_MODELO))
         if is_q9:
             self._td.raw(r"}")
 
@@ -799,12 +890,18 @@ class MemoriaCalculo:
         if not proj.nodal_loads:
             self._td.para(r"\emph{Sin cargas nodales definidas.}")
             return
+        claves = sorted(proj.nodal_loads.keys())
         rows = [[str(nid), fmt(proj.nodal_loads[nid].fx, "force"),
                  fmt(proj.nodal_loads[nid].fy, "force")]
-                for nid in sorted(proj.nodal_loads.keys())]
+                for nid in claves]
         u = self._u("fuerza")
-        self._longtable(headers=["Nodo", "$F_x$" + u, "$F_y$" + u], rows=rows,
-                        col_align="rrr")
+        self._longtable_topeada(
+            headers=["Nodo", "$F_x$" + u, "$F_y$" + u], rows=rows,
+            col_align="rrr", claves=claves,
+            destacadas=self._nodos_de_interes(),
+            que="nodos cargados",
+            criterio="los del elemento desarrollado, los apoyos y los "
+                     "valores extremos")
 
     def _tabla_cargas_superficiales(self) -> None:
         proj = self._project
@@ -829,12 +926,17 @@ class MemoriaCalculo:
             self._td.para(r"\emph{Sin restricciones definidas. El sistema "
                           r"sería singular sin ellas.}")
             return
+        claves = sorted(proj.boundary_conditions.keys())
         rows = [[str(nid),
                  "Sí" if proj.boundary_conditions[nid].restrain_x else "No",
                  "Sí" if proj.boundary_conditions[nid].restrain_y else "No"]
-                for nid in sorted(proj.boundary_conditions.keys())]
-        self._longtable(headers=["Nodo", "Restringe X", "Restringe Y"],
-                        rows=rows, col_align="rcc")
+                for nid in claves]
+        self._longtable_topeada(
+            headers=["Nodo", "Restringe X", "Restringe Y"],
+            rows=rows, col_align="rcc", claves=claves,
+            destacadas=self._nodos_de_interes(), que="apoyos",
+            criterio="los del elemento desarrollado y los puntos de "
+                     "carga")
 
     # ------------------------------------------------------------------
     # Capítulo 3: calidad de la malla
@@ -883,8 +985,16 @@ class MemoriaCalculo:
             headers = ["Elem", r"$q_{SJ}$", r"$R_J$", r"$AR$", r"$T_R$",
                        r"$\theta_{min}$", r"$\theta_{max}$", "Estado"]
         col_align = "rrrrrrrl"
+        # Orden por calidad ASCENDENTE cuando la malla es grande: el
+        # diagnóstico no se lee como censo, y los elementos que pueden
+        # invalidar el modelo son los peores. En mallas chicas el orden por
+        # id se conserva (el tope no se activa).
+        claves = sorted(results.keys())
+        if len(claves) > self._TABLA_MAX_FILAS:
+            claves = sorted(claves,
+                            key=lambda e: results[e]["scaled_jacobian"])
         rows = []
-        for eid in sorted(results.keys()):
+        for eid in claves:
             r = results[eid]
             fourth = (r.get("midside_admissibility") or {}).get("q_D") if is_q9 \
                 else r.get("robinson_taper")
@@ -896,11 +1006,33 @@ class MemoriaCalculo:
                 fourth_str, fmt(r["min_angle"], "angle"),
                 fmt(r["max_angle"], "angle"), TheoryDoc.escape(r["status"]),
             ])
-        self._longtable(headers=headers, rows=rows, col_align=col_align)
+        if len(rows) > self._TABLA_MAX_FILAS and self._prose:
+            td.para(
+                r"\emph{Ordenada por Jacobiano escalado ascendente: los "
+                r"primeros son los elementos más distorsionados, que son los "
+                r"que pueden invalidar el modelo.}"
+            )
+        self._longtable_topeada(
+            headers=headers, rows=rows, col_align=col_align, claves=claves,
+            destacadas={self._showcase_id()}, que="elementos",
+            criterio="los más distorsionados (la tabla va ordenada por "
+                     "Jacobiano escalado ascendente) y el elemento "
+                     "desarrollado",
+            donde=None)
 
     # ------------------------------------------------------------------
     # Capítulo 4: formulación elemental (showcase de UN elemento)
     # ------------------------------------------------------------------
+
+    def _showcase_id(self) -> Optional[int]:
+        """`_select_showcase_element` memoizado (se consulta desde varios
+        capítulos, incluidos los que se construyen antes)."""
+        if self._showcase_cache == -1:
+            try:
+                self._showcase_cache = self._select_showcase_element()
+            except Exception:
+                self._showcase_cache = None
+        return self._showcase_cache
 
     def _select_showcase_element(self) -> Optional[int]:
         """Elige el elemento estrella: máxima energía de deformación
@@ -989,10 +1121,35 @@ class MemoriaCalculo:
     _COMPACT_MAX_ELEMENTS_Q4 = 2
     _COMPACT_MAX_ELEMENTS_Q9 = 1
 
+    def _habra_formulacion_elemental(self) -> bool:
+        """¿El documento va a tener capítulo de formulación elemental?
+
+        La pregunta no es sólo si hay un elemento elegido: `_build_cap_showcase`
+        se va sin emitir NADA —ni el encabezado— cuando `_recompute_showcase`
+        falla, y ese capítulo es el único que imprime la $\\mathbf{D}$
+        numérica. Preguntando sólo por `_showcase_id()` había un caso en que
+        el PDF quedaba sin capítulo 4 **y** sin ninguna D con números.
+        """
+        if self._compact_showcase_ids() is not None:
+            return True
+        eid = self._showcase_id()
+        return eid is not None and self._recompute_showcase(eid) is not None
+
     def _compact_showcase_ids(self) -> Optional[list[int]]:
         """Si el modelo cabe en modo compacto, devuelve la lista ordenada de
         IDs a desarrollar; si no, devuelve None (modo showcase de un solo
-        elemento). El criterio depende del tipo de elemento."""
+        elemento). El criterio depende del tipo de elemento.
+
+        Memoizado: el capítulo 1 lo consulta para decidir si emite la
+        $\\mathbf{D}$ numérica, y recomputar el showcase de cada elemento
+        para responder dos veces lo mismo no tiene sentido.
+        """
+        if self._compact_cache != -1:
+            return self._compact_cache
+        self._compact_cache = self._calcular_compact_showcase_ids()
+        return self._compact_cache
+
+    def _calcular_compact_showcase_ids(self) -> Optional[list[int]]:
         proj = self._project
         n_elem = len(proj.elements)
         if n_elem == 0:
@@ -1146,6 +1303,17 @@ class MemoriaCalculo:
 
         # 2. Funciones de forma N en puntos de Gauss
         heading(r"Funciones de forma $N_i(\xi,\eta)$ en los puntos de Gauss")
+        # Enunciado de las N_i: SIEMPRE (es la base del isoparamétrico). Vivía
+        # en una subsección del capítulo 1, dos páginas antes de sus valores.
+        if n_nodes <= 4:
+            td.equation(
+                r"N_i(\xi,\eta)=\tfrac{1}{4}(1+\xi_i\xi)(1+\eta_i\eta), "
+                r"\quad i=1,\dots,4"
+            )
+        else:
+            td.equation(
+                r"N_i(\xi,\eta)=L_a(\xi)\,L_b(\eta), \quad i=1,\dots,9"
+            )
         if self._prose:
             td.educational_teaser(
                 r"Las mismas $N_i$ interpolan geometría \emph{y} "
@@ -1297,7 +1465,11 @@ class MemoriaCalculo:
              self._energia_deformacion_str(elem_id, ke)),
             (r"$\|\mathbf{k}_e\|_F$",
              f"{float(np.linalg.norm(ke, 'fro')):.4g}"),
-            (r"Condición $\kappa_2(\mathbf{k}_e)$", self._cond_str(ke)),
+            # `k_e` tambien es singular (los mismos 3 modos de cuerpo
+            # rigido), asi que su kappa_2 es ~1e18 en cualquier elemento
+            # sano: el rotulo lo dice para que no se lea como un defecto.
+            (r"$\kappa_2(\mathbf{k}_e)$ (singular: modos de cuerpo "
+             r"rígido)", self._cond_str(ke)),
         ])
 
     @staticmethod
@@ -1331,13 +1503,13 @@ class MemoriaCalculo:
             row = [f"PG{self._gp_index(gp, k)}", f"{xi:.4f}", f"{eta:.4f}",
                    f"{w:.4f}"] + [f"{float(n):.4f}" for n in N_vals]
             rows.append(row)
-        # Q9: 13 columnas desbordan A4 portrait → scriptsize (la tabla es
-        # corta, no parte de página, así que el grupo de tamaño es seguro).
+        # Q9: 13 columnas desbordan A4 portrait aun en `\scriptsize` (21,4 pt),
+        # así que además va `compacta=True` (tabcolsep 3 pt).
         wide = n_nodes > 4
         if wide:
             self._td.raw(r"{\scriptsize")
         self._longtable(headers=headers, rows=rows,
-                        col_align="rrrr" + "r" * n_nodes)
+                        col_align="rrrr" + "r" * n_nodes, compacta=wide)
         if wide:
             self._td.raw(r"}")
 
@@ -1433,34 +1605,49 @@ class MemoriaCalculo:
             return
         B = np.asarray(B)
         if wide:
-            # Q9: B es 3×18, desborda A4 portrait incluso en \tiny → apaisado
-            # (igual que kₑ 18×18). Cabe holgado en landscape.
-            td.package("pdflscape")
-            td.raw(r"\begin{landscape}")
-            td.raw(r"{\tiny")
-            td.matrix(B, name=rf"\mathbf{{B}}_{{PG{idx}}}", fmt="{:.3g}")
-            td.raw(r"}")
-            td.raw(r"\end{landscape}")
+            # Q9: B es 3x18. Hasta el 2026-09-09 iba en hoja APAISADA, una
+            # por punto de Gauss: tres hojas al 10 % de ocupacion, y encima
+            # `pdflscape` hace `\clearpage` antes y despues, asi que cortaba
+            # tambien la hoja portrait anterior. Peor: partia la cadena del
+            # paso a paso (J^-1 y dN/dx quedaban en una hoja y la B en otra).
+            # Ahora va PARTIDA POR GRUPOS DE NODOS, en portrait y en
+            # \scriptsize (mas grande que el \tiny de antes): columnas 1-8 =
+            # los 4 nodos de esquina, 9-18 = los 5 nodos internos. El corte
+            # es fisico, no aritmetico, y cada par de columnas sigue siendo
+            # un nodo (lo dice el teaser del capitulo).
+            td.matrix_blocks(B, name=rf"\mathbf{{B}}_{{PG{idx}}}",
+                             block_cols=[8, 10], fmt="{:.3g}",
+                             size=r"\scriptsize")
         else:
             td.raw(r"{\scriptsize")
             td.matrix(B, name=rf"\mathbf{{B}}_{{PG{idx}}}", fmt="{:.4g}")
             td.raw(r"}")
 
     def _mostrar_matriz_ke(self, ke: np.ndarray, *, name: str) -> None:
-        """kₑ con exponente factorizado: Q4 (8×8) portrait scriptsize;
-        Q9 (18×18) landscape tiny."""
+        """kₑ con exponente factorizado, SIEMPRE en portrait.
+
+        La kₑ de Q9 (18×18) iba en hoja apaisada hasta el 2026-09-09, y
+        encima no entraba ni ahí: con el rango dinámico disparado por el
+        ruido numérico caía a notación científica por entrada y se salía
+        185 pt del papel. Corregido el disparador (`RELATIVE_ZERO` en
+        `matrix_factored_tex`), con `\\scriptsize` + `arraycolsep` de 2 pt
+        mide 427 pt contra los 472 disponibles: entra, se lee más grande
+        que el `\\tiny` de antes y queda en la misma hoja que la fórmula de
+        cuadratura que la produce, que es lo que el alumno compara.
+        """
         td = self._td
-        if ke.shape[0] <= 8:
+        if ke.shape[0] <= self._MATRIX_INLINE_MAX_COLS:
             td.raw(r"{\scriptsize")
             td.matrix_factored(ke, name=name, sig_digits=3)
             td.raw(r"}")
         else:
-            td.package("pdflscape")
-            td.raw(r"\begin{landscape}")
-            td.raw(r"{\tiny")
-            td.matrix_factored(ke, name=name, sig_digits=2)
-            td.raw(r"}")
-            td.raw(r"\end{landscape}")
+            # 18 columnas no entran ni con `arraycolsep` al mínimo (medido:
+            # 506 pt contra 472 en el ejemplo canónico, y 980 pt en Cook,
+            # cuyo rango dinámico real la manda a notación científica). Va
+            # partida por mitades de columnas, con UN exponente común para
+            # las dos (así se comparan entre sí).
+            td.matrix_blocks(ke, name=name, block_cols=9,
+                             size=r"\scriptsize", factored=True, sig_digits=3)
 
     def _integrando_simbolico_q4(self, elem, node_coords, material) -> None:
         td = self._td
@@ -1579,32 +1766,36 @@ class MemoriaCalculo:
                 r"equivalentes de cargas superficiales distribuidas y fuerzas "
                 r"másicas (gravedad si está activa):"
             )
-        td.raw(r"{\scriptsize")
-        td.vector_factored(F, name=r"\mathbf{F}", sig_digits=3, transpose=True)
-        td.raw(r"}")
+        self._vector_compacto(F, name=r"\mathbf{F}")
         self._desglose_F(F)
 
     def _mostrar_matriz_K(self, K) -> None:
-        """K literal si es chica; patrón de dispersión (PIL) + stats si no."""
+        """K literal si es chica; patrón de dispersión (PIL) + stats si no.
+
+        El umbral de la rama literal es `_K_LITERAL_MAX_DOF` = 18, **no 24**
+        (2026-09-09). Con 24 la Memoria de un modelo Q4 de 11 o 12 nodos —
+        22 o 24 GDL, un caso perfectamente normal — emitía un `bmatrix` de
+        más de 20 columnas y **pdflatex abortaba**: el alumno no podía
+        exportar y recibía el error genérico de compilación (verificado:
+        malla 5×1 Q4, 12 nodos, falla; 4×1, 10 nodos, compila). 18 es
+        además el techo del modo compacto Q9 (un elemento = 18 GDL), así
+        que ninguna matriz del documento pasa de 18 columnas.
+        """
         td = self._td
         n_dof = _K_dimension(K)
-        if n_dof <= 12:
+        if n_dof <= self._K_LITERAL_MAX_DOF:
             if self._prose:
                 td.para(r"Por su tamaño moderado se muestra literal, con el "
                         r"exponente común factorizado:")
-            td.raw(r"{\scriptsize")
-            td.matrix_factored(_K_to_dense(K), name=r"\mathbf{K}", sig_digits=3)
-            td.raw(r"}")
-        elif n_dof <= 24:
-            if self._prose:
-                td.para(r"Se muestra literal en formato apaisado (exponente "
-                        r"común factorizado):")
-            td.package("pdflscape")
-            td.raw(r"\begin{landscape}")
-            td.raw(r"{\tiny")
-            td.matrix_factored(_K_to_dense(K), name=r"\mathbf{K}", sig_digits=2)
-            td.raw(r"}")
-            td.raw(r"\end{landscape}")
+            if n_dof <= self._MATRIX_INLINE_MAX_COLS:
+                td.raw(r"{\scriptsize")
+                td.matrix_factored(_K_to_dense(K), name=r"\mathbf{K}",
+                                   sig_digits=3)
+                td.raw(r"}")
+            else:
+                td.matrix_blocks(_K_to_dense(K), name=r"\mathbf{K}",
+                                 block_cols=9, size=r"\scriptsize",
+                                 factored=True, sig_digits=3)
         else:
             if self._prose:
                 td.para(
@@ -1638,7 +1829,15 @@ class MemoriaCalculo:
             (r"Ancho de banda", str(bw)),
         ]
         if cond is not None:
-            rows.append((r"$\kappa_2(\mathbf{K})$ (estimado)", f"{cond:.3e}"))
+            # Rotulo explicito: en este punto del documento K todavia no
+            # tiene restricciones, asi que es SINGULAR y su kappa_2 es
+            # enorme a proposito. Sin decirlo, el numero parece un
+            # defecto del modelo. El que tiene sentido, kappa_2(K_ff),
+            # esta en el capitulo de diagnostico.
+            rows.append((
+                r"$\kappa_2(\mathbf{K})$ antes de restricciones "
+                r"(singular: 3 modos de cuerpo rígido)",
+                f"{cond:.3e}"))
         td.values(rows)
 
     def _desglose_F(self, F: np.ndarray) -> None:
@@ -1744,10 +1943,8 @@ class MemoriaCalculo:
                 r"tabla con la magnitud $|u|=\sqrt{u_x^{\,2}+u_y^{\,2}}$:"
             )
         u = sol["u"]
-        td.raw(r"{\scriptsize")
-        td.vector_factored(np.asarray(u), name=r"\mathbf{u}", sig_digits=3,
-                           transpose=True)
-        td.raw(r"}")
+        self._vector_compacto(u, name=r"\mathbf{u}",
+                              donde=self._DONDE_RESULTADOS)
         self._tabla_desplazamientos(u)
 
         # Reacciones
@@ -1759,10 +1956,8 @@ class MemoriaCalculo:
                 r"restringidos:"
             )
         R = sol["reactions"]
-        td.raw(r"{\scriptsize")
-        td.vector_factored(np.asarray(R), name=r"\mathbf{R}", sig_digits=3,
-                           transpose=True)
-        td.raw(r"}")
+        self._vector_compacto(R, name=r"\mathbf{R}",
+                              donde=self._DONDE_RESULTADOS)
         self._tabla_reacciones(R)
 
         # Equilibrio
@@ -1793,17 +1988,20 @@ class MemoriaCalculo:
         proj = self._project
         idx_map = proj.node_index_map
         u = np.asarray(u)
+        claves = sorted(proj.nodes.keys())
         rows = []
-        for nid in sorted(proj.nodes.keys()):
+        for nid in claves:
             base = 2 * idx_map[nid]
             ux, uy = float(u[base]), float(u[base + 1])
             umag = float(np.hypot(ux, uy))
             rows.append([str(nid), f"{ux:.5e}", f"{uy:.5e}", f"{umag:.5e}"])
         # `uni`, no `u`: en este metodo `u` es el vector de desplazamientos.
         uni = self._u("longitud")
-        self._longtable(
+        self._longtable_topeada(
             headers=["Nodo", "$u_x$" + uni, "$u_y$" + uni, "$|u|$" + uni],
-            rows=rows, col_align="rrrr")
+            rows=rows, col_align="rrrr", claves=claves,
+            destacadas=self._nodos_de_interes(), que="nodos",
+            donde=self._DONDE_RESULTADOS)
 
     def _tabla_reacciones(self, R) -> None:
         proj = self._project
@@ -1814,7 +2012,8 @@ class MemoriaCalculo:
         R = np.asarray(R)
         rows = []
         sum_rx = sum_ry = 0.0
-        for nid in sorted(proj.boundary_conditions.keys()):
+        claves = sorted(proj.boundary_conditions.keys())
+        for nid in claves:
             bc = proj.boundary_conditions[nid]
             base = 2 * idx_map[nid]
             rx = float(R[base]) if bc.restrain_x else 0.0
@@ -1822,25 +2021,59 @@ class MemoriaCalculo:
             sum_rx += rx
             sum_ry += ry
             rows.append([str(nid), fmt(rx, "force"), fmt(ry, "force")])
-        rows.append([r"\textbf{Suma}", rf"\textbf{{{fmt(sum_rx, 'force')}}}",
-                     rf"\textbf{{{fmt(sum_ry, 'force')}}}"])
         u = self._u("fuerza")
-        self._longtable(headers=["Nodo", "$R_x$" + u, "$R_y$" + u], rows=rows,
-                        col_align="rrr")
+        # La fila SUMA se emite aparte de la tabla topeada: es un total
+        # sobre TODOS los apoyos, no una fila mas que se pueda muestrear.
+        self._longtable_topeada(
+            headers=["Nodo", "$R_x$" + u, "$R_y$" + u], rows=rows,
+            col_align="rrr", claves=claves,
+            destacadas=self._nodos_de_interes(), que="apoyos",
+            criterio="los del elemento desarrollado, los puntos de "
+                     "carga y los valores extremos",
+            donde=self._DONDE_RESULTADOS)
+        self._td.values([
+            (rf"\textbf{{Suma de reacciones}} $R_x$ {u}".strip(),
+             rf"\textbf{{{fmt(sum_rx, 'force')}}}"),
+            (rf"\textbf{{Suma de reacciones}} $R_y$ {u}".strip(),
+             rf"\textbf{{{fmt(sum_ry, 'force')}}}"),
+        ])
+
+    def _fuerzas_y_reacciones(self, R):
+        """Suma de las fuerzas APLICADAS y de las reacciones, por eje.
+
+        Las aplicadas salen del vector `F` del solver, **no** de
+        `project.nodal_loads`: `F` incluye además las fuerzas nodales
+        equivalentes de las cargas superficiales y las másicas, y es
+        contra `F` que se calculan las reacciones (`R = K u - F`).
+
+        Sumando sólo las cargas nodales, cualquier modelo cargado por
+        presión de borde daba `Cargas aplicadas = 0` con las reacciones
+        completas: **residuo del 100 %**. La membrana de Cook —un
+        ejemplo del propio menú Ayuda— salía con el residuo relativo en
+        `1.00e+00` y el veredicto en rojo `Crítico`, o sea que el
+        documento declaraba roto un modelo perfectamente sano. El
+        residuo real de ese caso es `1.0e-13`. Encima el desglose de F,
+        dos apartados antes en la misma hoja, ya imprimía el total
+        correcto.
+        """
+        proj = self._project
+        R = np.asarray(R).ravel()
+        F = np.asarray(self._solution.get("F")).ravel()
+        fx = float(F[0::2].sum())
+        fy = float(F[1::2].sum())
+        idx = proj.node_index_map
+        rx = ry = 0.0
+        for nid, bc in proj.boundary_conditions.items():
+            base = 2 * idx[nid]
+            if bc.restrain_x:
+                rx += float(R[base])
+            if bc.restrain_y:
+                ry += float(R[base + 1])
+        return fx, fy, rx, ry
 
     def _tabla_verificacion_equilibrio(self, R) -> None:
-        proj = self._project
-        R = np.asarray(R)
-        Fx_aplicada = sum(ld.fx for ld in proj.nodal_loads.values())
-        Fy_aplicada = sum(ld.fy for ld in proj.nodal_loads.values())
-        idx_map = proj.node_index_map
-        Rx_total = Ry_total = 0.0
-        for nid, bc in proj.boundary_conditions.items():
-            base = 2 * idx_map[nid]
-            if bc.restrain_x:
-                Rx_total += float(R[base])
-            if bc.restrain_y:
-                Ry_total += float(R[base + 1])
+        Fx_aplicada, Fy_aplicada, Rx_total, Ry_total = \
+            self._fuerzas_y_reacciones(R)
         rows = [
             ["X", fmt(Fx_aplicada, "force"), fmt(Rx_total, "force"),
              f"{Fx_aplicada + Rx_total:.3e}"],
@@ -2026,11 +2259,15 @@ class MemoriaCalculo:
 
         # Deformada (PIL)
         td.subsection_numbered("Configuración deformada")
-        deformed_img = self._contour_figures.get("deformed")
+        deformed_img = self._compacta(self._contour_figures.get("deformed"))
         if deformed_img is None:
             try:
                 from file_io.figure_export import render_deformed
-                deformed_img = render_deformed(proj, self._solution)
+                # 620x470 en vez de 900x680: se imprime a 0.62\textwidth y
+                # las fuentes de `figure_export` son absolutas en píxeles
+                # (ver `_insertar_diagrama_modelo`).
+                deformed_img = render_deformed(proj, self._solution,
+                                               width=620, height=470)
             except Exception:
                 deformed_img = None
         path = self._save_figure(deformed_img, "deformed")
@@ -2038,7 +2275,7 @@ class MemoriaCalculo:
             td.figure(path,
                       caption=("Configuración deformada (escala automática). "
                                "Malla original en gris, deformada en verde."),
-                      label="fig:deformed", width=r"0.82\textwidth")
+                      label="fig:deformed", width=r"0.62\textwidth")
 
         # Contornos
         td.subsection_numbered("Mapas de contornos de tensiones")
@@ -2053,12 +2290,12 @@ class MemoriaCalculo:
                 r"el contorno de la Memoria coincide con el del visor de "
                 r"resultados de la aplicación."
             )
-        for component in ("sigma_x", "sigma_y", "tau_xy", "von_mises"):
-            self._insertar_contorno(component)
+        self._insertar_contornos()
 
     def _tabla_nodal_stresses(self) -> None:
+        claves = sorted(self._nodal_stresses.keys())
         rows = []
-        for nid in sorted(self._nodal_stresses.keys()):
+        for nid in claves:
             s = self._nodal_stresses[nid]
             rows.append([
                 str(nid),
@@ -2070,44 +2307,94 @@ class MemoriaCalculo:
                 fmt(s.get("von_mises", 0.0), "stress"),
             ])
         u = self._u("esfuerzo")
-        self._longtable(
+        self._longtable_topeada(
             headers=["Nodo"] + [sym + u for sym in
                                 (r"$\sigma_x$", r"$\sigma_y$",
                                  r"$\tau_{xy}$", r"$\sigma_1$",
                                  r"$\sigma_2$", r"$\sigma_{VM}$")],
-            rows=rows, col_align="rrrrrrr")
+            rows=rows, col_align="rrrrrrr", claves=claves,
+            destacadas=self._nodos_de_interes(), que="nodos",
+            donde=self._DONDE_RESULTADOS)
 
-    def _insertar_contorno(self, component: str) -> None:
-        td = self._td
-        img = self._contour_figures.get(component)
+    # Ancho máximo (px) de una figura pre-renderizada para poder usarla tal
+    # cual. Por encima, se re-renderiza al tamaño chico: las fuentes de
+    # `figure_export` son absolutas en píxeles y una imagen de 920 px impresa
+    # a 231 pt deja los rótulos de la escala en 3,3 pt.
+    _FIG_ANCHO_COMPACTO = 640
+
+    def _compacta(self, img):
+        """Devuelve `img` si ya es lo bastante chica para imprimirse
+        compacta, o None para que quien llama la re-renderice."""
         if img is None:
-            try:
-                from file_io.figure_export import render_contour
-                img = render_contour(self._project, self._solution,
-                                     self._nodal_stresses, component)
-            except Exception:
-                img = None
-        path = self._save_figure(img, f"contour_{component}")
-        if path is None:
-            return
+            return None
+        try:
+            return img if img.width <= self._FIG_ANCHO_COMPACTO else None
+        except Exception:
+            return None
+
+    def _insertar_contornos(self) -> None:
+        """Los cuatro contornos en una grilla 2x2, no uno debajo del otro.
+
+        Apilados a 0,82\\textwidth ocupaban DOS hojas al 85 %, con los
+        rótulos de la escala en 5,5 pt. En grilla entran en una sola hoja y,
+        como el render también se achica (520 px en vez de 920 para 231 pt
+        de ancho impreso en vez de 387), la resolución por punto tipográfico
+        es la misma y los rótulos quedan un poco más grandes, no más chicos.
+
+        Se emite fila por fila: cada `figures_row` es un bloque `[H]`, así
+        que si la segunda fila no entra baja sola y el hueco que deja es de
+        media figura, no de la grilla entera.
+        """
         labels = {
             "sigma_x": r"$\sigma_x$", "sigma_y": r"$\sigma_y$",
             "tau_xy": r"$\tau_{xy}$", "von_mises": r"$\sigma_{VM}$ (von Mises)",
         }
-        td.figure(path,
-                  caption=f"Contorno de {labels.get(component, component)} "
-                          f"(valores nodales promediados).",
-                  label=f"fig:contour_{component}", width=r"0.82\textwidth")
+        items = []
+        for component in ("sigma_x", "sigma_y", "tau_xy", "von_mises"):
+            img = self._compacta(self._contour_figures.get(component))
+            if img is None:
+                try:
+                    from file_io.figure_export import render_contour
+                    img = render_contour(self._project, self._solution,
+                                         self._nodal_stresses, component,
+                                         width=520, height=390)
+                except Exception:
+                    img = None
+            path = self._save_figure(img, f"contour_{component}")
+            if path is not None:
+                items.append((path, labels[component], component))
+        if not items:
+            return
+        for i in range(0, len(items), 2):
+            fila = items[i:i + 2]
+            simbolos = " y ".join(lbl for _p, lbl, _c in fila)
+            self._td.figures_row(
+                [(p, lbl) for p, lbl, _c in fila],
+                caption=f"Contorno de {simbolos} (valores nodales "
+                        f"promediados).",
+                label=f"fig:contornos_{fila[0][2]}",
+                width=0.49)
 
     # ------------------------------------------------------------------
     # Tensiones por punto de Gauss (post-proceso, ambos estilos)
     # ------------------------------------------------------------------
 
     def _tabla_gauss_stresses_completos(self) -> None:
-        rows = []
+        """Tensiones crudas por punto de Gauss (antes del promediado).
+
+        Es la tabla más grande del documento y la de menor valor por fila:
+        son valores en coordenadas naturales, sin (x, y) que los ubique en
+        el modelo. En Cook Q9 32×32 eran 9216 filas, 181 páginas. Cuando la
+        malla es grande se muestran el elemento desarrollado paso a paso
+        —el único que el alumno puede cruzar contra el capítulo de
+        formulación— y los puntos de mayor von Mises, que son los que
+        gobiernan el diseño.
+        """
+        claves, rows = [], []
         for eid in sorted(self._element_stresses.keys()):
             es = self._element_stresses[eid]
             for gp_idx, gs in enumerate(es.get("gauss_stresses", []), start=1):
+                claves.append(eid)
                 rows.append([
                     str(eid), f"PG{gp_idx}",
                     fmt(gs.get("sigma_x", 0.0), "stress"),
@@ -2120,17 +2407,58 @@ class MemoriaCalculo:
         if not rows:
             self._td.para(r"\emph{Sin tensiones por punto de Gauss.}")
             return
+        # Con malla grande, priorizar el elemento estrella y los de mayor
+        # von Mises (no un muestreo ciego: estas filas se leen por valor).
+        destacados = {self._showcase_id()}
+        if len(rows) > self._TABLA_MAX_FILAS:
+            def _vm_max(eid):
+                gsl = self._element_stresses[eid].get("gauss_stresses", [])
+                return max((g.get("von_mises", 0.0) for g in gsl), default=0.0)
+            peores = sorted(self._element_stresses, key=_vm_max,
+                            reverse=True)[:3]
+            destacados.update(peores)
         u = self._u("esfuerzo")
-        self._longtable(
+        self._longtable_topeada(
             headers=["Elem", "PG"] + [sym + u for sym in
                                       (r"$\sigma_x$", r"$\sigma_y$",
                                        r"$\tau_{xy}$", r"$\sigma_1$",
                                        r"$\sigma_2$", r"$\sigma_{VM}$")],
-            rows=rows, col_align="ccrrrrrr")
+            rows=rows, col_align="ccrrrrrr", claves=claves,
+            destacadas=destacados, que="puntos de Gauss",
+            criterio="los del elemento desarrollado y los de los tres "
+                     "elementos de mayor von Mises",
+            donde=None)
 
     # ------------------------------------------------------------------
     # Recuperación ε → σ y sustituciones numéricas del post-proceso
     # ------------------------------------------------------------------
+
+    def _deformaciones_por_gauss(self, elem_id: int):
+        """ε = B(ξ,η)·u_e en cada punto de Gauss del elemento, o None.
+
+        `compute_all_stresses` NO guarda la deformación en `gauss_stresses`
+        (solo σ y sus invariantes), así que se recalcula acá con la misma
+        cadena que el resto del documento: la `B` de `element_stiffness` y
+        los desplazamientos del elemento. Antes se leía `gs.get("strain",
+        [0, 0, 0])`, una clave que no existe, y la tabla de recuperación
+        imprimía **ε = 0 junto a σ ≠ 0** — matemáticamente imposible y
+        contradictorio con la σ = D·ε de la misma página, justo en la tabla
+        que existe para verificar esa cadena.
+        """
+        recomputed = self._recompute_showcase(elem_id)
+        if recomputed is None:
+            return None
+        _ke, gauss_data, _material, _coords = recomputed
+        dof_idx = (self._solution.get("element_data", {})
+                   .get(elem_id, {}).get("dof_indices"))
+        u = self._solution.get("u")
+        if dof_idx is None or u is None:
+            return None
+        try:
+            u_e = np.asarray(u)[list(dof_idx)]
+            return [np.asarray(g["B"]) @ u_e for g in gauss_data]
+        except Exception:
+            return None
 
     def _tabla_recuperacion_showcase(self, elem_id: int) -> None:
         """Sustitución ε = B·u_e → σ = D·ε en cada punto de Gauss del
@@ -2143,6 +2471,7 @@ class MemoriaCalculo:
         gauss = es.get("gauss_stresses", [])
         if not gauss:
             return
+        deformaciones = self._deformaciones_por_gauss(elem_id)
         td = self._td
         if self._prose:
             td.para(
@@ -2152,26 +2481,70 @@ class MemoriaCalculo:
                 rf"desplazamientos del elemento dan $\boldsymbol\varepsilon$, "
                 rf"y la ley de Hooke la convierte en $\boldsymbol\sigma$."
             )
+        # Sin deformaciones no se rellena con ceros: se emite la tabla SIN las
+        # columnas de epsilon. Rellenar reintroducía exactamente el bug que
+        # esta tabla vino a corregir — epsilon = 0 al lado de sigma != 0,
+        # contradiciendo la sigma = D*epsilon de la misma hoja.
+        hay_eps = bool(deformaciones) and len(deformaciones) >= len(gauss)
+        u = self._u("esfuerzo")
         rows = []
         for k, gs in enumerate(gauss, start=1):
-            strain = np.asarray(gs.get("strain", [0.0, 0.0, 0.0])).ravel()
-            ex = float(strain[0]) if strain.size > 0 else 0.0
-            ey = float(strain[1]) if strain.size > 1 else 0.0
-            gxy = float(strain[2]) if strain.size > 2 else 0.0
-            rows.append([
-                f"PG{k}", f"{ex:.4e}", f"{ey:.4e}", f"{gxy:.4e}",
+            fila = [f"PG{k}"]
+            if hay_eps:
+                strain = np.asarray(deformaciones[k - 1]).ravel()
+                for i in range(3):
+                    v = float(strain[i]) if strain.size > i else 0.0
+                    fila.append(f"{v:.4e}")
+            fila += [
                 fmt(gs.get("sigma_x", 0.0), "stress"),
                 fmt(gs.get("sigma_y", 0.0), "stress"),
                 fmt(gs.get("tau_xy", 0.0), "stress"),
-            ])
+            ]
+            rows.append(fila)
         # Las deformaciones son adimensionales; las tensiones llevan la
         # unidad del sistema del proyecto.
-        u = self._u("esfuerzo")
-        self._longtable(
-            headers=["PG", r"$\varepsilon_x$", r"$\varepsilon_y$",
-                     r"$\gamma_{xy}$", r"$\sigma_x$" + u,
-                     r"$\sigma_y$" + u, r"$\tau_{xy}$" + u],
-            rows=rows, col_align="ccccrrr")
+        headers = ["PG"]
+        if hay_eps:
+            headers += [r"$\varepsilon_x$", r"$\varepsilon_y$",
+                        r"$\gamma_{xy}$"]
+        headers += [r"$\sigma_x$" + u, r"$\sigma_y$" + u, r"$\tau_{xy}$" + u]
+        self._longtable(headers=headers, rows=rows,
+                        col_align="c" + "c" * (3 if hay_eps else 0) + "rrr")
+        if not hay_eps and self._prose:
+            td.para(
+                r"\emph{No se pudieron recuperar las deformaciones de este "
+                r"elemento, así que la tabla muestra sólo las tensiones. "
+                r"La cadena $\boldsymbol\varepsilon=\mathbf{B}\,\mathbf{u}_e "
+                r"\to \boldsymbol\sigma=\mathbf{D}\,\boldsymbol\varepsilon$ "
+                r"es la del apartado anterior.}"
+            )
+
+    @staticmethod
+    def _tension_en_ecuacion(v) -> str:
+        """Una tensión que va DENTRO de una ecuación de sustitución.
+
+        `fmt(v, "stress")` fija dos decimales, que es lo correcto en las
+        tablas —todas llevan la unidad en el encabezado y así se comparan
+        columna a columna—, pero dentro de una sustitución aplasta a
+        `-0.00` cualquier tensión menor que 0,005. En un modelo
+        adimensional como la membrana de Cook la ecuación salía
+        `sigma_VM = sqrt((-0.00)^2-(-0.00)(-0.87)+(-0.87)^2) = 0.86`: un
+        operando no nulo impreso como cero, en la fórmula que existe
+        justamente para que el alumno rehaga la cuenta.
+
+        Se sigue prefiriendo `fmt` (regla dura 8) y sólo se cae a
+        `fmt_escala` —el otro formateador de `config.settings`, que
+        conserva cifras significativas en cualquier magnitud— cuando
+        `fmt` mentiría.
+        """
+        try:
+            valor = float(v)
+        except (TypeError, ValueError):
+            return str(v)
+        texto = fmt(valor, "stress")
+        if valor != 0.0 and float(texto) == 0.0:
+            return fmt_escala(valor)
+        return texto
 
     def _sustitucion_principales_vm(self) -> None:
         """Sustitución numérica de σ1, σ2, θp y σVM en el nodo de mayor von
@@ -2208,34 +2581,45 @@ class MemoriaCalculo:
                 rf"A modo de ejemplo, en el \textbf{{nodo {nid}}} (el de mayor "
                 rf"von Mises) las componentes promediadas se sustituyen así:"
             )
+        # El planteo y el resultado van en RENGLONES SEPARADOS, por la misma
+        # razón que θp y σVM más abajo: `equation*` no parte la línea sola y
+        # el `\Rightarrow` no da punto de corte, así que con los seis valores
+        # a cuatro cifras y signo la línea se salía 24 pt del margen (medido
+        # en Cook Q9). Los números pasan por `fmt(v, "stress")` — los mismos
+        # decimales que la tabla de tensiones de la que salen, salvo
+        # cuando eso los aplastaria a cero (ver `_tension_en_ecuacion`).
+        _s = self._tension_en_ecuacion
         td.equation(
-            rf"\sigma_{{1,2}}=\frac{{{sx:.4g}+({sy:.4g})}}{{2}}\pm\sqrt{{"
-            rf"\left(\frac{{{sx:.4g}-({sy:.4g})}}{{2}}\right)^2+({txy:.4g})^2}}"
-            rf"\;\Rightarrow\;\sigma_1={s1:.4g},\ \sigma_2={s2:.4g}"
+            rf"\sigma_{{1,2}}=\frac{{{_s(sx)}+({_s(sy)})}}{{2}}\pm\sqrt{{"
+            rf"\left(\frac{{{_s(sx)}-({_s(sy)})}}{{2}}\right)^2"
+            rf"+({_s(txy)})^2}}"
+        )
+        td.equation(
+            rf"\Rightarrow\;\sigma_1={_s(s1)},\qquad \sigma_2={_s(s2)}"
         )
         if abs(sx - sy) > NUMERICAL_TOLERANCE:
             theta_expr = (
-                rf"\theta_p=\tfrac12\arctan\!\frac{{2({txy:.4g})}}"
-                rf"{{{sx:.4g}-({sy:.4g})}}={theta:.4g}^\circ"
+                rf"\theta_p=\tfrac12\arctan\!\frac{{2({_s(txy)})}}"
+                rf"{{{_s(sx)}-({_s(sy)})}}={fmt(theta, 'angle')}^\circ"
             )
         else:
-            theta_expr = rf"\theta_p={theta:.4g}^\circ"
+            theta_expr = rf"\theta_p={fmt(theta, 'angle')}^\circ"
         # theta_p y sigma_VM van en RENGLONES SEPARADOS: juntos con un \qquad
         # la linea se pasaba del margen derecho (Overfull \hbox de 44 pt en el
         # ejemplo canonico, con los cuatro valores a 4 cifras). El \qquad no
         # da punto de corte y `equation*` no parte la linea sola.
         if proj.analysis_type == _DP:
-            td.equation(theta_expr + rf",\qquad \sigma_z={sz:.4g}")
+            td.equation(theta_expr + rf",\qquad \sigma_z={_s(sz)}")
             td.equation(
-                rf"\sigma_{{VM}}=\sqrt{{\tfrac12\left[({s1:.4g}-({s2:.4g}))^2"
-                rf"+({s2:.4g}-({sz:.4g}))^2+({sz:.4g}-({s1:.4g}))^2\right]}}"
-                rf"={vm:.4g}"
+                rf"\sigma_{{VM}}=\sqrt{{\tfrac12\left[({_s(s1)}-({_s(s2)}))^2"
+                rf"+({_s(s2)}-({_s(sz)}))^2+({_s(sz)}-({_s(s1)}))^2\right]}}"
+                rf"={_s(vm)}"
             )
         else:
             td.equation(theta_expr)
             td.equation(
-                rf"\sigma_{{VM}}=\sqrt{{({s1:.4g})^2"
-                rf"-({s1:.4g})({s2:.4g})+({s2:.4g})^2}}={vm:.4g}"
+                rf"\sigma_{{VM}}=\sqrt{{({_s(s1)})^2"
+                rf"-({_s(s1)})({_s(s2)})+({_s(s2)})^2}}={_s(vm)}"
             )
 
     def _tabla_comparacion_promedio(self) -> None:
@@ -2301,6 +2685,21 @@ class MemoriaCalculo:
         self._longtable(
             headers=["Origen"] + [sym + u for _, sym in comps],
             rows=rows, col_align="l" + "r" * len(comps))
+        # Aviso en AMBOS estilos: es un hecho sobre los números de la tabla,
+        # no prosa. La fila "Promedio" es la media aritmética de la columna
+        # SOLO en las tres componentes; el $\sigma_{VM}$ se recalcula a
+        # partir de esas componentes ya promediadas (no es lineal), así que
+        # NO coincide con el promedio de su propia columna. Quien revisara la
+        # cuenta encontraba una diferencia sin explicación: 310,06 contra
+        # 278,58 en el ejemplo canónico.
+        td.para(
+            r"\emph{La fila \textbf{Promedio} es la media aritmética de la "
+            r"columna en $\sigma_x$, $\sigma_y$ y $\tau_{xy}$. En "
+            r"$\sigma_{VM}$ no: se recalcula a partir de las componentes ya "
+            r"promediadas, porque von Mises no es una función lineal de "
+            r"ellas (ver la fórmula más abajo). Promediar los $\sigma_{VM}$ "
+            r"de cada elemento daría un valor distinto y equivocado.}"
+        )
         if self._prose:
             td.educational_teaser(
                 r"\textbf{Ventaja} del promedio: un único campo continuo, "
@@ -2429,7 +2828,8 @@ class MemoriaCalculo:
         if self._prose:
             self._chapter_card(
                 entra=r"Modelo + solución",
-                formula=r"q_{SJ},\ \kappa_2(\mathbf{K}),\ \text{equilibrio}",
+                formula=r"q_{SJ},\ \kappa_2(\mathbf{K}_{ff}),\ "
+                        r"\text{equilibrio}",
                 sale=r"Anomalías + recomendaciones",
                 phase="pre",
             )
@@ -2491,12 +2891,22 @@ class MemoriaCalculo:
             rows.append([r"Peor relación de aspecto", f"{worst_ar:.2f}",
                          self._verdict_cell(state)])
 
-        cond = _K_cond(sol.get("K"))
+        # Sobre K_ff (`K_red`), NO sobre K. La K sin restricciones es
+        # singular por construcción —tiene los 3 modos de cuerpo rígido
+        # del plano en su nucleo— asi que su kappa_2 da ~1e17 en
+        # cualquier modelo y el veredicto salia 'Critico' SIEMPRE, aun
+        # en los sanos: el ejemplo canonico Q4 daba 2.39e+17 en rojo
+        # cuando su K_ff tiene kappa_2 = 32,6. Un indicador que se
+        # enciende siempre no informa nada, y este vive justo en el
+        # capitulo que le dice al alumno si puede confiar en el
+        # resultado.
+        cond = _K_cond(sol.get("K_red"))
         if cond is not None:
             state = "fail" if cond >= 1e12 else \
                 ("warn" if cond >= 1e8 else "ok")
-            rows.append([r"$\kappa_2(\mathbf{K})$ (estimado)", f"{cond:.2e}",
-                         self._verdict_cell(state)])
+            rows.append([
+                r"$\kappa_2(\mathbf{K}_{ff})$ (estimado)", f"{cond:.2e}",
+                self._verdict_cell(state)])
 
         res_rel = self._equilibrio_residuo_rel()
         if res_rel is not None:
@@ -2537,18 +2947,8 @@ class MemoriaCalculo:
         """Residuo de equilibrio global relativo: $|\\sum F+\\sum R|/|\\sum F|$
         (o normalizado por las reacciones si no hay cargas externas)."""
         try:
-            proj = self._project
-            R = np.asarray(self._solution["reactions"])
-            idx = proj.node_index_map
-            fx = sum(ld.fx for ld in proj.nodal_loads.values())
-            fy = sum(ld.fy for ld in proj.nodal_loads.values())
-            rx = ry = 0.0
-            for nid, bc in proj.boundary_conditions.items():
-                base = 2 * idx[nid]
-                if bc.restrain_x:
-                    rx += float(R[base])
-                if bc.restrain_y:
-                    ry += float(R[base + 1])
+            fx, fy, rx, ry = self._fuerzas_y_reacciones(
+                self._solution["reactions"])
             num = float(np.hypot(fx + rx, fy + ry))
             den = float(np.hypot(fx, fy))
             if den < NUMERICAL_TOLERANCE:
@@ -2713,7 +3113,10 @@ class MemoriaCalculo:
                             "($[-1,1]^2$)."),
             (r"$N_i$", "Funciones de forma (isoparamétricas: interpolan "
                        "geometría y desplazamientos)."),
-            (r"$\mathbf{J}$", "Jacobiano del mapeo natural→físico. Requiere "
+            # `$\to$`, no la flecha Unicode: regla dura 20. Era la única
+            # cadena no-ASCII prohibida que quedaba en todo el documento.
+            (r"$\mathbf{J}$", r"Jacobiano del mapeo natural $\to$ físico. "
+                              r"Requiere "
                               "$\\det\\mathbf{J}>0$."),
             (r"$\mathbf{B}$", "Matriz deformación–desplazamiento "
                               "($\\boldsymbol{\\varepsilon}="
@@ -2738,11 +3141,204 @@ class MemoriaCalculo:
     # ------------------------------------------------------------------
 
     def _build_pie(self) -> None:
+        """Colofón al PIE de la última hoja, no en el cuerpo.
+
+        Como texto del cuerpo era una raya más una línea en cursiva que, si
+        el capítulo ⑨ terminaba cerca del borde inferior, no entraban y se
+        llevaban una **hoja entera** para sí solas (medido: Cook Q9 directo,
+        hoja 17 con una sola línea). En el pie no ocupa lugar en el flujo, y
+        `\\thispagestyle` ejecutado al final del documento le pega a la hoja
+        que se está armando, que es la última.
+        """
+        self._td.raw(r"\thispagestyle{edufemUltima}")
+
+    def _nodos_de_interes(self) -> list:
+        """Nodos que el alumno necesita para VERIFICAR, en orden de id.
+
+        Cuando una tabla no entra entera (malla grande), estas son las filas
+        que se muestran: los nodos del elemento que el documento desarrolla
+        paso a paso, los apoyos, los nodos cargados y los extremos de los
+        campos. Es el mismo conjunto para las tres tablas por nodo (nodos,
+        desplazamientos y tensiones nodales) para que el alumno pueda cruzar
+        coordenada, desplazamiento y tensión del mismo nodo sin buscarlo en
+        tres listas distintas.
+        """
+        proj = self._project
+        sel: set = set()
+        eid = self._showcase_id()
+        if eid is not None and eid in proj.elements:
+            sel.update(proj.elements[eid].node_ids)
+        sel.update(list(proj.boundary_conditions.keys())[:10])
+        sel.update(list(proj.nodal_loads.keys())[:10])
+        for sl in list(getattr(proj, "surface_loads", []) or [])[:5]:
+            sel.update((sl.node_start, sl.node_end))
+        _u, n_umax = self._max_disp()
+        _v, n_vmax, _m = self._max_vm()
+        sel.update(n for n in (n_umax, n_vmax) if n is not None)
+        if self._nodal_stresses:
+            for comp in ("sigma_x", "sigma_y", "tau_xy", "von_mises"):
+                (_a, n_a), (_b, n_b) = self._stress_extremes(comp)
+                sel.update(n for n in (n_a, n_b) if n is not None)
+        return sorted(n for n in sel if n in proj.nodes)
+
+    # Descripción por defecto del criterio de destacado: el de las tablas
+    # por nodo (`_nodos_de_interes`). Las tablas con otro criterio pasan el
+    # suyo por `criterio=`.
+    _CRITERIO_NODOS = ("las del elemento desarrollado, los apoyos, los "
+                       "puntos de carga y los valores extremos")
+
+    # A dónde mandar al alumno cuando la tabla viene recortada. NO es el
+    # mismo destino para todas: `file_io.model_io.export_model_csv` exporta
+    # SÓLO el modelo (nodos, elementos, materiales, cargas, restricciones y
+    # cargas superficiales). Los resultados no salen por ahí. La nota decía
+    # "Archivo, Exportar, Modelo Excel/CSV" debajo de las cinco tablas, así
+    # que el alumno que buscaba el desplazamiento de un nodo recortado abría
+    # el ZIP y no encontraba ni un número.
+    _DONDE_MODELO = ("El listado completo se exporta desde la aplicación "
+                     "(Archivo, Exportar, Modelo Excel/CSV)")
+    _DONDE_RESULTADOS = ("El listado completo está en la pestaña "
+                         "Post-Proceso, en la tabla de Resultados "
+                         "Numéricos: Ctrl+A y Ctrl+C la copian entera, "
+                         "pegable en una planilla")
+    # `donde=None` = esta tabla NO tiene ninguna vista completa en el
+    # programa (tensiones por punto de Gauss, métricas de calidad). En ese
+    # caso la nota no promete nada: es preferible a mandar a un lugar vacío.
+
+    def _longtable_topeada(self, *, headers: list[str], rows: list[list[str]],
+                           col_align: str, claves: list, destacadas,
+                           compacta: bool = False,
+                           que: str = "filas",
+                           criterio: str = _CRITERIO_NODOS,
+                           donde: Optional[str] = _DONDE_MODELO) -> None:
+        """Tabla que se acota sola cuando la malla es grande.
+
+        `rows` va alineada con `claves` (el id de nodo o elemento de cada
+        fila). Si hay más de `_TABLA_MAX_FILAS`, se emiten las filas cuya
+        clave está en `destacadas` — las que sirven para verificar — más un
+        muestreo uniforme del resto hasta llenar el tope, y una nota que
+        dice cuántas se listan de cuántas y dónde está la tabla completa.
+
+        Sin esto, Cook Q9 32×32 (4225 nodos, un ejemplo del menú Ayuda)
+        producía un PDF de **493 páginas**, de las cuales 468 eran volcado
+        crudo: 24 184 filas de tabla. El documento se consulta para
+        verificar un resultado y aprender el procedimiento; para el censo
+        completo está la exportación a CSV de la aplicación.
+        """
+        if len(rows) <= self._TABLA_MAX_FILAS:
+            self._longtable(headers=headers, rows=rows, col_align=col_align,
+                            compacta=compacta)
+            return
+        destacadas = set(destacadas or ())
+        idx_dest = [i for i, k in enumerate(claves) if k in destacadas]
+        idx_dest = idx_dest[:self._TABLA_MAX_FILAS]
+        faltan = self._TABLA_MAX_FILAS - len(idx_dest)
+        elegidos = set(idx_dest)
+        if faltan > 0:
+            restantes = [i for i in range(len(rows)) if i not in elegidos]
+            if restantes:
+                paso = max(1, len(restantes) // faltan)
+                elegidos.update(restantes[::paso][:faltan])
+        orden = sorted(elegidos)
+        self._longtable(headers=headers, rows=[rows[i] for i in orden],
+                        col_align=col_align, compacta=compacta)
+        # El criterio lo describe QUIEN LLAMA (`criterio`), porque no es el
+        # mismo en todas las tablas: las tres tablas por nodo destacan apoyos
+        # y puntos de carga (`_nodos_de_interes`), pero la de calidad destaca
+        # sólo el elemento desarrollado y la de puntos de Gauss ese más los
+        # tres de mayor von Mises. Un texto fijo le decía al alumno que
+        # estaba viendo filas que no estaban.
+        nota = (rf"Se listan {len(orden)} de {len(rows)} {que}: {criterio}, "
+                rf"más un muestreo uniforme del resto.")
+        if donde:
+            nota += f" {donde}."
+        self._td.para(rf"\emph{{{nota}}}")
+
+    # Ancho útil de un renglón de `bmatrix` en `\scriptsize`, en caracteres
+    # de celda (sin contar el rótulo `u = 10^{-2} \cdot`, que se lleva unos
+    # 60 pt). Calibrado midiendo: 12 columnas de 7 caracteres = 84 caracteres
+    # se salían 57,1 pt de los 472 pt de la caja de texto, o sea 73,8
+    # caracteres de tope. 72 deja margen.
+    _RENGLON_MAX_CARACTERES = 72
+
+    def _columnas_por_renglon(self, v) -> int:
+        """Cuántas entradas del vector entran por renglón.
+
+        No es un número fijo: desde que los decimales se eligen para que
+        ninguna entrada se imprima como cero (`TheoryDoc._decidir_formato`),
+        una celda puede medir 5 o 9 caracteres según el modelo, y 12 columnas
+        de las anchas se salen del papel.
+        """
+        ancho = self._td.cell_width(
+            np.asarray(v).ravel(), sig_digits=3,
+            dynamic_range_threshold=self._VECTOR_FACTOR_THRESHOLD)
+        return max(6, min(12, self._RENGLON_MAX_CARACTERES // max(ancho, 1)))
+
+    def _vector_compacto(self, v, *, name: str,
+                         donde: Optional[str] = None) -> None:
+        """Vista compacta de un vector global (F, u, R) que SIEMPRE entra.
+
+        Los tres vectores del documento se emiten con el exponente común
+        factorizado. La factorización se fuerza (`dynamic_range_threshold`
+        alto) porque el fallback a notación científica por entrada — 9
+        caracteres contra 5 — es justamente el formato que no cabe: el
+        vector `u` de un Q9 de 25 nodos se salía **259 pt** del papel, o sea
+        que un tercio de cada renglón se imprimía fuera de la hoja.
+
+        Las entradas por renglón NO son 12 fijas: las decide
+        `_columnas_por_renglon` según lo que mida la celda, porque los
+        decimales se eligen para que ninguna entrada real se imprima como
+        cero y una celda ancha entra menos veces.
+
+        El detalle por nodo que sigue (`_tabla_desplazamientos`,
+        `_tabla_reacciones`) viene **topeado** en mallas grandes, y detrás
+        de `F` lo que hay es un desglose agregado, no una tabla por GDL. Por
+        eso el destino del listado completo lo pasa quien llama (`donde`):
+        para `u` y `R` es la tabla del Post-Proceso; para `F` **no hay
+        ninguno**, y entonces la nota no promete nada.
+        """
+        a = np.asarray(v).ravel()
         td = self._td
-        td.raw(r"\vfill")
-        td.raw(r"\begin{center}\rule{0.4\textwidth}{0.4pt}\end{center}")
-        td.para(rf"\emph{{Documento generado por {TheoryDoc.escape(APP_NAME)} "
-                rf"v{APP_VERSION}.}}")
+        cols = self._columnas_por_renglon(a)
+        if a.size > self._VECTOR_LITERAL_MAX_DOF:
+            # Extracto: primeras y últimas 12 entradas. El vector completo no
+            # cabe en una hoja y `equation*` no se puede partir; el valor de
+            # cada GDL vive en la tabla por nodo que sigue.
+            k = 12
+            td.raw(r"{\scriptsize")
+            # Dos bloques cortos, cada uno por `vector_factored` (que
+            # factoriza y trocea): 24 entradas en una sola linea manual se
+            # salian 137 pt del margen.
+            td.vector_factored(
+                a[:k], name=rf"{name}_{{1..{k}}}", sig_digits=3,
+                transpose=True,
+                dynamic_range_threshold=self._VECTOR_FACTOR_THRESHOLD,
+                max_cols_per_line=cols)
+            td.equation(rf"\cdots\quad ({a.size}\ \text{{GDL en total}})")
+            td.vector_factored(
+                a[-k:], name=rf"{name}_{{{a.size - k + 1}..{a.size}}}",
+                sig_digits=3, transpose=True,
+                dynamic_range_threshold=self._VECTOR_FACTOR_THRESHOLD,
+                max_cols_per_line=cols)
+            td.raw(r"}")
+            if self._prose:
+                # NO prometer "la tabla por nodo que sigue": detrás de F hay
+                # un desglose de tres filas agregadas, y la de u y R viene
+                # topeada en mallas grandes (`_longtable_topeada`). Lo que sí
+                # está siempre completo es la exportación a CSV.
+                nota = (rf"Se muestran las primeras y las últimas {k} "
+                        rf"entradas de las {a.size}: alcanzan para ver el "
+                        rf"orden de magnitud y dónde están los ceros.")
+                if donde:
+                    nota += f" {donde}."
+                td.para(rf"\emph{{{nota}}}")
+            return
+        td.raw(r"{\scriptsize")
+        td.vector_factored(
+            a, name=name, sig_digits=3, transpose=True,
+            dynamic_range_threshold=self._VECTOR_FACTOR_THRESHOLD,
+            max_cols_per_line=cols,
+        )
+        td.raw(r"}")
 
     @staticmethod
     def _count_col_specs(col_align: str) -> int:
@@ -2781,7 +3377,17 @@ class MemoriaCalculo:
         return n
 
     def _longtable(self, *, headers: list[str], rows: list[list[str]],
-                   col_align: str) -> None:
+                   col_align: str, compacta: bool = False) -> None:
+        """Tabla larga con encabezado repetido en cada hoja.
+
+        `compacta=True` aprieta la separación entre columnas (`tabcolsep`
+        de 6 pt a 3 pt) para las tablas anchas de Q9: la de funciones de
+        forma en los 9 puntos de Gauss tiene 13 columnas y se salía del
+        margen **aun en `\\scriptsize`** (21,4 pt, cuatro veces por tabla —
+        `longtable` mide por separado el encabezado de la primera hoja, el
+        de las siguientes, el pie y el cuerpo). Con 3 pt mide 409 pt contra
+        los 472 disponibles y el cuerpo sigue en `\\scriptsize`, legible.
+        """
         td = self._td
         td.package("longtable")
         td.package("booktabs")
@@ -2793,7 +3399,11 @@ class MemoriaCalculo:
         if self._count_col_specs(col_align) != n_cols:
             col_align = "l" * n_cols
         head_row = " & ".join(rf"\textbf{{{h}}}" for h in headers) + r" \\"
-        td.raw(r"\begin{center}")
+        # El grupo `{` acota el `tabcolsep` a esta tabla. `longtable` ya se
+        # centra solo (LTleft/LTright = fill): el `center` que envolvía la
+        # tabla no aportaba centrado y sí sumaba `topsep` arriba y abajo de
+        # cada una de las ~18 tablas del documento.
+        td.raw(r"{" + (r"\setlength{\tabcolsep}{3pt}" if compacta else ""))
         td.raw(rf"\begin{{longtable}}{{{col_align}}}")
         td.raw(r"\toprule")
         td.raw(head_row)
@@ -2805,7 +3415,18 @@ class MemoriaCalculo:
         td.raw(r"\endhead")
         td.raw(r"\bottomrule")
         td.raw(r"\endfoot")
-        for r in rows:
-            td.raw(" & ".join(r) + r" \\")
+        # Control de viudas y huérfanas. `longtable` parte donde llegue: la
+        # tabla de calidad de un modelo de 4 elementos salía 1 fila al pie de
+        # una hoja y 3 en la siguiente, y la de 9 nodos 3 y 6. `\\*` prohíbe
+        # el salto DESPUÉS de esa fila, así que vedando los dos primeros y los
+        # dos últimos puntos de corte ninguna hoja se queda con menos de tres
+        # filas — y en una tabla de hasta 4 filas se vedan todos, o sea que no
+        # se parte. No cuesta espacio: el salto se corre un par de filas, no
+        # desaparece.
+        n_filas = len(rows)
+        sin_corte = {0, 1, n_filas - 3, n_filas - 2}
+        for i, r in enumerate(rows):
+            cierre = r" \\*" if i in sin_corte else r" \\"
+            td.raw(" & ".join(r) + cierre)
         td.raw(r"\end{longtable}")
-        td.raw(r"\end{center}")
+        td.raw(r"}")

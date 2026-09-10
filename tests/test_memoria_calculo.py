@@ -28,6 +28,38 @@ Cobertura (sincronizada con las funciones reales; ver el bloque __main__):
   - test_figuras_lod_en_malla_densa: los nodos de las figuras siguen el LOD
     del canvas (la deformada de una malla densa era una mancha de discos).
   - test_pipeline_map_es_pil / test_compila_directo_q4.
+  - test_tex_sin_indice_ni_apaisado: sin sumario impreso ni `landscape`.
+  - test_tex_portada_en_una_hoja: ficha a dos columnas + diagrama del modelo
+    en AMBOS estilos, sin `\\newpage` dentro de la portada.
+  - test_tex_contornos_en_grilla: los 4 contornos en 2 filas de 2.
+  - test_tex_sin_duplicar_D_ni_isoparametrico: la D numerica y la caja del
+    isoparametrico se emiten una sola vez.
+  - test_max_matrix_cols_cubre_la_matriz_mas_ancha: `MaxMatrixCols` declarado
+    >= la bmatrix mas ancha (pasarse aborta la compilacion, no avisa).
+  - test_recuperacion_epsilon_reproduce_sigma: la tabla eps = B*u_e ->
+    sigma = D*eps cierra contra las sigma del solver (imprimia eps = 0).
+  - test_tablas_topeadas_en_malla_grande: ninguna tabla vuelca la malla
+    entera (Cook Q9 32x32 daba un PDF de 493 hojas).
+  - test_flechas_de_carga_entran_en_la_figura: la figura del modelo reserva
+    margen para las colas de sus flechas de carga (caian fuera de la imagen
+    y cruzaban el titulo).
+  - test_matrices_sin_ceros_falsos: ninguna entrada real de K, k_e o de los
+    vectores globales se imprime como cero (el formato factorizado aplastaba
+    64 celdas de 324 en la k_e 18x18 del Q9).
+  - test_vector_compacto_entra_en_el_renglon: las entradas por renglon del
+    vector salen del ancho de celda, no de un 12 fijo.
+  - test_equilibrio_cuenta_las_cargas_superficiales: el residuo de
+    equilibrio usa el vector F del solver (sumar solo las cargas nodales
+    daba residuo del 100 % en la membrana de Cook).
+  - test_condicionamiento_se_mide_sobre_K_ff: el kappa_2 con veredicto va
+    sobre K_ff; la K sin restricciones es singular y marcaba 'Critico'
+    en todos los modelos.
+  - test_maqueta_sin_desbordes_ni_hojas_flojas: compila Q4 educativo y
+    Q9 directo y mide el PDF: 0 Overfull hbox, 0 hojas apaisadas y una
+    cota de hojas. Es el unico test que mira la MAQUETACION.
+  - test_notas_mandan_al_lugar_correcto: una tabla recortada no manda al
+    CSV del modelo, que no lleva resultados; los desplazamientos,
+    tensiones y reacciones van a la tabla del Post-Proceso.
   - test_hub_*: chequeos del Theory Hub (post-proceso, numeracion M3=B/M4=D,
     rangos de calidad, LU sin internals, sin Mohr,
     BCs por eliminacion, TOC clickeable, sin bibliografia).
@@ -41,6 +73,8 @@ import tempfile
 from pathlib import Path
 
 import numpy as np
+
+from functools import lru_cache
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
@@ -57,7 +91,17 @@ from tests.example_data import load_example_project
 
 
 def _has_pdflatex() -> bool:
-    """TeX Live embebido (vendor/texlive o EDUFEM_TEXLIVE_DIR) o pdflatex del PATH."""
+    """TeX Live embebido (vendor/texlive o EDUFEM_TEXLIVE_DIR) o pdflatex del PATH.
+
+    Con `--sin-compilar` devuelve False a propósito, y los cuatro tests que
+    compilan un PDF se saltan solos. Es lo que usa el gate RÁPIDO: los otros
+    38 tests sólo generan el `.tex` y corren en segundos, así que las
+    invariantes del documento (sin índice, sin apaisadas, sin ceros falsos,
+    equilibrio, condicionamiento) quedaban fuera de la condición de push por
+    culpa de los cuatro que sí necesitan compilador.
+    """
+    if "--sin-compilar" in sys.argv:
+        return False
     from education.components.latex_runtime import find_latex_runtime
     return find_latex_runtime() is not None
 
@@ -70,11 +114,43 @@ def _solved_example():
     return project, solution, es, ns
 
 
+@lru_cache(maxsize=None)
 def _tex(style: str = "educativo") -> str:
+    """El .tex del ejemplo canonico Q4. MEMOIZADO: media docena de tests
+    lo piden y construir el documento entero cuesta segundos."""
     project, solution, es, ns = _solved_example()
     mem = MemoriaCalculo(project, solution, es, ns, style=style)
     mem.build()
     return mem.tex_source()
+
+
+@lru_cache(maxsize=None)
+def _tex_q9(style: str = "educativo"):
+    """El .tex del ejemplo Q9, o None si el loader no esta.
+
+    Los chequeos estructurales corrian SOLO sobre Q4, y los dos casos
+    que el rediseno vino a arreglar —las hojas apaisadas de la B 3x18 y
+    la k_e 18x18— son Q9-only: el test que prohibe `landscape` nunca
+    veia el documento que lo tenia.
+    """
+    project = _load_q9_o_none()
+    if project is None:
+        return None
+    solution = solve_system(project)
+    project.is_solved = True
+    es, ns = compute_all_stresses(project, solution)
+    mem = MemoriaCalculo(project, solution, es, ns, style=style)
+    mem.build()
+    return mem.tex_source()
+
+
+def _tex_todos(style: str):
+    """[(etiqueta, tex)] de Q4 y Q9 en el estilo pedido."""
+    casos = [(f"Q4/{style}", _tex(style))]
+    tex_q9 = _tex_q9(style)
+    if tex_q9 is not None:
+        casos.append((f"Q9/{style}", tex_q9))
+    return casos
 
 
 # ─── Compilacion real (skip sin pdflatex) ──────────────────────────────────
@@ -792,6 +868,689 @@ def test_hub_no_tiene_bibliografia() -> bool:
     return True
 
 
+# ─── Aprovechamiento de la hoja (2026-09-09) ───────────────────────────────
+
+def test_tex_sin_indice_ni_apaisado() -> bool:
+    """El indice impreso y las hojas apaisadas se quitaron a pedido del autor.
+
+    El sumario eran dos hojas que nadie lee (para navegar estan los
+    marcadores del PDF, que hyperref sigue generando) y cada `landscape`
+    hace `\\clearpage` antes Y despues: una matriz apaisada costaba tres
+    hojas, dos de ellas casi vacias.
+    """
+    print("test_tex_sin_indice_ni_apaisado ...")
+    ok = True
+    for style in ("educativo", "directo"):
+        for etiqueta, tex in _tex_todos(style):
+            if r"\tableofcontents" in tex:
+                print(f"  FAIL: {etiqueta} reintrodujo el indice impreso")
+                ok = False
+            if "landscape" in tex:
+                print(f"  FAIL: {etiqueta} reintrodujo hojas apaisadas")
+                ok = False
+    if ok:
+        print("  OK: sin sumario impreso ni hojas apaisadas, en Q4 y Q9")
+    return ok
+
+
+def test_tex_portada_en_una_hoja() -> bool:
+    """Ficha + diagrama del modelo + mapa del calculo comparten la portada.
+
+    Antes eran tres hojas al 30-45 %: ficha a una columna, mapa solo y
+    diagrama solo. Ademas el diagrama estaba detras de `if self._prose`, asi
+    que el estilo 'directo' no tenia NINGUNA vista del modelo aunque todas
+    sus tablas citan numeros de nodo.
+    """
+    print("test_tex_portada_en_una_hoja ...")
+    ok = True
+    for style in ("educativo", "directo"):
+        tex = _tex(style)
+        if "fig:mesh" not in tex:
+            print(f"  FAIL: {style} sin diagrama del modelo")
+            ok = False
+        # Ficha a dos columnas: cuatro columnas de tabular (clave/valor x2).
+        if r"lr@{\hspace{1.1cm}}lr" not in tex:
+            print(f"  FAIL: {style} volvio a la ficha de una sola columna")
+            ok = False
+        # Nada de saltos forzados entre el titulo y el primer capitulo.
+        cuerpo = tex.split(r"\maketitle", 1)[-1]
+        portada = cuerpo.split(r"\section{", 1)[0]
+        if r"\newpage" in portada:
+            print(f"  FAIL: {style} parte la portada con \\newpage")
+            ok = False
+    if r"¿Qué resuelve el MEF y cómo?" not in _tex("educativo"):
+        print("  FAIL: el mapa del calculo perdio su encabezado")
+        ok = False
+    if ok:
+        print("  OK: portada de una hoja, con diagrama del modelo en ambos "
+              "estilos")
+    return ok
+
+
+def test_tex_contornos_en_grilla() -> bool:
+    """Los cuatro contornos van en grilla 2x2, no uno debajo del otro.
+
+    Apilados a 0,82\\textwidth ocupaban dos hojas al 85 %. La grilla los
+    mete en una y, como el render tambien se achica en la misma proporcion,
+    los rotulos de la escala quedan igual de legibles.
+    """
+    print("test_tex_contornos_en_grilla ...")
+    ok = True
+    for style in ("educativo", "directo"):
+        for etiqueta, tex in _tex_todos(style):
+            n_sub = tex.count(r"\begin{subfigure}")
+            if n_sub != 4:
+                print(f"  FAIL: {etiqueta} tiene {n_sub} subfiguras de "
+                      f"contorno, esperaba 4")
+                ok = False
+            n_fig = tex.count("fig:contornos")
+            if n_fig != 2:
+                print(f"  FAIL: {etiqueta} tiene {n_fig} filas de contornos, "
+                      f"esperaba 2")
+                ok = False
+    if ok:
+        print("  OK: 4 contornos en 2 filas de 2, en ambos estilos")
+    return ok
+
+
+def test_tex_sin_duplicar_D_ni_isoparametrico() -> bool:
+    """Ni la D numerica ni la caja del isoparametrico se imprimen dos veces.
+
+    La D numerica salia en el capitulo 1 y otra vez en la formulacion
+    elemental; la caja "las mismas N_i interpolan geometria y
+    desplazamiento" estaba palabra por palabra en la subseccion 1.1 y en
+    "Funciones de forma en los puntos de Gauss".
+    """
+    print("test_tex_sin_duplicar_D_ni_isoparametrico ...")
+    ok = True
+    # Marcador REAL, verificado contra el .tex: el anterior ("eso es")
+    # daba 0 ocurrencias, o sea que el assert `n_iso > 1` no medía nada.
+    marca_iso = r"Las mismas $N_i$ interpolan geometría \emph{y} "
+    marca_iso += "desplazamiento"
+    for style in ("educativo", "directo"):
+        tex = _tex(style)
+        # La D numerica es la unica bmatrix rotulada \mathbf{D} con numeros;
+        # la simbolica lleva el factor E/(1-nu^2) delante.
+        n_d = tex.count(r"\mathbf{D} = \begin{bmatrix}")
+        if n_d != 1:
+            print(f"  FAIL: {style} emite {n_d} veces la D numerica, "
+                  f"esperaba 1")
+            ok = False
+        if r"\frac{E}" not in tex:
+            print(f"  FAIL: {style} perdio la D simbolica")
+            ok = False
+        # `== 1` en educativo, no `> 1`: con `> 1` un marcador que dejara de
+        # existir haria pasar el test sin medir nada, que es exactamente lo
+        # que pasaba antes. En `directo` no hay cajas, asi que debe ser 0.
+        n_iso = tex.count(marca_iso)
+        esperado = 1 if style == "educativo" else 0
+        if n_iso != esperado:
+            print(f"  FAIL: {style} emite {n_iso} veces la caja del "
+                  f"isoparametrico, esperaba {esperado}")
+            ok = False
+    # El enunciado de las N_i sigue estando (se mudo al capitulo donde estan
+    # sus valores, no se borro).
+    for style in ("educativo", "directo"):
+        if r"N_i(\xi,\eta)" not in _tex(style):
+            print(f"  FAIL: {style} perdio el enunciado de las N_i")
+            ok = False
+    if ok:
+        print("  OK: D simbolica + D numerica una vez cada una, sin cajas "
+              "repetidas")
+    return ok
+
+
+def test_max_matrix_cols_cubre_la_matriz_mas_ancha() -> bool:
+    """`MaxMatrixCols` declarado >= la bmatrix mas ancha del documento.
+
+    `amsmath` corta en 10 columnas por defecto y pasarse no avisa: aborta
+    con `Extra alignment tab` y el alumno no recibe NINGUN PDF. Una K de 22
+    columnas (malla Q4 de 11 nodos) hacia exactamente eso.
+    """
+    print("test_max_matrix_cols_cubre_la_matriz_mas_ancha ...")
+    import re as _re
+    ok = True
+    for style in ("educativo", "directo"):
+        tex = _tex(style)
+        declarados = [int(n) for n in
+                      _re.findall(r"\\setcounter\{MaxMatrixCols\}\{(\d+)\}",
+                                  tex)]
+        if not declarados:
+            print(f"  FAIL: {style} no declara MaxMatrixCols")
+            ok = False
+            continue
+        tope = max(declarados)
+        peor = 0
+        for cuerpo in _re.findall(r"\\begin\{bmatrix\}(.*?)\\end\{bmatrix\}",
+                                  tex, _re.S):
+            for fila in cuerpo.split(r"\\"):
+                peor = max(peor, fila.count("&") + 1)
+        if peor > tope:
+            print(f"  FAIL: {style} emite una bmatrix de {peor} columnas con "
+                  f"MaxMatrixCols={tope}")
+            ok = False
+    if ok:
+        print(f"  OK: la bmatrix mas ancha entra en el MaxMatrixCols "
+              f"declarado")
+    return ok
+
+
+def test_recuperacion_epsilon_reproduce_sigma() -> bool:
+    """La tabla ε = B·u_e → σ = D·ε tiene que cerrar con las σ del solver.
+
+    `gauss_stresses` no guarda la deformacion, y la tabla leia una clave
+    inexistente: imprimia ε = 0 al lado de σ != 0, imposible y en
+    contradiccion con la formula de la misma hoja — justo en la tabla que
+    existe para verificar esa cadena.
+    """
+    print("test_recuperacion_epsilon_reproduce_sigma ...")
+    from fem.constitutive import constitutive_matrix
+    ok = True
+    for nombre, loader in (("Q4", load_example_project),
+                           ("Q9", _load_q9_o_none)):
+        project = loader() if loader is not None else None
+        if project is None:
+            continue
+        solution = solve_system(project)
+        project.is_solved = True
+        es, ns = compute_all_stresses(project, solution)
+        mem = MemoriaCalculo(project, solution, es, ns)
+        eid = mem._showcase_id()
+        if eid is None:
+            print(f"  SKIP {nombre}: sin elemento estrella")
+            continue
+        eps = mem._deformaciones_por_gauss(eid)
+        if not eps:
+            print(f"  FAIL {nombre}: no se recuperaron las deformaciones")
+            ok = False
+            continue
+        if all(float(np.max(np.abs(e))) == 0.0 for e in eps):
+            print(f"  FAIL {nombre}: todas las deformaciones son cero")
+            ok = False
+            continue
+        elem = project.elements[eid]
+        mat = project.materials[elem.material_name]
+        D = constitutive_matrix(mat.E, mat.nu, project.analysis_type)
+        gauss = es[eid]["gauss_stresses"]
+        peor = 0.0
+        for e, gs in zip(eps, gauss):
+            sig = np.asarray(D) @ np.asarray(e).ravel()
+            ref = np.array([gs["sigma_x"], gs["sigma_y"], gs["tau_xy"]])
+            escala = max(float(np.max(np.abs(ref))), 1e-12)
+            peor = max(peor, float(np.max(np.abs(sig - ref))) / escala)
+        if peor > 1e-9:
+            print(f"  FAIL {nombre}: D*eps no reproduce sigma "
+                  f"(error relativo {peor:.2e})")
+            ok = False
+        else:
+            print(f"  {nombre}: D*eps reproduce sigma, error {peor:.1e}")
+    if ok:
+        print("  OK: la cadena eps = B*u_e -> sigma = D*eps cierra")
+    return ok
+
+
+def test_maqueta_sin_desbordes_ni_hojas_flojas() -> bool:
+    """Mide la MAQUETACION del PDF, no solo que compile.
+
+    Todo el trabajo de aprovechamiento de hoja (portada de una hoja, sin
+    indice, sin apaisadas, contornos en grilla, matrices en bloques, tablas
+    topeadas) no tenia ningun assert: los tests solo miraban que el PDF
+    pesara mas de 5 KB, dos ordenes de magnitud por debajo de los 600 KB
+    reales. Este test compila y mide lo que el cambio prometio:
+
+      - cero `Overfull \hbox` (texto impreso fuera de la hoja),
+      - cero hojas apaisadas,
+      - una cota de hojas por caso.
+
+    Cubre ademas **Q9 + directo**, la unica de las cuatro combinaciones que
+    no se compilaba nunca y la que mas `matrix_blocks` emite.
+    """
+    print("test_maqueta_sin_desbordes_ni_hojas_flojas ...")
+    if not _has_pdflatex():
+        print("  SKIP: pdflatex no encontrado en PATH")
+        return True
+    try:
+        import fitz  # noqa: F401
+    except ImportError:
+        print("  SKIP: PyMuPDF no disponible")
+        return True
+    import re as _re
+    import shutil
+
+    try:
+        from tests.example_data import load_example_project_q9
+    except ImportError:
+        print("  SKIP: load_example_project_q9 no disponible")
+        return True
+
+    # (nombre, loader, estilo, tope de hojas)
+    casos = [
+        ("Q4 educativo", load_example_project, "educativo", 22),
+        ("Q9 directo", load_example_project_q9, "directo", 20),
+    ]
+    ok = True
+    for nombre, loader, style, tope in casos:
+        project = loader()
+        solution = solve_system(project)
+        project.is_solved = True
+        es, ns = compute_all_stresses(project, solution)
+        mem = MemoriaCalculo(project, solution, es, ns, style=style)
+        mem.build()
+        with tempfile.TemporaryDirectory() as tmp:
+            base = os.path.join(tmp, "maqueta")
+            workdir = mem._ensure_tmpdir()
+            try:
+                mem._td.compile_to(base, keep_tex=True, workdir=workdir)
+                for f in os.listdir(workdir):
+                    if f.endswith(".log"):
+                        shutil.copy(os.path.join(workdir, f), base + ".log")
+                        break
+            finally:
+                mem._cleanup_tmpdir()
+            if not Path(base + ".pdf").exists():
+                print(f"  FAIL: {nombre}: no se genero el PDF")
+                ok = False
+                continue
+            texto = ""
+            if Path(base + ".log").exists():
+                texto = Path(base + ".log").read_text(
+                    encoding="utf-8", errors="replace")
+            over = _re.findall(
+                r"Overfull \\hbox \(([\d.]+)pt too wide\)", texto)
+            if over:
+                peor = max(float(x) for x in over)
+                print(f"  FAIL: {nombre}: {len(over)} Overfull hbox "
+                      f"(el peor, {peor:.1f} pt fuera de la hoja)")
+                ok = False
+            import fitz as _fitz
+            doc = _fitz.open(base + ".pdf")
+            paginas = doc.page_count
+            apaisadas = sum(1 for pg in doc if pg.rect.width > pg.rect.height)
+            doc.close()
+            if apaisadas:
+                print(f"  FAIL: {nombre}: {apaisadas} hojas apaisadas")
+                ok = False
+            if paginas > tope:
+                print(f"  FAIL: {nombre}: {paginas} hojas (tope {tope})")
+                ok = False
+            if ok:
+                print(f"  {nombre}: {paginas} hojas, 0 overfull, 0 apaisadas")
+    if ok:
+        print("  OK: la maquetacion entra en la hoja en los casos medidos")
+    return ok
+
+
+def test_notas_mandan_al_lugar_correcto() -> bool:
+    """Una tabla recortada no puede mandar al alumno a un lugar vacio.
+
+    `file_io.model_io.export_model_csv` exporta SOLO el modelo (nodos,
+    elementos, materiales, cargas, restricciones, cargas superficiales): no
+    lleva desplazamientos, ni tensiones, ni reacciones, ni metricas de
+    calidad. La nota decia "Archivo, Exportar, Modelo Excel/CSV" debajo de
+    las cinco tablas topeadas, asi que el alumno que buscaba el valor de un
+    nodo recortado abria el ZIP y no encontraba ni un numero.
+
+    Destinos correctos: desplazamientos, tensiones nodales y reacciones ->
+    la tabla de Resultados Numericos del Post-Proceso (Ctrl+A, Ctrl+C copia
+    todas las filas). Puntos de Gauss y calidad de malla -> ninguno, y
+    entonces la nota no promete nada.
+    """
+    print("test_notas_mandan_al_lugar_correcto ...")
+    import re as _re
+    try:
+        from models.example_library import load_example_cook_q9
+    except Exception as exc:
+        print(f"  SKIP: no se pudo cargar Cook Q9 ({exc})")
+        return True
+    project = load_example_cook_q9(N=8)
+    solution = solve_system(project)
+    project.is_solved = True
+    es, ns = compute_all_stresses(project, solution)
+    ok = True
+    for style in ("educativo", "directo"):
+        mem = MemoriaCalculo(project, solution, es, ns, style=style)
+        mem.build()
+        tex = mem.tex_source()
+        notas = [" ".join(m.group(1).split()) for m in
+                 _re.finditer(r"Se (?:listan|muestran) (.{0,340}?)\}", tex,
+                              _re.S)]
+        if not notas:
+            print(f"  FAIL: {style}: no se encontro ninguna nota de "
+                  f"muestreo; el test no esta midiendo nada")
+            return False
+        # Lo que NO puede pasar: una nota de resultados apuntando al CSV.
+        RESULTADOS = ("desplazamiento", "tension", "tensiones", "reaccion",
+                      "reacciones", "punto de Gauss", "puntos de Gauss",
+                      "Jacobiano escalado")
+        for nota in notas:
+            if "Modelo Excel/CSV" not in nota:
+                continue
+            bajo = nota.lower()
+            if any(p.lower() in bajo for p in RESULTADOS):
+                print(f"  FAIL: {style}: una nota de resultados manda al CSV "
+                      f"del modelo, que no los contiene: {nota[:110]}")
+                ok = False
+        n_csv = sum(1 for n in notas if "Modelo Excel/CSV" in n)
+        n_post = sum(1 for n in notas if "Post-Proceso" in n)
+        if n_post == 0:
+            print(f"  FAIL: {style}: ninguna nota manda a la tabla del "
+                  f"Post-Proceso, que es donde estan los resultados")
+            ok = False
+        if ok:
+            print(f"  {style}: {len(notas)} notas, {n_csv} al CSV del modelo, "
+                  f"{n_post} a la tabla del Post-Proceso")
+    if ok:
+        print("  OK: cada nota manda al lugar que si tiene el dato completo")
+    return ok
+
+
+def test_equilibrio_cuenta_las_cargas_superficiales() -> bool:
+    """El equilibrio se verifica contra el vector F del solver.
+
+    Sumaba solo `project.nodal_loads`, asi que cualquier modelo cargado por
+    presion de borde salia con "Cargas aplicadas = 0" frente a las
+    reacciones completas: **residuo del 100 %**. La membrana de Cook, un
+    ejemplo del propio menu Ayuda, recibia el veredicto rojo 'Critico' en un
+    modelo sano cuyo residuo real es 1e-13.
+    """
+    print("test_equilibrio_cuenta_las_cargas_superficiales ...")
+    try:
+        from models.example_library import load_example_cook_q9
+    except Exception as exc:
+        print(f"  SKIP: no se pudo importar Cook Q9 ({exc})")
+        return True
+    ok = True
+    casos = [("Q4 canonico (cargas nodales)", load_example_project),
+             ("Cook Q9 (carga superficial)", lambda: load_example_cook_q9(N=4))]
+    for nombre, loader in casos:
+        project = loader()
+        solution = solve_system(project)
+        project.is_solved = True
+        es, ns = compute_all_stresses(project, solution)
+        mem = MemoriaCalculo(project, solution, es, ns)
+        res = mem._equilibrio_residuo_rel()
+        if res is None:
+            print(f"  FAIL: {nombre}: no se pudo calcular el residuo")
+            ok = False
+            continue
+        if res > 1e-6:
+            print(f"  FAIL: {nombre}: residuo relativo {res:.3e} en un modelo "
+                  f"en equilibrio (deberia ser ~0)")
+            ok = False
+        else:
+            print(f"  {nombre}: residuo relativo {res:.1e}")
+    if ok:
+        print("  OK: el equilibrio incluye las fuerzas equivalentes")
+    return ok
+
+
+def test_condicionamiento_se_mide_sobre_K_ff() -> bool:
+    """El kappa_2 con veredicto se mide sobre K_ff, no sobre K.
+
+    K sin restricciones es singular por construccion (3 modos de cuerpo
+    rigido del plano), asi que su kappa_2 da ~1e17 en CUALQUIER modelo y el
+    capitulo de diagnostico marcaba 'Critico' hasta en el ejemplo canonico,
+    cuya K_ff tiene kappa_2 = 32,6. Un indicador que se enciende siempre no
+    informa nada, y este vive donde el documento dice si confiar o no.
+    """
+    print("test_condicionamiento_se_mide_sobre_K_ff ...")
+    ok = True
+    for style in ("educativo", "directo"):
+        tex = _tex(style)
+        if r"$\kappa_2(\mathbf{K}_{ff})$ (estimado)" not in tex:
+            print(f"  FAIL: {style} no reporta kappa_2 de K_ff en el "
+                  f"diagnostico")
+            ok = False
+        # La K sin restricciones puede seguir mostrandose, pero rotulada.
+        if r"$\kappa_2(\mathbf{K})$ (estimado)" in tex:
+            print(f"  FAIL: {style} sigue rotulando la K singular como si "
+                  f"fuera el indicador de condicionamiento")
+            ok = False
+    # Y el numero tiene que dar OK en un modelo sano.
+    project, solution, es, ns = _solved_example()
+    from file_io.memoria_calculo import _K_cond
+    cond_ff = _K_cond(solution.get("K_red"))
+    cond_k = _K_cond(solution.get("K"))
+    if cond_ff is None:
+        print("  FAIL: no se pudo estimar kappa_2(K_ff)")
+        ok = False
+    elif cond_ff >= 1e8:
+        print(f"  FAIL: kappa_2(K_ff) = {cond_ff:.2e} en el ejemplo canonico "
+              f"(deberia ser chico)")
+        ok = False
+    if ok:
+        print(f"  OK: kappa_2(K_ff) = {cond_ff:.2e} (la K completa da "
+              f"{cond_k:.2e}, singular)")
+    return ok
+
+
+def test_matrices_sin_ceros_falsos() -> bool:
+    """Ninguna entrada real de K, k_e o de los vectores se imprime como cero.
+
+    El formato factorizado fijaba `sig_digits - 1` decimales, asi que toda
+    entrada por debajo del 0,5 % del maximo salia `0.00`, indistinguible de
+    un cero estructural: 64 celdas de 324 en la k_e 18x18 del Q9 canonico,
+    que NO tiene un solo cero de verdad, y 32 de 256 en una K de 16 GDL.
+    En un documento que existe para verificar resultados eso no es un
+    redondeo: es un numero equivocado. Ahora los decimales los elige
+    `TheoryDoc._decidir_formato` a partir del rango dinamico real.
+
+    El ruido de punto flotante SI puede imprimirse como cero: un 1e-18 al
+    lado de un 1e+06 es un cero fisico. El criterio es `RELATIVE_ZERO`.
+    """
+    print("test_matrices_sin_ceros_falsos ...")
+
+    def es_cero_impreso(celda: str) -> bool:
+        limpio = celda.strip().replace("-", "").replace(".", "").replace("0", "")
+        return limpio in ("", "e+", "e-")
+
+    def falsos(A, sig_digits, umbral_rango=1e4):
+        A = np.asarray(A, dtype=float)
+        modo, p, dec = TheoryDoc._decidir_formato(
+            A, sig_digits=sig_digits, dynamic_range_threshold=umbral_rango,
+            tol=1e-30)
+        abs_A = np.abs(A)
+        if not abs_A.max():
+            return modo, 0
+        significativa = abs_A > abs_A.max() * TheoryDoc.RELATIVE_ZERO
+        if modo == "cientifica":
+            txt = np.vectorize(lambda x: f"{x:.{dec}e}")(A)
+        elif modo == "factor":
+            txt = np.vectorize(lambda x: f"{x:.{dec}f}")(A / (10.0 ** p))
+        else:
+            return modo, 0
+        impreso_cero = np.vectorize(es_cero_impreso)(txt)
+        return modo, int((impreso_cero & significativa).sum())
+
+    from fem.assembly import assemble_global_system
+    ok = True
+    casos = [("Q4 canonico", load_example_project)]
+    if _load_q9_o_none() is not None:
+        casos.append(("Q9 canonico", _load_q9_o_none))
+    for nombre, loader in casos:
+        project = loader()
+        K = assemble_global_system(project)[0]
+        A = K.toarray() if hasattr(K, "toarray") else np.asarray(K)
+        modo, n = falsos(A, 3)
+        if n:
+            print(f"  FAIL: {nombre}, K {A.shape[0]} GDL ({modo}): {n} celdas "
+                  f"no nulas impresas como cero")
+            ok = False
+        solution = solve_system(project)
+        datos = solution.get("element_data", {})
+        if datos:
+            eid = next(iter(datos))
+            ke = np.asarray(datos[eid]["ke"], dtype=float)
+            modo, n = falsos(ke, 3)
+            if n:
+                print(f"  FAIL: {nombre}, k_e {ke.shape} ({modo}): {n} celdas "
+                      f"no nulas impresas como cero")
+                ok = False
+        for clave in ("u", "F", "R"):
+            v = solution.get(clave)
+            if v is None:
+                continue
+            modo, n = falsos(np.asarray(v).reshape(-1, 1), 3,
+                             MemoriaCalculo._VECTOR_FACTOR_THRESHOLD)
+            if n:
+                print(f"  FAIL: {nombre}, vector {clave} ({modo}): {n} "
+                      f"entradas no nulas impresas como cero")
+                ok = False
+    if ok:
+        print("  OK: K, k_e y los vectores globales sin ceros falsos")
+    return ok
+
+
+def test_vector_compacto_entra_en_el_renglon() -> bool:
+    """Las entradas por renglon salen del ancho de celda, no de un 12 fijo.
+
+    Al subir los decimales para no imprimir ceros falsos, la celda del
+    vector `u` del Q9 canonico paso de 6 a 7 caracteres y 12 columnas se
+    salian 57,1 pt del margen.
+    """
+    print("test_vector_compacto_entra_en_el_renglon ...")
+    ok = True
+    for nombre, loader in (("Q4", load_example_project), ("Q9", _load_q9_o_none)):
+        project = loader()
+        if project is None:
+            continue
+        solution = solve_system(project)
+        project.is_solved = True
+        es, ns = compute_all_stresses(project, solution)
+        mem = MemoriaCalculo(project, solution, es, ns)
+        for clave in ("u", "F", "R"):
+            v = solution.get(clave)
+            if v is None:
+                continue
+            a = np.asarray(v).ravel()
+            cols = mem._columnas_por_renglon(a)
+            ancho = TheoryDoc.cell_width(
+                a, sig_digits=3,
+                dynamic_range_threshold=MemoriaCalculo._VECTOR_FACTOR_THRESHOLD)
+            if cols * ancho > MemoriaCalculo._RENGLON_MAX_CARACTERES:
+                print(f"  FAIL: {nombre} {clave}: {cols} columnas de {ancho} "
+                      f"caracteres pasan el renglon "
+                      f"({MemoriaCalculo._RENGLON_MAX_CARACTERES})")
+                ok = False
+    if ok:
+        print("  OK: el renglon del vector se ajusta al ancho de la celda")
+    return ok
+
+
+def test_flechas_de_carga_entran_en_la_figura() -> bool:
+    """La figura del modelo reserva lugar para las flechas de sus cargas.
+
+    La flecha se dibuja desde AFUERA hacia el nodo, asi que la cola cae
+    fuera del area que ocupa la malla. Sin reservar ese margen, la carga de
+    un nodo del borde superior dibujaba una flecha cuya cola quedaba 47 px
+    ARRIBA del borde de la imagen (a 900 px de ancho) y cruzaba el titulo:
+    el alumno veia una linea roja entrando desde el borde, encima del texto.
+    """
+    print("test_flechas_de_carga_entran_en_la_figura ...")
+    try:
+        from PIL import Image  # noqa: F401
+    except ImportError:
+        print("  SKIP: Pillow no disponible")
+        return True
+    from file_io import figure_export as fx
+    banda_titulo = 40   # px que ocupa el titulo arriba de la figura
+    ok = True
+    casos = [("Q4", load_example_project)]
+    q9 = _load_q9_o_none
+    casos.append(("Q9", q9))
+    for nombre, loader in casos:
+        project = loader()
+        if project is None:
+            continue
+        for w, h in ((900, 680), (560, 420)):
+            flechas = fx._flechas_de_carga(project, w, h)
+            if not flechas:
+                continue
+            mi, md, ma, mb = fx._margen_de_flechas(flechas)
+            view = fx._View([n.x for n in project.nodes.values()],
+                            [n.y for n in project.nodes.values()], w, h,
+                            pad_left=40 + mi, pad_right=40 + md,
+                            pad_top=48 + ma, pad_bottom=40 + mb)
+            for nid, (ux, uy, largo) in flechas.items():
+                n = project.nodes[nid]
+                sx, sy = view.w2s(n.x, n.y)
+                x0, y0 = sx - ux * largo, sy - uy * largo
+                if not (0 <= x0 <= w and 0 <= y0 <= h):
+                    print(f"  FAIL: {nombre} {w}x{h}, nodo {nid}: la cola de "
+                          f"la flecha cae en ({x0:.0f},{y0:.0f}), fuera de "
+                          f"la imagen")
+                    ok = False
+                elif y0 < banda_titulo:
+                    print(f"  FAIL: {nombre} {w}x{h}, nodo {nid}: la cola de "
+                          f"la flecha invade la banda del titulo (y={y0:.0f})")
+                    ok = False
+    if ok:
+        print("  OK: las colas de las flechas entran bajo el titulo, en los "
+              "dos tamanos de render")
+    return ok
+
+
+def _load_q9_o_none():
+    try:
+        from tests.example_data import load_example_project_q9
+        return load_example_project_q9()
+    except Exception:
+        return None
+
+
+def test_tablas_topeadas_en_malla_grande() -> bool:
+    """Ninguna tabla vuelca la malla entera.
+
+    Cook Q9 32x32 (4225 nodos, un ejemplo del menu Ayuda) producia un PDF de
+    493 hojas, de las cuales 468 eran volcado crudo: 24 184 filas de tabla.
+    La Memoria se consulta para verificar un resultado; el censo completo es
+    la exportacion a CSV.
+    """
+    print("test_tablas_topeadas_en_malla_grande ...")
+    import re as _re
+    try:
+        from tests.example_data import load_example_cook_q9
+        project = load_example_cook_q9(N=8)
+    except Exception as exc:
+        print(f"  SKIP: no se pudo cargar Cook Q9 ({exc})")
+        return True
+    solution = solve_system(project)
+    project.is_solved = True
+    es, ns = compute_all_stresses(project, solution)
+    mem = MemoriaCalculo(project, solution, es, ns)
+    mem.build()
+    tex = mem.tex_source()
+    tope = MemoriaCalculo._TABLA_MAX_FILAS
+    ok = True
+    peor = 0
+    bloques = _re.findall(r"\\begin\{longtable\}.*?\\endfoot(.*?)"
+                          r"\\end\{longtable\}", tex, _re.S)
+    if not bloques:
+        print("  FAIL: no se encontro ninguna longtable en el .tex")
+        return False
+    for cuerpo in bloques:
+        # pylatex cierra cada linea con `%`, y las filas del control de
+        # viudas terminan en `\\*`: contar solo `\\` perdia 4 por
+        # tabla (la mas larga daba 36 cuando en realidad tiene 40).
+        filas = [ln for ln in cuerpo.splitlines()
+                 if ln.strip().rstrip("%").rstrip("*").endswith("\\\\")]
+        peor = max(peor, len(filas))
+    if peor == 0:
+        print("  FAIL: se contaron 0 filas; el test no esta midiendo nada")
+        return False
+    if peor > tope:
+        print(f"  FAIL: hay una tabla de {peor} filas, tope {tope}")
+        ok = False
+    if "Se listan" not in tex:
+        print("  FAIL: falta la nota que dice cuantas filas se listan de "
+              "cuantas")
+        ok = False
+    if ok:
+        print(f"  OK: {project.num_nodes} nodos, tabla mas larga {peor} filas "
+              f"(tope {tope}) + nota de muestreo")
+    return ok
+
+
 if __name__ == "__main__":
     print("=" * 60)
     print("Tests: file_io.memoria_calculo (reformulado)")
@@ -814,6 +1573,20 @@ if __name__ == "__main__":
         test_contorno_rotulo_con_simbolo_y_unidad(),
         test_figuras_lod_en_malla_densa(),
         test_pipeline_map_es_pil(),
+        test_tex_sin_indice_ni_apaisado(),
+        test_tex_portada_en_una_hoja(),
+        test_tex_contornos_en_grilla(),
+        test_tex_sin_duplicar_D_ni_isoparametrico(),
+        test_max_matrix_cols_cubre_la_matriz_mas_ancha(),
+        test_recuperacion_epsilon_reproduce_sigma(),
+        test_equilibrio_cuenta_las_cargas_superficiales(),
+        test_condicionamiento_se_mide_sobre_K_ff(),
+        test_matrices_sin_ceros_falsos(),
+        test_maqueta_sin_desbordes_ni_hojas_flojas(),
+        test_vector_compacto_entra_en_el_renglon(),
+        test_flechas_de_carga_entran_en_la_figura(),
+        test_tablas_topeadas_en_malla_grande(),
+        test_notas_mandan_al_lugar_correcto(),
         test_compila_directo_q4(),
         test_hub_tiene_post_proceso(),
         test_hub_numeracion_modulos(),

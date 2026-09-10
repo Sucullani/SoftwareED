@@ -475,6 +475,43 @@ def _deformed_scale(project, solution, nid_list):
 # Diagrama del modelo (resumen visual)
 # ---------------------------------------------------------------------------
 
+def _flechas_de_carga(project, width, height):
+    """Vector unitario en pantalla y largo en píxeles de cada carga nodal.
+
+    Devuelve `{id_nodo: (ux, uy, largo)}`. Se calcula ANTES de armar la
+    vista porque la flecha se dibuja **desde afuera hacia el nodo**: la cola
+    cae fuera del área que ocupa la malla, y hay que reservarle margen.
+    """
+    if not getattr(project, "nodal_loads", None):
+        return {}
+    magnitudes = {nid: (ld.fx ** 2 + ld.fy ** 2) ** 0.5
+                  for nid, ld in project.nodal_loads.items()
+                  if nid in project.nodes}
+    max_mag = max(magnitudes.values(), default=0.0) or 1.0
+    largo_max = 0.14 * min(width, height)
+    flechas = {}
+    for nid, mag in magnitudes.items():
+        if mag <= 1e-12:
+            continue
+        ld = project.nodal_loads[nid]
+        # +Y mundo es hacia arriba; en pantalla Y crece hacia abajo.
+        flechas[nid] = (ld.fx / mag, -ld.fy / mag,
+                        largo_max * (mag / max_mag))
+    return flechas
+
+
+def _margen_de_flechas(flechas):
+    """Píxeles a reservar en cada borde para que las colas entren:
+    `(izquierda, derecha, arriba, abajo)`."""
+    izq = der = arriba = abajo = 0.0
+    for ux, uy, largo in flechas.values():
+        izq = max(izq, ux * largo)
+        der = max(der, -ux * largo)
+        arriba = max(arriba, uy * largo)
+        abajo = max(abajo, -uy * largo)
+    return izq, der, arriba, abajo
+
+
 def render_mesh_diagram(project, *, width=900, height=680):
     """Geometría + nodos numerados + restricciones + cargas, estilo canvas
     sobre fondo blanco. Devuelve PIL.Image o None."""
@@ -482,8 +519,16 @@ def render_mesh_diagram(project, *, width=900, height=680):
         return None
     xs = [n.x for n in project.nodes.values()]
     ys = [n.y for n in project.nodes.values()]
+    # La malla deja lugar para las flechas de sus cargas. Sin esto, la carga
+    # de un nodo del borde superior dibujaba una flecha cuya cola caía FUERA
+    # de la imagen y cruzaba el título: en el ejemplo canónico la cola quedaba
+    # 47 px arriba del borde a 900 px de ancho, y 11 px a 560 px. La flecha es
+    # una de las cuatro cosas que esta figura tiene que mostrar.
+    flechas = _flechas_de_carga(project, width, height)
+    m_izq, m_der, m_arriba, m_abajo = _margen_de_flechas(flechas)
     view = _View(xs, ys, width, height,
-                 pad_left=40, pad_right=40, pad_top=48, pad_bottom=40)
+                 pad_left=40 + m_izq, pad_right=40 + m_der,
+                 pad_top=48 + m_arriba, pad_bottom=40 + m_abajo)
 
     img = Image.new("RGB", (width, height), _FIG_BG)
     draw = ImageDraw.Draw(img)
@@ -577,26 +622,13 @@ def render_mesh_diagram(project, *, width=900, height=680):
         sx, sy = view.w2s(n.x, n.y)
         _draw_bc_marker(draw, sx, sy, bc, bc_px)
 
-    # Flechas de cargas nodales (apuntando al nodo).
-    if project.nodal_loads:
-        max_mag = max(
-            (ld.fx ** 2 + ld.fy ** 2) ** 0.5
-            for ld in project.nodal_loads.values()
-        ) or 1.0
-        arrow_max = 0.14 * min(width, height)
-        for nid, ld in project.nodal_loads.items():
-            if nid not in project.nodes:
-                continue
-            mag = (ld.fx ** 2 + ld.fy ** 2) ** 0.5
-            if mag <= 1e-12:
-                continue
-            n = project.nodes[nid]
-            sx, sy = view.w2s(n.x, n.y)
-            # +Y mundo es hacia arriba; en pantalla Y crece hacia abajo.
-            ux, uy = ld.fx / mag, -ld.fy / mag
-            length = arrow_max * (mag / max_mag)
-            x0, y0 = sx - ux * length, sy - uy * length
-            _draw_arrow(draw, x0, y0, sx, sy, _RGB_LOAD, width=3)
+    # Flechas de cargas nodales (apuntando al nodo). La geometría ya se
+    # calculó arriba: es la misma que reservó el margen.
+    for nid, (ux, uy, largo) in flechas.items():
+        n = project.nodes[nid]
+        sx, sy = view.w2s(n.x, n.y)
+        _draw_arrow(draw, sx - ux * largo, sy - uy * largo, sx, sy,
+                    _RGB_LOAD, width=3)
 
     _title(draw, "Modelo discretizado", width)
     return img
