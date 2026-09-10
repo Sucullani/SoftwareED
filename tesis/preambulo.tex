@@ -7,7 +7,9 @@
 \usepackage[utf8]{inputenc}      % fuente .tex en UTF-8
 \usepackage[T1]{fontenc}
 \usepackage{lmodern}
-\usepackage[spanish,es-tabla,es-noindentfirst]{babel}  % "Tabla" (no "Cuadro")
+% es-noindentfirst se retiro al adoptar APA: la norma sangra la primera linea de
+% TODO parrafo, incluido el primero que sigue a un titulo.
+\usepackage[spanish,es-tabla]{babel}  % "Tabla" (no "Cuadro")
 \usepackage{csquotes}            % requerido por biblatex
 
 % babel-spanish redefine \% para anteponer un espacio fino, y esa version rompe en
@@ -22,11 +24,49 @@
 % oportunidades de corte, nunca fuerza un salto.
 \AtBeginDocument{\DeclareRobustCommand{\_}{\textunderscore\allowbreak}}
 
-% --- Geometria, interlineado y parrafos ---
-\usepackage[a4paper,top=3cm,bottom=2.5cm,left=3.5cm,right=2.5cm]{geometry}
+% =====================================================================
+%  PRESENTACION DEL DOCUMENTO: formato APA 7.a edicion
+% ---------------------------------------------------------------------
+%  Las CITAS y la lista de REFERENCIAS no son APA: siguen Vancouver
+%  (numericas, por orden de aparicion). Ver el bloque de biblatex mas
+%  abajo y tesis/normas/guia_vancouver.pdf. Lo que sigue es solo la
+%  presentacion: margenes, fuente, interlineado, sangria, titulos,
+%  rotulos de tablas y figuras y numeracion de pagina.
+%  Que se aplico y que no, y por que: docs/notas/2026-09-10_apa-presentacion.md
+% =====================================================================
+
+% --- Geometria, interlineado y parrafos (APA 7) ---
+% APA pide 2,54 cm (1 pulgada) en los cuatro lados. Se conserva A4 en vez de
+% carta: es el papel de la region y el de la caratula ya impresa.
+\usepackage[a4paper,margin=2.54cm]{geometry}
 \usepackage{setspace}
-\onehalfspacing
-\setlength{\parskip}{0.4em}
+% APA: interlineado doble en todo el documento. Medido sobre esta tesis: a doble
+% son 141 hojas y a 1,5 son 119 (el original, antes de APA, eran 131). El salto
+% es chico porque el margen de 2,54 cm ensancha la caja de texto y compensa.
+% Para pasar a 1,5, cambiar esta linea por \onehalfspacing.
+\doublespacing
+\setlength{\parskip}{0pt}        % APA: sin espacio extra antes ni despues del parrafo
+\setlength{\parindent}{1.27cm}   % APA: sangria de primera linea de 1/2 pulgada
+
+% Excepciones al doble espacio que la propia APA admite: el cuerpo de las tablas
+% y el texto dentro de figuras "puede utilizar interlineado sencillo, 1,5 o doble,
+% el que sea mas efectivo". Se agregan los listados de codigo por el mismo motivo:
+% a doble espacio un fragmento de Python se vuelve ilegible.
+% APA: "Align the text to the left margin. Leave the right margin uneven, or
+% ragged. Do not use full justification." Y sin guiones de corte automaticos.
+% Para volver a texto justificado, comentar estas tres lineas.
+\usepackage[document]{ragged2e}
+% ragged2e pone la sangria de primera linea en 0 al activar \RaggedRight; APA la
+% quiere en 1,27 cm, asi que se restituye por su propio parametro.
+\setlength{\RaggedRightParindent}{1.27cm}
+\hyphenpenalty=10000
+\exhyphenpenalty=10000
+
+\usepackage{etoolbox}
+\AtBeginEnvironment{tabular}{\singlespacing}
+\AtBeginEnvironment{tabularx}{\singlespacing}
+\AtBeginEnvironment{longtable}{\singlespacing}
+\AtBeginEnvironment{lstlisting}{\singlespacing}
 
 % --- Matematica ---
 \usepackage{amsmath,amssymb,amsfonts}
@@ -45,7 +85,26 @@
 \usepackage{multirow}
 \usepackage{float}
 \usepackage{caption}
-\captionsetup{font=small,labelfont=bf}
+% --- Rotulos de tablas y figuras en formato APA 7 ---
+% APA: numero en negrita en su propio renglon, titulo en cursiva debajo, ambos
+% alineados a la izquierda; la nota va debajo del contenido (comando \notaapa).
+\captionsetup{labelfont=bf,        % "Figura 1.1" en negrita
+              textfont=it,         % titulo en cursiva
+              labelsep=newline,    % titulo en el renglon siguiente
+              singlelinecheck=false,
+              justification=raggedright,
+              font=normalsize}
+
+% APA coloca numero y titulo ARRIBA de la figura, no debajo. plaintop lo resuelve
+% sin tocar los 29 entornos figure de los capitulos, que traen el \caption al final.
+\floatstyle{plaintop}
+\restylefloat{figure}
+
+% Nota al pie de una tabla o figura, en el formato de APA: "Nota." en cursiva.
+% Uso: dentro del float, despues del contenido.  \notaapa{Elaboracion propia.}
+\newcommand{\notaapa}[1]{%
+  \par\vspace{0.4em}%
+  {\raggedright\footnotesize\textit{Nota.} #1\par}}
 \usepackage{pdfpages}            % embeber PDF externo (Anexo de validacion SAP2000)
 
 % --- Color, enlaces y tipografia fina ---
@@ -98,18 +157,63 @@
 }
 \lstset{style=pyedufem}
 
-% --- Encabezados y pie ---
+% --- Encabezado: numeracion de pagina en formato APA 7 ---
+% APA (trabajo de estudiante): el encabezado lleva UNICAMENTE el numero de
+% pagina, arriba a la derecha, en todas las hojas y en la misma fuente y cuerpo
+% que el texto. Sin titulillo (running head, solo para trabajos profesionales),
+% sin nombre de capitulo y sin linea de encabezado.
 \usepackage{fancyhdr}
 \pagestyle{fancy}
 \fancyhf{}
-\fancyhead[L]{\small\nouppercase{\leftmark}}
-\fancyhead[R]{\small\thepage}
-\renewcommand{\headrulewidth}{0.4pt}
-\fancypagestyle{plain}{% paginas de inicio de capitulo
+\fancyhead[R]{\thepage}
+\renewcommand{\headrulewidth}{0pt}
+\fancypagestyle{plain}{% las hojas de apertura de capitulo usan "plain" en report
   \fancyhf{}
-  \fancyfoot[C]{\small\thepage}
+  \fancyhead[R]{\thepage}
   \renewcommand{\headrulewidth}{0pt}
 }
+
+% --- Jerarquia de titulos en formato APA 7 (conservando la numeracion) ---
+% APA define cinco niveles, todos en negrita y con cada palabra en mayuscula.
+% APA ademas pide no numerar los titulos; aca SI se numeran (decision del autor):
+% la tesis tiene ~50 referencias cruzadas del tipo \autoref{cap:...} y el tribunal
+% espera capitulos numerados. Lo que se adopta es la tipografia de cada nivel.
+%
+%   Nivel 1 (\chapter)       centrado, negrita
+%   Nivel 2 (\section)       izquierda, negrita
+%   Nivel 3 (\subsection)    izquierda, negrita cursiva
+%   Nivel 4 (\subsubsection) sangrado, negrita, punto final, texto en la misma linea
+%   Nivel 5 (\paragraph)     sangrado, negrita cursiva, punto final, texto seguido
+%
+% El cuerpo es el mismo del texto (APA: "utiliza el mismo tamano de fuente en
+% todo el documento, incluso en los titulos"), por eso van en \normalsize.
+\usepackage{titlesec}
+
+\titleformat{\chapter}[display]
+  {\normalfont\normalsize\bfseries\centering}
+  {\chaptertitlename\ \thechapter}{0.6\baselineskip}{}
+\titlespacing*{\chapter}{0pt}{0pt}{\baselineskip}
+
+\titleformat{\section}
+  {\normalfont\normalsize\bfseries}{\thesection}{1em}{}
+\titlespacing*{\section}{0pt}{\baselineskip}{0pt}
+
+\titleformat{\subsection}
+  {\normalfont\normalsize\bfseries\itshape}{\thesubsection}{1em}{}
+\titlespacing*{\subsection}{0pt}{\baselineskip}{0pt}
+
+\titleformat{\subsubsection}[runin]
+  {\normalfont\normalsize\bfseries}{\thesubsubsection}{1em}{}[.]
+\titlespacing*{\subsubsection}{\parindent}{\baselineskip}{0.5em}
+
+\titleformat{\paragraph}[runin]
+  {\normalfont\normalsize\bfseries\itshape}{}{0pt}{}[.]
+\titlespacing*{\paragraph}{\parindent}{\baselineskip}{0.5em}
+
+% --- Sangria francesa de la lista de referencias (APA: 1,27 cm) ---
+% Aplica a la lista de biblatex, que es Vancouver en su contenido pero se
+% presenta con la sangria que pide APA, como el resto del documento.
+\AtBeginDocument{\setlength{\bibhang}{1.27cm}}
 
 % --- Bibliografia estilo VANCOUVER (biblatex + biber) ---
 % Numeracion por orden de aparicion (sorting=none), citas numericas compactas.
@@ -119,6 +223,10 @@
             sorting=none,        % numeracion por orden de aparicion (Vancouver)
             sortcites=true,      % ordena numeros dentro de una cita: [3,1] -> [1,3]
             giveninits=true,     % nombres como iniciales
+            terseinits=true,     % iniciales pegadas y sin puntos: "Bathe KJ", "Ryu HR".
+                                 % Fija bibinitperiod, bibinitdelim Y bibinithyphendelim;
+                                 % este ultimo (por defecto ".-") es el que hacia salir
+                                 % "Bathe K.-J." en los nombres compuestos.
             uniquename=false,
             uniquelist=false,
             maxbibnames=6,       % hasta 6 autores en la lista...
@@ -132,8 +240,8 @@
 % (No hace falta redefinir "sortname": con sorting=none nunca se usa.)
 \DeclareNameAlias{default}{family-given}
 \renewcommand*{\revsdnamepunct}{}        % sin coma entre apellido e iniciales
-\renewcommand*{\bibinitperiod}{}         % sin punto tras cada inicial
-\renewcommand*{\bibinitdelim}{}          % sin espacio entre iniciales
+% (bibinitperiod y bibinitdelim los deja vacios la opcion terseinits de arriba,
+%  junto con bibinithyphendelim, que estos dos \renewcommand no alcanzaban.)
 % El ultimo autor se separa con "y" (p.ej. "Salari K y Knupp P"): es la convencion
 % de babel-spanish y la natural en un documento en espanol. El NLM ingles usa coma;
 % para forzarla habria que sobrescribir el delimitador de babel, lo que es fragil.

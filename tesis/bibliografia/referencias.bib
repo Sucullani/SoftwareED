@@ -12,7 +12,7 @@
   author    = {Bathe, Klaus-J{\"u}rgen},
   title     = {Finite Element Procedures},
   publisher = {Prentice Hall},
-  location  = {Upper Saddle River, NJ},
+  location  = {Upper Saddle River (NJ)},
   year      = {1996},
   note      = {Revisi{\'o}n de Finite Element Procedures in Engineering Analysis (1982)},
   isbn      = {0-13-301458-4},
@@ -23,15 +23,18 @@
   title     = {Concepts and Applications of Finite Element Analysis},
   edition   = {4},
   publisher = {John Wiley \& Sons},
+  location  = {Hoboken (NJ)},
   year      = {2002},
   isbn      = {978-0-471-35605-9},
+  % Lugar leido de la pagina de creditos del ejemplar (la portada no lo trae):
+  % "John Wiley & Sons, Inc., 111 River Street, Hoboken, NJ 07030".
 }
 
 @book{hughes2000fem,
   author    = {Hughes, Thomas J. R.},
   title     = {The Finite Element Method: Linear Static and Dynamic Finite Element Analysis},
   publisher = {Prentice-Hall},
-  location  = {Englewood Cliffs, NJ},
+  location  = {Englewood Cliffs (NJ)},
   year      = {1987},
   isbn      = {0-13-317025-X},
 }
@@ -71,7 +74,7 @@
   author      = {Salari, Kambiz and Knupp, Patrick},
   title       = {Code Verification by the Method of Manufactured Solutions},
   institution = {Sandia National Laboratories},
-  location    = {Albuquerque, NM},
+  location    = {Albuquerque (NM)},
   number      = {SAND2000-1444},
   year        = {2000},
 }
@@ -80,7 +83,7 @@
   author      = {Stimpson, C. J. and Ernst, C. D. and Knupp, Patrick and P{\'e}bay, P. P. and Thompson, D.},
   title       = {The Verdict Geometric Quality Library},
   institution = {Sandia National Laboratories},
-  location    = {Albuquerque, NM},
+  location    = {Albuquerque (NM)},
   number      = {SAND2007-1751},
   year        = {2007},
 }
@@ -110,9 +113,20 @@
 @manual{csi2017sap2000,
   author  = {{Computers \& Structures, Inc.}},
   title   = {{CSI} Analysis Reference Manual for {SAP2000}, {ETABS}, {SAFE} and {CSiBridge}},
-  version = {Rev. 18},
+  % La organizacion va DOS veces a proposito: como autor y en el lugar de la
+  % editorial. Es lo que pide Vancouver/NLM cuando una entidad publica su propia
+  % obra y no hay autor personal; sin "organization" la referencia salia sin
+  % editorial. No es una duplicacion por descuido.
+  organization = {Computers \& Structures, Inc.},
+  location = {[Estados Unidos]},
   year    = {2017},
-  note    = {ISO\# GEN062708M1, noviembre de 2017},
+  % La revision va en "note" y no en "version": biblatex antepone "Ver." a ese
+  % campo e imprimia "Ver. Rev. 18".
+  note    = {Rev. 18. ISO\# GEN062708M1, noviembre de 2017},
+  % El ejemplar no consigna ciudad en ningun lado: la portada dice solo "Proudly
+  % developed in the United States of America" y la pagina de copyright da la
+  % empresa y su web, sin domicilio. Lugar inferido de la propia publicacion y
+  % entre corchetes, que es la convencion del NLM para un dato no impreso.
 }
 
 @article{bishay2020teaching,
@@ -165,10 +179,19 @@
 % Alvarez de Zayas es el origen del marco objeto/campo que ensena la carrera;
 % Garcia-Cordoba cubre la investigacion tecnologica en ingenierias, que es
 % exactamente el tipo de trabajo de esta tesis.
+% El ejemplar no consigna pie de imprenta ni ano. Vancouver/NLM no permite omitir
+% en silencio un elemento obligatorio: se declara la ausencia entre corchetes
+% ([place unknown], [publisher unknown], [date unknown]). El ano no puede ir en
+% "year" porque biber lo parsea como fecha y lo descartaria con aviso, asi que
+% cierra la referencia desde "note".
 @book{alvarez_metodologia,
   author    = {{\'A}lvarez de Zayas, Carlos},
   title     = {Metodolog{\'i}a de la investigaci{\'o}n cient{\'i}fica},
-  note      = {Monograf{\'i}a de 80 p{\'a}ginas; el ejemplar consultado no consigna pie de imprenta ni a{\~n}o},
+  location  = {[lugar desconocido]},
+  % La fecha viaja pegada a la editorial porque numeric-comp imprime "note" antes
+  % del pie de imprenta, y "[fecha desconocida]" tiene que cerrar la referencia.
+  publisher = {[editorial desconocida]; [fecha desconocida]},
+  note      = {Monograf{\'i}a de 80 p{\'a}ginas},
 }
 
 @book{sampieri2018metodologia,
@@ -194,7 +217,7 @@
   title     = {An Analysis of the Finite Element Method},
   series    = {Prentice-Hall Series in Automatic Computation},
   publisher = {Prentice-Hall},
-  location  = {Englewood Cliffs, NJ},
+  location  = {Englewood Cliffs (NJ)},
   year      = {1973},
   isbn      = {0-13-032946-0},
 }

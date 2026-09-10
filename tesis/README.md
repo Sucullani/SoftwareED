@@ -1,10 +1,26 @@
 # Tesis — EduFEM
 
 Fuente LaTeX de la tesis sobre **EduFEM** (GUI educativa de elementos finitos 2D).
-Formato de referencias: **estilo numérico secuencial tipo Vancouver**, implementado con
-`biblatex/numeric-comp` + `sorting=none` y ajustes de formato de nombres (no existe un estilo
-`vancouver` cargado como tal). Los títulos de revista se escriben **completos**, no con la
-abreviatura ISO del NLM, por legibilidad en un documento en español. Idioma: español (babel).
+Idioma: español (babel).
+
+**Dos normas, para dos cosas distintas** (2026-09-10):
+
+- **Citas y referencias: Vancouver** (ICMJE + NLM). Estilo numérico secuencial implementado
+  con `biblatex/numeric-comp` + `sorting=none` + `terseinits` (no existe un estilo
+  `vancouver` cargado como tal). Los títulos de revista se escriben **completos**, no con la
+  abreviatura ISO del NLM, por legibilidad en un documento en español, y el último autor se
+  separa con «y» en vez de coma: las dos son decisiones tomadas, no descuidos.
+  Guía completa con plantilla y ejemplo por tipo de fuente:
+  [normas/guia_vancouver.pdf](normas/guia_vancouver.pdf).
+- **Presentación del documento: APA 7.ª ed.** Márgenes de 2,54 cm, interlineado doble,
+  sangría de 1,27 cm, texto a la izquierda sin justificar ni cortar palabras, número de
+  página arriba a la derecha, jerarquía de títulos de cinco niveles y rótulos de tablas y
+  figuras con el número en negrita y el título en cursiva encima del contenido. Qué se
+  aplicó, qué no y por qué:
+  [docs/notas/2026-09-10_apa-presentacion.md](../docs/notas/2026-09-10_apa-presentacion.md).
+
+Las dos no chocan: APA no dice nada sobre cómo se escribe una referencia numérica y
+Vancouver no dice nada sobre el interlineado.
 
 ## Estado y decisiones (actualizado jun. 2026)
 
@@ -46,7 +62,7 @@ abreviatura ISO del NLM, por legibilidad en un documento en español. Idioma: es
 ```
 tesis/
 ├── main.tex                 # documento maestro (metadatos de portada + \input de todo)
-├── preambulo.tex            # paquetes y configuración (biblatex Vancouver, \figpend, etc.)
+├── preambulo.tex            # paquetes y configuración (presentación APA + biblatex Vancouver)
 ├── portada/
 │   └── portada.tex          # portada (usa los placeholders de main.tex)
 ├── capitulos/
@@ -58,7 +74,12 @@ tesis/
 │   ├── 05_conclusiones.tex
 │   └── 06_anexos.tex
 ├── bibliografia/
-│   └── referencias.bib      # referencias en biblatex
+│   ├── referencias.bib      # referencias en biblatex
+│   └── *.pdf                # ejemplares consultados (gitignored: copyright)
+├── normas/                  # las dos normas que rigen el documento
+│   ├── guia_vancouver.tex/.pdf   # citas y referencias (propia, se versiona)
+│   └── Tavares 2020 - ...pdf     # guía APA de terceros (gitignored: copyright)
+├── respaldo_citas/          # qué página respalda cada cita + scripts
 ├── figuras/                 # imágenes (se versionan)
 └── .gitignore               # ignora artefactos de compilación
 ```

@@ -17,12 +17,25 @@ El preambulo (`tesis/preambulo.tex`) ya carga biblatex con biber.
 
 ## Campos por tipo (minimos correctos)
 
-- `@book`: author, title, year, publisher; (edition, location, isbn si se confirman).
+- `@book`: author, title, **location**, publisher, year; (edition, isbn si se confirman).
 - `@article`: author, title, journaltitle, year, volume, number, pages; (doi si se confirma).
 - `@inproceedings`: author, title, booktitle, year, pages; (publisher, location).
-- `@techreport`: author, title, institution, year, number; (location).
-- `@manual`: title, author **o** organization (nunca los dos: el driver imprime ambos y la
-  editorial sale duplicada), year; (version).
+- `@techreport`: author, title, **location**, institution, year, number.
+- `@manual`: author (la organizacion), title, **organization** (la misma, otra vez),
+  location, year.
+
+`location` es **obligatorio** en libros, informes y manuales: Vancouver exige el lugar de
+edicion. Si la portada no lo trae, buscalo en la pagina de creditos del ejemplar.
+
+En `@manual` la organizacion va **dos veces**: en `author` y en `organization`. Es lo que
+pide Vancouver/NLM cuando una entidad publica su propia obra ("Chicago: The Association");
+sin `organization` la referencia sale sin editorial. La regla vieja decia lo contrario
+--nunca los dos-- y estaba mal: se corrigio el 2026-09-10 al auditar el .bib contra la norma.
+
+Cuando el ejemplar no consigna un dato obligatorio, Vancouver no permite omitirlo en
+silencio: se declara entre corchetes (`[lugar desconocido]`, `[editorial desconocida]`,
+`[fecha desconocida]`). La fecha no puede ir en `year` --biber la parsea y la descarta con
+aviso--: se pega a `publisher`, que es lo que la cierra en el renglon correcto.
 
 Usa los nombres de campo de biblatex, no los alias legacy de BibTeX: `journaltitle` (no
 `journal`) y `location` (no `address`).

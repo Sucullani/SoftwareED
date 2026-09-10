@@ -70,7 +70,12 @@ las 22 fuentes que la tesis cita hoy. Para cada tipo de fuente hay tres cosas: l
 \textbf{plantilla} (qué elementos van y en qué orden), un \textbf{ejemplo} construido con una
 fuente real de la tesis y la \textbf{entrada \texttt{.bib}} que lo produce. Al final está la
 revisión de lo que la tesis imprime hoy frente a lo que pide la norma.\\[5pt]
-Este documento no forma parte de la tesis.
+Este documento no forma parte de la tesis.\\[5pt]
+\textbf{Vancouver gobierna las citas y las referencias, no la presentación.} Desde el
+2026-09-10 la tesis se presenta en formato \textbf{APA 7.ª ed.} ---márgenes, fuente,
+interlineado, sangría, jerarquía de títulos, rótulos de tablas y figuras y numeración de
+página---, y sigue citando en Vancouver. Los dos conviven sin chocar: APA no dice nada sobre
+cómo se escribe una referencia numérica, y Vancouver no dice nada sobre el interlineado.
 \end{minipage}
 \end{center}
 \vspace{6pt}\hrule\vspace{10pt}
@@ -352,9 +357,11 @@ la posición de editorial: «Berkeley (CA): The Company;».}
 
 \rot{ejemplo --- tu manual de SAP2000}
 \refv{Computers \& Structures, Inc. CSI analysis reference manual for SAP2000, ETABS, SAFE and
-CSiBridge. Rev. 18. \textcolor{ojo}{[lugar]}: Computers \& Structures, Inc.; 2017.}
-\anot{\textcolor{ojo}{Falta el lugar de edición}: hay que leerlo de la portada o de la página
-de créditos del PDF del manual y agregarlo al \texttt{.bib}.}
+CSiBridge. Rev. 18. [Estados Unidos]: Computers \& Structures, Inc.; 2017.}
+\anot{El ejemplar no consigna ciudad en ningún lado: la portada dice sólo «Proudly developed
+in the United States of America» y la página de copyright da la empresa y su web, sin
+domicilio. El lugar va \textbf{inferido de la propia publicación y entre corchetes}, que es
+la convención del NLM para un dato que no está impreso.}
 
 \rot{entrada .bib}
 \begin{Verbatim}[fontsize=\small,xleftmargin=4pt]
@@ -493,15 +500,21 @@ que es \textbf{decisión ya tomada} y documentada en \texttt{tesis/README.md}.
 \midrule\endhead
 
 Iniciales con guion &
-\texttt{Bathe K.-J.} \newline \texttt{Ryu H.-R.} &
 \texttt{Bathe KJ} \newline \texttt{Ryu HR} &
-\textcolor{ojo}{\textbf{Error corregible.}} Una línea en el preámbulo (§7). \\
+\texttt{Bathe KJ} \newline \texttt{Ryu HR} &
+\textcolor{bien}{\textbf{Corregido}} (§7). Salía \texttt{K.-J.} \\
 \addlinespace[3pt]
 
 Lugar de edición &
-Cook 2002 y el manual de CSI salen sin lugar &
-El lugar es obligatorio en libros y manuales &
-\textcolor{ojo}{\textbf{Falta un dato.}} Leerlo de la portada de cada ejemplar. \\
+Las 15 entradas que lo exigen lo traen &
+El lugar es obligatorio en libros, informes y manuales &
+\textcolor{bien}{\textbf{Corregido}} (§7). Faltaba en tres. \\
+\addlinespace[3pt]
+
+Editorial del manual &
+\texttt{...: Computers \& Structures, Inc.; 2017} &
+La organización va de autor \emph{y} de editorial &
+\textcolor{bien}{\textbf{Corregido}} (§7). Salía sin editorial. \\
 \addlinespace[3pt]
 
 Título del artículo &
@@ -564,15 +577,15 @@ un arreglo parcial: o se adopta el estilo entero o se deja el actual documentado
 \end{nota}
 
 % =====================================================================
-\section{Las dos correcciones concretas}
+\section{Las correcciones aplicadas (2026-09-10)}
 
 \subsection*{1. Iniciales de nombres compuestos}
 
 \texttt{biblatex} define \texttt{\textbackslash bibinithyphendelim} como \texttt{.-}, y por eso
-Klaus-Jürgen sale \texttt{K.-J.} y Hee-Ryong sale \texttt{H.-R.} en vez de \texttt{KJ} y
-\texttt{HR}. Los tres \texttt{\textbackslash renewcommand} que hoy hay en el preámbulo
-(\texttt{bibinitperiod}, \texttt{bibinitdelim} y el que falta) los cubre de una sola vez la
-opción \texttt{terseinits}:
+Klaus-Jürgen salía \texttt{K.-J.} y Hee-Ryong salía \texttt{H.-R.} en vez de \texttt{KJ} y
+\texttt{HR}. Los tres \texttt{\textbackslash renewcommand} del preámbulo
+(\texttt{bibinitperiod}, \texttt{bibinitdelim} y el que faltaba) los cubre de una sola vez la
+opción \texttt{terseinits}, que es lo que ahora está puesto:
 
 \begin{Verbatim}[fontsize=\small,xleftmargin=4pt]
 \usepackage[backend=biber,
@@ -586,9 +599,33 @@ opción \texttt{terseinits}:
 
 \subsection*{2. Lugares de edición faltantes}
 
-Dos entradas no tienen \texttt{location} y la norma lo exige: \texttt{cook2002concepts} y
-\texttt{csi2017sap2000}. El dato se lee de la portada o de la página de créditos del ejemplar
----no de la web--- y se agrega como \texttt{location = \{Ciudad, ST\}}.
+Faltaba \texttt{location} en tres entradas, y la norma lo exige. Cada dato salió del ejemplar,
+no de la web:
+
+\begin{itemize}\setlength{\itemsep}{3pt}
+\item \texttt{cook2002concepts} $\rightarrow$ \texttt{Hoboken (NJ)}. La portada sólo dice
+  «John Wiley \& Sons, Inc.»; la ciudad está en la página de créditos, en el domicilio del
+  editor («111 River Street, Hoboken, NJ 07030»).
+\item \texttt{csi2017sap2000} $\rightarrow$ \texttt{[Estados Unidos]}. No hay ciudad en
+  ninguna parte del manual: se infiere el país de la portada y va entre corchetes.
+\item \texttt{alvarez\_metodologia} $\rightarrow$ \texttt{[lugar desconocido]}, más
+  \texttt{[editorial desconocida]} y \texttt{[fecha desconocida]}. El ejemplar no trae pie de
+  imprenta, y la norma no deja omitir en silencio un elemento obligatorio.
+\end{itemize}
+
+\anot{La fecha desconocida no puede ir en \texttt{year}: biber la parsea como fecha y la
+descarta con aviso. Va pegada a \texttt{publisher}, que es lo que la deja en el renglón
+correcto.}
+
+\subsection*{3. El manual salía sin editorial}
+
+En \texttt{@manual}, biblatex imprime como editorial el campo \texttt{organization}, no
+\texttt{author}. Con sólo \texttt{author} la referencia terminaba en
+«\texttt{[Estados Unidos], 2017}», sin editorial. La organización va ahora \textbf{dos veces},
+en \texttt{author} y en \texttt{organization}: es lo que pide el NLM cuando una entidad publica
+su propia obra («Chicago: The Association;»). También se sacó \texttt{version = \{Rev. 18\}},
+porque biblatex le antepone «Ver.» e imprimía «\texttt{Ver. Rev. 18}»; la revisión vive ahora
+en \texttt{note}.
 
 % =====================================================================
 \section{Checklist antes de entregar}
