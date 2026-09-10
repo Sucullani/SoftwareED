@@ -23,7 +23,11 @@ Este anexo presenta, en forma condensada, el contenido de la \emph{Memoria de C�
 \end{figure}
 
 \noindent
-\begin{minipage}[t]{0.46\linewidth}
+% El reparto es 0,34 / 0,62 y no mitad y mitad: la tabla de nodos son tres
+% columnas de numeros (3,5 cm de ancho natural) y la de la derecha carga ademas
+% el bloque de parametros globales, cuya fila mas larga -"Apoyos / Nodos 1, 3, 6
+% (empotrados)"- pide 9,4 cm y antes se salia al margen derecho.
+\begin{minipage}[t]{0.34\linewidth}
 \centering
 \captionof{table}{Nodos.}
 \label{tab:mem-nodos}
@@ -36,7 +40,7 @@ Nodo & $x$ & $y$ \\
 \end{tabular}
 \end{minipage}
 \hfill
-\begin{minipage}[t]{0.50\linewidth}
+\begin{minipage}[t]{0.62\linewidth}
 \centering
 \captionof{table}{Elementos (conectividad y espesor).}
 \label{tab:mem-elem}
@@ -68,11 +72,14 @@ Apoyos & Nodos 1, 3, 6 (empotrados) \\
 \subsection*{1. Matriz constitutiva}
 
 Para tensión plana, con $E=\valE$ y $\nu=\valNu$ (idéntica para los cuatro elementos, que comparten material):
-\[
-\bm{D}=\frac{E}{1-\nu^{2}}
+% Partida en dos renglones: las tres matrices 3x3 seguidas mas la fraccion no
+% entran en el ancho de linea y se metian 0,9 cm en el margen derecho.
+\begin{align*}
+\bm{D}&=\frac{E}{1-\nu^{2}}
 \begin{bmatrix} 1 & \nu & 0 \\ \nu & 1 & 0 \\ 0 & 0 & \tfrac{1-\nu}{2} \end{bmatrix}
-=\valDfactor\;\DmatNorm=\Dmat .
-\]
+=\valDfactor\;\DmatNorm \\[0.4em]
+&=\Dmat .
+\end{align*}
 
 \subsection*{2. Rigidez del elemento}
 
@@ -85,11 +92,12 @@ En el punto de Gauss $\gpA$, las derivadas de las funciones de forma en coordena
 \partial\bm{N}_{\xi\eta}=\dNnatA .
 \]
 El Jacobiano, su determinante e inversa son
-\[
-\bm{J}=\partial\bm{N}_{\xi\eta}\,\bm{X}_e=\Jmata,\qquad
-\det\bm{J}=\detJa,\qquad
-\bm{J}^{-1}=\invJa,
-\]
+% Idem: las tres igualdades en un renglon se pasaban del margen.
+\begin{align*}
+\bm{J}&=\partial\bm{N}_{\xi\eta}\,\bm{X}_e=\Jmata, \qquad
+\det\bm{J}=\detJa, \\[0.4em]
+\bm{J}^{-1}&=\invJa,
+\end{align*}
 y las derivadas físicas y la matriz $\bm{B}$ ($3\times 8$, que ordena esas derivadas según $\bm{\varepsilon}=\bm{B}\,\bm{u}_e$) resultan
 \[
 \partial\bm{N}_{xy}=\bm{J}^{-1}\,\partial\bm{N}_{\xi\eta}=\dNphysA ,

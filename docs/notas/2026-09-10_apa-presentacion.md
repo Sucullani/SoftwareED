@@ -39,6 +39,26 @@ Son decisiones del autor. **No las "corrijas" a la letra de APA sin preguntarle.
 - **`ragged2e` pone `\parindent` en cero.** Al activar `\RaggedRight` la sangría de primera
   línea desaparece, que es justo lo contrario de lo que pide APA. Se restituye con
   `\setlength{\RaggedRightParindent}{1.27cm}`, no con `\setlength{\parindent}{...}`.
+- **…y ese `\RaggedRightParindent` se cuela en las celdas `p{}` y desconfigura las tablas.**
+  La opción `[document]` activa `raggedrightboxes`, que **reemplaza** el `\parindent\z@` de
+  `\@arrayparboxrestore` por un `\RaggedRight`. Resultado: toda celda `p{}` sangraba su
+  primera línea 1,27 cm, así que el encabezado y el primer renglón de cada celda se corrían
+  a la derecha y los siguientes quedaban al ras. Se veía roto en la Nomenclatura y en
+  `tab:variables`. Se arregla con un `\apptocmd{\@arrayparboxrestore}` que repone
+  `\parindent\z@` **y** `\hyphenpenalty=50` (sin guiones, una columna angosta no puede partir
+  «característico» y se desborda). **No** tocar los anchos de las tablas para compensar esto:
+  el problema no eran los anchos.
+- **Sin guiones hay que soltar la bandera derecha, o el texto se va al margen.** `ragged2e`
+  limita por defecto el estiramiento a 2 em; con `\hyphenpenalty=10000` TeX no puede cortar
+  la palabra ni correrla, y la mete en el margen: **254 líneas desbordadas**, la peor por
+  1,7 cm. Con `\setlength{\RaggedRightRightskip}{0pt plus 1fil}` el renglón simplemente
+  termina antes —que es la bandera derecha de verdad— y quedaron **0**.
+- **Los índices (`\@starttoc`) van justificados.** Sus renglones terminan en puntos suspensivos
+  más el número de página; con la bandera libre ese relleno pelea con el `\rightskip` y el
+  título de la figura se mete en el margen.
+- **`titlesec` con la forma `hang` no envuelve un título largo.** «1.8 Fenómenos numéricos en
+  elementos de bajo orden: bloqueo y modos espurios» se salía 0,9 cm. Con `[block]` parte a
+  dos renglones.
 - **Los rótulos de figura no hacen falta moverlos a mano.** APA los quiere arriba de la
   imagen y los 29 entornos `figure` de los capítulos traen el `\caption` al final.
   `\floatstyle{plaintop}` + `\restylefloat{figure}` lo resuelve desde el preámbulo. No
@@ -49,6 +69,34 @@ Son decisiones del autor. **No las "corrijas" a la letra de APA sin preguntarle.
 - **Tablas, `longtable` y `lstlisting` van a espacio sencillo** vía
   `\AtBeginEnvironment`. APA admite la excepción para tablas y figuras; el código se sumó
   por el mismo motivo (a doble espacio un fragmento de Python es ilegible).
+
+## Figuras: regeneradas todas el 2026-09-10
+
+Las 21 capturas y diagramas eran del 1-2 de junio, o sea **anteriores** al rediseño de la
+capa visual (09-09), al redimensionado de ventanas (09-10) y a la corrección de la
+extrapolación Q4 (09-07). Se regeneraron con sus guiones autoritativos:
+`tesis/figuras/gui_capture.py` (19 capturas de la GUI real),
+`tesis/figuras/generar_figuras.py` (2 diagramas) y `tests/vv_mms.py` + `tests/vv_timoshenko.py`
+(las de V&V, que se copian de `docs/vyv/figuras/`).
+
+Ahora `fig_postproceso` muestra las reacciones del rediseño y **VM = 864,70**, el valor
+correcto; la vieja traía el 977,46 del bug de extrapolación.
+
+**Trampa de `gui_capture.py`: la ventana se iba fuera de pantalla.** Tras abrir los diálogos
+la ventana quedaba desplazada y su borde derecho caía fuera del monitor (el rect del lienzo
+llegaba a x=1501 en una pantalla de 1366). Lo que cae afuera no lo dibuja nadie y se graba
+negro: **13 de 19 figuras tenían una banda negra de 155 px**. Da igual el método de captura
+—PrintWindow sobre el widget, sobre el toplevel o un BitBlt del escritorio devuelven los tres
+el mismo 15 % de negro—; lo único que lo cura es anclar la ventana antes de capturar, que es
+lo que hace `_park()`. Ojo con el margen: `geometry()` fija el área **cliente** y el marco
+suma unos píxeles, así que pedir el ancho entero de la pantalla deja 5 px afuera.
+
+Si una figura sale con banda negra, correr
+`.venv\Scripts\python.exe tesis\figuras\gui_capture.py <selector>` (los selectores están en
+`main()`) y verificar con un conteo de píxeles negros, no a ojo.
+
+**M7 se cuelga a veces** al capturarla en serie (el proceso queda bloqueado, sin consumir
+CPU). Corriéndola sola —`gui_capture.py m7`— sale bien.
 
 ## Vancouver: lo que se corrigió el mismo día
 

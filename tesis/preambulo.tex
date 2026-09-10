@@ -57,8 +57,17 @@
 % Para volver a texto justificado, comentar estas tres lineas.
 \usepackage[document]{ragged2e}
 % ragged2e pone la sangria de primera linea en 0 al activar \RaggedRight; APA la
-% quiere en 1,27 cm, asi que se restituye por su propio parametro.
+% quiere en 1,27 cm, asi que se restituye por su propio parametro. OJO: este
+% parametro tambien entra en las celdas p{} de las tablas, donde no va; se lo
+% neutraliza mas abajo, en el parche de \@arrayparboxrestore.
 \setlength{\RaggedRightParindent}{1.27cm}
+% Bandera derecha LIBRE. ragged2e limita por defecto el estiramiento del margen
+% derecho a 2 em, y con los guiones prohibidos eso deja a TeX sin salida: no
+% puede cortar la palabra ni correrla al renglon siguiente, asi que la mete en
+% el margen. Eran 254 lineas desbordadas, la peor por 1,7 cm. Con "plus 1fil"
+% el renglon simplemente termina antes, que es la bandera derecha de verdad y
+% lo que APA pide ("leave the right margin uneven, or ragged").
+\setlength{\RaggedRightRightskip}{0pt plus 1fil}
 \hyphenpenalty=10000
 \exhyphenpenalty=10000
 
@@ -67,6 +76,31 @@
 \AtBeginEnvironment{tabularx}{\singlespacing}
 \AtBeginEnvironment{longtable}{\singlespacing}
 \AtBeginEnvironment{lstlisting}{\singlespacing}
+
+% --- Las celdas p{} NO heredan la sangria ni la prohibicion de guiones ---
+% La opcion [document] de ragged2e activa "raggedrightboxes", que reemplaza el
+% \parindent\z@ de \@arrayparboxrestore por un \RaggedRight. Como \RaggedRight
+% aplica \RaggedRightParindent, TODA celda p{} quedaba con 1,27 cm de sangria en
+% su primera linea: el encabezado y la primera linea de cada celda se corrian a
+% la derecha y las lineas siguientes quedaban al ras, que es exactamente el
+% desalineado que se veia en la Nomenclatura y en la tabla de variables.
+% Ademas, sin guiones una columna angosta no puede partir "caracteristico" ni
+% "discretizacion" y se desborda. Adentro de una tabla la norma APA no manda:
+% permite explicitamente que el cuerpo se componga como resulte mas efectivo.
+\makeatletter
+\apptocmd{\@arrayparboxrestore}{%
+  \parindent\z@
+  \hyphenpenalty=50 \exhyphenpenalty=50 % los valores por defecto de LaTeX
+}{}{\PackageError{tesis}{No se pudo parchear \string\@arrayparboxrestore}{}}
+
+% --- Los indices (contenido, figuras, tablas) van justificados ---
+% Sus renglones terminan en un relleno de puntos y el numero de pagina; con la
+% bandera derecha libre ese relleno pelea con el \rightskip y el titulo de la
+% figura se mete en el margen. No son texto corrido, asi que la alineacion de
+% APA no les aplica.
+\let\tesis@starttoc\@starttoc
+\renewcommand{\@starttoc}[1]{\begingroup\justifying\tesis@starttoc{#1}\endgroup}
+\makeatother
 
 % --- Matematica ---
 \usepackage{amsmath,amssymb,amsfonts}
@@ -194,8 +228,12 @@
   {\chaptertitlename\ \thechapter}{0.6\baselineskip}{}
 \titlespacing*{\chapter}{0pt}{0pt}{\baselineskip}
 
-\titleformat{\section}
-  {\normalfont\normalsize\bfseries}{\thesection}{1em}{}
+% [block] y no la forma "hang" por defecto: con hang, un titulo largo -"1.8
+% Fenomenos numericos en elementos de bajo orden: bloqueo y modos espurios"- no
+% envuelve y se mete 0,9 cm en el margen derecho. En bloque, parte a dos
+% renglones. El \RaggedRight explicito evita que el titulo salga justificado.
+\titleformat{\section}[block]
+  {\normalfont\normalsize\bfseries\RaggedRight}{\thesection}{1em}{}
 \titlespacing*{\section}{0pt}{\baselineskip}{0pt}
 
 \titleformat{\subsection}

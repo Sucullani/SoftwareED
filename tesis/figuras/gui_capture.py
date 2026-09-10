@@ -150,6 +150,32 @@ def _find_toplevels(root, cls_name):
 
 # ───────────────────────── Construcción de la app ──────────────────────────
 
+def _park(app):
+    """Ancla la ventana principal en (0,0) y la achica al area visible.
+
+    Es lo que evita la banda negra: al abrir los dialogos, la ventana terminaba
+    desplazada y su borde derecho quedaba FUERA de la pantalla (el rect del
+    lienzo llegaba a x=1501 en un monitor de 1366). Lo que cae fuera no lo
+    dibuja nadie, asi que se graba negro — y da igual el metodo de captura:
+    PrintWindow sobre el widget, sobre el toplevel o un BitBlt del escritorio
+    devuelven los tres el mismo 15 % de negro. La unica cura es que la ventana
+    entre entera en la pantalla antes de capturar.
+    """
+    try:
+        sw = app.root.winfo_screenwidth()
+        sh = app.root.winfo_screenheight()
+        # geometry() fija el area CLIENTE: el marco de la ventana suma unos
+        # pixeles mas, asi que pedir el ancho entero de la pantalla deja el
+        # borde derecho 5 px afuera (y esos 5 px salen negros). De ahi el margen.
+        w = min(app.root.winfo_width(), sw - 20)
+        h = min(app.root.winfo_height(), sh - 60)  # deja lugar a la barra de tareas
+        app.root.geometry(f"{w}x{h}+0+0")
+        app.root.update_idletasks()
+    except Exception:
+        pass
+    _pump(app.root, 6)
+
+
 def _build_app():
     """Crea UNA sola instancia de MainWindow. ttkbootstrap no tolera bien
     crear/destruir múltiples ttk.Window (pierde estilos custom como
@@ -158,6 +184,7 @@ def _build_app():
     app = MainWindow()
     app.root.update_idletasks()
     app.root.update()
+    _park(app)
     return app
 
 
@@ -232,6 +259,9 @@ def _cleanup(app):
         pass
     app.notebook.select(0)
     _pump(app.root, 8)
+    # Volver a anclar la ventana: los dialogos la desplazan y, si su borde
+    # derecho queda fuera de la pantalla, esa franja se captura en negro.
+    _park(app)
 
 
 # ───────────────────────── Figuras ─────────────────────────────────────────
