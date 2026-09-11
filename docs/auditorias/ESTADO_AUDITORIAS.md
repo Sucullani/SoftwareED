@@ -22,8 +22,9 @@
 
 | Fecha | Informe | Alcance | Estado global |
 |---|---|---|---|
+| 2026-09-11 | [2026-09-11_auditoria_tesis.md](2026-09-11_auditoria_tesis.md) | Tesis, PDF del 2026-09-11: coherencia, rigor numérico (V&V corrida), referencias (22 ejemplares), APA/Vancouver, integridad del PDF | **Vigente — solo diagnóstico, sin fixes aplicados**; 2 bloqueantes de maquetación, 10 mayores |
 | 2026-06-10 | [2026-06-10_auditoria_general.md](2026-06-10_auditoria_general.md) | Repo completo: correctitud, convenciones, dependencias, higiene, rendimiento | **Vigente — solo diagnóstico, sin fixes aplicados** |
-| 2026-06-10 | [2026-06-10_revision_tesis.md](2026-06-10_revision_tesis.md) | Tesis, estilo tribunal | **Vigente — propuestas a decisión del autor** |
+| 2026-06-10 | [2026-06-10_revision_tesis.md](2026-06-10_revision_tesis.md) | Tesis, estilo tribunal | Parcialmente superado por el informe del 2026-09-11, que registra qué quedó cerrado y qué reincide |
 | 2026-06-03 | [historico/2026-06-03_auditoria_tesis.pdf](historico/2026-06-03_auditoria_tesis.pdf) | Tesis (pasada anterior) | Superado por el informe del 06-10 |
 | 2026-05-31 | [historico/2026-05-31_auditoria_integral.md](historico/2026-05-31_auditoria_integral.md) | Integral (17 agentes + verificación adversarial) | Implementado P0–P2 el 2026-06-01; **P3 diferido** |
 | 2026-05-30 | [historico/2026-05-30_auditoria_canvas_ux.md](historico/2026-05-30_auditoria_canvas_ux.md) | UX/UI del `MeshCanvas` | Implementado (ver su §*Estado de implementación*); 4 ítems diferidos |
