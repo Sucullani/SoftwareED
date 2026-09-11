@@ -81,6 +81,7 @@ tesis/
 │   └── Tavares 2020 - ...pdf     # guía APA de terceros (gitignored: copyright)
 ├── respaldo_citas/          # qué página respalda cada cita + scripts
 ├── figuras/                 # imágenes (se versionan)
+├── presentacion/            # defensa: guion.json + build_deck.py -> Defensa_EduFEM.pptx (ver su README)
 └── .gitignore               # ignora artefactos de compilación
 ```
 

@@ -1,0 +1,1041 @@
+{
+ "meta": {
+  "universidad": "Universidad Autónoma «Tomás Frías»",
+  "facultad": "Facultad de Ingeniería",
+  "carrera": "Carrera de Ingeniería Civil",
+  "titulo": "Desarrollo de software educativo de elementos finitos para el análisis estructural empleando el lenguaje de programación Python",
+  "grado": "Título de Licenciatura en Ingeniería Civil",
+  "autor": "Hedy Yhassmany Oyola Sucullani",
+  "ciudad": "Potosí – Bolivia",
+  "fecha": "Junio de 2026",
+  "repo": "github.com/Sucullani/SoftwareED",
+  "pie": "EduFEM · Defensa de tesis · Ingeniería Civil · UATF"
+ },
+ "minutos_por_bloque": {
+  "Carátula": 1,
+  "Introducción": 5,
+  "Base teórica": 8,
+  "Diseño y desarrollo del modelo": 16,
+  "Presentación de resultados": 6,
+  "Análisis de resultados": 3,
+  "Conclusiones y recomendaciones": 4,
+  "Cierre": 1
+ },
+ "diapositivas": [
+  {
+   "n": 1,
+   "bloque": "",
+   "layout": "portada",
+   "titulo": "",
+   "notas": "Buenos días, señores miembros del tribunal. Presento la tesis «Desarrollo de software educativo de elementos finitos para el análisis estructural empleando el lenguaje de programación Python», cuyo producto es EduFEM. La exposición sigue el orden reglamentario: introducción, base teórica, diseño y desarrollo del modelo, presentación y análisis de resultados, y conclusiones y recomendaciones.",
+   "fuente": "Carátula"
+  },
+  {
+   "n": 2,
+   "bloque": "Introducción",
+   "layout": "seccion",
+   "titulo": "Introducción",
+   "subtitulo": "La caja negra: de dónde nace el problema, qué se estudia, qué se propone y cómo se contrasta",
+   "notas": "Empiezo por la fundamentación: la situación problemática, el problema científico con sus variables, el objeto de estudio y el campo de acción, los objetivos, la hipótesis de diseño y la metodología.",
+   "fuente": "Introducción"
+  },
+  {
+   "n": 3,
+   "bloque": "Introducción",
+   "layout": "comparacion",
+   "titulo": "La brecha: rigor abstracto o caja negra",
+   "tarjetas": [
+    {
+     "titulo": "Textos clásicos",
+     "lineas": [
+      "Funciones de forma, Jacobiano, matriz B y Gauss como cadena algebraica",
+      "Sin una geometría concreta a la vista",
+      "A mano no escala más allá de uno o dos elementos"
+     ]
+    },
+    {
+     "titulo": "Software profesional",
+     "lineas": [
+      "Entradas → resultados: el procesamiento intermedio queda oculto",
+      "Costoso, sin propósito didáctico, localización al español limitada",
+      "No deja diagnosticar bloqueo por cortante ni modos espurios (hourglass)"
+     ]
+    }
+   ],
+   "remate": "Brecha doble: dificultad genuina del método e insuficiencia de herramientas que expongan el proceso",
+   "notas": "La enseñanza del MEF sufre una brecha doble. Los textos presentan la formulación matricial con rigor pero de manera abstracta, como una cadena algebraica desconectada de la geometría; el desarrollo manual no escala más allá de uno o dos elementos. El software comercial hace lo contrario: recibe geometría, material y cargas y devuelve tensiones ocultando todo lo intermedio. La consecuencia es que el estudiante aprende a operar sin comprender, y no puede diagnosticar un resultado anómalo ni reconocer el bloqueo por cortante o los modos espurios.",
+   "fuente": "Introducción, planteamiento del problema"
+  },
+  {
+   "n": 4,
+   "bloque": "Introducción",
+   "layout": "flujo",
+   "titulo": "Del problema al objetivo",
+   "pasos": [
+    {
+     "etiqueta": "Situación problemática",
+     "sub": "brecha doble: texto y caja negra"
+    },
+    {
+     "etiqueta": "Problema científico",
+     "sub": "cómo exponer el canal completo"
+    },
+    {
+     "etiqueta": "Objeto de estudio",
+     "sub": "canal del MEF plano, Q4 y Q9"
+    },
+    {
+     "etiqueta": "Campo de acción",
+     "sub": "su enseñanza: software y memoria"
+    },
+    {
+     "etiqueta": "Objetivo general",
+     "sub": "desarrollar EduFEM"
+    }
+   ],
+   "remate": "Variable causa: cómo se expone el canal · Variable efecto: observabilidad y contrastabilidad del procedimiento",
+   "notas": "El problema científico pregunta cómo debe construirse un software educativo para que el canal de cálculo completo del MEF en elasticidad plana resulte observable y contrastable por el estudiante. La variable causa es la forma en que la herramienta expone ese canal: transparencia, interactividad y verificabilidad numérica. La variable efecto es la observabilidad y contrastabilidad del procedimiento intermedio. El objeto de estudio es el análisis de medios continuos en elasticidad lineal plana por el MEF, del mapeo isoparamétrico a la recuperación de tensiones con Q4 y Q9; el campo de acción es su enseñanza mediante el software y la memoria de cálculo. Se delimita a la Carrera de Ingeniería Civil de la UATF, al aula y al equipo personal del estudiante sin licencias, y a la gestión 2026.",
+   "fuente": "Introducción, problema científico, objeto y campo"
+  },
+  {
+   "n": 5,
+   "bloque": "Introducción",
+   "layout": "tabla",
+   "titulo": "Un objetivo general, seis específicos",
+   "subtitulo": "Desarrollar EduFEM integrando formulación matemática, modelado interactivo y verificación numérica",
+   "tabla": {
+    "cabeceras": [
+     "OE",
+     "Qué se hace",
+     "Dónde se cumple"
+    ],
+    "filas": [
+     [
+      "OE1",
+      "Fundamentar el MEF plano con Q4 y Q9",
+      "Cap. 1"
+     ],
+     [
+      "OE2",
+      "Motor MEF 2D verificado numéricamente",
+      "Cap. 2 · Cap. 3"
+     ],
+     [
+      "OE3",
+      "Interfaz pre / proceso / post con lienzo único",
+      "Cap. 2"
+     ],
+     [
+      "OE4",
+      "Módulos educativos paso a paso sobre el modelo real",
+      "Cap. 2 · Cap. 3"
+     ],
+     [
+      "OE5",
+      "V&V: MMS, Timoshenko, Cook y SAP2000",
+      "Cap. 3"
+     ],
+     [
+      "OE6",
+      "Memoria de cálculo PDF e interoperabilidad DXF/CSV",
+      "Cap. 2"
+     ]
+    ]
+   },
+   "remate": "Esta tabla vuelve en las conclusiones con la columna «cumplimiento»",
+   "notas": "El objetivo general es desarrollar EduFEM, un software educativo de escritorio para el MEF en elasticidad lineal plana con elementos Q4 y Q9, que integre la formulación matemática, la construcción y visualización interactiva del modelo y la verificación numérica. Se concreta en seis objetivos específicos: el primero se cumple en el marco teórico; el segundo, tercero, cuarto y sexto en el diseño e implementación; y el quinto en resultados. Volveré a esta tabla al final para mostrar el cumplimiento de cada uno.",
+   "fuente": "Introducción, objetivos"
+  },
+  {
+   "n": 6,
+   "bloque": "Introducción",
+   "layout": "comparacion",
+   "titulo": "Hipótesis de diseño y preguntas",
+   "tarjetas": [
+    {
+     "titulo": "Hipótesis de diseño",
+     "lineas": [
+      "Factible: un software que expone el canal completo del MEF plano",
+      "Transparente: cada matriz y cada paso, observables",
+      "Interactivo y verificable frente a referencias conocidas",
+      "Coherente con pre-proceso, proceso y post-proceso"
+     ]
+    },
+    {
+     "titulo": "Preguntas de investigación",
+     "lineas": [
+      "PI-1: ¿precisión verificable frente a soluciones analíticas y SAP2000?",
+      "PI-2: ¿qué organización de interfaz y módulos expone la cadena de cálculo?",
+      "PI-3: ¿evidencia el bloqueo por cortante del Q4 frente al Q9?"
+     ]
+    }
+   ],
+   "remate": "Investigación propositiva, aplicada de tipo tecnológico, cuantitativa, descriptiva y comparativa",
+   "notas": "No se plantea una hipótesis estadística sino una hipótesis de diseño: en la investigación tecnológica la hipótesis es la solución tentativa a un problema concreto y su criterio de veracidad es la efectividad en la práctica. Se verifica por diseño, comprobando que la herramienta reúne los cuatro atributos. La acompañan tres preguntas de investigación que responderé en el análisis y en las conclusiones. Por su finalidad la investigación es propositiva; por su naturaleza, aplicada de tipo tecnológico; por el abordaje, cuantitativa; por su nivel, descriptiva y comparativa.",
+   "fuente": "Introducción, hipótesis, preguntas y metodología"
+  },
+  {
+   "n": 7,
+   "bloque": "Base teórica",
+   "layout": "seccion",
+   "titulo": "Base teórica",
+   "subtitulo": "Abrir la caja: el estado del arte y el canal de cálculo del MEF isoparamétrico",
+   "notas": "La base teórica sigue el mismo orden que el canal de cálculo del programa: primero los antecedentes, después la cadena que va de la forma fuerte a la recuperación de tensiones.",
+   "fuente": "Capítulo 1"
+  },
+  {
+   "n": 8,
+   "bloque": "Base teórica",
+   "layout": "tabla",
+   "titulo": "Estado del arte: el vacío que se cubre",
+   "tabla": {
+    "cabeceras": [
+     "Recurso",
+     "Idioma",
+     "Licencia",
+     "Paso a paso",
+     "Canal completo",
+     "Memoria automática"
+    ],
+    "filas": [
+     [
+      "EduFEM",
+      "Español",
+      "Libre",
+      "Alta: M0–M7",
+      "Sí",
+      "Sí (PDF)"
+     ],
+     [
+      "ED-Elas2D (UPC, 1998)",
+      "Español",
+      "Académica",
+      "Media",
+      "Sí",
+      "No consta"
+     ],
+     [
+      "Reticulados (Bishay, 2020)",
+      "Inglés",
+      "No declarada",
+      "Media-alta",
+      "Parcial: barras",
+      "No consta"
+     ],
+     [
+      "VisualFEA (Lee, 2015)",
+      "Inglés",
+      "Comercial",
+      "Media-alta, un eslabón",
+      "Parcial",
+      "En pantalla"
+     ],
+     [
+      "CALFEM, FEniCS",
+      "Inglés",
+      "Libre",
+      "En el código",
+      "Parcial",
+      "No"
+     ],
+     [
+      "SAP2000, ANSYS, Abaqus",
+      "Inglés",
+      "Comercial",
+      "Baja: caja negra",
+      "No",
+      "Solo informes"
+     ]
+    ]
+   },
+   "remate": "Ninguno reúne a la vez español, licencia libre, continuo plano, paso a paso interactivo, canal completo y memoria automática",
+   "notas": "Hay tres familias de antecedentes: el análisis de barras, los simuladores de un eslabón aislado del método y las herramientas de propósito general. El antecedente más directo es ED-Elas2D, desarrollado en la Universitat Politècnica de Catalunya, en español y con elementos Q4, Q8 y Q9, pero de licencia académica y ligado a la plataforma de su época. La tabla de la tesis compara además requisitos de ejecución, fenómenos numéricos observables y verificación publicada. EduFEM cubre el vacío: libre y abierto, con instalador autocontenido, expone cada matriz sobre el elemento seleccionado y genera una memoria de cálculo trazable, capacidad que no se documenta en los antecedentes revisados.",
+   "fuente": "Cap. 1, antecedentes, tabla comparativa"
+  },
+  {
+   "n": 9,
+   "bloque": "Base teórica",
+   "layout": "ecuaciones",
+   "titulo": "De la forma fuerte a K u = F",
+   "ecuaciones": [
+    {
+     "nombre": "Equilibrio (forma fuerte)",
+     "texto": "∇·σ + b = 0   en Ω"
+    },
+    {
+     "nombre": "Trabajos virtuales",
+     "texto": "∫Ω δεᵀ σ dΩ = ∫Ω δuᵀ b dΩ + ∫Γₜ δuᵀ t dΓ"
+    },
+    {
+     "nombre": "Discretización",
+     "texto": "u ≈ N uₑ ,   ε = B uₑ ,   σ = D ε   ⇒   K u = F"
+    },
+    {
+     "nombre": "Constitutiva (tensión plana)",
+     "texto": "D = E/(1−ν²) · [ 1  ν  0 ;  ν  1  0 ;  0  0  (1−ν)/2 ]"
+    }
+   ],
+   "remate": "En deformación plana el factor (1−2ν) tiende a cero cuando ν → 0,5: bloqueo volumétrico",
+   "notas": "La forma fuerte exige continuidad de segundo orden; el principio de los trabajos virtuales la rebaja a primer orden y habilita polinomios a trozos. Sustituyendo la interpolación se llega al sistema K u igual a F. La matriz constitutiva distingue tensión plana, con sigma z nula, de deformación plana, con épsilon z nula, donde aparece el bloqueo volumétrico al acercarse el coeficiente de Poisson a 0,5.",
+   "fuente": "Cap. 1, formulación variacional y matriz constitutiva"
+  },
+  {
+   "n": 10,
+   "bloque": "Base teórica",
+   "layout": "dos_columnas",
+   "titulo": "El canal isoparamétrico",
+   "bullets": [
+    "Mismas N para geometría y desplazamiento: Q4 bilineal (8 GDL), Q9 bicuadrático (18 GDL)",
+    "J = ∂N · Xₑ con det J > 0; B (3 × 2n) vía J⁻¹",
+    "kₑ = Σ wₚ Bᵀ D B t |det J|: Gauss 2×2 (Q4) y 3×3 (Q9)",
+    "K u = F disperso (CSR, LU); σ: Gauss → nodos → promedio"
+   ],
+   "imagen": "fig_isoparametricos.png",
+   "caption": "Q4 y Q9 en el cuadrado natural y mapeo de N₁ a un elemento distorsionado",
+   "notas": "El elemento isoparamétrico interpola geometría y desplazamientos con la misma familia de funciones de forma. El Jacobiano conecta el cuadrado natural con el elemento real; su inversa construye la matriz B. La rigidez elemental se integra por cuadratura de Gauss, dos por dos en Q4 y tres por tres en Q9, porque el integrando no es polinómico. El sistema global se ensambla en formato disperso y se resuelve por factorización LU; las tensiones se evalúan en los puntos de Gauss, que en Q4 son los de Barlow, se extrapolan a los nodos y se promedian. Es exactamente lo que los módulos M1 a M7 exponen sobre el elemento seleccionado.",
+   "fuente": "Cap. 1, mapeo isoparamétrico, Jacobiano, B, cuadratura y ensamblaje"
+  },
+  {
+   "n": 11,
+   "bloque": "Base teórica",
+   "layout": "comparacion",
+   "titulo": "Dos patologías que el alumno debe ver",
+   "tarjetas": [
+    {
+     "titulo": "Bloqueo por cortante (shear-locking)",
+     "lineas": [
+      "Q4 en flexión: el campo bilineal no reproduce la curvatura",
+      "Corte espurio: elemento artificialmente rígido",
+      "Cook N = 8: uy = 22,079 frente a 23,96 (−7,85 %)",
+      "Q9: prácticamente libre del bloqueo"
+     ]
+    },
+    {
+     "titulo": "Modos espurios (hourglass)",
+     "lineas": [
+      "Aparecen al subintegrar (Q4 con un punto de Gauss)",
+      "Rango deficiente: modos de energía nula",
+      "EduFEM: integración completa 2×2 y 3×3",
+      "Sin SRI ni B-bar: el Q4 queda como recurso didáctico"
+     ]
+    }
+   ],
+   "remate": "Regla de m puntos: exacta hasta grado 2m−1; subintegrar crea modos espurios, sobreintegrar encarece",
+   "notas": "Hay fenómenos numéricos que un alumno solo entiende cuando los ve. El bloqueo por cortante afecta al Q4 en flexión: el campo bilineal no representa la curvatura sin generar corte espurio, el elemento se vuelve rígido y converge lento; en la membrana de Cook con N igual a 8 da 22,079 frente a 23,96. Los modos espurios son el fenómeno inverso, por subintegrar, y EduFEM los evita con integración completa. Decidí no implementar integración reducida selectiva ni B-bar: ofrezco el Q9 y aprovecho el comportamiento del Q4 como recurso didáctico. Una tercera patología, el bloqueo volumétrico en deformación plana, el software la señala pero no la corrige.",
+   "fuente": "Cap. 1, bloqueo y modos espurios; Cap. 3, tabla de Cook"
+  },
+  {
+   "n": 12,
+   "bloque": "Base teórica",
+   "layout": "ecuaciones",
+   "titulo": "Recuperación de tensiones y verificación",
+   "ecuaciones": [
+    {
+     "nombre": "Tensiones en puntos de Gauss",
+     "texto": "σₚ = D Bₚ uₑ   (puntos de Barlow en Q4)"
+    },
+    {
+     "nombre": "Extrapolación a nodos\n(a ≈ 1,866 · b = −½ · c ≈ 0,134)",
+     "texto": "σnodal = E σGauss ,   E = M⁻¹"
+    },
+    {
+     "nombre": "Promediado nodal",
+     "texto": "⟨σ⟩nodo = (1/nₑ) Σₑ σ⁽ᵉ⁾"
+    },
+    {
+     "nombre": "Tasas teóricas (MMS)",
+     "texto": "‖e‖₂ = O(hᵖ⁺¹) ,  |e|₁ = O(hᵖ) ,  b = −∇·σ(uₘ)"
+    }
+   ],
+   "remate": "Verificar es resolver bien las ecuaciones; validar es que las ecuaciones representen la realidad",
+   "notas": "Las tensiones se evalúan en los puntos de Gauss, se extrapolan a los nodos con la inversa de la matriz de funciones de forma, que en Q4 tiene forma cerrada con los coeficientes que ven, y se promedian entre los elementos que comparten cada nodo. El método de soluciones manufacturadas elige la solución a priori, deduce la carga de volumen y mide el error con las normas L² y H¹, que deben decrecer con las tasas teóricas. Este trabajo hace verificación de código, verificación de solución y comparación código a código; la validación frente a mediciones físicas queda fuera del alcance.",
+   "fuente": "Cap. 1, recuperación de tensiones, calidad de malla y V&V"
+  },
+  {
+   "n": 13,
+   "bloque": "Diseño y desarrollo del modelo",
+   "layout": "seccion",
+   "titulo": "Diseño y desarrollo del modelo",
+   "subtitulo": "Construir la caja abierta: diseño metodológico, diseño e implementación de EduFEM y demostración en vivo",
+   "notas": "Este bloque tiene dos partes: cómo se diseñó la investigación, con su modelo de simulación numérica, variables, matriz de consistencia y criterios de aceptación; y cómo se construyó el software. Cierra con una demostración en vivo.",
+   "fuente": "Capítulo 2"
+  },
+  {
+   "n": 14,
+   "bloque": "Diseño y desarrollo del modelo",
+   "layout": "tabla",
+   "titulo": "Variables del modelo de simulación",
+   "tabla": {
+    "cabeceras": [
+     "Variable",
+     "Dimensión",
+     "Indicador",
+     "Instrumento"
+    ],
+    "filas": [
+     [
+      "Independiente: modelo",
+      "Geometría, material, acciones, apoyos",
+      "Dominio; E, ν, t; cargas y restricciones",
+      "Guion del caso"
+     ],
+     [
+      "Independiente: discretización",
+      "Tipo de elemento; densidad",
+      "Q4 o Q9; h o N×N; GDL",
+      "Guion del caso"
+     ],
+     [
+      "Dependiente: respuesta",
+      "Tensiones, desplazamientos, reacciones",
+      "σₓ, σᵧ, τₓᵧ, σVM; u, v",
+      "Solucionador MEF"
+     ],
+     [
+      "Dependiente: exactitud",
+      "Convergencia; error",
+      "Orden p; normas L², H¹; error %",
+      "Guiones de V&V"
+     ],
+     [
+      "Controladas",
+      "Análisis; integración",
+      "Tensión o deformación plana; 2×2, 3×3",
+      "Constantes del guion"
+     ]
+    ]
+   },
+   "remate": "Sin unidades experimentales ni aleatorización: motor determinista, reproducibilidad y convergencia",
+   "notas": "El modelo de investigación es un modelo de simulación numérica: no hay unidades experimentales ni tratamientos aleatorizados. La variable independiente es la definición del modelo y las decisiones de discretización, tipo de elemento y densidad de malla; la dependiente es la respuesta estructural y su exactitud frente a referencias, medida con normas L² y H¹, tasas de convergencia y errores relativos. Las controladas son el tipo de análisis y el orden de cuadratura, fijos en 2×2 para Q4 y 3×3 para Q9. La confiabilidad descansa en el determinismo del motor y en la convergencia bajo refinamiento.",
+   "fuente": "§2.1, tabla de variables"
+  },
+  {
+   "n": 15,
+   "bloque": "Diseño y desarrollo del modelo",
+   "layout": "tabla",
+   "titulo": "Matriz de consistencia",
+   "tabla": {
+    "cabeceras": [
+     "Objetivo",
+     "PI",
+     "Indicador",
+     "Instrumento",
+     "Evidencia"
+    ],
+    "filas": [
+     [
+      "OE1 Fundamentar",
+      "PI-1 a PI-3",
+      "Canal cubierto",
+      "Revisión bibliográfica",
+      "Cap. 1"
+     ],
+     [
+      "OE2 Motor Q4/Q9",
+      "PI-1",
+      "Normas L², H¹",
+      "NumPy/SciPy; regresión",
+      "Cap. 2 · MMS"
+     ],
+     [
+      "OE3 Interfaz",
+      "PI-2",
+      "Flujo pre/proc/post",
+      "Lienzo único",
+      "Cap. 2"
+     ],
+     [
+      "OE4 Módulos",
+      "PI-2",
+      "Cobertura del canal",
+      "Capas sobre la malla",
+      "Cap. 2 · Cap. 3"
+     ],
+     [
+      "OE5 V&V",
+      "PI-1, PI-3",
+      "Error, tasa, bloqueo",
+      "MMS, Timoshenko, Cook",
+      "Cap. 3"
+     ],
+     [
+      "OE6 Memoria e I/O",
+      "—",
+      "Trazabilidad",
+      "PDF; DXF y CSV",
+      "Cap. 2"
+     ]
+    ]
+   },
+   "remate": "OE1 es transversal (PI-1 a PI-3); OE6 es instrumental y no tiene pregunta asociada",
+   "notas": "La matriz de consistencia traza cada objetivo específico con su pregunta de investigación, su indicador, su instrumento y la evidencia en el documento. El primer objetivo es transversal porque fundamenta las tres preguntas. El sexto es instrumental: la memoria y la interoperabilidad apoyan la transparencia de PI-2 pero no derivan de una pregunta propia.",
+   "fuente": "§2.1, matriz de consistencia"
+  },
+  {
+   "n": 16,
+   "bloque": "Diseño y desarrollo del modelo",
+   "layout": "flujo",
+   "titulo": "Procedimiento de verificación y validación",
+   "pasos": [
+    {
+     "etiqueta": "Guion del caso",
+     "sub": "malla, material, cargas, apoyos"
+    },
+    {
+     "etiqueta": "Validador de salud",
+     "sub": "det J > 0, sin cuerpo rígido"
+    },
+    {
+     "etiqueta": "Mismo motor",
+     "sub": "el que usan módulos y memoria"
+    },
+    {
+     "etiqueta": "Normas L², H¹, σ*",
+     "sub": "un punto de Gauss más"
+    },
+    {
+     "etiqueta": "CSV + criterios",
+     "sub": "el guion falla si no cumple"
+    }
+   ],
+   "remate": "Casos por valor probatorio: MMS (solución exacta), Timoshenko (analítica y SAP2000), Cook (referencia histórica)",
+   "notas": "Los instrumentos son los guiones vv_mms, vv_timoshenko y vv_cook del repositorio. Cada caso pasa por el validador de salud, se resuelve con las mismas funciones que consumen los módulos educativos y la memoria, y sus normas se integran con un punto de Gauss más por dirección para no subestimar el error. Los casos no son una muestra estadística sino una selección intencional por valor probatorio, coherente con la práctica de verificación de códigos: cada uno aporta una referencia de naturaleza distinta y se corre con Q4 y con Q9.",
+   "fuente": "§2.1, casos de estudio, procedimiento e instrumentos"
+  },
+  {
+   "n": 17,
+   "bloque": "Diseño y desarrollo del modelo",
+   "layout": "kpi",
+   "titulo": "Criterios de aceptación fijados a priori",
+   "kpis": [
+    {
+     "valor": "± 0,5",
+     "etiqueta": "tasas MMS frente a las teóricas, cuatro configuraciones"
+    },
+    {
+     "valor": "3 %",
+     "etiqueta": "flecha de Timoshenko frente a la analítica"
+    },
+    {
+     "valor": "1,5 %",
+     "etiqueta": "Cook: Q9 con N = 8 frente a 23,96"
+    },
+    {
+     "valor": "u(Q4) < u(Q9)",
+     "etiqueta": "a igual malla: firma del bloqueo por cortante"
+    }
+   ],
+   "remate": "Los guiones los evalúan automáticamente y terminan con error si alguno falla: la hipótesis se contrasta por diseño",
+   "notas": "Los criterios de aceptación están fijados de antemano en los propios guiones, que terminan con error si alguno falla, de modo que la verificación no se ajusta a posteriori. Así se contrasta la hipótesis de diseño: sus afirmaciones cuantitativas, la precisión verificable de PI-1 y la evidencia del bloqueo de PI-3, se contrastan numéricamente con estos criterios; la organización de la interfaz de PI-2 se documenta en el diseño.",
+   "fuente": "§2.1, criterios de aceptación y contraste de la hipótesis"
+  },
+  {
+   "n": 18,
+   "bloque": "Diseño y desarrollo del modelo",
+   "layout": "dos_columnas",
+   "titulo": "Arquitectura: seis capas, un modelo",
+   "bullets": [
+    "Python libre: tkinter y ttkbootstrap, NumPy y SciPy",
+    "ProjectModel compartido por referencia: el estado que todas las capas mutan",
+    "fem/ es puro: sin tkinter ni matplotlib, corre sin pantalla",
+    "GDL por índice ordinal: K se dimensiona 2N, no 2·máx(id de nodo)"
+   ],
+   "imagen": "fig_arquitectura.png",
+   "caption": "Arquitectura por capas centrada en el modelo de proyecto",
+   "notas": "Cuatro requisitos gobernaron el diseño: orientación educativa, español con terminología canónica, primacía de lo visual e independencia tecnológica. La arquitectura es un modelo-vista-controlador en seis capas alrededor del ProjectModel. Una decisión crítica separa la identidad pública del nodo, que puede tener huecos como 1, 5 y 50 tras borrar, del índice ordinal que fija sus grados de libertad. Se distribuye con PyInstaller e Inno Setup, con un TeX Live reducido embebido, sin instalar Python.",
+   "fuente": "§2.2, requisitos, stack y arquitectura"
+  },
+  {
+   "n": 19,
+   "bloque": "Diseño y desarrollo del modelo",
+   "layout": "dos_columnas",
+   "titulo": "Pre-proceso: un lienzo, cinco tablas",
+   "bullets": [
+    "Lienzo único compartido por pre-proceso, proceso y post-proceso",
+    "Modo dibujo tipo CAD: cuatro vértices, snap, orientación antihoraria",
+    "Deshacer y rehacer por instantáneas; sincronización tabla ↔ lienzo",
+    "Validador de salud: 18 chequeos (9 críticos, 8 advertencias, 1 informativo)",
+    "Calidad de malla (M0): q_SJ ≥ 0,50, más exigente que el 0,30 de Verdict"
+   ],
+   "imagen": "fig_lienzo_lod.png",
+   "caption": "Modo de dibujo sobre el lienzo compartido",
+   "notas": "El modelo se construye en cinco tablas o dibujando sobre el lienzo, que es el mismo en las tres fases. Cada acción del usuario captura una instantánea, lo que hace todo reversible. Antes de resolver, el validador de salud aplica dieciocho chequeos: nueve errores críticos que bloquean, ocho advertencias y uno de información. La calidad de malla usa dos métricas de la biblioteca Verdict, el Jacobiano escalado y la relación de aspecto; EduFEM eleva el corte del Jacobiano escalado de 0,30 a 0,50 por prudencia pedagógica. La importación DXF es idempotente y fuerza la orientación antihoraria.",
+   "fuente": "§2.2 pre-proceso; Cap. 1 calidad de malla; Anexo B"
+  },
+  {
+   "n": 20,
+   "bloque": "Diseño y desarrollo del modelo",
+   "layout": "flujo",
+   "titulo": "Ocho módulos recorren el canal del MEF",
+   "pasos": [
+    {
+     "etiqueta": "M0 Calidad",
+     "sub": "de malla"
+    },
+    {
+     "etiqueta": "M1 Mapeo",
+     "sub": "isoparamétrico"
+    },
+    {
+     "etiqueta": "M2 Jacobiano",
+     "sub": "distorsión y det J"
+    },
+    {
+     "etiqueta": "M3 Matriz B",
+     "sub": "ε = B u"
+    },
+    {
+     "etiqueta": "M4 Matriz D",
+     "sub": "material"
+    },
+    {
+     "etiqueta": "M5 Rigidez kₑ",
+     "sub": "cuadratura de Gauss"
+    },
+    {
+     "etiqueta": "M6 Fuerzas",
+     "sub": "equivalentes"
+    },
+    {
+     "etiqueta": "M7 Ensamblaje",
+     "sub": "K y F globales"
+    }
+   ],
+   "remate": "Capas sobre la malla real, una sola activa a la vez, conmutador Fórmula ↔ Valores",
+   "notas": "Los ocho módulos recorren el canal del MEF en su orden canónico. Cada uno es una capa superpuesta al lienzo: un panel flotante más una iluminación sobre la malla real, con selección de un solo clic sobre el elemento. M0 colorea por calidad y deja distorsionar un vértice; M5 permite agregar o quitar puntos de Gauss; M7 resalta las filas y columnas de K que recibe cada elemento. Solo una capa está activa a la vez. La recuperación de tensiones no tiene módulo propio: la exponen el post-proceso, con la sonda y la vista 3D, y la memoria de cálculo.",
+   "fuente": "§2.2, módulos educativos, tabla de módulos"
+  },
+  {
+   "n": 21,
+   "bloque": "Diseño y desarrollo del modelo",
+   "layout": "imagen",
+   "titulo": "M5: de la integral a la suma",
+   "imagen": "fig_modulo_m5.png",
+   "caption": "kₑ ≈ Σ wₚ Bᵀ D B t |det J|: los puntos de Gauss se iluminan sobre el elemento seleccionado",
+   "remate": "El alumno agrega o quita puntos de Gauss y ve crecer kₑ con cada contribución",
+   "notas": "Tomo M5 como ejemplo representativo. A la izquierda, el elemento real con sus puntos de Gauss iluminados y los ejes naturales; a la derecha, el salto de la integral, irresoluble a mano, a la suma de cuadratura, y la matriz de rigidez que crece al sumar cada punto. El conmutador Fórmula–Valores muestra la expresión simbólica o su evaluación numérica en el punto elegido.",
+   "fuente": "Anexo B, catálogo de módulos educativos"
+  },
+  {
+   "n": 22,
+   "bloque": "Diseño y desarrollo del modelo",
+   "layout": "imagen",
+   "titulo": "Post-proceso sobre el mismo lienzo",
+   "imagen": "fig_postproceso.png",
+   "caption": "Contorno de von Mises con interpolación de Gouraud, reacciones en los apoyos y sonda con círculo de Mohr",
+   "remate": "Contorno, deformada, isolíneas, sonda puntual y vista 3D del campo, con la paleta jet de la práctica profesional",
+   "notas": "Resuelto el sistema, los resultados se presentan sobre el mismo lienzo. El campo se dibuja como contorno con interpolación de Gouraud y se puede superponer la malla deformada con un factor de escala. La sonda puntual localiza cualquier punto dentro de su elemento por mapeo inverso y abre un panel con las componentes cartesianas, las tensiones principales y la de von Mises, junto con un círculo de Mohr. Una vista tridimensional muestra el campo como superficie, cruda o suavizada por promediado nodal. La paleta jet se eligió a sabiendas de sus limitaciones perceptuales porque es la que el alumno encontrará en el software profesional.",
+   "fuente": "§2.2, post-proceso"
+  },
+  {
+   "n": 23,
+   "bloque": "Diseño y desarrollo del modelo",
+   "layout": "flujo",
+   "titulo": "Memoria de cálculo: el ejemplo canónico paso a paso",
+   "pasos": [
+    {
+     "etiqueta": "Matriz D",
+     "sub": "factor E/(1−ν²) = 234375"
+    },
+    {
+     "etiqueta": "kₑ del elemento 3",
+     "sub": "det J = 4,7604 en el PG 1"
+    },
+    {
+     "etiqueta": "Ensamblaje",
+     "sub": "K de 18×18; F₇ᵧ = −1000"
+    },
+    {
+     "etiqueta": "Partición",
+     "sub": "6 GDL restringidos, 12 libres"
+    },
+    {
+     "etiqueta": "Reacciones",
+     "sub": "ΣRₓ = 0,00 · ΣRᵧ = 1000,00"
+    },
+    {
+     "etiqueta": "Tensiones",
+     "sub": "σVM máx = 864,70 en el nodo 7"
+    }
+   ],
+   "remate": "PDF en dos estilos (educativo y directo) con TeX Live embebido; formatos .edufem, CSV/ZIP y DXF",
+   "notas": "El sexto objetivo se cumple con la memoria de cálculo automática: pylatex compone y pdflatex compila un PDF con sustitución numérica paso a paso sobre el modelo del propio usuario, en estilo educativo o directo. El Anexo G la desarrolla sobre el ejemplo canónico de nueve nodos y cuatro Q4, con E igual a 225000, Poisson 0,2, espesor 0,8 y una carga de 1000 en el nodo 7: matriz D, rigidez del elemento 3 en el punto de Gauss, ensamblaje de K de 18 por 18, partición, reacciones que equilibran exactamente la carga y recuperación de tensiones. Las cifras son salida bit-exacta del motor. Completan el objetivo el formato .edufem, los CSV en ZIP y la importación DXF.",
+   "fuente": "§2.2, memoria e interoperabilidad; Anexo G"
+  },
+  {
+   "n": 24,
+   "bloque": "Diseño y desarrollo del modelo",
+   "layout": "demo",
+   "titulo": "Demostración en vivo",
+   "imagen": "fig_app_completa.png",
+   "subtitulo": "Qué vamos a ver",
+   "bullets": [
+    "Cargar el ejemplo canónico (Ctrl+E): 9 nodos, 4 elementos Q4, carga en el nodo 7",
+    "Abrir M5 (Ctrl+5) sobre un elemento: puntos de Gauss y kₑ",
+    "Resolver (F5): contorno de von Mises, sonda con círculo de Mohr y memoria PDF"
+   ],
+   "notas": "Paso ahora al software. Cargo el ejemplo canónico, abro el módulo M5 sobre un elemento y muestro cómo cambia la rigidez con los puntos de Gauss. Luego resuelvo con F5, recorro el contorno de von Mises, sondeo un punto con el círculo de Mohr y exporto la memoria de cálculo en PDF. Todo ocurre sobre el mismo lienzo.",
+   "fuente": "Anexo B, manual de uso"
+  },
+  {
+   "n": 25,
+   "bloque": "Presentación de resultados",
+   "layout": "seccion",
+   "titulo": "Presentación de resultados",
+   "subtitulo": "Probar que la caja abierta calcula bien: MMS, consistencia interna, viga de Timoshenko y membrana de Cook",
+   "notas": "Presento los datos de la batería de verificación y validación, reproducibles con los tres guiones del repositorio.",
+   "fuente": "Capítulo 3"
+  },
+  {
+   "n": 26,
+   "bloque": "Presentación de resultados",
+   "layout": "dos_columnas",
+   "titulo": "MMS: las tasas teóricas se cumplen",
+   "bullets": [
+    "Q4: O(h²·⁰⁰) en L², O(h¹·⁰⁰) en H¹, O(h¹·⁵⁴) en σ*",
+    "Q9: O(h³·⁰⁰) en L², O(h²·⁰⁰) en H¹, O(h²·⁰⁰) en σ*",
+    "Mallas de 2×2 a 32×32: Q4 de 18 a 2178 GDL, Q9 de 50 a 8450 GDL",
+    "Cuatro configuraciones (dos estados planos, malla regular y distorsionada): tasas iguales, diferencias < 0,01"
+   ],
+   "imagen": "mms_convergence_l2.png",
+   "caption": "Error L² del desplazamiento frente a h: la pendiente es la tasa",
+   "remate": "La tasa del Q4 sube de 1,82 a 2,00 al refinar: la firma del régimen asintótico",
+   "notas": "La solución manufacturada se impone como restricciones de Dirichlet y su término fuente como fuerza de volumen. En escala doble logarítmica la pendiente de cada recta es el orden de convergencia. El Q4 alcanza orden dos en L² y uno en H¹; el Q9, tres y dos, como predice la teoría; el campo de tensiones recuperado converge a 1,54 y 2,00. Las mallas distorsionadas y la deformación plana dan las mismas tasas. Un detalle de honestidad metodológica: la matriz de extrapolación del Q4 tuvo un defecto de numeración de puntos de Gauss invisible a estas normas; se detectó al inspeccionar la memoria de cálculo del ejemplo canónico y hoy una prueba de regresión exige reproducir exactamente campos polinómicos.",
+   "fuente": "§3.2, tabla MMS y figura de convergencia"
+  },
+  {
+   "n": 27,
+   "bloque": "Presentación de resultados",
+   "layout": "kpi",
+   "titulo": "El modelo no deriva",
+   "kpis": [
+    {
+     "valor": "< 10⁻⁹",
+     "etiqueta": "ciclo Q4 → Q9 → Q4, diferencia en u"
+    },
+    {
+     "valor": "< 10⁻⁹",
+     "etiqueta": "ids {1, 5, 50, 99} frente a {1, 2, 3, 4}"
+    },
+    {
+     "valor": "< 10⁻¹²",
+     "etiqueta": "máx |Δu| tras ida y vuelta CSV/ZIP"
+    },
+    {
+     "valor": "6 · 12 · 0",
+     "etiqueta": "DXF: elementos, nodos, nuevos al reimportar"
+    }
+   ],
+   "remate": "Consistencia interna: expandir, reducir, renumerar e intercambiar formatos no cambia la solución",
+   "notas": "Además de la exactitud, el modelo de datos no debe derivar. Convertir la malla a Q9 y volver a Q4 deja los desplazamientos con diferencias menores a diez a la menos nueve. Usar identificadores de nodo con huecos da lo mismo que usar identificadores contiguos, lo que valida el esquema de indexación de grados de libertad. El ejemplo canónico exportado a CSV y reimportado reproduce los desplazamientos con diferencia menor a diez a la menos doce. Y el DXF de ejemplo entra como seis elementos y doce nodos compartidos; al reimportarlo no crea nada nuevo.",
+   "fuente": "§3.3, consistencia interna"
+  },
+  {
+   "n": 28,
+   "bloque": "Presentación de resultados",
+   "layout": "dos_columnas",
+   "titulo": "Viga de Timoshenko: analítico y SAP2000",
+   "bullets": [
+    "Viga de hormigón: L = 14 m, H = 1,20 m, q = 5000 kgf/m; malla Q9 56×8, 3842 GDL",
+    "σₓ: 0,0414 % frente al analítico; 0,2066 % frente a SAP2000",
+    "Flecha: 2,03460 frente a 2,02926 cm (0,2633 %); con Euler-Bernoulli sería 1,85 %"
+   ],
+   "imagen": "fig_timoshenko_contorno.png",
+   "caption": "Campo σₓ sobre la deformada: tracción abajo, compresión arriba",
+   "remate": "Cortante: hasta 2,9 % frente al analítico; frente a SAP2000, desplazamientos hasta 0,56 %",
+   "notas": "La viga simplemente apoyada, de hormigón, se contrasta con la solución de Timoshenko y Goodier y con un modelo de cáscara en SAP2000. La tensión normal difiere menos del 0,05 % del analítico y del 0,21 % de SAP2000, con el máximo en el punto B. La flecha difiere 0,26 % de la referencia con corrección de cortante; si usara Euler-Bernoulli el error aparente sería 1,85 %, lo que muestra que el modelo plano captura el cortante en una viga con relación luz-peralte del orden de 11,7. En la tensión cortante el error llega al 2,9 % y frente a SAP2000 los desplazamientos difieren hasta 0,56 %.",
+   "fuente": "§3.4, tablas de tensión y de flecha"
+  },
+  {
+   "n": 29,
+   "bloque": "Presentación de resultados",
+   "layout": "tabla",
+   "titulo": "Membrana de Cook: referencia 23,96",
+   "tabla": {
+    "cabeceras": [
+     "Elemento",
+     "N",
+     "GDL",
+     "uy en (48, 52)",
+     "Error (%)"
+    ],
+    "filas": [
+     [
+      "Q4",
+      "2",
+      "18",
+      "11,845",
+      "−50,563"
+     ],
+     [
+      "Q4",
+      "8",
+      "162",
+      "22,079",
+      "−7,850"
+     ],
+     [
+      "Q4",
+      "32",
+      "2178",
+      "23,818",
+      "−0,594"
+     ],
+     [
+      "Q9",
+      "2",
+      "50",
+      "23,289",
+      "−2,802"
+     ],
+     [
+      "Q9",
+      "8",
+      "578",
+      "23,925",
+      "−0,144"
+     ],
+     [
+      "Q9",
+      "16",
+      "2178",
+      "23,949",
+      "−0,044"
+     ],
+     [
+      "Q9",
+      "32",
+      "8450",
+      "23,961",
+      "+0,003"
+     ]
+    ]
+   },
+   "remate": "Trapecio empotrado con corte unitario en el extremo; E = 1, ν = 1/3, tensión plana",
+   "notas": "La membrana de Cook es un trapecio empotrado con carga tangencial unitaria en el extremo libre, material adimensional y referencia 23,96, que es un límite de convergencia con incertidumbre del orden del 0,05 %; la extrapolación de Richardson de la propia secuencia Q9 apunta a 23,97. En la malla más gruesa el Q4 subestima más del 50 % y con 2178 GDL todavía conserva un −0,594 %. El Q9 con N igual a 8 ya cumple el criterio del 1,5 % y con 2178 GDL queda dentro de la incertidumbre de la referencia.",
+   "fuente": "§3.5, tabla de Cook"
+  },
+  {
+   "n": 30,
+   "bloque": "Análisis de resultados",
+   "layout": "seccion",
+   "titulo": "Análisis de resultados",
+   "subtitulo": "Qué aprende el alumno: Q4 frente a Q9, escalabilidad y alcance de la evidencia",
+   "notas": "Ahora interpreto: qué significan esas cifras para las preguntas de investigación y hasta dónde llega la evidencia.",
+   "fuente": "§3.6 a §3.8"
+  },
+  {
+   "n": 31,
+   "bloque": "Análisis de resultados",
+   "layout": "dos_columnas",
+   "titulo": "Mismos GDL: Q9 trece veces más preciso",
+   "bullets": [
+    "Con 2178 GDL: Q4 (N = 32) −0,594 % frente a Q9 (N = 16) −0,044 %",
+    "Un orden de magnitud a favor del mayor orden, independiente de la incertidumbre de la referencia",
+    "Q4: convergencia lenta y monótona por debajo, la firma del bloqueo por cortante",
+    "Q9: con 578 GDL ya está a −0,144 %"
+   ],
+   "imagen": "cook_convergence.png",
+   "caption": "uy en (48, 52) frente al número de GDL; referencia 23,96",
+   "remate": "Responde PI-3: el alumno reproduce el bloqueo cargando el ejemplo de Cook en Q4 y en Q9",
+   "notas": "La comparación justa es a igualdad de grados de libertad. Con 2178 GDL, el Q4 conserva un error de −0,594 % y el Q9 de −0,044 %: trece veces, un orden de magnitud a favor del elemento de mayor orden, y la incertidumbre de la referencia solo afecta a la tercera cifra del error del Q9. Esto es lo que el estudiante puede reproducir en el software cargando el ejemplo de Cook en Q4 y en Q9, y responde la tercera pregunta de investigación.",
+   "fuente": "§3.5 y §3.7, síntesis Q4 frente a Q9"
+  },
+  {
+   "n": 32,
+   "bloque": "Análisis de resultados",
+   "layout": "tabla",
+   "titulo": "33 282 GDL en menos de un segundo",
+   "tabla": {
+    "cabeceras": [
+     "GDL",
+     "t ensamblaje (s)",
+     "t solución (s)",
+     "K densa (MB)",
+     "K dispersa (MB)"
+    ],
+    "filas": [
+     [
+      "578",
+      "0,004",
+      "0,007",
+      "3",
+      "0,21"
+     ],
+     [
+      "2178",
+      "0,013",
+      "0,026",
+      "38",
+      "0,81"
+     ],
+     [
+      "8450",
+      "0,049",
+      "0,127",
+      "571",
+      "3,20"
+     ],
+     [
+      "18818",
+      "0,111",
+      "0,329",
+      "2833",
+      "7,19"
+     ],
+     [
+      "33282",
+      "0,191",
+      "0,721",
+      "8862",
+      "12,77"
+     ]
+    ]
+   },
+   "remate": "Equipo de 2012, NumPy puro; mínimo grado sobre Aᵀ+A gana 1,7×, 2,0× y 2,9× frente a COLAMD",
+   "notas": "La transparencia no se pagó con lentitud. En un equipo de escritorio con procesador de 2012, con el motor vectorizado por lotes en NumPy puro, la malla más exigente de las validaciones, 8450 GDL, se ensambla y resuelve en menos de dos décimas de segundo, y más de 33 000 GDL en menos de un segundo. A ese tamaño la matriz densa pediría cerca de 8,9 gigabytes y la dispersa menos de 13 megabytes. El ordenamiento de mínimo grado reduce el tiempo de factorización y solución entre 1,7 y 2,9 veces frente a COLAMD; el Cuthill-McKee inverso se evaluó y descartó porque solo ganaba del 7 al 19 % por encima de unos ocho mil GDL. Sobre el alcance: las magnitudes primarias quedan por debajo del 0,3 % frente al analítico y del 0,6 % frente a SAP2000; en la componente cortante la cáscara de SAP2000 queda más cerca del analítico, 0,16 %. Frente al software comercial EduFEM no compite en cobertura: su valor es la transparencia del canal. El bloqueo por cortante se muestra, no se mitiga, y no hay validación frente a mediciones físicas.",
+   "fuente": "§3.7, tabla de tiempos, interpretación y limitaciones observadas"
+  },
+  {
+   "n": 33,
+   "bloque": "Conclusiones y recomendaciones",
+   "layout": "seccion",
+   "titulo": "Conclusiones y recomendaciones",
+   "subtitulo": "Qué queda: cumplimiento de los objetivos, hipótesis, limitaciones y líneas de continuación",
+   "notas": "Cierro con el cumplimiento de cada objetivo, la hipótesis, las limitaciones asumidas y las recomendaciones.",
+   "fuente": "Conclusiones"
+  },
+  {
+   "n": 34,
+   "bloque": "Conclusiones y recomendaciones",
+   "layout": "tabla",
+   "titulo": "Seis objetivos, seis conclusiones",
+   "tabla": {
+    "cabeceras": [
+     "OE",
+     "Cumplimiento",
+     "Evidencia"
+    ],
+    "filas": [
+     [
+      "OE1 Fundamentar",
+      "Cumplido",
+      "Una sola formulación en teoría, código y memoria"
+     ],
+     [
+      "OE2 Motor",
+      "Cumplido",
+      "MMS: Q4 O(h²)/O(h¹); Q9 O(h³)/O(h²)"
+     ],
+     [
+      "OE3 Interfaz",
+      "Cumplido",
+      "Tres fases, lienzo único, deshacer, validador"
+     ],
+     [
+      "OE4 Módulos",
+      "Cumplido",
+      "M0 a M7 sobre el elemento seleccionado"
+     ],
+     [
+      "OE5 V&V",
+      "Cumplido",
+      "0,04 % σₓ; 0,26 % flecha; Cook −0,044 % vs −0,594 %"
+     ],
+     [
+      "OE6 Memoria e I/O",
+      "Cumplido",
+      "PDF en dos estilos; DXF y CSV con ida y vuelta"
+     ]
+    ]
+   },
+   "remate": "Seis objetivos específicos cumplidos y, con ello, el objetivo general",
+   "notas": "Vuelvo a la tabla de objetivos. Cada uno tiene su conclusión y su evidencia: el marco teórico es la misma formulación que implementa el motor y sustituye la memoria; el motor está libre de errores de orden; la interfaz integra las tres fases sobre un lienzo; los módulos operan sobre el modelo del alumno y no sobre un ejemplo prefabricado; la batería de V&V acota el error; y la memoria documenta el procedimiento. EduFEM cumple el objetivo general: articula formulación, modelado interactivo y verificación numérica.",
+   "fuente": "Conclusiones, conclusiones específicas"
+  },
+  {
+   "n": 35,
+   "bloque": "Conclusiones y recomendaciones",
+   "layout": "comparacion",
+   "titulo": "Hipótesis confirmada, preguntas respondidas",
+   "tarjetas": [
+    {
+     "titulo": "Hipótesis: confirmada por diseño",
+     "lineas": [
+      "Transparente: cada matriz visible en M1 a M7 y en la memoria",
+      "Interactiva: sobre el elemento que el alumno selecciona",
+      "Verificable: MMS, Timoshenko, Cook y SAP2000",
+      "Coherente: pre-proceso, proceso y post-proceso"
+     ]
+    },
+    {
+     "titulo": "Preguntas de investigación",
+     "lineas": [
+      "PI-1 sí: 0,04 % σₓ, 0,26 % flecha, hasta 0,56 % vs SAP2000",
+      "PI-2 sí, por diseño: lienzo único y módulos M0 a M7",
+      "PI-3 sí: Cook, Q4 −0,594 % frente a Q9 −0,044 %"
+     ]
+    }
+   ],
+   "remate": "Problema resuelto: el canal es observable (módulos y memoria) y contrastable (V&V con criterios a priori)",
+   "notas": "La hipótesis de diseño se confirma atributo por atributo, verificada por diseño y no por medición del aprendizaje. PI-1 y PI-3 se responden con cifras; PI-2 por la organización documentada del software. Con ello queda respondido el problema científico: el canal completo es observable, mediante los módulos y la memoria, y contrastable, mediante la batería de verificación y validación con criterios fijados a priori, que es el efecto que el problema pedía.",
+   "fuente": "Conclusiones; §3.8, validación de la hipótesis"
+  },
+  {
+   "n": 36,
+   "bloque": "Conclusiones y recomendaciones",
+   "layout": "bullets",
+   "titulo": "Limitaciones asumidas",
+   "bullets": [
+    "Solo elasticidad lineal estática 2D: sin no linealidad, dinámica, 3D, placas ni cáscaras",
+    "Solo Q4 y Q9, sin triángulos ni mallado automático",
+    "Solucionador directo: eficiente hasta decenas de miles de GDL, no en mallas masivas",
+    "Bloqueo por cortante del Q4 ilustrado, no mitigado",
+    "Sin validación empírica con estudiantes: utilidad didáctica sostenida por diseño"
+   ],
+   "remate": "Las validaciones son analíticas y código a código, no frente a mediciones físicas",
+   "notas": "Cinco límites explícitos. El alcance se ciñe a la elasticidad lineal plana con dos elementos y sin mallador automático. El solucionador directo pierde eficiencia en mallas masivas. El bloqueo del Q4 se usa como recurso didáctico pero no se corrige. Y las conclusiones sobre utilidad didáctica son cualitativas, basadas en el diseño y en la literatura, porque no se realizó una validación empírica con estudiantes.",
+   "fuente": "Conclusiones, limitaciones"
+  },
+  {
+   "n": 37,
+   "bloque": "Conclusiones y recomendaciones",
+   "layout": "flujo",
+   "titulo": "Cinco líneas de continuación",
+   "pasos": [
+    {
+     "etiqueta": "Solucionador",
+     "sub": "Cholesky; iterativo precondicionado"
+    },
+    {
+     "etiqueta": "Bloqueo",
+     "sub": "SRI o B-bar: bloqueado vs corregido"
+    },
+    {
+     "etiqueta": "Elementos y 3D",
+     "sub": "triángulos; H8, H20, tetraedros"
+    },
+    {
+     "etiqueta": "Casos civiles",
+     "sub": "presa, muro, túnel en deformación plana"
+    },
+    {
+     "etiqueta": "Estudio con estudiantes",
+     "sub": "antes-después y percepción"
+    }
+   ],
+   "remate": "La línea más importante: sustento empírico a la utilidad didáctica que hoy se justifica por diseño",
+   "notas": "Cinco recomendaciones, cada una anclada a una limitación. Primero, factorización de Cholesky sobre la matriz reducida, simétrica y definida positiva, con aproximadamente la mitad del trabajo de una LU, y un solucionador iterativo precondicionado para problemas masivos, preservando la versión legible del ensamblaje. Segundo, integración reducida selectiva o B-bar, con un módulo que contraste el comportamiento bloqueado y el corregido. Tercero, triángulos, cuadriláteros de transición y extensión a tres dimensiones. Cuarto, un caso civil en deformación plana con solución publicada y otro con carga superficial variable y peso propio. Y la más importante: un estudio antes-después con estudiantes de cursos de MEF que dé sustento cuantitativo a lo que hoy se justifica por diseño.",
+   "fuente": "Conclusiones, recomendaciones y trabajo futuro"
+  },
+  {
+   "n": 38,
+   "bloque": "",
+   "layout": "cierre",
+   "titulo": "Gracias",
+   "subtitulo": "La caja negra se puede abrir, y abierta calcula igual de bien. EduFEM es software libre, en español, y está disponible para cualquier estudiante sin licencias.",
+   "notas": "Muchas gracias por su atención. El software, el código fuente y la batería de verificación están disponibles en el repositorio público. Quedo a disposición del tribunal para sus preguntas.",
+   "fuente": "Introducción, justificación"
+  }
+ ]
+}

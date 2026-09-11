@@ -35,17 +35,17 @@ La implementación se realizó íntegramente en Python, lenguaje que combina una
 \midrule
 Interfaz gráfica      & \texttt{tkinter} + \texttt{ttkbootstrap} & Ventanas, tablas y menús (tema \emph{darkly}) \\
 Cálculo numérico      & NumPy, SciPy                              & Álgebra, cuadratura, solucionador disperso \\
-Generación de PDF     & \texttt{pylatex} + \texttt{pdflatex}      & Memoria de cálculo paso a paso \\
+Generación de PDF     & \texttt{pylatex} + \TeX{} Live embebido    & Memoria de cálculo paso a paso \\
 Lectura de PDF        & \texttt{PyMuPDF} (\texttt{fitz})          & Visualización de los documentos de teoría dentro de la aplicación \\
 Importación CAD       & \texttt{ezdxf}                            & Lectura de geometría desde archivos DXF \\
 Imagen y figuras      & \texttt{Pillow}                           & Renderizado de contornos y figuras de la memoria \\
 Animación educativa   & \texttt{manim}                            & Generación de videos didácticos en WebP \\
-Distribución          & \texttt{PyInstaller}                      & Ejecutable \texttt{.exe} autocontenido (Windows) \\
+Distribución          & \texttt{PyInstaller} + Inno Setup         & Ejecutable autocontenido e instalador único (Windows) \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-La generación de la memoria de cálculo se delega en \texttt{pylatex}, que compone el documento \LaTeX{} compilado luego por \texttt{pdflatex}; el PDF resultante se abre con el visor del sistema, mientras que \texttt{PyMuPDF} renderiza dentro de la propia aplicación los documentos de teoría que acompañan a los módulos educativos. La importación de geometría desde formatos CAD recae en \texttt{ezdxf}, el renderizado de figuras del PDF y de los contornos en \texttt{Pillow}, y la producción de los videos didácticos en \texttt{manim}. Se evitó deliberadamente toda dependencia de bibliotecas multimedia pesadas: los videos se reproducen como WebP animado decodificado por \texttt{Pillow}, lo que reduce el tamaño del instalador distribuible.
+La generación de la memoria de cálculo se delega en \texttt{pylatex}, que compone el documento \LaTeX{} compilado luego por \texttt{pdflatex}; el PDF resultante se abre con el visor del sistema, mientras que \texttt{PyMuPDF} renderiza dentro de la propia aplicación los documentos de teoría que acompañan a los módulos educativos. Para que esa compilación no dependa de que el alumno instale por su cuenta una distribución \LaTeX{}, el instalador incorpora una copia reducida de \TeX{} Live —únicamente el motor \texttt{pdflatex} y los paquetes que el documento utiliza— que la aplicación localiza junto a su propio ejecutable antes de recurrir a cualquier instalación del sistema. La importación de geometría desde formatos CAD recae en \texttt{ezdxf}, el renderizado de figuras del PDF y de los contornos en \texttt{Pillow}, y la producción de los videos didácticos en \texttt{manim}. Se evitó deliberadamente toda dependencia de bibliotecas multimedia pesadas: los videos se reproducen como WebP animado decodificado por \texttt{Pillow}, lo que reduce el tamaño del instalador distribuible.
 
 \subsection{Arquitectura por capas en torno al modelo de proyecto}
 \label{sec:arquitectura}
