@@ -38,7 +38,9 @@
 % --- Geometria, interlineado y parrafos (APA 7) ---
 % APA pide 2,54 cm (1 pulgada) en los cuatro lados. Se conserva A4 en vez de
 % carta: es el papel de la region y el de la caratula ya impresa.
-\usepackage[a4paper,margin=2.54cm]{geometry}
+% headheight: fancyhdr necesita 14,5 pt para el numero de pagina a 12 pt; con el
+% valor por defecto (12 pt) avisaba en cada hoja.
+\usepackage[a4paper,margin=2.54cm,headheight=14.5pt]{geometry}
 \usepackage{setspace}
 % APA: interlineado doble en todo el documento. Medido sobre esta tesis: a doble
 % son 143 hojas y a 1,5 son 120 (el original, antes de APA, eran 131). El salto
@@ -149,6 +151,8 @@
 \hypersetup{
   pdftitle={\tituloTesis},
   pdfauthor={\autorTesis},
+  pdfsubject={Tesis de licenciatura en Ingeniería Civil, Universidad Autónoma Tomás Frías},
+  pdfkeywords={método de elementos finitos, software educativo, elementos isoparamétricos Q4/Q9, elasticidad plana, verificación y validación, memoria de cálculo},
   bookmarksnumbered=true,
 }
 % \autoref{anexo:...} debe imprimir "Anexo X" (el rotulo de los capitulos del apendice)
@@ -173,6 +177,9 @@
   stringstyle=\color{lstString},
   backgroundcolor=\color{lstBg},
   numbers=left, numberstyle=\tiny\color{lstComment}, numbersep=8pt,
+  % Los numeros de linea cuelgan a la izquierda del marco: sin este margen
+  % invadian el margen APA de 2,54 cm.
+  xleftmargin=1.6em, xrightmargin=0.2em,
   frame=single, framesep=4pt, rulecolor=\color{lstComment},
   breaklines=true, breakatwhitespace=false, showstringspaces=false,
   tabsize=4, columns=fullflexible, keepspaces=true,

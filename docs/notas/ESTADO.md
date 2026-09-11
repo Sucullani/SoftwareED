@@ -1,6 +1,12 @@
 # Estado del trabajo
 
-**Última actualización**: 2026-09-09
+**Última actualización**: 2026-09-11
+
+> **Nota de sincronización (2026-09-11)**: todo lo que más abajo dice «sin commit» del
+> 2026-09-09 y 2026-09-10 (rediseño de la capa visual, Memoria que aprovecha la hoja,
+> ventanas contra la pantalla real, instalador profesional, onedir, presentación de defensa)
+> **ya está en `origin/main`** desde los commits `0477524`, `33856fe` y `53d1e4c`. Lo que
+> sigue pendiente de esos ítems es solo la **validación visual del autor**.
 
 > Lo primero que lee un agente al entrar. Qué está en curso, qué quedó a medias y qué
 > decisión espera al autor. Se edita; lo que deja de aplicar se borra.
@@ -17,7 +23,7 @@ tesis** (`tesis/`, 130 páginas, compila limpio).
 
 | Tema | Dónde | Estado |
 |---|---|---|
-| Cierre de la tesis | `tesis/` | Compila limpio. Abiertas las 5 observaciones bloqueantes de la revisión del 2026-06-10 — ver [ESTADO_AUDITORIAS.md](../auditorias/ESTADO_AUDITORIAS.md) §*Abierto — revisión de la tesis*. Varias son **decisiones de autor**, no fixes mecánicos |
+| Cierre de la tesis | `tesis/` | Compila limpio (151 hojas, APA doble espacio). La auditoría integral del 2026-09-11 está **implementada** salvo lo que el autor reservó: tutor en la portada y macro del título (1.5), preliminares (1.6), abstract en inglés y *Title Case* (5.4). Pendiente que necesita la GUI: recapturar las Figuras 3.3, B.1 y B.6-B.13 a mayor resolución. Ver [2026-09-11_auditoria_tesis.md](../auditorias/2026-09-11_auditoria_tesis.md) §*Estado de implementación* |
 | Deuda técnica de la auditoría 2026-06-10 | repo | **Cerrada el 2026-09-06** (Top-10 + medios y bajos de §1, §2, §5 y §6). Único pendiente: decidir si se cablea `TheoryDoc.margin_formula()` en la memoria — cambia el layout del PDF, así que necesita validación visual del autor |
 | Mejora continua del software | `docs/rutina/` | **Activa desde el 2026-09-08**: rutina horaria de claude.ai que trabaja directo sobre `main`, una área por sesión con rotación de 14. Qué hizo cada sesión: [../rutina/BITACORA.md](../rutina/BITACORA.md); qué falta y qué espera al autor: [../rutina/BACKLOG.md](../rutina/BACKLOG.md) |
 | Distribución del `.exe` | `installer/` | Vía principal decidida: instalador Inno Setup por usuario, sin admin. Sin firma de código (decisión tomada). Empaquetado **onedir** desde el 2026-09-10 (arranque 3 s en vez de 12; el entregable sigue siendo un solo archivo) |
@@ -164,6 +170,23 @@ tesis** (`tesis/`, 130 páginas, compila limpio).
   que algo "se ve bien".
 
 ## Hecho recientemente
+
+- **2026-09-11** — **Auditoría integral de la tesis, implementada el mismo día.** El informe
+  ([docs/auditorias/2026-09-11_auditoria_tesis.md](../auditorias/2026-09-11_auditoria_tesis.md))
+  cruzó el PDF con el código (V&V corrida, Anexo G regenerado bit a bit), los 22 ejemplares de
+  la bibliografía, el `.log` y las normas: 2 bloqueantes de maquetación, 10 mayores, 31
+  menores y 18 cosméticos. Se aplicó casi todo: Tabla D.1 en `longtable` (salía cortada),
+  Figuras G.3/G.4 con rótulo propio (`\captionof`; con `plaintop` un float de dos `\caption`
+  perdía uno), Anexo E foliado (hojas apaisadas giradas 90° con `angle=90`), la frase de la
+  Introducción que insinuaba una muestra de estudiantes, «el Q9 evita el bloqueo» acotado al
+  cortante (Hughes, fig. 4.4.3), cuatro chequeos que faltaban en la Tabla B.3, tres citas mal
+  atribuidas (membrana de Cook y 23,96; von Mises recalculado; Barlow → Zienkiewicz),
+  Álvarez de Zayas como `@unpublished`, localizadores de página en 22 citas, fascículos
+  verificados por CrossRef, rayas unificadas, y el párrafo de E_Q4 reformulado como lección
+  de diseño de la batería (recomendación del auditor, aceptada). **Excluido por el autor**:
+  tutor/macro del título en portada, preliminares, abstract en inglés y *Title Case*;
+  interlineado doble se mantiene. **Queda para la GUI**: recapturar las figuras de baja
+  resolución (3.3, B.1, B.6-B.13).
 
 - **2026-09-11** — **Presentación de defensa y video narrado** en
   [tesis/presentacion/](../../tesis/presentacion/): `Defensa_EduFEM.pptx` (38 diapositivas,

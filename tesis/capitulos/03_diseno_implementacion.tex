@@ -39,7 +39,7 @@ Generación de PDF     & \texttt{pylatex} + \TeX{} Live embebido    & Memoria de
 Lectura de PDF        & \texttt{PyMuPDF} (\texttt{fitz})          & Visualización de los documentos de teoría dentro de la aplicación \\
 Importación CAD       & \texttt{ezdxf}                            & Lectura de geometría desde archivos DXF \\
 Imagen y figuras      & \texttt{Pillow}                           & Renderizado de contornos y figuras de la memoria \\
-Animación educativa   & \texttt{manim}                            & Generación de videos didácticos en WebP \\
+Animación educativa   & \texttt{manim} (herramienta de construcción, no dependencia en tiempo de ejecución) & Generación de los videos didácticos en WebP, prerenderizados y distribuidos con la aplicación \\
 Distribución          & \texttt{PyInstaller} + Inno Setup         & Ejecutable autocontenido e instalador único (Windows) \\
 \bottomrule
 \end{tabular}
@@ -89,14 +89,7 @@ Esta separación tiene una consecuencia directa: la matriz de rigidez se dimensi
 \subsection{Motor de cálculo del MEF}
 \label{sec:motor}
 
-El paquete \texttt{fem/} concentra el motor numérico y observa una regla de pureza estricta: no importa \texttt{tkinter}, \texttt{matplotlib} ni ninguna biblioteca de interfaz, de modo que puede ejecutarse sin entorno gráfico, por ejemplo en los guiones de verificación. El cálculo se organiza como un canal de operaciones encadenadas que van de la evaluación de las funciones de forma a la integración de la rigidez elemental por cuadratura de Gauss. La rigidez de cada elemento se obtiene como
-
-\begin{equation}
-\bm{k}_e = \int_{-1}^{1}\!\!\int_{-1}^{1} \bm{B}^{\top}\, \bm{D}\, \bm{B}\, |\det\bm{J}|\, t\, d\xi\, d\eta,
-\label{eq:rigidez-elemental}
-\end{equation}
-
-donde $t$ es el espesor del elemento. Las aportaciones elementales se acumulan en la matriz global, que se almacena en formato disperso para contener el consumo de memoria en mallas densas, y el sistema reducido tras imponer las restricciones se resuelve con el solucionador disperso de SciPy. La formulación teórica detallada de cada una de estas operaciones —funciones de forma de los elementos Q4 y Q9, regla de la cadena para $\bm{B}$, expresiones de $\bm{D}$ en tensión y deformación plana, y la cuadratura de Gauss-Legendre— se desarrolló en el \autoref{cap:marco_teorico}; aquí interesa subrayar que la implementación reproduce esas expresiones con las mismas funciones que consumen los módulos educativos y la memoria de cálculo, lo que garantiza coherencia numérica entre lo que el alumno ve explicado y lo que el programa resuelve.
+El paquete \texttt{fem/} concentra el motor numérico y observa una regla de pureza estricta: no importa \texttt{tkinter}, \texttt{matplotlib} ni ninguna biblioteca de interfaz, de modo que puede ejecutarse sin entorno gráfico, por ejemplo en los guiones de verificación. El cálculo se organiza como un canal de operaciones encadenadas que van de la evaluación de las funciones de forma a la integración de la rigidez elemental por cuadratura de Gauss, según la \autoref{eq:ke-gauss}, con el espesor $t$ de cada elemento. Las aportaciones elementales se acumulan en la matriz global, que se almacena en formato disperso para contener el consumo de memoria en mallas densas, y el sistema reducido tras imponer las restricciones se resuelve con el solucionador disperso de SciPy. La formulación teórica detallada de cada una de estas operaciones —funciones de forma de los elementos Q4 y Q9, regla de la cadena para $\bm{B}$, expresiones de $\bm{D}$ en tensión y deformación plana, y la cuadratura de Gauss-Legendre— se desarrolló en el \autoref{cap:marco_teorico}; aquí interesa subrayar que la implementación reproduce esas expresiones con las mismas funciones que consumen los módulos educativos y la memoria de cálculo, lo que garantiza coherencia numérica entre lo que el alumno ve explicado y lo que el programa resuelve.
 
 \subsection{Pre-proceso interactivo}
 \label{sec:pre-proceso}

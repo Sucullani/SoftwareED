@@ -7,6 +7,7 @@
 %     pdflatex main
 %  (o usar latexmk -pdf main.tex)
 % =====================================================================
+\pdfminorversion=6   % el PDF embebido del Anexo E es 1.6; evita el aviso de pdfTeX en cada inclusión
 \documentclass[12pt,a4paper,oneside]{report}
 
 % ---------------------------------------------------------------------
@@ -18,7 +19,7 @@
 \newcommand{\gradoTesis}{Título de Licenciatura en Ingeniería Civil}
 \newcommand{\tituloTesis}{Desarrollo de software educativo de elementos finitos para el análisis estructural empleando el lenguaje de programación Python}
 \newcommand{\autorTesis}{Hedy Yhassmany Oyola Sucullani}
-\newcommand{\anioTesis}{Junio de 2026}
+\newcommand{\anioTesis}{Septiembre de 2026}
 \newcommand{\ciudadTesis}{Potosí -- Bolivia}
 
 \input{preambulo}
@@ -26,11 +27,15 @@
 \begin{document}
 
 % ----- Portada -----
+% Sin ancla de página en la portada: es la página "1" de la numeración inicial y
+% el cuerpo vuelve a empezar en 1, lo que duplicaba el destino page.1 de hyperref.
+\hypersetup{pageanchor=false}
 \input{portada/portada}
 
 % ----- Material preliminar (numeracion romana) -----
 \cleardoublepage
 \pagenumbering{roman}
+\hypersetup{pageanchor=true}
 
 % Preliminares (declaración de originalidad, dedicatoria, agradecimientos) — para la versión FINAL, no el borrador:
 % \input{capitulos/00_preliminares}

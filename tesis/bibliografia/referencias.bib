@@ -14,7 +14,9 @@
   publisher = {Prentice Hall},
   location  = {Upper Saddle River (NJ)},
   year      = {1996},
-  note      = {Revisi{\'o}n de Finite Element Procedures in Engineering Analysis (1982)},
+  % Es la revision de "Finite Element Procedures in Engineering Analysis" (1982)
+  % segun la ficha LC del ejemplar; no se imprime porque Vancouver no contempla
+  % notas entre el titulo y el pie de imprenta.
   isbn      = {0-13-301458-4},
 }
 
@@ -23,11 +25,12 @@
   title     = {Concepts and Applications of Finite Element Analysis},
   edition   = {4},
   publisher = {John Wiley \& Sons},
-  location  = {Hoboken (NJ)},
+  location  = {[Hoboken (NJ)]},
   year      = {2002},
   isbn      = {978-0-471-35605-9},
-  % Lugar leido de la pagina de creditos del ejemplar (la portada no lo trae):
-  % "John Wiley & Sons, Inc., 111 River Street, Hoboken, NJ 07030".
+  % Lugar entre corchetes (convencion NLM para un dato inferido): el ejemplar no
+  % imprime lugar de publicacion; Hoboken es el domicilio del Permissions
+  % Department en la pagina de creditos ("111 River Street, Hoboken, NJ 07030").
 }
 
 @book{hughes2000fem,
@@ -86,6 +89,10 @@
   location    = {Albuquerque (NM)},
   number      = {SAND2007-1751},
   year        = {2007},
+  % DOI y URL de OSTI verificados el 2026-09-11 (osti.gov/biblio/901967).
+  doi         = {10.2172/901967},
+  url         = {https://www.osti.gov/biblio/901967},
+  urldate     = {2026-09-11},
 }
 
 @article{harris2020numpy,
@@ -122,7 +129,9 @@
   year    = {2017},
   % La revision va en "note" y no en "version": biblatex antepone "Ver." a ese
   % campo e imprimia "Ver. Rev. 18".
-  note    = {Rev. 18. ISO\# GEN062708M1, noviembre de 2017},
+  % "ISO# GEN062708M1" es un codigo interno de control documental de CSI, no un
+  % elemento bibliografico; el mes duplicaba el ano. Se deja solo la revision.
+  note    = {Rev. 18},
   % El ejemplar no consigna ciudad en ningun lado: la portada dice solo "Proudly
   % developed in the United States of America" y la pagina de copyright da la
   % empresa y su web, sin domicilio. Lugar inferido de la propia publicacion y
@@ -184,14 +193,14 @@
 % ([place unknown], [publisher unknown], [date unknown]). El ano no puede ir en
 % "year" porque biber lo parsea como fecha y lo descartaria con aviso, asi que
 % cierra la referencia desde "note".
-@book{alvarez_metodologia,
+% Tipologicamente es material inedito: un documento electronico (Word convertido
+% a PDF en 2007, segun sus metadatos) que circula en el ambito academico sin pie
+% de imprenta ni fecha. Por eso va como @unpublished y no como @book, y la nota
+% dice como se obtuvo, que es lo que un lector necesita para localizarlo.
+@unpublished{alvarez_metodologia,
   author    = {{\'A}lvarez de Zayas, Carlos},
   title     = {Metodolog{\'i}a de la investigaci{\'o}n cient{\'i}fica},
-  location  = {[lugar desconocido]},
-  % La fecha viaja pegada a la editorial porque numeric-comp imprime "note" antes
-  % del pie de imprenta, y "[fecha desconocida]" tiene que cerrar la referencia.
-  publisher = {[editorial desconocida]; [fecha desconocida]},
-  note      = {Monograf{\'i}a de 80 p{\'a}ginas},
+  note      = {Monograf{\'i}a in{\'e}dita de 80 p{\'a}ginas, de circulaci{\'o}n acad{\'e}mica en formato electr{\'o}nico; sin lugar, editorial ni fecha declarados. [lugar desconocido]: [editorial desconocida]; [fecha desconocida]},
 }
 
 @book{sampieri2018metodologia,

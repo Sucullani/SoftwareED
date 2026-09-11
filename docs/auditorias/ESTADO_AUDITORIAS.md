@@ -22,7 +22,7 @@
 
 | Fecha | Informe | Alcance | Estado global |
 |---|---|---|---|
-| 2026-09-11 | [2026-09-11_auditoria_tesis.md](2026-09-11_auditoria_tesis.md) | Tesis, PDF del 2026-09-11: coherencia, rigor numérico (V&V corrida), referencias (22 ejemplares), APA/Vancouver, integridad del PDF | **Vigente — solo diagnóstico, sin fixes aplicados**; 2 bloqueantes de maquetación, 10 mayores |
+| 2026-09-11 | [2026-09-11_auditoria_tesis.md](2026-09-11_auditoria_tesis.md) | Tesis, PDF del 2026-09-11: coherencia, rigor numérico (V&V corrida), referencias (22 ejemplares), APA/Vancouver, integridad del PDF | **Implementado el 2026-09-11** salvo las exclusiones del autor (portada: tutor y preliminares; abstract en inglés y *Title Case*; interlineado doble) y las recapturas de figuras que necesitan la GUI — ver su §*Estado de implementación* |
 | 2026-06-10 | [2026-06-10_auditoria_general.md](2026-06-10_auditoria_general.md) | Repo completo: correctitud, convenciones, dependencias, higiene, rendimiento | **Vigente — solo diagnóstico, sin fixes aplicados** |
 | 2026-06-10 | [2026-06-10_revision_tesis.md](2026-06-10_revision_tesis.md) | Tesis, estilo tribunal | Parcialmente superado por el informe del 2026-09-11, que registra qué quedó cerrado y qué reincide |
 | 2026-06-03 | [historico/2026-06-03_auditoria_tesis.pdf](historico/2026-06-03_auditoria_tesis.pdf) | Tesis (pasada anterior) | Superado por el informe del 06-10 |

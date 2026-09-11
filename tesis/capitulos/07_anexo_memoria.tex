@@ -11,9 +11,11 @@
 \chapter{Memoria de cálculo: ejemplo resuelto paso a paso}
 \label{anexo:memoria}
 
-Este anexo presenta, en forma condensada, el contenido de la \emph{Memoria de Cálculo} que EduFEM genera para el ejemplo canónico de validación: nueve nodos, cuatro elementos Q4, tensión plana. La memoria completa que produce el programa consta de nueve capítulos en dos estilos (\autoref{sec:memoria-io}); aquí se conserva la cadena de sustitución numérica esencial. Cada matriz, vector y valor que sigue es la salida real del motor numérico, generada con las mismas funciones del programa, con sustitución directa sobre la formulación matricial.
+Este anexo presenta, en forma condensada, el contenido de la \emph{Memoria de Cálculo} que EduFEM genera para el ejemplo canónico de validación: nueve nodos, cuatro elementos Q4, tensión plana. La memoria completa que produce el programa consta de nueve capítulos en dos estilos (\autoref{sec:memoria-io}); aquí se conserva la cadena de sustitución numérica esencial. Cada matriz, vector y valor que sigue es la salida real del motor numérico, generada con las mismas funciones del programa, con sustitución directa sobre la formulación matricial. Las magnitudes se expresan en un sistema de unidades coherente y arbitrario (por ejemplo, kN y cm, con $E$ en kN/cm$^2$): la formulación no depende de la elección mientras sea coherente.
 
 \section{Datos}
+
+La \autoref{fig:mem-modelo} muestra el modelo discretizado; las Tablas \ref{tab:mem-nodos} y \ref{tab:mem-elem} recogen sus nodos y elementos, y la \autoref{tab:mem-param} los parámetros globales del análisis.
 
 \begin{figure}[H]
 \centering
@@ -53,9 +55,11 @@ Elem. & $N_1$ & $N_2$ & $N_3$ & $N_4$ & $t$ \\
 \end{tabular}
 
 \vspace{0.9em}
+\captionof{table}{Parámetros globales del análisis.}
+\label{tab:mem-param}
 \begin{tabular}{@{}l l@{}}
 \toprule
-\multicolumn{2}{@{}l}{\textbf{Parámetros globales}} \\
+\textbf{Parámetro} & \textbf{Valor} \\
 \midrule
 Módulo de elasticidad & $E = \valE$ \\
 Coeficiente de Poisson & $\nu = \valNu$ \\
@@ -187,7 +191,7 @@ Repetida la operación en los cuatro puntos de Gauss —numerados $(-,-)$, $(-,+
 \sigxNodal=\Eextrap\,\sigxGauss .
 \]
 }%
-Las tablas siguientes reúnen las cuatro componentes en los puntos de Gauss y, ya extrapoladas, en los nodos del elemento E\showId{}. La extrapolación se aplica únicamente a las componentes cartesianas: la tensión de von Mises de cada nodo se recalcula con la \autoref{eq:principales-vm} a partir de las componentes ya extrapoladas, por ser una función no lineal de ellas.
+Las Tablas \ref{tab:mem-gauss} y \ref{tab:mem-extrap} reúnen las cuatro componentes en los puntos de Gauss y, ya extrapoladas, en los nodos del elemento E\showId{}. La extrapolación se aplica únicamente a las componentes cartesianas: la tensión de von Mises de cada nodo se recalcula con la \autoref{eq:principales-vm} a partir de las componentes ya extrapoladas, por ser una función no lineal de ellas.
 
 \noindent
 \begin{minipage}[t]{0.49\linewidth}
@@ -241,19 +245,22 @@ Nodo & $u_x$ & $u_y$ & $\sigma_x$ & $\sigma_y$ & $\tau_{xy}$ & $\sigma_{\mathrm{
 
 \noindent El desplazamiento máximo es $\lvert\bm{u}\rvert_{\max}=\umaxMag$ en el nodo \umaxNode{} (donde se aplica la carga), y la tensión de von Mises máxima, $\sigma_{\mathrm{VM},\max}=\vmMax$ en el mismo nodo. Las figuras \ref{fig:mem-deformada} y \ref{fig:mem-contorno} muestran la configuración deformada y el contorno de von Mises sobre la malla deformada, tal como los presenta el post-proceso del software.
 
-\begin{figure}[H]
-\centering
-\begin{minipage}{0.49\linewidth}
+% Dos figuras lado a lado SIN entorno figure: con \floatstyle{plaintop} un
+% float con dos \caption conservaba solo el ultimo rotulo (la G.3 quedaba sin
+% rotulo y el de la G.4 caia sobre la imagen equivocada). \captionof numera y
+% ancla cada una por separado; el rotulo va arriba, como pide APA.
+\medskip
+\noindent
+\begin{minipage}[t]{0.49\linewidth}
   \centering
-  \includegraphics[width=\linewidth]{mem_deformada}
-  \caption{Configuración deformada (amplificada) sobre la malla original.}
+  \captionof{figure}{Configuración deformada (amplificada) sobre la malla original.}
   \label{fig:mem-deformada}
+  \includegraphics[width=\linewidth]{mem_deformada}
 \end{minipage}
 \hfill
-\begin{minipage}{0.49\linewidth}
+\begin{minipage}[t]{0.49\linewidth}
   \centering
-  \includegraphics[width=\linewidth]{mem_contorno_vm}
-  \caption{Contorno de tensión de von Mises sobre la malla deformada.}
+  \captionof{figure}{Contorno de tensión de von Mises sobre la malla deformada.}
   \label{fig:mem-contorno}
+  \includegraphics[width=\linewidth]{mem_contorno_vm}
 \end{minipage}
-\end{figure}

@@ -53,20 +53,20 @@ El núcleo numérico y la interfaz se apoyan en bibliotecas de código abierto: 
 \chapter{Manual de uso}
 \label{anexo:manual}
 
-Este anexo describe el flujo de trabajo de EduFEM, desde la construcción del modelo hasta la interpretación de los resultados. La aplicación organiza el trabajo en tres fases --pre-proceso, proceso y post-proceso-- accesibles mediante pestañas, todas compartiendo un único lienzo central donde se visualiza el modelo. La barra de menús se reduce de forma deliberada a tres entradas: \textsf{Archivo}, \textsf{Modelo} y \textsf{Ayuda}.
+Este anexo describe el flujo de trabajo de EduFEM, desde la construcción del modelo hasta la interpretación de los resultados. La aplicación organiza el trabajo en tres fases ---pre-proceso, proceso y post-proceso--- accesibles mediante pestañas, todas compartiendo un único lienzo central donde se visualiza el modelo. La barra de menús se reduce de forma deliberada a tres entradas: \textsf{Archivo}, \textsf{Modelo} y \textsf{Ayuda}.
 
 La \autoref{fig:app-completa} muestra la ventana principal en la fase de pre-proceso, con sus tres zonas: el cuaderno de tablas, el lienzo compartido y la barra de estado.
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{fig_app_completa}
-\caption{Ventana principal de EduFEM en la fase de pre-proceso. A la izquierda, el cuaderno de tablas editables (con la tabla de \textsf{Nodos} activa); a la derecha, el lienzo compartido con el modelo del ejemplo canónico --nodos, elementos, la carga nodal, los apoyos y los ejes--. La barra de estado inferior resume el diagnóstico de salud, el tipo de análisis y el recuento de grados de libertad.}
+\caption{Ventana principal de EduFEM en la fase de pre-proceso. A la izquierda, el cuaderno de tablas editables (con la tabla de \textsf{Nodos} activa); a la derecha, el lienzo compartido con el modelo del ejemplo canónico ---nodos, elementos, la carga nodal, los apoyos y los ejes---. La barra de estado inferior resume el diagnóstico de salud, el tipo de análisis y el recuento de grados de libertad.}
 \label{fig:app-completa}
 \end{figure}
 
 \section{Pre-proceso: construcción del modelo}
 
-La fase de pre-proceso (identidad cromática azul) reúne la definición geométrica y de cargas. A la izquierda, un cuaderno de cinco tablas editables --\textsf{Nodos}, \textsf{Elementos}, \textsf{Cargas}, \textsf{Restricciones} y \textsf{Carg.\ Superf.}-- permite la entrada y edición directa de cada entidad; a la derecha, el lienzo refleja el modelo en tiempo real.
+La fase de pre-proceso (identidad cromática azul) reúne la definición geométrica y de cargas. A la izquierda, un cuaderno de cinco tablas editables ---\textsf{Nodos}, \textsf{Elementos}, \textsf{Cargas}, \textsf{Restricciones} y \textsf{Carg.\ Superf.}--- permite la entrada y edición directa de cada entidad; a la derecha, el lienzo refleja el modelo en tiempo real.
 
 \subsection{Definición de la geometría}
 
@@ -74,13 +74,13 @@ Existen tres vías para construir la malla:
 
 \begin{itemize}
   \item \textbf{Edición en tablas.} El doble clic en una celda abre el editor; las filas «placeholder» en gris crean un registro nuevo al completarse. Se admite el pegado de bloques de texto tabulado desde una hoja de cálculo (Ctrl+V) para el alta masiva.
-  \item \textbf{Modo dibujo (tecla D).} Al estilo de un programa de dibujo asistido, el usuario marca cuatro vértices sobre el lienzo --con anclaje automático a los nodos existentes-- y el elemento cuadrilátero se crea al cuarto clic, corrigiendo de oficio la orientación antihoraria.
+  \item \textbf{Modo dibujo (tecla D).} Al estilo de un programa de dibujo asistido, el usuario marca cuatro vértices sobre el lienzo ---con anclaje automático a los nodos existentes--- y el elemento cuadrilátero se crea al cuarto clic, corrigiendo de oficio la orientación antihoraria.
   \item \textbf{Importación.} Desde \textsf{Archivo} $\rightarrow$ \textsf{Importar} se carga geometría en formato DXF (polilíneas cerradas de cuatro vértices en la capa \texttt{FEM\_ELEMENTS}) o un modelo completo en CSV/Excel.
 \end{itemize}
 
 \subsection{Propiedades del modelo}
 
-El menú \textsf{Modelo} agrupa, en el orden lógico de definición de un problema de elementos finitos, cinco diálogos: \textsf{Tipo de Elemento} (Q4 o Q9), \textsf{Unidades} (ocho sistemas predefinidos con conversión automática de los valores), \textsf{Materiales} (módulo de elasticidad $E$, coeficiente de Poisson $\nu$ y densidad $\rho$), \textsf{Gravedad} (vector de aceleración y su activación) y \textsf{Tipo de Análisis} (tensión o deformación plana). Al cambiar de Q4 a Q9, los cinco nodos adicionales por elemento --cuatro de arista y el central-- se generan automáticamente. La \autoref{fig:dialogo-material} muestra, a modo de ejemplo, el diálogo de materiales.
+El menú \textsf{Modelo} agrupa, en el orden lógico de definición de un problema de elementos finitos, cinco diálogos: \textsf{Tipo de Elemento} (Q4 o Q9), \textsf{Unidades} (ocho sistemas predefinidos con conversión automática de los valores), \textsf{Materiales} (módulo de elasticidad $E$, coeficiente de Poisson $\nu$ y densidad $\rho$), \textsf{Gravedad} (vector de aceleración y su activación) y \textsf{Tipo de Análisis} (tensión o deformación plana). Al cambiar de Q4 a Q9, los cinco nodos adicionales por elemento ---cuatro de arista y el central--- se generan automáticamente. La \autoref{fig:dialogo-material} muestra, a modo de ejemplo, el diálogo de materiales.
 
 \begin{figure}[htbp]
 \centering
@@ -104,12 +104,12 @@ Las cargas nodales, las cargas de superficie (presión distribuida sobre una ari
 
 \section{Proceso: resolución y exploración didáctica}
 
-La fase de proceso (identidad cromática naranja) resuelve el sistema y alberga los módulos educativos. La tecla F5, o el cambio a la pestaña de post-proceso, dispara la resolución, que antes valida el modelo con un comprobador de salud (\autoref{fig:validador-salud}): los errores críticos --restricciones insuficientes, elementos degenerados o referencias colgantes-- bloquean el cálculo y se reportan con sugerencias de corrección; las advertencias no lo impiden.
+La fase de proceso (identidad cromática naranja) resuelve el sistema y alberga los módulos educativos. La tecla F5, o el cambio a la pestaña de post-proceso, dispara la resolución, que antes valida el modelo con un comprobador de salud (\autoref{fig:validador-salud}): los errores críticos ---restricciones insuficientes, elementos degenerados o referencias colgantes--- bloquean el cálculo y se reportan con sugerencias de corrección; las advertencias no lo impiden.
 
-\begin{figure}[htbp]
+\begin{figure}[!htb]
 \centering
 \includegraphics[width=0.82\linewidth]{fig_validador_salud}
-\caption{Comprobador de salud del modelo. Los errores críticos --aquí, la ausencia de restricciones, que volvería singular la matriz de rigidez reducida-- bloquean la resolución y se acompañan de una explicación; las advertencias no la impiden. Cada hallazgo ofrece, cuando procede, corrección automática y navegación al elemento implicado.}
+\caption{Comprobador de salud del modelo. Los errores críticos ---aquí, la ausencia de restricciones, que volvería singular la matriz de rigidez reducida--- bloquean la resolución y se acompañan de una explicación; las advertencias no la impiden. Cada hallazgo ofrece, cuando procede, corrección automática y navegación al elemento implicado.}
 \label{fig:validador-salud}
 \end{figure}
 
@@ -117,7 +117,7 @@ Siete módulos educativos (M1 a M7), accesibles con Ctrl+1 a Ctrl+7, recorren en
 
 \section{Post-proceso: interpretación de resultados}
 
-La fase de post-proceso (identidad cromática verde) superpone los resultados sobre el mismo lienzo. El panel de control permite alternar entre los campos de tensión --von Mises, $\sigma_x$, $\sigma_y$, $\tau_{xy}$-- y de desplazamiento, mostrar la malla deformada con un factor de amplificación regulable, activar isolíneas y abrir una vista tridimensional del campo. El sondeo puntual informa, en cualquier punto del dominio, el estado tensional completo y, con el clic derecho, despliega un panel de detalles con el círculo de Mohr del punto consultado. Los valores de la tabla de resultados se copian al portapapeles con Ctrl+C en un formato compatible con hoja de cálculo. La \autoref{fig:vista3d} muestra la vista tridimensional del campo, una representación alternativa del mismo resultado que el contorno 2D.
+La fase de post-proceso (identidad cromática verde) superpone los resultados sobre el mismo lienzo. El panel de control permite alternar entre los campos de tensión ---von Mises, $\sigma_x$, $\sigma_y$, $\tau_{xy}$--- y de desplazamiento, mostrar la malla deformada con un factor de amplificación regulable, activar isolíneas y abrir una vista tridimensional del campo. El sondeo puntual informa, en cualquier punto del dominio, el estado tensional completo y, con el clic derecho, despliega un panel de detalles con el círculo de Mohr del punto consultado. Los valores de la tabla de resultados se copian al portapapeles con Ctrl+C en un formato compatible con hoja de cálculo. La \autoref{fig:vista3d} muestra la vista tridimensional del campo, una representación alternativa del mismo resultado que el contorno 2D.
 
 \begin{figure}[htbp]
 \centering
@@ -128,7 +128,7 @@ La fase de post-proceso (identidad cromática verde) superpone los resultados so
 
 \section{Documentación del cálculo e interoperabilidad}
 
-Desde \textsf{Archivo} $\rightarrow$ \textsf{Exportar} se genera la \textbf{Memoria de Cálculo} en PDF, un documento que reproduce el paso a paso simbólico y numérico del modelo concreto del usuario --funciones de forma evaluadas en los puntos de Gauss, Jacobiano, matrices $\bm{B}$ y $\bm{D}$, rigidez elemental, ensamblaje, partición de restricciones, resolución y recuperación de tensiones-- en dos estilos, educativo o directo. El mismo menú exporta el modelo a CSV/Excel para su edición masiva. Los proyectos se guardan en el formato nativo \texttt{.edufem}.
+Desde \textsf{Archivo} $\rightarrow$ \textsf{Exportar} se genera la \textbf{Memoria de Cálculo} en PDF, un documento que reproduce el paso a paso simbólico y numérico del modelo concreto del usuario ---funciones de forma evaluadas en los puntos de Gauss, Jacobiano, matrices $\bm{B}$ y $\bm{D}$, rigidez elemental, ensamblaje, partición de restricciones, resolución y recuperación de tensiones--- en dos estilos, educativo o directo. El mismo menú exporta el modelo a CSV/Excel para su edición masiva. Los proyectos se guardan en el formato nativo \texttt{.edufem}.
 
 \section{Atajos de teclado}
 
@@ -152,8 +152,11 @@ F11 / F                  & Pantalla completa / Ajustar vista \\
 D                        & Modo dibujo de elementos \\
 Ctrl+clic / Shift+clic   & Selección múltiple (alternar / rango) \\
 Esc                      & Cancelar elemento, cerrar editor o limpiar selección \\
-Ctrl+Tab / Shift+Tab     & Pestaña siguiente / anterior \\
+Ctrl+Tab / Ctrl+Shift+Tab & Pestaña siguiente / anterior \\
 Ctrl+/ \ , F1            & Atajos / Manual \\
+Ctrl+A                   & Seleccionar toda la tabla de resultados \\
+F8                       & Modo ortogonal al dibujar (Shift lo invierte) \\
+Retroceso                & Borrar el último vértice del elemento parcial \\
 Supr                     & Eliminar la entidad seleccionada \\
 Ctrl+Q                   & Salir \\
 \hline
@@ -162,7 +165,7 @@ Ctrl+Q                   & Salir \\
 
 \section{Casos de ejemplo}
 
-El submenú \textsf{Ayuda} $\rightarrow$ \textsf{Cargar Ejemplo} (atajo Ctrl+E para el caso canónico) ofrece tres casos de referencia, cada uno en variante Q4 y Q9: el \textbf{cuadrado de validación} (nueve nodos, caso histórico del proyecto), la \textbf{viga de Timoshenko} (simplemente apoyada, validada contra la solución analítica y SAP2000) y la \textbf{membrana de Cook} (trapecio que ilustra el bloqueo por cortante). Estos casos sirven de punto de partida para explorar todas las funciones descritas.
+El submenú \textsf{Ayuda} $\rightarrow$ \textsf{Cargar Ejemplo} (atajo Ctrl+E para el caso canónico) ofrece tres casos de referencia, cada uno en variante Q4 y Q9: el \textbf{cuadrado de validación} (nueve nodos, el primer caso de prueba del proyecto), la \textbf{viga de Timoshenko} (simplemente apoyada, validada contra la solución analítica y SAP2000) y la \textbf{membrana de Cook} (trapecio que ilustra el bloqueo por cortante). Estos casos sirven de punto de partida para explorar todas las funciones descritas.
 
 
 \section{Catálogo de módulos educativos}
@@ -178,7 +181,7 @@ EduFEM organiza su contenido didáctico en ocho módulos interactivos, distribui
 \toprule
 \textbf{Módulo} & \textbf{Fase} & \textbf{Concepto del MEF} & \textbf{Atajo} \\
 \midrule
-M0 & Pre-proceso  & Calidad de malla: Jacobiano escalado y compacidad (Stretch). & --- \\
+M0 & Pre-proceso  & Calidad de malla: Jacobiano escalado y compacidad (\emph{stretch}). & --- \\
 M1 & Proceso      & Mapeo isoparamétrico y funciones de forma $N$: coordenadas naturales $(\xi,\eta) \leftrightarrow (x,y)$. & \texttt{Ctrl+1} \\
 M2 & Proceso      & Jacobiano $\det\bm{J}(\xi,\eta)$: distorsión local, superficie 3D. & \texttt{Ctrl+2} \\
 M3 & Proceso      & Matriz $\bm{B}$ (deformación): $\partial N/\partial x$ mediante $\bm{J}^{-1}$, con anclaje a puntos de Gauss. & \texttt{Ctrl+3} \\
@@ -196,7 +199,7 @@ Las figuras \ref{fig:mod-m0} a \ref{fig:mod-m7} reproducen cada módulo en funci
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{fig_modulo_m0}
-\caption{Módulo M0 (calidad de malla). Vista de rayos X de la malla coloreada por calidad, las barras de Jacobiano escalado y compacidad (\emph{Stretch}) del elemento bajo el cursor, y las anotaciones geométricas sobre el lienzo: el peor ángulo, la arista mínima $L_{\min}$ y la diagonal máxima $D_{\max}$.}
+\caption{Módulo M0 (calidad de malla). Vista de rayos X de la malla coloreada por calidad, las barras de Jacobiano escalado y compacidad (\emph{stretch}) del elemento bajo el cursor, y las anotaciones geométricas sobre el lienzo: el peor ángulo, la arista mínima $L_{\min}$ y la diagonal máxima $D_{\max}$.}
 \label{fig:mod-m0}
 \end{figure}
 
@@ -253,7 +256,7 @@ Las figuras \ref{fig:mod-m0} a \ref{fig:mod-m7} reproducen cada módulo en funci
 \section{Referencia del comprobador de salud}
 \label{sec:health-checks}
 
-Antes de resolver el sistema, EduFEM ejecuta un comprobador de salud que examina el modelo y agrupa sus hallazgos en tres niveles de severidad: los \emph{errores críticos} bloquean el cálculo hasta que el usuario los resuelve o decide continuar de forma explícita; las \emph{advertencias} no impiden la resolución, pero señalan aspectos que conviene revisar; y la \emph{información} reúne contadores generales del modelo. La \autoref{tab:health-checks} reúne todos los chequeos, identificados por su código estable, junto con su significado y si admiten autocorrección desde el diálogo de salud.
+Antes de resolver el sistema, EduFEM ejecuta un comprobador de salud que examina el modelo y agrupa sus hallazgos en tres niveles de severidad: los \emph{errores críticos} bloquean el cálculo hasta que el usuario los resuelve; las \emph{advertencias} no impiden la resolución, pero señalan aspectos que conviene revisar; y la \emph{información} reúne contadores generales del modelo. La \autoref{tab:health-checks} reúne todos los chequeos, identificados por su código estable, junto con su significado y si admiten autocorrección desde el diálogo de salud.
 
 \begin{longtable}{@{}>{\ttfamily\footnotesize}p{2.8cm} >{\footnotesize}l >{\footnotesize\raggedright\arraybackslash}p{5.4cm} >{\footnotesize}c@{}}
 \caption{Chequeos del comprobador de salud del modelo, agrupados por severidad.}
@@ -281,6 +284,14 @@ elem\_node\_missing & Error crítico & Un elemento referencia en sus \texttt{nod
 elem\_material\_missing & Error crítico & Un elemento usa un nombre de material que no figura en la librería de materiales. & No \\
 \addlinespace
 degenerate\_element & Error crítico & Un elemento tiene vértices repetidos (menos de cuatro distintos); su Jacobiano será cero o negativo. & No \\
+\addlinespace
+non\_positive\_thickness & Error crítico & Un elemento tiene espesor $t \le 0$: con $t = 0$ no aporta rigidez ($\bm{k}_e = \bm{0}$) y con $t < 0$ invierte el signo de $\bm{k}_e$. & No \\
+\addlinespace
+non\_positive\_young & Error crítico & Un material en uso tiene $E \le 0$: la matriz $\bm{D}$ no representa ningún sólido y $\bm{K}$ queda singular o con rigidez negativa. & No \\
+\addlinespace
+invalid\_poisson & Error crítico & Un material en uso tiene $\nu$ fuera del intervalo $(-1;\ 0{,}5)$: $\bm{D}$ deja de ser definida positiva, y en deformación plana el factor $1-2\nu$ se anula en $\nu = 0{,}5$. & No \\
+\addlinespace
+negative\_density & Error crítico & La gravedad está activa y un material en uso tiene densidad negativa: el peso propio $F = \rho\, g\, V$ queda invertido. & No \\
 \addlinespace
 surface\_node\_missing & Error crítico & Una carga de superficie referencia como extremo (\texttt{node\_start} o \texttt{node\_end}) un nodo inexistente. & Sí \\
 \addlinespace
@@ -421,20 +432,22 @@ def constitutive_matrix(E, nu, analysis_type):
 
 \section{Ensamblaje disperso de la matriz de rigidez global}
 
-El núcleo de la escalabilidad analizada en el \autoref{cap:resultados}: las rigideces elementales de todos los elementos se calculan de una vez, vectorizadas por lotes, y la rigidez global se acumula por tripletes en formato COO que se convierten a filas comprimidas CSR para el solucionador disperso.
+El núcleo de la escalabilidad analizada en el \autoref{cap:resultados}: las rigideces elementales de todos los elementos se calculan de una vez, vectorizadas por lotes —\texttt{dofs}, de forma $e\times 2n$, reúne los GDL globales de cada elemento obtenidos vía \texttt{node\_index\_map}, y \texttt{ke}, de forma $e\times 2n\times 2n$, sus rigideces—, y la rigidez global se acumula por tripletes en formato COO que se convierten a filas comprimidas CSR para el solucionador disperso. Cada entrada $k_e[i,j]$ se dispersa a $K[g_i, g_j]$: es el \emph{scatter} local $\to$ global del MEF.
 
 \begin{lstlisting}
-# Lote de elementos: dofs (e, 2n) con los GDL globales de cada uno
-# (vía node_index_map) y ke (e, 2n, 2n) con las rigideces elementales,
-# ambas calculadas de una sola vez para toda la malla.
-n_e = dofs.shape[1]
-# cada entrada ke[i, j] → K[gi, gj]: scatter local → global del MEF.
-rows = np.repeat(dofs, n_e, axis=1).ravel()   # [i0, i0, ..., i1, i1, ...]
-cols = np.tile(dofs, (1, n_e)).ravel()        # [j0, j1, ..., j0, j1, ...]
+def assemble_sparse(dofs, ke, n_dof):
+    """Scatter local -> global como tripletes COO y conversion a CSR.
 
-# coo_matrix suma automáticamente las entradas duplicadas en el mismo (i, j),
-# que es exactamente el ensamblaje del MEF. El resultado se entrega en CSR.
-K = coo_matrix((ke.ravel(), (rows, cols)), shape=(n_dof, n_dof)).tocsr()
+    `coo_matrix` suma las entradas duplicadas en la misma (i, j): es
+    exactamente la suma de contribuciones elementales del MEF. K nunca se
+    materializa densa (memoria O(nnz)).
+    """
+    dofs = np.asarray(dofs, dtype=np.intp)
+    n_dof_e = dofs.shape[1] if dofs.ndim == 2 else 0
+    rows = np.repeat(dofs, n_dof_e, axis=1).ravel()   # [i0, i0, ..., i1, i1, ...]
+    cols = np.tile(dofs, (1, n_dof_e)).ravel()        # [j0, j1, ..., j0, j1, ...]
+    data = np.asarray(ke, dtype=float).ravel()
+    return coo_matrix((data, (rows, cols)), shape=(n_dof, n_dof)).tocsr()
 \end{lstlisting}
 
 
@@ -446,18 +459,28 @@ Este anexo amplía la evidencia del \autoref{cap:resultados} con tablas y figura
 \section{Reproducibilidad de la verificación y validación}
 \label{sec:vyv-reproducibilidad}
 
-Toda la evidencia numérica del \autoref{cap:resultados} y de este anexo se genera con los \emph{scripts} de verificación y validación incluidos en el repositorio del proyecto. El conjunto de pruebas no se apoya en un marco de pruebas automatizado del tipo \texttt{pytest}: cada \emph{script} es un programa de tipo \emph{printout} que se ejecuta de forma autónoma como módulo de Python, imprime su diagnóstico por consola y deposita los datos crudos --en archivos CSV-- y las figuras en el directorio \texttt{docs/vyv/datos/} (y, para las figuras, en \texttt{docs/vyv/figuras/}). Esta organización determinista y reejecutable garantiza la repetibilidad de cada cifra reportada: basta volver a lanzar el comando correspondiente para regenerar la tabla o la figura asociada. Los comandos se invocan desde la raíz del proyecto, con el entorno virtual activado y las dependencias instaladas según el \autoref{anexo:instalacion}. La \autoref{tab:vyv-repro} enumera cada \emph{script}, indica qué verifica o valida y remite a la tabla o figura concreta que produce, tanto en el cuerpo principal como en este anexo.
+Toda la evidencia numérica del \autoref{cap:resultados} y de este anexo se genera con los \emph{scripts} de verificación y validación incluidos en el repositorio del proyecto. El conjunto de pruebas no se apoya en un marco de pruebas automatizado del tipo \texttt{pytest}: cada \emph{script} es un programa de tipo \emph{printout} que se ejecuta de forma autónoma como módulo de Python, imprime su diagnóstico por consola y deposita los datos crudos ---en archivos CSV--- y las figuras en el directorio \texttt{docs/vyv/datos/} (y, para las figuras, en \texttt{docs/vyv/figuras/}). Esta organización determinista y reejecutable garantiza la repetibilidad de cada cifra reportada: basta volver a lanzar el comando correspondiente para regenerar la tabla o la figura asociada. Los comandos se invocan desde la raíz del proyecto, con el entorno virtual activado y las dependencias instaladas según el \autoref{anexo:instalacion}. La \autoref{tab:vyv-repro} enumera cada \emph{script}, indica qué verifica o valida y remite a la tabla o figura concreta que produce, tanto en el cuerpo principal como en este anexo.
 
-\begin{table}[htbp]
-\centering
+% longtable y no table+tabular: la tabla mide mas que una hoja y como flotante
+% la ultima fila salia cortada por el borde inferior ("Float too large for page").
+{\setlength{\tabcolsep}{4pt}
+\begin{longtable}{@{}>{\footnotesize\raggedright\arraybackslash}p{4.3cm} >{\footnotesize\raggedright\arraybackslash}p{5.1cm} >{\footnotesize\raggedright\arraybackslash}p{4.1cm}@{}}
 \caption{Guía de reproducibilidad de la batería de verificación y validación: comando de ejecución, objeto de la prueba y resultados asociados en el \autoref{cap:resultados} y en este anexo.}
-\label{tab:vyv-repro}
-\footnotesize
-\setlength{\tabcolsep}{4pt}
-\begin{tabular}{@{}>{\raggedright\arraybackslash}p{4.3cm} >{\raggedright\arraybackslash}p{5.1cm} >{\raggedright\arraybackslash}p{4.1cm}@{}}
+\label{tab:vyv-repro}\\
 \toprule
-\textbf{Script} & \textbf{Qué verifica} & \textbf{Resultados (Cap.~3 / Anexo)} \\
+\textbf{Script} & \textbf{Qué verifica} & \textbf{Resultados (Capítulo 3 / Anexo)} \\
 \midrule
+\endfirsthead
+\multicolumn{3}{@{}l}{\small\itshape (continuación de la \autoref{tab:vyv-repro})}\\
+\toprule
+\textbf{Script} & \textbf{Qué verifica} & \textbf{Resultados (Capítulo 3 / Anexo)} \\
+\midrule
+\endhead
+\midrule
+\multicolumn{3}{r@{}}{\small\itshape continúa en la página siguiente}\\
+\endfoot
+\bottomrule
+\endlastfoot
 \texttt{python -m tests.vv\_mms} &
 Verificación por el método de soluciones manufacturadas: tasas asintóticas de convergencia en norma $L^2$ y seminorma $H^1$ del desplazamiento y en norma $L^2$ del campo de tensiones recuperado, para Q4 y Q9, en cuatro configuraciones (cuadrado unitario y cuadrilátero distorsionado, tensión y deformación plana). &
 \autoref{tab:mms}, \autoref{fig:convergencia}, \autoref{fig:convergencia-tension}, \autoref{tab:mms-rel}, \autoref{tab:mms-configs}, \autoref{fig:mms-campos} \\
@@ -479,21 +502,19 @@ Regresión de las extensiones del solucionador usadas en la batería de V\&V: fu
 Soporte de la verificación por soluciones manufacturadas \\
 \addlinespace
 \texttt{python -m tests.test\_interop} &
-Interoperabilidad (objetivo 5): ida y vuelta CSV/ZIP del ejemplo canónico sin pérdida de entidades y con desplazamientos idénticos; importación del DXF de ejemplo (seis cuadriláteros, doce nodos compartidos, orientación antihoraria) e idempotencia de la reimportación. &
+Interoperabilidad (objetivo 6): ida y vuelta CSV/ZIP del ejemplo canónico sin pérdida de entidades y con desplazamientos idénticos; importación del DXF de ejemplo (seis cuadriláteros, doce nodos compartidos, orientación antihoraria) e idempotencia de la reimportación. &
 \autoref{sec:consistencia-interna} \\
 \addlinespace
 \texttt{python -m tests.test\_q9\_q4\_cycle} &
 Regresión del ciclo de transformación de malla $\text{Q4}\rightarrow\text{Q9}\rightarrow\text{Q4}$: el campo de desplazamientos de la malla Q4 reducida coincide con el de la Q4 original sin deriva numérica. &
 \autoref{sec:consistencia-interna} \\
-\bottomrule
-\end{tabular}
-\end{table}
+\end{longtable}}
 
 
 
 \section{Método de soluciones manufacturadas: errores relativos y campos}
 
-Además de las normas absolutas reportadas en el cuerpo principal, la \autoref{tab:mms-rel} presenta los errores \emph{relativos} en norma $L^2$ y seminorma $H^1$ de la configuración base, que confirman la misma jerarquía de convergencia con independencia de la escala del problema. Las normas de error se integraron con un punto de Gauss más por dirección que la rigidez ($3\times 3$ para Q4, $4\times 4$ para Q9) para evitar el aliasing del error con la cuadratura de la rigidez. La \autoref{tab:mms-configs} resume las tasas asintóticas --entre las mallas $N=16$ y $N=32$-- y los errores relativos finales en las cuatro configuraciones: las tasas del desplazamiento coinciden con las teóricas en todas ellas, y las del campo de tensiones recuperado se mantienen en $\mathcal{O}(h^{1{,}5})$ para Q4 y $\mathcal{O}(h^{2})$ para Q9 con independencia del estado plano y de la distorsión de los elementos. Los datos completos de cada configuración se conservan en los archivos \texttt{mms\_\{q4,q9\}\_\{dist\_tp,unif\_dp,dist\_dp\}.csv} y el resumen en \texttt{mms\_resumen.csv}.
+Además de las normas absolutas reportadas en el cuerpo principal, la \autoref{tab:mms-rel} presenta los errores \emph{relativos} en norma $L^2$ y seminorma $H^1$ de la configuración base, que confirman la misma jerarquía de convergencia con independencia de la escala del problema. Las normas de error se integraron con un punto de Gauss más por dirección que la rigidez ($3\times 3$ para Q4, $4\times 4$ para Q9) para evitar el aliasing del error con la cuadratura de la rigidez. La \autoref{tab:mms-configs} resume las tasas asintóticas ---entre las mallas $N=16$ y $N=32$--- y los errores relativos finales en las cuatro configuraciones: las tasas del desplazamiento coinciden con las teóricas en todas ellas, y las del campo de tensiones recuperado se mantienen en $\mathcal{O}(h^{1{,}5})$ para Q4 y $\mathcal{O}(h^{2})$ para Q9 con independencia del estado plano y de la distorsión de los elementos. Los datos completos de cada configuración se conservan en los archivos \texttt{mms\_\{q4,q9\}\_\{dist\_tp,unif\_dp,dist\_dp\}.csv} y el resumen en \texttt{mms\_resumen.csv}.
 
 \begin{table}[htbp]
 \centering
@@ -556,7 +577,7 @@ La \autoref{fig:mms-campos} muestra los campos discretos de desplazamiento sobre
 
 \section{Viga de Timoshenko: componentes restantes y desplazamientos}
 
-El cuerpo principal contrastó la tensión normal $\sigma_x$. El modelo de SAP2000 y la resolución analítica que originan las referencias de esta sección se reproducen, como evidencia documental, en el \autoref{anexo:sap2000}. La \autoref{tab:tim-componentes} completa el estado tensional con las componentes $\sigma_y$ y $\tau_{xy}$ en los tres puntos de referencia, junto con su error relativo frente a la solución analítica. La concordancia en estas componentes secundarias es un orden de magnitud peor que en $\sigma_x$: el error llega al $2{,}9\,\%$ en $\tau_{xy}$ y al $0{,}9\,\%$ en $\sigma_y$ en el punto B, y en el punto A --donde la solución analítica de ambas componentes es nula-- el error relativo no está definido y EduFEM devuelve residuos de $0{,}0138$ y $0{,}0000$~kgf/cm$^2$. Dos factores lo explican: la recuperación de tensiones converge con un orden menor que el desplazamiento (\autoref{tab:mms}), y estas componentes son entre siete y treinta veces más pequeñas que $\sigma_x$, de modo que un mismo error absoluto pesa mucho más en términos relativos. En $\tau_{xy}$ el modelo de SAP2000 queda, en valor absoluto, más cerca de la solución analítica ($0{,}16\,\%$ en B) que EduFEM. La diferencia de signo en $\tau_{xy}$ frente a SAP2000 proviene de la convención de eje $y$ (la solución de Timoshenko-Goodier emplea $y$ hacia abajo, y el \emph{script} de validación aplica el cambio $y_{\text{FEM}} = -y_{\text{ref}}$, que invierte el signo de las componentes sensibles a la reflexión).
+El cuerpo principal contrastó la tensión normal $\sigma_x$. El modelo de SAP2000 y la resolución analítica que originan las referencias de esta sección se reproducen, como evidencia documental, en el \autoref{anexo:sap2000}. La \autoref{tab:tim-componentes} completa el estado tensional con las componentes $\sigma_y$ y $\tau_{xy}$ en los tres puntos de referencia, junto con su error relativo frente a la solución analítica. La concordancia en estas componentes secundarias es un orden de magnitud peor que en $\sigma_x$: el error llega al $2{,}9\,\%$ en $\tau_{xy}$ y al $0{,}9\,\%$ en $\sigma_y$ en el punto B, y en el punto A ---donde la solución analítica de ambas componentes es nula--- el error relativo no está definido y EduFEM devuelve residuos de $0{,}0138$ y $0{,}0000$~kgf/cm$^2$. Dos factores lo explican: la recuperación de tensiones converge con un orden menor que el desplazamiento (\autoref{tab:mms}), y estas componentes son entre seis y treinta y cinco veces más pequeñas que $\sigma_x$, de modo que un mismo error absoluto pesa mucho más en términos relativos. En $\tau_{xy}$ el modelo de SAP2000 queda, en valor absoluto, más cerca de la solución analítica ($0{,}16\,\%$ en B) que EduFEM. La diferencia de signo en $\tau_{xy}$ frente a SAP2000 proviene de la convención de eje $y$ (la solución de Timoshenko-Goodier emplea $y$ hacia abajo, y el \emph{script} de validación aplica el cambio $y_{\text{FEM}} = -y_{\text{ref}}$, que invierte el signo de las componentes sensibles a la reflexión).
 
 \begin{table}[htbp]
 \centering
@@ -595,9 +616,9 @@ C & $0{,}06272$ & $1{,}45216$ & $0{,}06240$ & $1{,}44530$ & 0,4744 \\
 
 La \autoref{fig:tim-perfil} muestra el perfil de $\sigma_x$ a lo largo del peralte en el centro del vano, cuya variación lineal coincide con la predicción de la \autoref{tab:timoshenko-stress}.
 
-\begin{figure}[htbp]
+\begin{figure}[!htb]
 \centering
-\includegraphics[width=0.55\linewidth]{timoshenko_perfil_x0.png}
+\includegraphics[width=0.5\linewidth]{timoshenko_perfil_x0.png}
 \caption{Perfil de $\sigma_x(y)$ en $x=0$ (centro del vano) de la viga de Timoshenko. La distribución es lineal en el peralte, en consistencia con la teoría de vigas.}
 \label{fig:tim-perfil}
 \end{figure}
@@ -623,7 +644,7 @@ $N$ & $u_x$ (Q4) & $u_x$ (Q9) \\
 \end{tabular}
 \end{table}
 
-\begin{figure}[htbp]
+\begin{figure}[!htb]
 \centering
 \includegraphics[width=0.78\linewidth]{figuras/fig_cook_deformed}
 \caption{Post-proceso de EduFEM: configuración deformada de la membrana de Cook (Q9, $N=8$) con el contorno de magnitud de desplazamiento $|U|$. El empotramiento del borde izquierdo y el desplazamiento creciente hacia el extremo libre cargado son visibles sobre la geometría original (en línea punteada).}
@@ -634,16 +655,18 @@ $N$ & $u_x$ (Q4) & $u_x$ (Q9) \\
 \chapter{Modelo de validación en SAP2000 y solución analítica de Timoshenko}
 \label{anexo:sap2000}
 
-Este anexo reproduce el documento de análisis, elaborado por el autor, del que se obtuvieron las referencias de contraste de la validación de la viga de Timoshenko presentada en el \autoref{cap:resultados} y ampliada en el \autoref{anexo:vyv}. Reúne la resolución analítica de la tensión normal $\sigma_x$ según la teoría de la elasticidad de Timoshenko-Goodier, el modelado de la misma viga en SAP2000 con elementos de cáscara (\emph{shell}) y la comparación numérica punto a punto entre ambas referencias, junto con el contraste por teoría de vigas. Se incorpora como evidencia documental, en su formato original, para dar trazabilidad a las cifras de contraste; por ello su tipografía difiere de la del resto del documento.
+Este anexo reproduce el documento de análisis, elaborado por el autor, del que se obtuvieron las referencias de contraste de la validación de la viga de Timoshenko presentada en el \autoref{cap:resultados} y ampliada en el \autoref{anexo:vyv}. Reúne la resolución analítica de la tensión normal $\sigma_x$ según la teoría de la elasticidad de Timoshenko-Goodier, el modelado de la misma viga en SAP2000 con elementos de cáscara (\emph{shell}) y la comparación numérica punto a punto entre ambas referencias, junto con el contraste por teoría de vigas. Se incorpora como evidencia documental, en su formato original, para dar trazabilidad a las cifras de contraste; por ello su tipografía difiere de la del resto del documento y sus hojas apaisadas se presentan giradas, con el folio de la tesis.
 
-% Replica fiel preservando orientacion: con un solo \includepdf, fitpaper
-% aplica el tamano de la PRIMERA pagina a todo el lote. Como la pag.1 es
-% vertical y las pag.2-11 apaisadas, se separan en dos llamadas para que
-% fitpaper tome el tamano correcto de cada grupo. (Sin pagecommand: insercion
-% raw -> respeta el tamano original; el precio es que no llevan el numero de
-% pagina de la tesis.)
-\includepdf[pages=1,fitpaper=true]{anexos/validacion_sap2000.pdf}
-\includepdf[pages=2-11,fitpaper=true]{anexos/validacion_sap2000.pdf}
+El documento se transcribe sin modificaciones, de modo que conviene dejar constancia de sus erratas: en la primera hoja debe leerse «SAP2000» donde dice «SAP200», «coeficiente de Poisson» donde dice «poison» y «hormigón» sin omitir la tilde; el límite de fluencia del acero que allí figura no interviene en el análisis, que es elástico lineal. En la hoja de discusión de $\sigma_x$, la observación de que en $x = \pm 7$~m «existirá momentos» debe entenderse así: el segundo término de la expresión de Timoshenko-Goodier deja en los apoyos una distribución de $\sigma_x$ autoequilibrada, cuya resultante y cuyo momento son nulos, por lo que el momento flector en los apoyos sigue siendo cero como corresponde a la viga simplemente apoyada.
+
+% Cada pagina lleva el folio de la tesis (pagecommand={\thispagestyle{fancy}}).
+% La pag. 1 del original es vertical (carta) y se ajusta al A4. Las 2-11 son
+% apaisadas: se giran 90 grados sobre la hoja vertical (angle=90), como una
+% figura apaisada, de modo que el numero de pagina queda en su sitio habitual.
+% (Con landscape=true pdfpages usa pdflscape y el encabezado no se imprimia.)
+% scale y offset dejan libre la franja del encabezado.
+\includepdf[pages=1,pagecommand={\thispagestyle{fancy}}]{anexos/validacion_sap2000.pdf}
+\includepdf[pages=2-11,angle=90,scale=0.88,offset=0 -12pt,pagecommand={\thispagestyle{fancy}}]{anexos/validacion_sap2000.pdf}
 
 
 \chapter{Formatos de interoperabilidad}
@@ -653,9 +676,9 @@ EduFEM intercambia datos con el exterior mediante tres formatos de archivo, cada
 
 \section{Proyecto nativo (\texttt{.edufem})}
 
-Un archivo \texttt{.edufem} es un documento de texto en formato JSON, codificado en UTF-8, que almacena la totalidad del modelo --geometría, propiedades, cargas y restricciones-- pero \emph{no} los resultados del cálculo, que se recomputan al reabrir el proyecto. La serialización la produce el método \texttt{to\_dict} de la clase \texttt{ProjectModel}, y la lectura inversa el método \texttt{from\_dict}; ambos comparten el mismo esquema de claves.
+Un archivo \texttt{.edufem} es un documento de texto en formato JSON, codificado en UTF-8, que almacena la totalidad del modelo ---geometría, propiedades, cargas y restricciones--- pero \emph{no} los resultados del cálculo, que se recomputan al reabrir el proyecto. La serialización la produce el método \texttt{to\_dict} de la clase \texttt{ProjectModel}, y la lectura inversa el método \texttt{from\_dict}; ambos comparten el mismo esquema de claves.
 
-El guardado es \textbf{atómico}: el contenido se escribe primero en un archivo temporal del mismo directorio, se fuerza su descarga a disco (\texttt{fsync}) y solo entonces se renombra sobre el destino final mediante \texttt{os.replace}. De este modo, una interrupción a mitad de escritura --un cierre forzado, un disco lleno o un corte de energía-- nunca deja el archivo original corrupto o truncado: queda intacto el contenido anterior o bien el nuevo completo. La escritura usa una indentación de dos espacios y conserva los caracteres no ASCII (\texttt{ensure\_ascii=False}), de modo que el JSON resultante es legible e inspeccionable con cualquier editor de texto.
+El guardado es \textbf{atómico}: el contenido se escribe primero en un archivo temporal del mismo directorio, se fuerza su descarga a disco (\texttt{fsync}) y solo entonces se renombra sobre el destino final mediante \texttt{os.replace}. De este modo, una interrupción a mitad de escritura ---un cierre forzado, un disco lleno o un corte de energía--- nunca deja el archivo original corrupto o truncado: queda intacto el contenido anterior o bien el nuevo completo. La escritura usa una indentación de dos espacios y conserva los caracteres no ASCII (\texttt{ensure\_ascii=False}), de modo que el JSON resultante es legible e inspeccionable con cualquier editor de texto.
 
 El diccionario de nivel superior contiene las claves que detalla la \autoref{tab:edufem-claves}. Las ocho primeras son escalares de configuración global del análisis; las restantes son colecciones de entidades, cada una serializada a su vez con su propio diccionario.
 
@@ -713,7 +736,7 @@ La \autoref{tab:csv-archivos} enumera los seis archivos del paquete con sus colu
 \end{tabular}
 \end{table}
 
-Las columnas son fijas, salvo una salvedad sobre la conectividad de los elementos. La tabla de \texttt{elements.csv} expone \textbf{siempre cuatro columnas de nodo}, \texttt{N1} a \texttt{N4}, que corresponden a los cuatro vértices del cuadrilátero. En una malla Q9, los cinco nodos restantes de cada elemento --los cuatro de arista y el central-- no se escriben en el CSV: se generan automáticamente al reconstruir el modelo, por lo que el formato editable nunca expone columnas \texttt{N5} a \texttt{N9} ni admite su edición manual. Al importar, las cargas y restricciones cuyo nodo no exista en el modelo se descartan silenciosamente, y los materiales se cargan antes que los elementos para que estos puedan referenciarlos por nombre.
+Las columnas son fijas, salvo una salvedad sobre la conectividad de los elementos. La tabla de \texttt{elements.csv} expone \textbf{siempre cuatro columnas de nodo}, \texttt{N1} a \texttt{N4}, que corresponden a los cuatro vértices del cuadrilátero. En una malla Q9, los cinco nodos restantes de cada elemento ---los cuatro de arista y el central--- no se escriben en el CSV: se generan automáticamente al reconstruir el modelo, por lo que el formato editable nunca expone columnas \texttt{N5} a \texttt{N9} ni admite su edición manual. Al importar, las cargas y restricciones cuyo nodo no exista en el modelo se descartan silenciosamente, y los materiales se cargan antes que los elementos para que estos puedan referenciarlos por nombre.
 
 \section{Geometría CAD (\texttt{.dxf})}
 
@@ -724,7 +747,7 @@ Las coordenadas del DXF se toman literalmente, sin factor de escala; su signific
 Al construir cada elemento, la importación impone dos reglas de consistencia con el resto del modelo:
 
 \begin{itemize}
-  \item \textbf{Orientación antihoraria forzada.} Se calcula el área con signo de la polilínea mediante la fórmula del cordón de zapato (\emph{shoelace}), $A = \tfrac{1}{2}\sum_i (x_i\,y_{i+1} - x_{i+1}\,y_i)$ sobre los vértices recorridos en orden y cerrando el ciclo; si resulta negativa --orden horario--, se invierte el orden de los vértices. Sin esta corrección, el determinante del Jacobiano sería negativo y el elemento resultaría inválido.
+  \item \textbf{Orientación antihoraria forzada.} Se calcula el área con signo de la polilínea mediante la fórmula del cordón de zapato (\emph{shoelace}), $A = \tfrac{1}{2}\sum_i (x_i\,y_{i+1} - x_{i+1}\,y_i)$ sobre los vértices recorridos en orden y cerrando el ciclo; si resulta negativa ---orden horario---, se invierte el orden de los vértices. Sin esta corrección, el determinante del Jacobiano sería negativo y el elemento resultaría inválido.
   \item \textbf{Compartición automática de nodos.} Los vértices de cada polilínea se deduplican contra los nodos existentes del proyecto dentro de una tolerancia numérica, de modo que dos elementos adyacentes comparten el nodo común en lugar de duplicarlo.
 \end{itemize}
 
