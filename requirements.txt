@@ -8,8 +8,13 @@ PyMuPDF>=1.24.0,<2
 Pillow>=10.0.0,<14
 ezdxf>=1.0,<2
 #
-# Binario externo OPCIONAL (no instalable por pip): pdflatex (MiKTeX / TeX Live).
-# La Memoria de Cálculo PDF y la teoría usan pylatex -> pdflatex para calidad
-# documento. Sin pdflatex la app sigue funcionando (las fórmulas caen al
-# fallback mathtext). Instalá MiKTeX/TeX Live aparte si querés el PDF.
+# Binario externo, no instalable por pip: pdflatex. Lo necesitan la Memoria de
+# Cálculo en PDF y los documentos de teoría (pylatex -> pdflatex).
+#   - En el programa instalado viaja adentro: el instalador copia un TeX Live
+#     recortado a {app}\texlive.
+#   - Desde el código fuente: `python tools/build_texlive.py` genera el mismo
+#     árbol en vendor/texlive (una sola vez, requiere internet). Si no está, se
+#     usa el pdflatex del PATH (MiKTeX / TeX Live) y, sin ninguno, la app sigue
+#     funcionando: solo esas dos exportaciones quedan sin hacer. Las fórmulas
+#     en pantalla nunca dependen de LaTeX.
 #

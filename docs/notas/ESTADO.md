@@ -9,7 +9,7 @@
 ## Contexto del proyecto
 
 EduFEM está **funcional y empaquetado**: la GUI corre, el motor pasa su batería de tests,
-hay `.exe` (`dist/EduFEM.exe`) e instalador (`installer/EduFEM.iss` → `EduFEM-Setup.exe`).
+hay `.exe` (`dist/EduFEM/`, onedir) e instalador (`installer/EduFEM.iss` → `EduFEM-Setup.exe`).
 El trabajo activo no es construir features nuevas, sino **pulir** el software y **cerrar la
 tesis** (`tesis/`, 130 páginas, compila limpio).
 
@@ -20,10 +20,45 @@ tesis** (`tesis/`, 130 páginas, compila limpio).
 | Cierre de la tesis | `tesis/` | Compila limpio. Abiertas las 5 observaciones bloqueantes de la revisión del 2026-06-10 — ver [ESTADO_AUDITORIAS.md](../auditorias/ESTADO_AUDITORIAS.md) §*Abierto — revisión de la tesis*. Varias son **decisiones de autor**, no fixes mecánicos |
 | Deuda técnica de la auditoría 2026-06-10 | repo | **Cerrada el 2026-09-06** (Top-10 + medios y bajos de §1, §2, §5 y §6). Único pendiente: decidir si se cablea `TheoryDoc.margin_formula()` en la memoria — cambia el layout del PDF, así que necesita validación visual del autor |
 | Mejora continua del software | `docs/rutina/` | **Activa desde el 2026-09-08**: rutina horaria de claude.ai que trabaja directo sobre `main`, una área por sesión con rotación de 14. Qué hizo cada sesión: [../rutina/BITACORA.md](../rutina/BITACORA.md); qué falta y qué espera al autor: [../rutina/BACKLOG.md](../rutina/BACKLOG.md) |
-| Distribución del `.exe` | `installer/` | Vía principal decidida: instalador Inno Setup por usuario, sin admin. Sin firma de código (decisión tomada) |
+| Distribución del `.exe` | `installer/` | Vía principal decidida: instalador Inno Setup por usuario, sin admin. Sin firma de código (decisión tomada). Empaquetado **onedir** desde el 2026-09-10 (arranque 3 s en vez de 12; el entregable sigue siendo un solo archivo) |
 
 ## Decisiones abiertas (esperan al autor)
 
+- **Tabla 1.1 (`tab:comparativa`) reescrita como matriz de atributos (2026-09-10)**: los
+  recursos pasaron a columnas y los atributos a filas, y se agregaron cuatro diferenciadores
+  —memoria de cálculo automática, fenómenos numéricos observables, V&V publicada con la
+  herramienta y requisitos de ejecución—. Las celdas de los otros recursos salen de
+  `tesis/respaldo_citas/` y de los PDF de `tesis/bibliografia/`: donde la fuente no
+  documenta el atributo dice **«No consta»**, y las categorías de propósito general llevan
+  raya en V&V (criterio de armado del propio texto). De paso se aplicaron dos correcciones
+  que el respaldo de citas tenía pendientes para Bishay: «1D/2D» → «2D/3D (barras)» y
+  licencia «Libre» → «No declarada (código MATLAB)». Compila limpio, sin overfull. Está
+  **sin commit**. El autor decide si conserva «No consta» como valor de celda (es honesto
+  pero visible) y si actualiza la copia de esta tabla en `tesis/presentacion/guion.json`,
+  que sigue con las columnas viejas.
+- **Probar el instalador nuevo en un equipo limpio (2026-09-10)**: el entregable pasó a ser
+  un instalador terminado (versión en el `.exe`, licencia, imágenes propias del asistente,
+  asociación de `.edufem` con icono propio, detección de la app abierta, App Paths,
+  desinstalación limpia). Está **sin commit**. Qué comprobar, idealmente en una PC **sin
+  MiKTeX** y con un usuario de Windows con **tilde o espacio** en el nombre —el asistente debe
+  proponer `C:\ProgramData\EduFEM`—: los accesos directos, que el icono anclado a la barra de
+  tareas siga siendo el del acceso directo, el doble clic sobre un `.edufem`, la Memoria de
+  Cálculo en PDF y la desinstalación. Falta decidir si **sube `APP_VERSION`** más allá de
+  1.0.0 antes de la defensa. Detalle:
+  [2026-09-10_instalador-profesional.md](2026-09-10_instalador-profesional.md).
+  **Al commitear**: `installer/assets/*.bmp` y `resources/icons/edufem_doc.ico` están sin
+  versionar y el `.iss` los necesita — `git add -u` no los toma y el repositorio quedaría sin
+  poder compilar el instalador.
+- **Auditoría de distribución (2026-09-10)**, encima de lo anterior y también **sin commit**:
+  el empaquetado pasó a **onedir**, con lo que el programa instalado abre en **3 s** en vez de
+  los 11-15 s que tardaba *siempre* el autoextraíble, ya no deja 189 MB en `%TEMP%` por cada
+  cierre anormal y el `EduFEM-Setup.exe` bajó de 126,4 a **95,5 MB**. Aparte, los seis
+  `filedialog` no declaraban `initialdir`: el primer «Guardar Como» del alumno dejaba su modelo
+  **dentro de la carpeta del programa**, en `AppData`; ahora abren en `Documentos\EduFEM` y
+  recuerdan la última usada. Se verificó sobre el paquete instalado (arranque, doble clic sobre
+  un `.edufem`, registro, accesos directos, Memoria PDF con el TeX instalado). Qué mirar:
+  que «Guardar Como» proponga `Documentos\EduFEM` y el nombre del proyecto. Detalle y lo que
+  quedó abierto: [2026-09-10_un-solo-archivo-que-funcione.md](2026-09-10_un-solo-archivo-que-funcione.md).
 - **Presentación de la tesis en APA 7 (2026-09-10)**: la tesis pasó a formato APA en su
   presentación (márgenes 2,54 cm, doble espacio, sangría 1,27 cm, texto sin justificar,
   paginación arriba a la derecha, títulos y rótulos APA) y **sigue citando en Vancouver**.
@@ -130,6 +165,41 @@ tesis** (`tesis/`, 130 páginas, compila limpio).
 
 ## Hecho recientemente
 
+- **2026-09-11** — **Presentación de defensa y video narrado** en
+  [tesis/presentacion/](../../tesis/presentacion/): `Defensa_EduFEM.pptx` (38 diapositivas,
+  editable, con notas del orador; también en PDF) se construye con `build_deck.py` a partir
+  de `guion.json`, sigue el orden y los tiempos del Taller 6 de la UATF y toma todas las
+  cifras de los `.tex` (actualizada tras la reestructuración de `tab:comparativa`).
+  `video/Defensa_EduFEM.mp4` (25:31, 1080p) narra la defensa completa en primera persona con
+  voz neuronal `es-BO-MarceloNeural` (edge-tts + ffmpeg, `video/hacer_video.py`), con el
+  guion cronometrado en `video/guion_video.md` y una copia del `.pptx` con la narración
+  embebida. `tesis/main.pdf` recompilado (149 hojas). Sin commit; los binarios (`.mp4`,
+  `.pptx` narrado) pesan ~60 MB, el autor decide si los versiona. Pendiente del autor:
+  revisar el video (voz, ritmo, pronunciación de las cifras) y ensayar los tiempos en vivo.
+
+- **2026-09-10** — **Instalador profesional: un archivo que deja todo listo.** El `.exe` ya
+  lleva datos de versión (Windows lo mostraba sin Descripción ni Empresa, que es además una
+  señal que miran los filtros de reputación) y la versión pasó a tener **una sola fuente**,
+  `config/settings.py::APP_VERSION`, que leen `build.spec` y el preprocesador del `.iss`. El
+  asistente estrena imágenes propias, licencia MIT y un texto de bienvenida que dice lo que
+  importa; declara `MinVersion` y arquitectura; deja registro en `%TEMP%` para diagnosticar
+  instalaciones fallidas; registra `App Paths` (Win+R ▸ `edufem`); y **asocia los `.edufem`**
+  con su propio icono (`resources/icons/edufem_doc.ico`, nuevo en `make_icon.py`), de modo que
+  un proyecto se abre con doble clic: `main.py` recibe la ruta como argumento y
+  `MainWindow(project_path=...)` la abre. `main.py` además fija el **AppUserModelID** (sin él,
+  el icono anclado a la barra de tareas se desprende del acceso directo) y crea el **mutex**
+  que le permite al asistente ver que EduFEM está abierto en vez de copiar sobre un `.exe` en
+  uso; las tres constantes viven en `config/settings.py` y `tests/test_distribucion.py` (12
+  checks, en el gate) verifica que el `.iss` no se desincronice. `tools/build_all.ps1` quedó
+  en cuatro pasos, con la carpeta portable como opción (`-Portable`) en vez de armarla en cada
+  build: `dist/` queda con solo `EduFEM.exe`, y `docs/MAPA.md` §2 explica cuál de las carpetas
+  generadas es el entregable y cuál se puede borrar. **El `.exe` adelgazó 3,9 MB**: apareció
+  `lxml` en el bundle, que entra porque `fontTools` lo prefiere si está en el entorno y que
+  nadie en EduFEM importa; excluido en `build.spec`. Actualizados el LEEME, `README.md`,
+  `CLAUDE.md`, `docs/MAPA.md`, `tools/README.md`, `requirements.txt`,
+  `.claude/rules/empaquetado.md` y la **tesis** (Anexo A y §3: el manual ya no pide instalar
+  MiKTeX). Gate verde. **Sin commit** (el autor prueba el instalador). Detalle y trampas del
+  `.iss`: [2026-09-10_instalador-profesional.md](2026-09-10_instalador-profesional.md).
 - **2026-09-09** — **Las tres fuentes que el autor no tiene, resueltas; `.bib` ajustado a sus
   ejemplares.** `roache1998verification` → **`oberkampf2010vv`** (que sí tiene);
   `perezsantiago2023fem` se retiró y **volvió el mismo día**, porque el autor consiguió el PDF:

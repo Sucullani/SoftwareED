@@ -7,9 +7,24 @@ import os
 import sys
 
 # ─── Información de la aplicación ───────────────────────────────────────────
+# APP_VERSION es la ÚNICA fuente de la versión: `installer/EduFEM.iss` la lee
+# de este archivo con su preprocesador y `build.spec` la escribe en los datos
+# de versión del `.exe`. Subirla acá alcanza para que el instalador, las
+# propiedades del ejecutable y el diálogo Acerca de queden de acuerdo.
 APP_NAME = "EduFEM - Software Educativo de Elementos Finitos"
 APP_VERSION = "1.0.0"
 APP_AUTHOR = "Tesis de Grado"
+APP_PUBLISHER = "Hedy Yhassmany Oyola Sucullani"
+APP_URL = "https://github.com/Sucullani/SoftwareED"
+
+# Identidad del proceso ante Windows. El instalador escribe el mismo
+# AppUserModelID en los accesos directos: sin eso, Windows agrupa la ventana
+# por el nombre del ejecutable y el icono que el alumno ancla a la barra de
+# tareas se desprende del acceso directo. El mutex le permite al instalador
+# (directiva `AppMutex`) darse cuenta de que EduFEM está abierto y ofrecer
+# cerrarlo, en vez de copiar sobre un `.exe` en uso.
+APP_USER_MODEL_ID = "Sucullani.EduFEM.Aplicacion.1"
+APP_MUTEX_NAME = "EduFEM.InstanciaEnEjecucion"
 
 # ─── Rutas ──────────────────────────────────────────────────────────────────
 def _base_dir() -> str:

@@ -1,39 +1,33 @@
-============================================================
+﻿============================================================
   EduFEM - Software Educativo de Elementos Finitos
-  Guia de uso, instalacion y distribucion
-  Version 1.0.0
+  Guía de uso e instalación
+  Versión 1.0.0
 ============================================================
 
-EduFEM es una aplicacion educativa de analisis por el Metodo de
-Elementos Finitos (MEF) en 2D (tension plana / deformacion plana),
-con elementos cuadrilateros Q4 y Q9.
+EduFEM es una aplicación educativa de análisis por el Método de
+Elementos Finitos (MEF) en 2D (tensión plana y deformación
+plana), con elementos cuadriláteros Q4 y Q9.
 
-Este archivo cubre las DOS formas en que se entrega EduFEM:
-  (A) INSTALADO  ->  con "EduFEM-Setup.exe" (icono en el Escritorio
-                     y en el menu Inicio).
-  (B) PORTABLE   ->  una carpeta con estos archivos:
-        - EduFEM.exe                       ->  el programa.
-        - Iniciar EduFEM.bat               ->  lanzador recomendado.
-        - Crear acceso directo EduFEM.bat  ->  crea el icono en el
-                                               Escritorio.
-        - LEEME.txt                        ->  esta guia.
+Todo lo que el programa necesita viaja dentro del instalador:
+no hay que instalar Python, ni MiKTeX, ni ninguna otra cosa, y
+no hace falta conexión a internet ni permisos de administrador.
 
 
 ------------------------------------------------------------
-1. QUE PUEDE HACER EduFEM
+1. QUÉ PUEDE HACER EduFEM
 ------------------------------------------------------------
-- Modela y resuelve problemas 2D de elasticidad lineal (tension
-  plana y deformacion plana) con elementos Q4 y Q9.
-- PRE-PROCESO: dibuja la malla sobre un lienzo, define materiales,
-  cargas y restricciones; importa geometria desde DXF y modelos
-  desde CSV/Excel.
-- PROCESO: resuelve por el MEF y ofrece 8 modulos educativos
-  interactivos que muestran paso a paso el mapeo isoparametrico,
+- Modela y resuelve problemas 2D de elasticidad lineal (tensión
+  plana y deformación plana) con elementos Q4 y Q9.
+- PRE-PROCESO: dibuja la malla sobre un lienzo, define
+  materiales, cargas y restricciones; importa geometría desde
+  DXF y modelos desde CSV/Excel.
+- PROCESO: resuelve por el MEF y ofrece 8 módulos educativos
+  interactivos que muestran paso a paso el mapeo isoparamétrico,
   el Jacobiano, las matrices B y D, la rigidez con cuadratura de
   Gauss, las fuerzas equivalentes y el ensamblaje global.
-- POST-PROCESO: contornos de tension y desplazamiento, malla
-  deformada, vista 3D y sonda puntual con circulo de Mohr.
-- Genera una Memoria de Calculo en PDF con el procedimiento
+- POST-PROCESO: contornos de tensión y desplazamiento, malla
+  deformada, vista 3D y sonda puntual con círculo de Mohr.
+- Genera una Memoria de Cálculo en PDF con el procedimiento
   completo, y exporta modelos y resultados a CSV/Excel.
 
 
@@ -41,151 +35,180 @@ Este archivo cubre las DOS formas en que se entrega EduFEM:
 2. REQUISITOS
 ------------------------------------------------------------
 - Sistema: Windows 10 u 11 de 64 bits.
-- Memoria RAM: 4 GB recomendado (2 GB minimo).
-- Disco: unos 400 MB libres (programa + TeX embebido + extraccion
-  temporal).
-- No requiere conexion a internet ni tarjeta grafica dedicada.
-- NO requiere MiKTeX ni ninguna otra instalacion de LaTeX: el
-  instalador incluye su propio TeX (carpeta "texlive" junto al
-  programa) para la Memoria de Calculo y la Teoria en PDF.
-- En la version PORTABLE no hace falta instalar nada: manten
-  SIEMPRE juntos "EduFEM.exe", "Iniciar EduFEM.bat" y la carpeta
-  "texlive" en la misma carpeta.
+- Memoria RAM: 4 GB recomendado (2 GB mínimo).
+- Disco: unos 450 MB libres.
+- No requiere internet, tarjeta gráfica dedicada, Python,
+  MiKTeX ni permisos de administrador.
 
 
 ------------------------------------------------------------
-3. COMO ABRIR EL PROGRAMA
+3. INSTALACIÓN
 ------------------------------------------------------------
-(A) SI LO INSTALASTE con "EduFEM-Setup.exe":
-  Hace doble clic en el icono "EduFEM" del Escritorio, o buscalo
-  en el menu Inicio. No aparece ningun aviso de seguridad.
+Doble clic en "EduFEM-Setup.exe" y seguir el asistente. La
+instalación es para el usuario actual, así que Windows no pide
+la contraseña de administrador.
 
-(B) SI TENES LA CARPETA PORTABLE:
-  RECOMENDADO:
-    Hace doble clic en  ->  "Iniciar EduFEM.bat"
-    Abre EduFEM sin el aviso de seguridad de Windows. No requiere
-    instalacion, permisos de administrador ni configuracion.
-    (Puede verse por un instante una ventana negra: es normal, se
-    cierra sola.)
+El asistente permite elegir:
+  - Crear un icono en el Escritorio (recomendado).
+  - Asociar los archivos ".edufem" con EduFEM (recomendado):
+    con eso, un proyecto se abre haciendo doble clic sobre él.
 
-  ICONO EN EL ESCRITORIO (opcional, recomendado):
-    Hace doble clic UNA VEZ en "Crear acceso directo EduFEM.bat".
-    Aparece el icono "EduFEM" en tu Escritorio; desde ahi abris el
-    programa con un clic, como cualquier aplicacion, sin avisos.
+CARPETA DE INSTALACIÓN: si tu nombre de usuario de Windows
+tiene tildes o espacios (por ejemplo C:\Users\José Pérez\...),
+el asistente propone instalar en C:\ProgramData\EduFEM. Aceptá
+esa carpeta: el generador de PDF que viene incluido no funciona
+en rutas con esos caracteres.
 
-  ALTERNATIVA:
-    Tambien podes hacer doble clic directo en "EduFEM.exe". En ese
-    caso Windows puede mostrar el aviso "Windows protegio su PC"
-    ->  ver la seccion 4.
-
-IMPORTANTE (en cualquiera de las formas): el PRIMER arranque es
-mas lento (puede tardar entre 10 y 40 segundos), porque la primera
-vez el programa descomprime sus componentes a una carpeta temporal.
-Espera a que aparezca la ventana; no hagas doble clic varias veces.
+La primera ejecución de "EduFEM-Setup.exe" puede mostrar el
+aviso de seguridad de Windows; ver la sección 8.
 
 
 ------------------------------------------------------------
-4. SI APARECE "Windows protegio su PC" (SmartScreen)
+4. CÓMO ABRIR EL PROGRAMA
 ------------------------------------------------------------
-Esto solo aparece si abris "EduFEM.exe" directamente. Con el
-instalador, o con el lanzador "Iniciar EduFEM.bat", normalmente NO
-aparece.
+Cualquiera de estas tres formas:
+  - Doble clic en el icono "EduFEM" del Escritorio.
+  - Menú Inicio -> carpeta "EduFEM" -> "EduFEM".
+  - Tecla Windows + R, escribir  edufem  y Enter.
 
+La ventana aparece en unos 3 segundos. La primera vez después
+de instalar puede tardar unos segundos más, mientras Windows
+revisa los archivos nuevos.
+
+
+------------------------------------------------------------
+5. LOS ARCHIVOS .edufem
+------------------------------------------------------------
+Los modelos se guardan con la extensión ".edufem" (menú Archivo
+-> Guardar). La primera vez, el programa propone guardarlos en
+la carpeta "Documentos\EduFEM"; después recuerda la última que
+hayas usado. Si aceptaste la asociación durante la instalación,
+esos archivos se muestran con el icono de EduFEM y se abren con
+doble clic.
+
+Si no la aceptaste y querés abrirlos así más adelante: clic
+derecho sobre un ".edufem" -> Abrir con -> Elegir otra
+aplicación -> EduFEM -> marcar "Usar siempre esta aplicación".
+
+
+------------------------------------------------------------
+6. PRIMEROS PASOS DENTRO DEL PROGRAMA
+------------------------------------------------------------
+- Menú "Ayuda" -> "Cargar Ejemplo": modelos de demostración
+  (cuadrado de validación, viga de Timoshenko, membrana de
+  Cook), en versiones Q4 y Q9.
+- Menú "Ayuda" -> "Manual" y "Atajos" para más información.
+- Pulsar F5 (o abrir la pestaña POST-PROCESO) para resolver.
+- Menú "Archivo" -> Guardar / Abrir: los modelos se guardan como
+  archivos ".edufem" y se pueden retomar después.
+
+
+------------------------------------------------------------
+7. MEMORIA DE CÁLCULO Y TEORÍA EN PDF (LaTeX incluido)
+------------------------------------------------------------
+La "Memoria de Cálculo (PDF)" y el documento "Teoría MEF" se
+componen con LaTeX. EduFEM trae su propio motor LaTeX en la
+carpeta "texlive", junto al programa: no hay que instalar
+MiKTeX, no hace falta internet y no aparece ningún diálogo
+pidiendo instalar paquetes.
+
+Si esa carpeta faltara, EduFEM usa el pdflatex que encuentre
+instalado en la PC; y si tampoco lo hay, muestra un aviso con un
+botón de descarga. La solución más simple en ese caso es volver
+a instalar EduFEM con el instalador completo.
+
+Las fórmulas que se ven DENTRO del programa no usan LaTeX: se
+dibujan con un motor propio y siempre están disponibles.
+
+
+------------------------------------------------------------
+8. SI APARECE "Windows protegió su PC" (SmartScreen)
+------------------------------------------------------------
+Puede aparecer al ejecutar "EduFEM-Setup.exe" por primera vez.
 Es un aviso NORMAL de Windows ante programas nuevos sin firma
-comercial. EduFEM NO es un virus: es una aplicacion propia,
-desarrollada como trabajo de tesis.
+comercial. EduFEM NO es un virus: es una aplicación propia,
+desarrollada como trabajo de tesis, y su código fuente completo
+es público (ver la sección 11).
 
-Para ejecutarlo de todas formas:
-  1) Clic en "Mas informacion".
-  2) Clic en el boton "Ejecutar de todas formas".
-Esa autorizacion queda recordada para ese archivo en esa PC.
+Para continuar:
+  1) Clic en "Más información".
+  2) Clic en el botón "Ejecutar de todas formas".
 
-(Algunos antivirus tambien pueden marcar programas nuevos sin
+Una vez instalado, el programa se abre desde su icono sin
+ningún aviso.
+
+(Algunos antivirus también pueden marcar programas nuevos sin
 firma: es un falso positivo habitual en aplicaciones generadas
 con PyInstaller.)
 
 
 ------------------------------------------------------------
-5. PRIMEROS PASOS DENTRO DEL PROGRAMA
+9. SOLUCIÓN DE PROBLEMAS
 ------------------------------------------------------------
-- Menu "Ayuda"  ->  "Cargar Ejemplo": modelos de demostracion
-  (cuadrado de validacion, viga de Timoshenko, membrana de Cook),
-  en versiones Q4 y Q9.
-- Menu "Ayuda"  ->  "Manual" y "Atajos" para mas informacion.
-- Pulsar F5 (o abrir la pestana POST-PROCESO) para resolver.
-- Menu "Archivo"  ->  Guardar / Abrir: los modelos se guardan como
-  archivos ".edufem" (podes retomarlos despues).
-
-
-------------------------------------------------------------
-6. MEMORIA DE CALCULO EN PDF  (LaTeX incluido)
-------------------------------------------------------------
-La "Memoria de Calculo (PDF)" y la "Teoria MEF" se generan con
-LaTeX. EduFEM trae su propio TeX (un TeX Live recortado, carpeta
-"texlive" junto al programa): NO hay que instalar MiKTeX, no hace
-falta internet y no aparece ningun dialogo de instalacion de
-paquetes.
-
-Si la carpeta "texlive" no esta (por ejemplo, se copio solo el
-EduFEM.exe de la version portable), EduFEM usa el pdflatex que
-encuentre instalado en la PC (MiKTeX o TeX Live). Con MiKTeX, los
-paquetes que falten se instalan solos (requiere internet). Si no
-hay ninguno, aparece un aviso con un boton de descarga; lo mas
-simple es volver a instalar EduFEM con el instalador completo.
-
-Si tu nombre de usuario de Windows tiene tildes o espacios
-(C:\Users\Jose Perez\...), el instalador propone instalar en
-C:\ProgramData\EduFEM: el TeX embebido no funciona en carpetas con
-esos caracteres. Acepta esa carpeta.
-
-Nota: las formulas que se ven DENTRO del programa NO usan LaTeX --
-se dibujan con un motor propio.
+- Aparece "Windows protegió su PC" o el antivirus lo marca:
+  falso positivo habitual; ver la sección 8.
+- No se genera la Memoria PDF: falta la carpeta "texlive" junto
+  al programa (ver la sección 7). Reinstalá con el instalador
+  completo.
+- La Memoria PDF falla y el programa está instalado en una
+  carpeta con tildes o espacios: reinstalá en
+  C:\ProgramData\EduFEM (ver la sección 3).
+- La ventana se ve cortada o los botones no entran: es un
+  problema de escala de pantalla; probá bajar el zoom en
+  Configuración de Windows -> Pantalla -> Escala.
+- El programa no abre: verificá que el sistema sea Windows 10 u
+  11 de 64 bits y volvé a instalar.
+- Para reportar un problema, el instalador deja un registro en
+  la carpeta temporal del usuario (archivos "Setup Log *.txt").
 
 
 ------------------------------------------------------------
-7. SOLUCION DE PROBLEMAS
+10. DESINSTALAR
 ------------------------------------------------------------
-- El primer arranque tarda 10-40 s: es normal (se descomprimen los
-  componentes la primera vez). Espera a que aparezca la ventana.
-- Aparece "Windows protegio su PC" o el antivirus lo marca: falso
-  positivo habitual en programas nuevos sin firma; usa el lanzador
-  "Iniciar EduFEM.bat" o segui la seccion 4.
-- No se genera la Memoria PDF: falta la carpeta "texlive" junto al
-  programa (ver seccion 6). Reinstala con el instalador completo o,
-  en la version portable, copia la carpeta "texlive" junto a
-  EduFEM.exe.
-- La Memoria falla y el programa esta instalado en una carpeta con
-  tildes o espacios: reinstala en C:\ProgramData\EduFEM (seccion 6).
-- El lanzador no encuentra el programa: asegurate de que
-  "Iniciar EduFEM.bat" este en la MISMA carpeta que "EduFEM.exe".
-- El programa no abre: verifica que el sistema sea Windows de 64
-  bits y volve a instalar desde el instalador.
+Configuración de Windows -> Aplicaciones -> EduFEM ->
+Desinstalar. También está el acceso "Desinstalar EduFEM" en la
+carpeta EduFEM del menú Inicio.
+
+La desinstalación borra el programa y el motor LaTeX incluido.
+NO borra tus modelos ".edufem": esos quedan donde los hayas
+guardado.
 
 
 ------------------------------------------------------------
-8. DESINSTALAR
+11. CÓDIGO FUENTE Y LICENCIA
 ------------------------------------------------------------
-- Version INSTALADA: Configuracion de Windows -> Aplicaciones ->
-  EduFEM -> Desinstalar, o el acceso "Desinstalar EduFEM" del
-  menu Inicio.
-- Version PORTABLE: borra la carpeta (y el acceso directo del
-  Escritorio, si lo creaste). No deja nada en el sistema.
-
-
-------------------------------------------------------------
-9. SOPORTE, CODIGO FUENTE Y LICENCIA
-------------------------------------------------------------
-EduFEM es software libre y de codigo abierto. El codigo fuente,
-las novedades y la forma de reportar problemas estan en:
+EduFEM es software libre y de código abierto, bajo licencia MIT
+(el texto completo está en LICENCIA.txt, junto al programa). El
+código fuente, las novedades y la forma de reportar problemas
+están en:
 
     https://github.com/Sucullani/SoftwareED
+
+
+------------------------------------------------------------
+12. NOTA: CARPETA PORTABLE
+------------------------------------------------------------
+Además del instalador, EduFEM puede entregarse como una carpeta
+que no se instala. En ese caso hay que mantener juntos, en la
+misma carpeta:
+
+    EduFEM.exe                       el programa
+    _internal\                       sus componentes (no tocar)
+    texlive\                         el motor LaTeX (Memoria PDF)
+    Iniciar EduFEM.bat               lanzador recomendado
+    Crear acceso directo EduFEM.bat  crea el icono del Escritorio
+
+Doble clic en "Iniciar EduFEM.bat" abre el programa evitando el
+aviso de SmartScreen. En esta modalidad no hay asociación de
+archivos ni entrada en el menú Inicio: para eso está el
+instalador, que es la vía recomendada.
 
 
 ============================================================
   AUTOR
   Hedy Yhassmany Oyola Sucullani
-  Carrera de Ingenieria Civil
-  Universidad Autonoma "Tomas Frias" -- Potosi, Bolivia
+  Carrera de Ingeniería Civil
+  Universidad Autónoma "Tomás Frías" -- Potosí, Bolivia
   Correo: hedy.yhassmany@gmail.com
   Repositorio: https://github.com/Sucullani/SoftwareED
 

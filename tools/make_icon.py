@@ -225,20 +225,76 @@ def build_master() -> Image.Image:
     return img
 
 
+# ── Icono de los archivos .edufem ──────────────────────────────────────
+# Los proyectos se guardan como `.edufem` y el instalador asocia esa
+# extension al programa. Sin un icono propio, el Explorador les pone la hoja
+# blanca generica de "tipo desconocido" y el alumno no distingue sus modelos
+# del resto de los archivos. El icono del documento reusa el birrete-malla
+# (misma identidad que el de la app) sobre una hoja con la esquina doblada,
+# que es la convencion visual de "archivo de datos de este programa".
+
+PAPER = (252, 253, 255, 255)        # hoja
+PAPER_EDGE = (176, 186, 200, 255)   # borde de la hoja
+FOLD = (214, 222, 233, 255)         # triangulo de la esquina doblada
+
+
+def build_document_master() -> Image.Image:
+    """Icono de un proyecto `.edufem`: hoja con el birrete-malla encima."""
+    img = Image.new("RGBA", (SS, SS), (0, 0, 0, 0))
+
+    # Geometria de la hoja (retrato, con margen para la sombra).
+    w, h = SS * 0.62, SS * 0.80
+    x0, y0 = (SS - w) / 2, (SS - h) / 2 - SS * 0.015
+    x1, y1 = x0 + w, y0 + h
+    fold = SS * 0.19                       # lado del doblez (esquina sup. der.)
+    page = [(x0, y0), (x1 - fold, y0), (x1, y0 + fold), (x1, y1), (x0, y1)]
+
+    # Sombra de contacto: la hoja desplazada y desenfocada.
+    shadow = Image.new("RGBA", (SS, SS), (0, 0, 0, 0))
+    ImageDraw.Draw(shadow).polygon(
+        [(px + SS * 0.012, py + SS * 0.022) for px, py in page], fill=SHADOW)
+    img.alpha_composite(shadow.filter(ImageFilter.GaussianBlur(SS * 0.016)))
+
+    d = ImageDraw.Draw(img)
+    d.polygon(page, fill=PAPER, outline=PAPER_EDGE, width=int(SS * 0.008))
+    # Doblez: triangulo mas oscuro + su diagonal, que es lo que lo lee como
+    # una esquina levantada y no como un recorte.
+    d.polygon([(x1 - fold, y0), (x1, y0 + fold), (x1 - fold, y0 + fold)],
+              fill=FOLD, outline=PAPER_EDGE, width=int(SS * 0.006))
+
+    # Birrete-malla centrado en la hoja. build_master() lo dibuja con su
+    # propia sombra sobre fondo transparente, asi que basta escalarlo.
+    emblem_w = int(w * 1.02)
+    emblem = build_master().resize((emblem_w, emblem_w), Image.Resampling.LANCZOS)
+    img.alpha_composite(emblem, (int((SS - emblem_w) / 2),
+                                 int(y0 + h * 0.50 - emblem_w / 2)))
+    return img
+
+
+ICO_SIZES = [(16, 16), (24, 24), (32, 32), (48, 48),
+             (64, 64), (128, 128), (256, 256)]
+
+
 def main() -> None:
     here = os.path.dirname(os.path.abspath(__file__))
     out_dir = os.path.normpath(os.path.join(here, "..", "resources", "icons"))
     os.makedirs(out_dir, exist_ok=True)
-    out_ico = os.path.join(out_dir, "edufem.ico")
-    out_png = os.path.join(out_dir, "edufem_preview.png")
 
     base = build_master().resize((256, 256), Image.Resampling.LANCZOS)
-    base.save(out_ico, format="ICO",
-              sizes=[(16, 16), (24, 24), (32, 32), (48, 48),
-                     (64, 64), (128, 128), (256, 256)])
+    out_ico = os.path.join(out_dir, "edufem.ico")
+    base.save(out_ico, format="ICO", sizes=ICO_SIZES)
+    out_png = os.path.join(out_dir, "edufem_preview.png")
     base.save(out_png)
-    print("Icono generado:", out_ico)
+    print("Icono de la app:", out_ico)
     print("Preview PNG:", out_png)
+
+    # Del icono de documento NO se emite preview PNG: `edufem_preview.png` si
+    # existe porque `make_installer_images.py` lo consume como fuente, pero un
+    # segundo PNG que nadie lee es un archivo suelto mas en el repo.
+    doc = build_document_master().resize((256, 256), Image.Resampling.LANCZOS)
+    out_doc = os.path.join(out_dir, "edufem_doc.ico")
+    doc.save(out_doc, format="ICO", sizes=ICO_SIZES)
+    print("Icono de los .edufem:", out_doc)
 
 
 if __name__ == "__main__":

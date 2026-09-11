@@ -62,6 +62,7 @@ TESTS_RAPIDOS = [
     "tests.test_canvas_raster",       # el mas lento del grupo (~26 s)
     "tests.test_vv_extensions",
     "tests.test_interop",
+    "tests.test_distribucion",        # instalador, version, .edufem por argumento
     # Sin compilar PDF: los 4 tests que necesitan pdflatex se saltan
     # solos y quedan para --con-latex. Los otros 38 solo generan el
     # .tex, y son los que protegen las invariantes del documento (sin

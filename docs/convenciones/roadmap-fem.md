@@ -26,7 +26,7 @@ API pública `solve_system(project) → dict` queda fija para no obligar a tocar
 
 **Reglas transversales**:
 - **Pureza `fem/`**: cero imports de tk/matplotlib/ttkbootstrap. Debe correr sin GUI.
-- **Sin numba ni JIT** (decisión 2026-09-06): el rendimiento sale de vectorizar por lotes en NumPy, no de compilar. Un kernel escalar "pensado para numba" es el peor código posible cuando numba no está, que es el caso del `.exe` (onefile extrae a una carpeta aleatoria y el cache del JIT nunca acierta). Si algo es lento, el camino es `fem/batch.py`, o un helper NumPy análogo en `gui/preprocessing/canvas_raster.py` para el canvas.
+- **Sin numba ni JIT** (decisión 2026-09-06): el rendimiento sale de vectorizar por lotes en NumPy, no de compilar. Un kernel escalar "pensado para numba" es el peor código posible cuando numba no está, que es el caso del `.exe`: `build.spec` lo excluye del bundle, porque son +40 MB y una recompilación que el alumno paga en el primer uso de cada módulo. Si algo es lento, el camino es `fem/batch.py`, o un helper NumPy análogo en `gui/preprocessing/canvas_raster.py` para el canvas.
 - **Contrato de `element_data`**: `assemble_global_system` retorna un `ElementData` (dict `{elem_id: {ke, dof_indices, node_coords, B, det_J}}` con vistas) más el atributo `.batch` (`ElementBatch`). El post-proceso lee `.batch`; la memoria de cálculo y los scripts de la tesis leen el dict.
 - **Tipado**: `from __future__ import annotations` + type hints en firmas públicas.
 - **Tolerancias centralizadas**: `NUMERICAL_TOLERANCE = 1e-10`, `JACOBIAN_MIN_DETERMINANT = 1e-12` de settings. No introducir tolerancias locales ad-hoc.

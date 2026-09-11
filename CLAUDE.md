@@ -34,9 +34,11 @@ paths ni logs. Casos borde en
 
 ```bash
 python main.py                        # GUI
+python main.py modelo.edufem          # abre ese proyecto (es lo que hace el doble clic)
 pip install -r requirements.txt
 python tools/build_texlive.py         # -> vendor/texlive (TeX Live recortado, una vez; internet)
-pyinstaller --noconfirm build.spec    # -> dist/EduFEM.exe (onefile, ~101 MB)
+powershell -File tools/build_all.ps1  # cadena completa -> installer/Output/EduFEM-Setup.exe
+pyinstaller --noconfirm build.spec    # solo el .exe (onefile, ~101 MB)
 ```
 
 **Gate de verificación**: `python -m tests.run_gates` (~1,5 min, sin pantalla) importa los 100
@@ -58,14 +60,22 @@ Tests — scripts printout, se corren sueltos con `python -m tests.<nombre>`:
 | GUI e interacción | `test_draw_mode` · `test_pick_ghost` · `test_selection_integration` · `test_canvas_delete` (borrado multi desde el canvas, sin display) · `test_pre_tab_delete` (borrado y pegado desde las 5 tablas, sin display) · `test_dialogs` (`gui/dialogs/`: validación, navegación del reporte de salud, orden del undo, sin display) · `test_canvas_visualization` · `test_canvas_lens` (cuadrícula del mundo, lente del elemento, textos del lector, patrón de K; sin display) · `test_canvas_lens_gui` (lentes por fase, GDL, reacciones, esqueleto de K en M7 y tira del método con Tk real) · `test_canvas_raster` (paridad píxel a píxel del rasterizado, isolíneas y contorno de la memoria) · `test_dpi_layout` (dimensionado de ventanas contra la pantalla real, sin display) · `test_dpi_layout_gui` (abre cada ventana simulando 4 pantallas y escalados de Windows, con Tk real) |
 | Otros | `test_memoria_calculo` (con `--sin-compilar` corre solo lo que no necesita pdflatex; así entra en el gate rápido) · `test_latex_runtime` (resolución del compilador, ruta ASCII, errores) · `test_probe_query` · `bench_timing` · `generate_example_dxf` |
 
-**Empaquetado**: PyInstaller en modo onefile → un `dist/EduFEM.exe` autoextraíble; el
-bootloader descomprime a `sys._MEIPASS` y lanza la app como proceso hijo. Bundlea
+**Empaquetado**: el entregable es **uno solo**, `installer/Output/EduFEM-Setup.exe`, y lo arma
+`powershell -File tools/build_all.ps1` (TeX → iconos e imágenes → `.exe` → instalador; con
+`-Portable` deja además `dist/EduFEM/` como carpeta autónoma, que **no** es la vía de
+distribución). PyInstaller en modo **onedir** produce `dist/EduFEM/` (lanzador + `_internal/`),
+que el instalador copia entero a `{app}`. **No volver a onefile**: medido el 2026-09-10, el
+autoextraíble arrancaba en 11-15 s *cada vez* —re-extrae ~190 MB a `%TEMP%` en cada arranque—
+contra 3 s de onedir, y dejaba 189 MB de basura en `%TEMP%` por cada cierre anormal. Bundlea
 `resources/`, los datos de matplotlib y los hidden imports (pylatex, fitz, ezdxf,
 scipy.sparse, TkAgg y `education/mod*.py` por glob). **LaTeX embebido**: el instalador lleva
 un TeX Live recortado (`vendor/texlive`, generado por `tools/build_texlive.py`) como carpeta
 `texlive/` hermana del `.exe`; `education/components/latex_runtime.py` lo resuelve antes que
 el `pdflatex` del PATH, así la Memoria PDF y la Teoría compilan sin MiKTeX, sin internet y sin
-diálogos. Si no hay ninguno, abre un diálogo con botón de descarga. Detalle —
+diálogos. **La versión sale solo de `config/settings.py::APP_VERSION`** (la leen `build.spec`
+y el `.iss`). El instalador es por usuario sin UAC, asocia la extensión `.edufem` y comparte
+con `main.py` el AppUserModelID y el mutex de `config/settings.py`. Detalle —
+[.claude/rules/empaquetado.md](.claude/rules/empaquetado.md),
 [convenciones/arquitectura.md](docs/convenciones/arquitectura.md) y
 [convenciones/memoria-calculo.md](docs/convenciones/memoria-calculo.md).
 
@@ -81,9 +91,9 @@ gui/         tkinter + ttkbootstrap (pre / proc / post + canvas compartido)
 education/   módulos M0..M7 (overlays sobre el canvas real)
 tests/       scripts printout: test_* (regresión) y vv_* (verificación y validación)
 resources/   videos .webp, iconos, fuentes, DXF de ejemplo   → RUTAS DURAS, no mover
-tools/       scripts de build: icono, TeX Live recortado, instalador, render Manim de los videos
+tools/       scripts de build: iconos, imágenes del asistente, TeX Live, .exe, instalador
 vendor/      texlive/ generado por tools/build_texlive.py (gitignored; lo embebe el instalador)
-installer/   EduFEM.iss (Inno Setup) + dist_extra/ (lanzadores .bat + LEEME)
+installer/   EduFEM.iss (Inno Setup) + assets/ (imágenes del asistente) + dist_extra/ (LEEME + .bat)
 docs/        documentación del proyecto → ver docs/README.md
 tesis/       fuente LaTeX de la tesis   → ver tesis/README.md
 ```

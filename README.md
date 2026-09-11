@@ -28,11 +28,11 @@ Civil (Universidad Autónoma "Tomás Frías", Potosí, Bolivia).
 
 ### Usuario final (Windows)
 
-Descargá `EduFEM-Setup.exe` y ejecutalo: se instala por usuario, sin permisos de
-administrador. Guía completa: [installer/dist_extra/LEEME.txt](installer/dist_extra/LEEME.txt).
-
-El instalador incluye un TeX Live recortado propio: la **Memoria de Cálculo en PDF** y la
-Teoría se generan sin instalar MiKTeX y sin conexión a internet.
+Descargá `EduFEM-Setup.exe` y ejecutalo. Es un archivo único que trae todo: se instala por
+usuario y sin permisos de administrador, crea los accesos directos, asocia los archivos
+`.edufem` y registra el desinstalador. No hace falta Python, ni MiKTeX, ni internet: el
+paquete incluye un TeX Live recortado con el que se generan la **Memoria de Cálculo en PDF**
+y la Teoría. Guía completa: [installer/dist_extra/LEEME.txt](installer/dist_extra/LEEME.txt).
 
 ### Desde el código fuente
 
@@ -46,6 +46,18 @@ Requiere **Python 3.11+**. Dependencias: NumPy, SciPy, SymPy, matplotlib, ttkboo
 pylatex, PyMuPDF, Pillow, ezdxf. Para la memoria en PDF: `python tools/build_texlive.py`
 genera `vendor/texlive` (TeX Live recortado, una sola vez); si no está, se usa el `pdflatex`
 del PATH (MiKTeX o TeX Live).
+
+### Armar el instalador
+
+```bash
+powershell -ExecutionPolicy Bypass -File tools/build_all.ps1
+```
+
+Encadena los cuatro pasos (TeX embebido, iconos e imágenes, ejecutable e instalador) y deja
+el entregable en `installer/Output/EduFEM-Setup.exe` — una carpeta ignorada por git, así que
+el editor puede no mostrarla. Necesita
+[Inno Setup 6](https://jrsoftware.org/isinfo.php) (`winget install JRSoftware.InnoSetup`).
+La versión sale de `APP_VERSION` en [config/settings.py](config/settings.py).
 
 ## Uso rápido
 
@@ -73,7 +85,7 @@ python -m tests.vv_cook           # membrana de Cook
 ## Empaquetado
 
 ```bash
-pyinstaller --noconfirm build.spec              # dist/EduFEM.exe (onefile)
+pyinstaller --noconfirm build.spec              # dist/EduFEM/ (onedir)
 powershell -File tools/build_all.ps1            # icono + .exe + instalador
 ```
 

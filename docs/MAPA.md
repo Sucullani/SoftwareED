@@ -11,7 +11,7 @@ SoftwareED/
 ├─ AGENTS.md            puntero para agentes que no leen CLAUDE.md
 ├─ README.md            qué es EduFEM, cómo instalarlo y correrlo (humanos)
 ├─ main.py              punto de entrada de la GUI
-├─ build.spec           PyInstaller (onefile → dist/EduFEM.exe)
+├─ build.spec           PyInstaller (onedir → dist/EduFEM/)
 ├─ requirements.txt     dependencias de runtime
 ├─ requirements-dev.txt dependencias de desarrollo
 │
@@ -36,9 +36,10 @@ SoftwareED/
 │  └─ videos/           .webp animados de los diálogos
 │
 ├─ tools/               scripts de build y de generación de recursos
-│  ├─ build_all.ps1     TeX embebido (si falta) → icono → .exe → instalador
+│  ├─ build_all.ps1     cadena completa: TeX → iconos/imágenes → .exe → instalador
 │  ├─ build_texlive.py  genera vendor/texlive (TeX Live recortado para la Memoria/Teoría)
-│  ├─ make_icon.py      genera resources/icons/edufem.ico
+│  ├─ make_icon.py      genera resources/icons/edufem.ico y edufem_doc.ico (archivos .edufem)
+│  ├─ make_installer_images.py  genera installer/assets/wizard*.bmp (asistente de Inno)
 │  ├─ render_q4q9_manim/     escena Manim → cantilever_q4_q9.webp
 │  └─ render_tp_dp_manim/    escena Manim → tension_deformacion_plana.webp
 │
@@ -46,7 +47,8 @@ SoftwareED/
 │
 ├─ installer/
 │  ├─ EduFEM.iss        Inno Setup → EduFEM-Setup.exe (incluye vendor/texlive como {app}\texlive)
-│  └─ dist_extra/       lanzadores .bat + LEEME.txt que acompañan al .exe
+│  ├─ assets/           imágenes BMP del asistente (las genera make_installer_images.py)
+│  └─ dist_extra/       LEEME.txt (lo instala el .iss) + lanzadores .bat de la carpeta portable
 │
 ├─ docs/                ver §2
 └─ tesis/               fuente LaTeX de la tesis — ver tesis/README.md
@@ -54,6 +56,15 @@ SoftwareED/
 
 **Generado, no versionado** (`.gitignore`): `build/`, `dist/`, `installer/Output/`,
 `vendor/`, `.venv/`, `__pycache__/`, `tools/**/media/`, artefactos LaTeX de `tesis/`.
+
+Cuál es cuál, porque las cuatro primeras se parecen y solo una se entrega:
+
+| Carpeta | Qué es | ¿Se puede borrar? |
+|---|---|---|
+| `installer/Output/EduFEM-Setup.exe` | **El entregable.** Lo único que se distribuye | No, es el producto |
+| `dist/EduFEM/` | Salida de PyInstaller (onedir: lanzador + `_internal/`); el instalador la empaqueta adentro | Sí, la rehace PyInstaller (~5 min) |
+| `vendor/texlive/` | TeX Live recortado que el instalador copia a `{app}` | Sí, pero rehacerlo pide internet y ~5 min |
+| `build/` | Caché de trabajo de PyInstaller | Sí, en cualquier momento |
 
 ## 2. Qué hay en `docs/`
 
@@ -73,8 +84,11 @@ SoftwareED/
 | `resources/icons/edufem.ico` | `tools/make_icon.py` lo **escribe** (`../resources/icons`), `main_window` lo lee, el instalador lo usa | Salida fija del generador |
 | `docs/vyv/datos/`, `docs/vyv/figuras/` | `tests/vv_mms.py`, `vv_timoshenko.py`, `vv_cook.py` **escriben** ahí; `tesis/figuras/generar_figuras.py` copia desde ahí; `tesis/capitulos/06_anexos.tex` las cita | Rutas literales en los scripts |
 | `resources/examples/ejemplo_geometria.dxf` | `tests/generate_example_dxf.py` lo escribe | Ruta literal |
-| `tools/make_icon.py`, `tools/build_texlive.py`, `tools/build_all.ps1` | `build_all.ps1` invoca a los `.py` por ruta relativa a `$PSScriptRoot` | Deben quedar hermanos en `tools/` |
+| `tools/make_icon.py`, `tools/make_installer_images.py`, `tools/build_texlive.py`, `tools/build_all.ps1` | `build_all.ps1` invoca a los `.py` por ruta relativa a `$PSScriptRoot` | Deben quedar hermanos en `tools/` |
 | `vendor/texlive/` | `tools/build_texlive.py` lo **escribe**; `education/components/latex_runtime.py` (`DEV_BUNDLE_RELPATH`) lo lee en dev; `installer/EduFEM.iss` lo copia a `{app}\texlive`, que la app busca como carpeta `texlive` hermana del `.exe` | Rutas literales en los tres |
+| `installer/assets/wizard*.bmp` | `tools/make_installer_images.py` los **escribe**; `installer/EduFEM.iss` los nombra uno por uno en `WizardImageFile` / `WizardSmallImageFile` | Los nombres llevan el tamaño: agregar uno obliga a listarlo en el `.iss` |
+| `resources/icons/edufem_doc.ico` | `tools/make_icon.py` lo escribe; el `.iss` lo instala en `{app}` y el registro apunta ahí para el icono de los `.edufem` | El Explorador lee la ruta del registro: el archivo tiene que quedar instalado |
+| `config/settings.py` → `APP_VERSION`, `APP_USER_MODEL_ID`, `APP_MUTEX_NAME` | `build.spec` (regex) y `installer/EduFEM.iss` (preprocesador y `#define`) los leen o los repiten | Única fuente de la versión; los otros dos están duplicados a mano en el `.iss` |
 | `tools/render_q4q9_manim/`, `tools/render_tp_dp_manim/` | Mensajes de la GUI los nombran cuando falta el `.webp` (`analysis_type_dialog`, `element_type_dialog`) | Solo strings, pero visibles al usuario |
 | `education/mod*.py` | `build.spec` los recoge por **glob** para `hiddenimports`; `module_launcher` los carga con `importlib` | Sin el prefijo `mod`, el `.exe` falla al abrir el módulo |
 | `~/.edufem/recent.json` | `config/recent_files.py` | Fuera del repo (perfil del usuario) |
@@ -108,7 +122,7 @@ Si movés un documento citado desde un comentario del código, actualizá tambi�
 python main.py                    # GUI
 python -m tests.test_fem          # regresión numérica (obligatoria si tocás fem/)
 python -m tests.vv_mms            # convergencia MMS
-pyinstaller --noconfirm build.spec  # dist/EduFEM.exe
+pyinstaller --noconfirm build.spec  # dist/EduFEM/
 powershell -File tools/build_all.ps1  # icono + .exe + instalador
 ```
 

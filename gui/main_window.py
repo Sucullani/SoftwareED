@@ -25,6 +25,7 @@ from config.settings import (
 )
 from config.settings import ELEMENT_Q9 as ELEMENT_Q9_LABEL
 from config import recent_files
+from config import user_paths
 from models.project import ProjectModel
 from models.mesh_utils import auto_expand_if_q9
 from models.undo_stack import UndoStack
@@ -48,7 +49,11 @@ from gui.dialogs.dxf_import_dialog import DxfImportDialog
 class MainWindow:
     """Ventana principal de la aplicacion EduFEM."""
 
-    def __init__(self):
+    def __init__(self, project_path: str | None = None):
+        """`project_path` es el `.edufem` a abrir al arrancar. Lo pasa
+        `main.py` cuando el alumno hace doble clic en un proyecto (el
+        instalador asocia la extensión) o lo nombra en la línea de comandos.
+        """
         # ─── Crear ventana con tema oscuro ──────────────────────────────
         self.root = ttk.Window(
             title=f"{APP_NAME} v{APP_VERSION}",
@@ -134,6 +139,13 @@ class MainWindow:
         # ventana puede mostrarse y este setup corre apenas el loop queda idle,
         # mucho antes de que el usuario abra un modulo educativo.
         self.root.after_idle(self._init_matplotlib_style)
+
+        # ─── Proyecto pedido al arrancar (doble clic en un .edufem) ─────
+        # Diferido a `after`: la carga puede abrir un messagebox de error y
+        # necesita la ventana ya mapeada para centrarlo; ademas `fit_view`
+        # solo da la vista correcta cuando el canvas conoce su tamaño real.
+        if project_path:
+            self.root.after(0, self._load_project_from_path, project_path)
 
     def _apply_minsize(self):
         """Fija el tamaño mínimo de la ventana contra la pantalla real.
@@ -808,6 +820,7 @@ class MainWindow:
     def _on_open_project(self):
         filepath = filedialog.askopenfilename(
             title="Abrir Proyecto",
+            initialdir=user_paths.carpeta_inicial(),
             filetypes=[
                 (PROJECT_FILE_DESCRIPTION, f"*{PROJECT_FILE_EXTENSION}"),
                 ("Archivos JSON", "*.json"),
@@ -839,6 +852,10 @@ class MainWindow:
             self.root.after(100, self.mesh_canvas.fit_view)
             self.set_status(f"Proyecto abierto: {os.path.basename(filepath)}")
 
+            # La carpeta del proyecto pasa a ser el punto de partida de los
+            # proximos dialogos. Vale para Abrir, Recientes y el doble clic
+            # sobre un .edufem.
+            user_paths.recordar(filepath)
             recent_files.add(filepath)
             self._build_recent_menu()
             self._update_title()
@@ -953,6 +970,9 @@ class MainWindow:
         filepath = filedialog.asksaveasfilename(
             title="Guardar Proyecto Como",
             defaultextension=PROJECT_FILE_EXTENSION,
+            initialdir=user_paths.carpeta_inicial(),
+            initialfile=user_paths.nombre_sugerido(
+                self.project.file_path, PROJECT_FILE_EXTENSION),
             filetypes=[
                 (PROJECT_FILE_DESCRIPTION, f"*{PROJECT_FILE_EXTENSION}"),
                 ("Archivos JSON", "*.json"),
@@ -970,6 +990,7 @@ class MainWindow:
             save_project(self.project, filepath)
             self.set_status(f"Proyecto guardado: {os.path.basename(filepath)}")
 
+            user_paths.recordar(filepath)
             recent_files.add(filepath)
             self._build_recent_menu()
             self._update_title()
@@ -1019,6 +1040,9 @@ class MainWindow:
         filepath = filedialog.asksaveasfilename(
             title="Exportar Memoria de Cálculo (PDF)",
             defaultextension=".pdf",
+            initialdir=user_paths.carpeta_inicial(),
+            initialfile=user_paths.nombre_sugerido(
+                self.project.file_path, ".pdf"),
             filetypes=[
                 ("Documento PDF", "*.pdf"),
                 ("Todos los archivos", "*.*"),
@@ -1026,6 +1050,7 @@ class MainWindow:
         )
         if not filepath:
             return
+        user_paths.recordar(filepath)
 
         from file_io.memoria_calculo import (
             generate_memoria_calculo, MemoriaCalculoError,
@@ -1141,6 +1166,9 @@ class MainWindow:
         filepath = filedialog.asksaveasfilename(
             title="Exportar Modelo (Excel/CSV)",
             defaultextension=".zip",
+            initialdir=user_paths.carpeta_inicial(),
+            initialfile=user_paths.nombre_sugerido(
+                self.project.file_path, ".zip"),
             filetypes=[
                 ("Modelo en Excel/CSV (ZIP)", "*.zip"),
                 ("Todos los archivos", "*.*"),
@@ -1148,6 +1176,7 @@ class MainWindow:
         )
         if not filepath:
             return
+        user_paths.recordar(filepath)
         try:
             from file_io.model_io import export_model_csv
             counts = export_model_csv(self.project, filepath)
@@ -1168,11 +1197,13 @@ class MainWindow:
         """
         path = filedialog.askopenfilename(
             title="Importar Geometría AutoCAD (DXF)",
+            initialdir=user_paths.carpeta_inicial(),
             filetypes=[("Archivo DXF de AutoCAD", "*.dxf"),
                        ("Todos los archivos", "*.*")],
         )
         if not path:
             return
+        user_paths.recordar(path)
         try:
             DxfImportDialog(self.root, self.project, self, filepath=path)
         except Exception as exc:
@@ -1185,6 +1216,7 @@ class MainWindow:
         """Importa TODO el modelo desde un .zip producido por Exportar Modelo."""
         filepath = filedialog.askopenfilename(
             title="Importar Modelo (Excel/CSV)",
+            initialdir=user_paths.carpeta_inicial(),
             filetypes=[
                 ("Modelo en Excel/CSV (ZIP)", "*.zip"),
                 ("Todos los archivos", "*.*"),
@@ -1192,6 +1224,7 @@ class MainWindow:
         )
         if not filepath:
             return
+        user_paths.recordar(filepath)
 
         mode = "replace"
         if (self.project.num_nodes or self.project.num_elements

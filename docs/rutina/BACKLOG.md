@@ -266,6 +266,34 @@ Formato: `[área Nº] descripción — evidencia — quién decide`.
   hay que **compilar la tesis** antes de pushear ([RUTINA.md](RUTINA.md) §6). Esperar a que el
   autor valide visualmente el rediseño (pendientes visuales de abajo) antes de regenerarlas.
 
+### Distribución (auditoría del 2026-09-10)
+
+De [../notas/2026-09-10_un-solo-archivo-que-funcione.md](../notas/2026-09-10_un-solo-archivo-que-funcione.md).
+El grueso ya se arregló ahí (onedir, `initialdir` de los diálogos, UPX apagado); esto es lo que
+quedó sin decidir.
+
+- **[13] `resources/examples/ejemplo_geometria.dxf` viaja en el bundle y el alumno no lo
+  alcanza.** `build.spec` lo incluye en `datas`, pero ningún módulo lo referencia
+  (`grep ejemplo_geometria` solo pega en `.venv/`). En la aplicación instalada termina en
+  `{app}\_internal\resources\examples\`, una carpeta en la que nadie entra, así que el DXF de
+  demostración es inalcanzable desde la GUI. Dos salidas: que *Archivo ▸ Importar DXF* lo
+  ofrezca la primera vez (`initialdir` a `resource_path("examples")`, que con onedir ya es una
+  ruta estable), o sacarlo del `datas`. **Decide el autor**: si el ejemplo DXF forma parte del
+  material didáctico o era solo insumo de `tests/generate_example_dxf`.
+
+- **[13] `~/.edufem/latex_cache/` es basura heredada.** 1,3 MB de PNG con fecha de mayo, de una
+  implementación anterior de `LatexBlock`. Hoy ningún módulo escribe ni lee esa carpeta
+  (`grep latex_cache` solo pega en `theory_viewer.py`, y ese usa `theory_cache`), y el
+  `[UninstallDelete]` del `.iss` tampoco la borra —a propósito: no se agregó limpieza para un
+  directorio que la aplicación ya no crea—. Solo afecta a quien probó versiones viejas.
+  **Decide el autor** si se le suma una línea al desinstalador para limpiar el rastro.
+
+- **[9] `resources/fonts/` sigue sin las CMU.** Los *overlays* de valores de `LatexBlock` caen
+  al serif de Tk en vez de coincidir con la tipografía de los PNG compilados. Está documentado
+  en `resources/fonts/README.md` con las URL y los cuatro nombres de archivo esperados, y
+  `gui/fonts_loader.py` lo maneja sin error. No rompe nada; es calidad visual.
+  **Decide el autor** si bajar los cuatro TTF (licencia OFL, redistribución permitida).
+
 ### Heredado de otras revisiones
 
 - **Hallazgos abiertos** de [../auditorias/ESTADO_AUDITORIAS.md](../auditorias/ESTADO_AUDITORIAS.md):
@@ -281,6 +309,26 @@ Formato: `[área Nº] descripción — evidencia — quién decide`.
 
 Lo que el gate no puede juzgar. Cada ítem dice qué abrir, qué mirar y cómo revertir.
 
+- **Instalador nuevo, en un equipo limpio** (2026-09-10; nota en
+  [../notas/2026-09-10_instalador-profesional.md](../notas/2026-09-10_instalador-profesional.md)).
+  Esto no se puede probar en la máquina de desarrollo: hay que instalar
+  `installer/Output/EduFEM-Setup.exe` en otra PC, idealmente **sin MiKTeX** y con un usuario
+  de Windows con **tilde o espacio** en el nombre. Qué mirar:
+  1. **El asistente**: panel con el emblema y la barra JET, página de licencia, y las dos
+     casillas (icono en el Escritorio, asociar `.edufem`).
+  2. **La carpeta propuesta**: con un perfil como `C:\Users\José Pérez`, debe ofrecer
+     `C:\ProgramData\EduFEM`. Si se elige a mano una carpeta con tildes o espacios, tiene que
+     aparecer la advertencia y dejar continuar igual.
+  3. **Los accesos directos**: Escritorio y menú Inicio. Anclá el programa a la barra de
+     tareas, cerralo y volvé a abrirlo desde el icono anclado: debe reusar el mismo icono, no
+     duplicarse (eso es el AppUserModelID).
+  4. **Doble clic en un `.edufem`**: el archivo debe verse con el icono de hoja con birrete y
+     abrir el modelo, no el programa vacío.
+  5. **Memoria de Cálculo en PDF** sin MiKTeX instalado: debe salir sin pedir nada.
+  6. **Reinstalar con EduFEM abierto**: el asistente debe ofrecer cerrarlo.
+  7. **Desinstalar**: se va el programa y la carpeta `texlive`; los `.edufem` guardados y la
+     lista de recientes quedan.
+  Cómo revertir: `git checkout installer/ tools/ build.spec main.py` y recompilar.
 - **Dimensionado de ventanas contra la pantalla real** (2026-09-10; nota en
   [../notas/2026-09-10_ventanas-contra-la-pantalla-real.md](../notas/2026-09-10_ventanas-contra-la-pantalla-real.md)).
   Ningún Toplevel fija ya su tamaño en píxeles: todos pasan por `gui/scaling.py`, que escala
