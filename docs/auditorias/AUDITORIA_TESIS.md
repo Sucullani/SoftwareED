@@ -13,25 +13,32 @@
 
 ## 1. Resumen ejecutivo
 
-**Última sesión**: 1 · 2026-09-15 · commit de la tesis auditado: `bdbf18d` (2026-09-11).
+**Última sesión**: 2 · 2026-09-15 · commit de la tesis auditado: `bdbf18d` (2026-09-11; sin
+commits posteriores en `tesis/`).
 
 | Bloque | Contenido | Estado |
 |---|---|---|
 | B0 | Inventario y norma de citación | **auditado** (sesión 1) |
 | B1 | Introducción: problema, objetivos, hipótesis, justificación, alcance | **auditado** (sesión 1) |
-| B2 | Marco teórico y metodología | pendiente |
-| B3 | Resultados | pendiente |
+| B2 | Marco teórico y metodología | **auditado** (sesión 2) |
+| B3 | Resultados | **auditado** (sesión 2) |
 | B4 | Conclusiones y recomendaciones | pendiente |
-| B5 | Citación y referencias contra la norma de B0 | pendiente (4 hallazgos ya registrados desde B0) |
+| B5 | Citación y referencias contra la norma de B0 | pendiente (4 hallazgos ya registrados desde B0: H-2, H-12 a H-14) |
 | B6 | Forma: títulos, numeración, jerarquía, preliminares | pendiente |
 
-**Hallazgos abiertos por severidad**: alta 1 · media 8 · baja 5 · **total 14** (H-1 a H-14). Resueltos: 0.
+**Hallazgos abiertos por severidad**: alta 1 · media 15 · baja 15 · **total 31** (H-1 a H-31). Resueltos: 0.
 
 Lo que más pesa hoy: el **Reglamento de Graduación** que fija formato y referenciación no
 está en el repositorio (H-1), la tesis **no declara en su texto la norma de citación** que
 sigue (H-2), y la cadena problema → variables → medición sigue partida en dos: las variables
-del problema científico no son las que la metodología mide (H-6) y la hipótesis se contrasta
-«por diseño» (H-7).
+del problema científico no son las que la metodología mide (H-4) y la hipótesis se contrasta
+«por diseño» (H-5). B2 y B3 añaden que **la metodología declara un procedimiento que uno de
+los tres casos no sigue** (Timoshenko: un solo elemento y una sola malla, H-15), que **cuatro
+de los seis objetivos no tienen indicador operacionalizado ni criterio de aceptación**
+(H-17), que el marco teórico **anticipa resultados y decisiones de implementación** (H-18) y
+**no fundamenta la dimensión pedagógica** que el objetivo general y la hipótesis reclaman
+(H-19), y que el **cuarto objetivo se cumple solo hasta el ensamblaje** mientras la validación
+de la hipótesis lo da por completo (H-25).
 
 ## 2. Inventario (B0)
 
@@ -102,22 +109,26 @@ resumen y la introducción.
 
 ## 3. Tabla de trazabilidad
 
-Objetivos tomados de `tesis/capitulos/01_introduccion.tex:33-40` (sesión 1). Las columnas
-de metodología, resultado y conclusión las completan B2, B3 y B4.
+Objetivos tomados de `tesis/capitulos/01_introduccion.tex:33-40` (sesión 1). Columnas de
+metodología y resultado completadas en la sesión 2 (B2 y B3); la de conclusión y el estado
+definitivo los cierra B4. Referencias de sección: §2.1.x = `02b_diseno_metodologico.tex`,
+§3.x = `04_resultados.tex`.
 
 | # | Objetivo específico (abreviado) | Metodología que lo atiende (B2) | Resultado que lo responde (B3) | Conclusión que lo cierra (B4) | Estado |
 |---|---|---|---|---|---|
-| OE1 | Fundamentar teóricamente el MEF en elasticidad plana con Q4/Q9 (formulación, mapeo, integración, ensamblaje, tensiones, calidad de malla, criterios de V&V) | — | — | — | pendiente |
-| OE2 | Implementar un motor MEF 2D Q4/Q9 «verificado numéricamente» | — | — | — | pendiente |
-| OE3 | Diseñar una interfaz interactiva pre/proceso/post con un único lienzo | — | — | — | pendiente |
-| OE4 | Desarrollar módulos educativos que expongan paso a paso cada etapa del canal de cálculo | — | — | — | pendiente |
-| OE5 | Verificar y validar con MMS, viga de Timoshenko y membrana de Cook, contra soluciones analíticas y SAP2000 | — | — | — | pendiente |
-| OE6 | Generar memoria de cálculo automática en PDF y ofrecer interoperabilidad DXF/CSV | — | — | — | pendiente |
-| H | Hipótesis de diseño: es factible construir un software que exponga el canal de cálculo completo de forma transparente, interactiva, numéricamente verificable y coherente con el flujo profesional; esa transparencia es «un apoyo plausible al aprendizaje» | — | — | — | pendiente |
+| OE1 | Fundamentar teóricamente el MEF en elasticidad plana con Q4/Q9 (formulación, mapeo, integración, ensamblaje, tensiones, calidad de malla, criterios de V&V) | Solo la fila 1 de la matriz de consistencia (§2.1.3: «Revisión de la literatura clásica del MEF y de la V&V», evidencia Cap. 1). Sin variable en la Tabla 2.1 ni criterio en §2.1.6. El Cap. 1 (§1.2–1.11) cubre los siete ítems enunciados; no cubre la dimensión pedagógica (H-19) | Ninguno en el Cap. 3: el Cap. 1 es el producto (H-26) | — | provisional: **débil** |
+| OE2 | Implementar un motor MEF 2D Q4/Q9 «verificado numéricamente» | §2.1.1 (desarrollo iterativo + regresión), §2.1.5 (procedimiento e instrumentos), §2.1.6 (criterio MMS ±0,5). La misma evidencia que OE5 (H-8) | §3.2 MMS (`tab:mms`, `tab:mms-configs` en Anexo D) y §3.3 consistencia interna (Q4→Q9→Q4, ids no contiguos) | — | provisional: **completo** (solapado con OE5) |
+| OE3 | Diseñar una interfaz interactiva pre/proceso/post con un único lienzo | Solo la fila 3 de la matriz («Organización de la interfaz; flujo de trabajo» → «Diseño centrado en un lienzo único», evidencia §2.2.6 pre-proceso únicamente). Sin variable en la Tabla 2.1, sin instrumento ni criterio (H-17, H-24) | §3.6, prosa (`04:211-213`: conmutador Fórmula↔Valores, selección en el lienzo, post-proceso). Sin figura, tabla ni medida (H-26) | — | provisional: **débil** |
+| OE4 | Desarrollar módulos educativos que expongan paso a paso cada etapa del canal de cálculo | Fila 4 de la matriz («Cobertura del canal de cálculo» → «Capas interactivas superpuestas a la malla real»). Sin instrumento ni criterio de cobertura (H-17) | §3.6 (`04:209`): cobertura «completa hasta el ensamblaje»; la recuperación de tensiones «no tiene un módulo propio». El objetivo pedía *cada etapa* (H-25) | — | provisional: **hueco** (parcial, no declarado como tal en §3.9) |
+| OE5 | Verificar y validar con MMS, viga de Timoshenko y membrana de Cook, contra soluciones analíticas y SAP2000 | §2.1.4 casos, §2.1.5 instrumentos (`tests/vv_*.py`, CSV), §2.1.6 criterios (MMS ±0,5 en 4 configuraciones; Timoshenko flecha < 3 %; Cook Q9 N=8 < 1,5 % y Q4 < Q9). Pero Timoshenko no sigue el procedimiento declarado (H-15), el criterio de σ* no es teórico (H-16) y no hay criterio para σx ni para SAP2000 (H-23) | §3.2 (`tab:mms`), §3.4 (`tab:timoshenko-stress`, `tab:timoshenko-defl`), §3.5 (`tab:cook`), `tab:resumen-q4q9`; componentes secundarias y desplazamientos solo en Anexo D (H-27) | — | provisional: **completo con reservas** (H-15, H-27) |
+| OE6 | Generar memoria de cálculo automática en PDF y ofrecer interoperabilidad DXF/CSV | Fila 6 de la matriz («Trazabilidad del cálculo» → «Generación de PDF; importación/exportación DXF y CSV»), sin pregunta (H-7); §2.1.5 anuncia la regresión de interoperabilidad. Sin criterio (H-17) | §3.3 tercer párrafo (`04:95`: ida y vuelta CSV/ZIP, DXF idempotente, `test_memoria_calculo.py`) y §3.6 último párrafo (memoria, prosa); Anexo G | — | provisional: **débil** (la memoria, diferenciador principal según la Justificación, solo tiene una mención de test y prosa) |
+| H | Hipótesis de diseño: es factible construir un software que exponga el canal de cálculo completo de forma transparente, interactiva, numéricamente verificable y coherente con el flujo profesional; esa transparencia es «un apoyo plausible al aprendizaje» | §2.1.6: «se contrasta por diseño»; solo PI-1 y PI-3 tienen criterio numérico; PI-2 «se documenta» (H-5, H-17) | §3.9 (`04:258`): «queda confirmada al verificarse … cada uno de esos atributos»; PI-1 y PI-3 con cifras; PI-2 «por diseño». Afirma que los módulos «la exponen paso a paso» pese a `04:209` (H-25) | — | provisional: **débil** (no falsable, H-5) |
 
 Lo que la propia Introducción declara sobre dónde se cumple cada uno
 (`01_introduccion.tex:69`): OE1 → Cap. 1; OE2, OE3, OE4, OE6 → Cap. 2; OE5 → Cap. 3;
-la hipótesis se contrasta en el Cap. 3 y se discute en Conclusiones. B2–B4 verifican si es así.
+la hipótesis se contrasta en el Cap. 3 y se discute en Conclusiones. B2 y B3 lo verificaron:
+el reparto se cumple, pero el Cap. 3 no aporta resultado propio para OE1 ni OE3 (H-26) y el
+de OE4 es parcial (H-25). B4 cierra la última columna y el estado definitivo.
 
 ## 4. Hallazgos
 
@@ -151,6 +162,7 @@ la hipótesis se contrasta en el Cap. 3 y se discute en Conclusiones. B2–B4 ve
 - Severidad: media
 - Evidencia: el problema se formula tres veces y de tres maneras. (a) `01_introduccion.tex:13`: «¿cómo apoyar la comprensión de los fundamentos del MEF mediante una herramienta de software que exponga, sobre un modelo concreto y de manera interactiva, cada etapa del procedimiento de cálculo…?». (b) `01_introduccion.tex:15`: «el problema científico … ¿cómo debe construirse un software educativo para que exponga de forma transparente, interactiva y numéricamente verificable el canal de cálculo completo del MEF en elasticidad plana…?». (c) `02b_diseno_metodologico.tex:43`: «El problema general —la ausencia de un entorno educativo libre y de código abierto, en español, que exponga de forma transparente, interactiva y verificable el canal de cálculo completo del MEF en elasticidad plana y genere una memoria de cálculo trazable al modelo del alumno—».
 - Problema: (a) pregunta por cómo apoyar la comprensión (el «para qué», que `tesis/README.md` dice que no es lo medido); (b) pregunta por cómo construir el software; (c) ya no es una interrogante sino una carencia, y añade atributos que el problema científico no contiene («libre y de código abierto», «en español», «memoria de cálculo»). El planteamiento del tribunal (Miranda, p. 3) pide una sola interrogante con dos variables; la matriz de consistencia debería partir de la misma formulación que la Introducción.
+- Evidencia adicional (sesión 2): cuarta formulación en `02_marco_teorico.tex:43`: «La brecha que lo motiva es, por tanto, la ausencia de un entorno integrado, libre y de código abierto, que recorra el canal de cálculo completo … haciendo observables los fenómenos numéricos del método, generando una memoria de cálculo trazable a ese modelo e incorporando verificación y validación rigurosas», que suma dos atributos más (fenómenos numéricos observables, V&V) a la lista de (c).
 - Sugerencia: dejar (b) como problema científico único, reescribir (a) como pregunta orientadora subordinada o quitarla, y que §2.1.3 cite (b) textualmente.
 - Estado: abierto
 - Sesión: 1
@@ -211,6 +223,7 @@ la hipótesis se contrasta en el Cap. 3 y se discute en Conclusiones. B2–B4 ve
 - Severidad: baja
 - Evidencia: «canal de cálculo» en `01_introduccion.tex:15, 17, 37, 44` y `02b_diseno_metodologico.tex:16, 43, 59, 90`; «cadena de cálculo» en `01_introduccion.tex:50` («exponer la cadena de cálculo del MEF») y `02b_diseno_metodologico.tex:67` («expone la cadena de cálculo de forma transparente»); «cadena algebraica» en `01_introduccion.tex:9`; «cada etapa del cálculo» en `00_resumen.tex:5`.
 - Problema: el concepto central de la tesis (la secuencia mapeo → J → B → D → K → ensamblaje → solución → tensiones) se nombra con dos términos en la propia definición de PI-2 y en su reformulación de §2.1.3. El criterio de coherencia pide los mismos términos entre secciones.
+- Evidencia adicional (sesión 2): «cadena» también en `02_marco_teorico.tex:40` («recorre la cadena del MEF de extremo a extremo»), `:412` («la cadena de recuperación de tensiones») y `04_resultados.tex:207` («cada eslabón de la cadena de cálculo»); «canal» en `04_resultados.tex:5, 209, 258`.
 - Sugerencia: «canal de cálculo» en todo el documento (es el que usan el problema científico, el objeto y la hipótesis).
 - Estado: abierto
 - Sesión: 1
@@ -234,6 +247,180 @@ la hipótesis se contrasta en el Cap. 3 y se discute en Conclusiones. B2–B4 ve
 - Sugerencia: dejar el párrafo en un solo lugar y unificar los tres atributos.
 - Estado: abierto
 - Sesión: 1
+
+### B2 — Marco teórico y metodología
+
+**H-15**
+- Bloque y sección: B2 · §2.1.4 Casos de estudio y §2.1.5 Procedimiento ↔ §3.4 Validación con la viga de Timoshenko
+- Tipo: coherencia
+- Severidad: media
+- Evidencia: `02b_diseno_metodologico.tex:74`: «Cada uno se resuelve con ambos tipos de elemento (Q4 y Q9) sobre mallas de refinamiento creciente, lo que permite observar el comportamiento de las variables dependientes en función de las independientes». `:81`: «Dentro de cada caso solo se manipulan el tipo de elemento y la densidad de malla». `04_resultados.tex:99`: «Se empleó una malla Q9 estructurada de $56\times8$ elementos (448 elementos, 1921 nodos, 3842 GDL)». `04_resultados.tex:199` (tabla resumen): «Timoshenko $\sigma_x$ (error máx.) & --- & 0,0414\,\%» (columna Q4 vacía). Instrumento: `tests/vv_timoshenko.py:87-88, 133`: `NX = 56`, `NY = 8`, `element_type=ELEMENT_Q9`, sin bucle de refinamiento ni corrida Q4.
+- Problema: la metodología enuncia un procedimiento común a los tres casos («cada uno … ambos tipos de elemento … mallas de refinamiento creciente») que el único caso con referencia analítica y comercial no sigue: una sola malla, un solo elemento. En ese caso la variable independiente «discretización» de la Tabla 2.1 no se manipula, no se observa convergencia ni se contrasta Q4 con Q9. Lo que el Cap. 3 aplica no es lo que §2.1 declara.
+- Sugerencia: o correr Timoshenko con Q4 y con al menos tres mallas (el guion lo permite) o reescribir §2.1.4 diciendo que el refinamiento y la comparación Q4/Q9 se hacen en MMS y Cook, y que Timoshenko es un contraste puntual con Q9.
+- Estado: abierto
+- Sesión: 2
+
+**H-16**
+- Bloque y sección: B2 · §2.1.6 Criterios de aceptación ↔ instrumento `tests/vv_mms.py`
+- Tipo: coherencia
+- Severidad: media
+- Evidencia: `02b_diseno_metodologico.tex:88`: «Los criterios de aceptación están fijados a priori en los propios guiones … tasas de convergencia observadas dentro de $\pm0{,}5$ de las teóricas en las cuatro configuraciones del MMS (desplazamiento y campo de tensiones recuperado)». `tests/vv_mms.py:439-443`: «# Campo de tensiones recuperado: O(h^1.5) Q4 (superconvergencia interior degradada por la capa de contorno) y O(h^2) Q9. # Tolerancia +-0.5 por la desviacion pre-asintotica … `expected = {"q4": (2.0, 1.0, 1.5), "q9": (3.0, 2.0, 2.0)}`». `02_marco_teorico.tex:412`: «el error de las magnitudes derivadas debe verificarse por separado, y su orden puede ser menor que el de la solución primaria» (sin valor). `04_resultados.tex:58` explica el 1,54 a posteriori: «que no alcance $\mathcal{O}(h^{2})$ se debe a la capa de contorno».
+- Problema: para el campo de tensiones recuperado del Q4 no existe tasa «teórica» en el marco teórico ni en la literatura citada; el 1,5 del guion es el valor observado realimentado como expectativa, y el intervalo ±0,5 a su alrededor (1,0–2,0) acepta también el orden del gradiente crudo. El criterio no está «fijado a priori» para ese indicador y, además, es demasiado laxo para detectar una regresión en la extrapolación de tensiones.
+- Sugerencia: reservar el criterio de «tasa teórica» a $L^2$ y $H^1$ del desplazamiento, y para $\sigma^*$ enunciar el criterio como cota empírica (≥ 1,4 en Q4, ≥ 1,9 en Q9) declarada como tal.
+- Estado: abierto
+- Sesión: 2
+
+**H-17**
+- Bloque y sección: B2 · §2.1.2 Variables ↔ §2.1.3 Matriz de consistencia ↔ §2.1.6 Criterios
+- Tipo: coherencia
+- Severidad: media
+- Evidencia: indicadores de la matriz (`02b_diseno_metodologico.tex:56-61`): OE1 «Canal de cálculo cubierto», OE3 «Organización de la interfaz; flujo de trabajo», OE4 «Cobertura del canal de cálculo», OE6 «Trazabilidad del cálculo». Ninguno figura en la Tabla 2.1 (`:27-38`), cuyas filas son «definición del modelo», «discretización», «respuesta estructural», «exactitud de la solución» y «controladas». §2.1.6 (`:88-90`) fija criterios numéricos solo para MMS, Timoshenko y Cook y despacha el resto: «la organización de la interfaz y de los módulos (PI-2) se documenta en la \autoref{sec:diseno-edufem}». Taller 4, p. 10: «Definición y operacionalización de las variables, Procedimientos a seguir, Técnicas e instrumentos de medición, Plan de análisis o valoración de los resultados obtenidos».
+- Problema: cuatro de los seis objetivos tienen un indicador nominal en la matriz pero ningún instrumento ni criterio con el que el Cap. 3 pueda declararlos cumplidos o no. El resultado es que «cobertura del canal» se juzga sin escala (y en `04_resultados.tex:209` resulta parcial sin que nada lo califique de incumplimiento, H-25). Complementa H-4 (variable efecto sin indicador) y H-5 (hipótesis por diseño).
+- Sugerencia: agregar a la Tabla 2.1 una fila «atributos del artefacto» con indicadores contables (etapas del canal con módulo / con memoria; fases con lienzo compartido; formatos con prueba de ida y vuelta) y su umbral en §2.1.6.
+- Estado: abierto
+- Sesión: 2
+
+**H-18**
+- Bloque y sección: B2 · Cap. 1 Marco teórico (§1.5, §1.9, §1.10, §1.11)
+- Tipo: coherencia
+- Severidad: media
+- Evidencia: `02_marco_teorico.tex:182`: «EduFEM impone un umbral mínimo ($\texttt{JACOBIAN\_MIN\_DETERMINANT}$) para detectar y rechazar esas geometrías antes de resolver». `:302`: «EduFEM selecciona el ordenamiento de columnas de mínimo grado sobre $\bm{K}^{T}+\bm{K}$ (opción \texttt{MMD\_AT\_PLUS\_A} de \texttt{scipy.sparse.linalg.splu} …)». `:321`: «la verificación del \autoref{cap:resultados} muestra que el campo recuperado converge de todos modos a $\mathcal{O}(h^{2})$». `:395`: «se exige $q_{SJ} \ge 0{,}7$, $R_J \ge 0{,}5$, $AR \le 3$ y $T_R \le 0{,}3$ … para «buena», y $0{,}3$, $0{,}2$, $5$ y $0{,}5$ … para «aceptable»». `:414`: «EduFEM la reproduce con errores inferiores al $0{,}3\,\%$ en las magnitudes primarias —tensión normal y flecha—, que el \autoref{cap:resultados} cuantifica en detalle». «EduFEM» aparece 25 veces en el capítulo. Taller 1, p. 20: «Capítulo 1 MARCO TEÓRICO DE …» separado de «Capítulo 2 DISEÑO E IMPLEMENTACIÓN DEL MODELO A DESARROLLAR» y «Capítulo 3 PRESENTACIÓN DE RESULTADOS».
+- Problema: el marco teórico adelanta resultados del Cap. 3 (0,3 %, $\mathcal{O}(h^{2})$) y fija decisiones de implementación (constantes del programa, opción del solucionador, umbrales de la interfaz) que son materia del Cap. 2 §2.2. El lector encuentra las cifras de validación antes de la metodología que las produce, y la fundamentación deja de ser independiente del artefacto que debería sustentar.
+- Sugerencia: dejar en el Cap. 1 la teoría y las referencias bibliográficas de cada umbral; mover a §2.2 las elecciones de EduFEM y al Cap. 3 toda cifra medida.
+- Estado: abierto
+- Sesión: 2
+
+**H-19**
+- Bloque y sección: B2 · Cap. 1 Marco teórico ↔ objetivo general e hipótesis
+- Tipo: coherencia
+- Severidad: media
+- Evidencia: objetivo general (`01_introduccion.tex:29`): «como apoyo a la enseñanza y el aprendizaje del MEF». Hipótesis (`:44`): «esa transparencia constituye un apoyo plausible al aprendizaje de sus fundamentos». Metodología (`:56`): «los criterios de diseño pedagógico se fundamentan cualitativamente en la literatura sobre enseñanza del MEF». Cap. 1: §1.1 «Antecedentes y estado del arte» (revisión de software) y §1.2–§1.11, todas numéricas; las palabras «aprendizaje», «pedagógico», «didáctico» y «enseñanza» aparecen solo en `02_marco_teorico.tex:4-43` (antecedentes), `:263` y `:382`. OE1 (`01_introduccion.tex:34`) enumera únicamente contenidos numéricos.
+- Problema: la finalidad del objetivo general y la segunda cláusula de la hipótesis descansan en una afirmación pedagógica (la transparencia del cálculo apoya el aprendizaje) que el marco teórico no fundamenta: no hay sección sobre por qué hacer visibles los pasos intermedios favorece la comprensión, ni sobre qué principio guía el conmutador Fórmula↔Valores, el lienzo único o el orden M0–M7. Las citas de Lee y Bishay se usan como antecedentes de software, no como marco. Taller 5, p. 3: «Cada dimensión o indicador debe tener el contraste de la teoría y los antecedentes».
+- Sugerencia: una sección «Fundamentos de la enseñanza del MEF» en el Cap. 1 (o quitar «aprendizaje» del objetivo general y de la hipótesis y dejarlo en la justificación).
+- Estado: abierto
+- Sesión: 2
+
+**H-20**
+- Bloque y sección: B2 · §1.11 Verificación y validación ↔ OE5, §2.1.6 y títulos del Cap. 3
+- Tipo: coherencia
+- Severidad: baja
+- Evidencia: `02_marco_teorico.tex:400`: «en su acepción estricta la validación exige el contraste con mediciones experimentales, y este trabajo no realiza campaña experimental propia. … el contraste corresponde a verificación de solución y a comparación código a código». Pese a ello: OE5 (`01_introduccion.tex:38`) «Verificar y validar el software»; `02b_diseno_metodologico.tex:88` «la validación exige que los desplazamientos y las tensiones concuerden»; `04_resultados.tex:97` «\section{Validación con la viga de Timoshenko}», `:148` «\section{Validación con la membrana de Cook…}»; `06_anexos.tex:655` «\chapter{Modelo de validación en SAP2000…}».
+- Problema: el documento adopta la definición de Oberkampf, reconoce que según ella no valida, y sigue titulando «validación» al contraste en el objetivo, la metodología y los resultados. Mismo concepto, dos términos, con la definición estricta en contra.
+- Sugerencia: «contraste con referencias» o «verificación de solución» en OE5, §2.1.6 y títulos, dejando «validación» solo con la salvedad enunciada una vez.
+- Estado: abierto
+- Sesión: 2
+
+**H-21**
+- Bloque y sección: B2 · §2.1.1 Tipo de investigación y modelo de simulación numérica
+- Tipo: coherencia
+- Severidad: baja
+- Evidencia: título de `02b_diseno_metodologico.tex:11`: «\subsection{Tipo de investigación y modelo de simulación numérica}». El cuerpo (`:14-16`) trata solo el modelo; el tipo de investigación está fuera de §2.1, en la apertura del capítulo (`:4`: «Por su finalidad, el trabajo es de carácter \emph{propositivo} … \emph{investigación aplicada} de tipo \emph{tecnológico} … con enfoque \emph{cuantitativo}»). Taller 4, p. 4, nombra los tipos de modelo: «Desarrollo teórico · Modelación teórica · Modelación experimental · Modelación de simulación teórica»; la tesis lo llama «modelo de simulación numérica» (`:14`) sin mapearlo a esa lista.
+- Problema: la subsección que promete el tipo de investigación no lo contiene (se lee antes, en la introducción del capítulo), y el modelo se nombra con un término que el material del tribunal no usa. Se suma a H-10 (nivel descriptivo/comparativo ausente).
+- Sugerencia: mover el párrafo de `:4` a §2.1.1 y decir «modelación de simulación teórica —aquí, numérica— en la clasificación del Taller 4».
+- Estado: abierto
+- Sesión: 2
+
+**H-22**
+- Bloque y sección: B2 · §2.1.4 Casos de estudio y criterio de selección ↔ Taller 4 (población y muestra)
+- Tipo: coherencia
+- Severidad: baja
+- Evidencia: Taller 4, p. 5: «Muestra: Es una parte representativa que contienen todas las características de la Población. Seleccionada por procedimientos aleatorios/probabilísticos»; p. 6: «Adecuada: Cuantitativamente, debe ser suficientemente grande»; p. 13: «Es importante establecer la población y la muestra, sobre la cual se aplicará el modelo especificado». `02b_diseno_metodologico.tex:74`: «El conjunto de casos que sigue no es una muestra estadística de ese universo, sino una selección \emph{intencional} por valor probatorio —una muestra dirigida, no probabilística». `04_resultados.tex:251`: «una batería más amplia de casos de referencia reforzaría la confianza en el comportamiento del software ante geometrías y condiciones de carga más diversas».
+- Problema: el apartamiento del muestreo probabilístico está justificado (Sampieri, Oberkampf), pero la «adecuación» (tamaño) no se argumenta en §2.1.4: tres casos, uno de ellos con una sola malla (H-15), y el propio Cap. 3 admite que son pocos. Lo que debía sostenerse en la metodología queda como limitación en los resultados.
+- Sugerencia: decir en §2.1.4 qué término del modelo ejercita cada caso (fuente volumétrica + Dirichlet no homogéneo; carga superficial + apoyos; distorsión + cortante) y por qué con eso la cobertura es suficiente.
+- Estado: abierto
+- Sesión: 2
+
+**H-23**
+- Bloque y sección: B2 · Tabla 2.1 (indicadores) ↔ §2.1.5 instrumentos y §2.1.6 criterios
+- Tipo: coherencia
+- Severidad: baja
+- Evidencia: Tabla 2.1 (`02b_diseno_metodologico.tex:33-34`): indicadores «$\varepsilon_x,\varepsilon_y,\gamma_{xy}$; $u,v$ nodales; reacciones en los apoyos» y «error relativo (\%) en $\sigma_x$ y en deflexión frente al analítico y a SAP2000». §2.1.6 (`:88`) solo fija: tasas MMS, «flecha central de la viga de Timoshenko dentro del $3\,\%$ de la solución analítica» y los dos criterios de Cook. En el Cap. 3, «reacciones» aparece una sola vez (`04_resultados.tex:10`, como magnitud que «se registra») y las deformaciones ninguna; no hay criterio para $\sigma_x$ ni para la comparación con SAP2000.
+- Problema: la operacionalización declara indicadores que ni los instrumentos miden ni los criterios juzgan ni el Cap. 3 reporta. En particular, la comparación con SAP2000 —parte literal de OE5— no tiene umbral de aceptación.
+- Sugerencia: podar la Tabla 2.1 a lo que se mide, o añadir criterios para $\sigma_x$ (analítico y SAP2000) y reportar reacciones al menos en Timoshenko (equilibrio global, que es además pedagógico).
+- Estado: abierto
+- Sesión: 2
+
+**H-24**
+- Bloque y sección: B2 · §2.1.3 Matriz de consistencia, fila OE3
+- Tipo: coherencia
+- Severidad: baja
+- Evidencia: `02b_diseno_metodologico.tex:58`: «Diseñar la interfaz pre/proceso/post & PI-2 & Organización de la interfaz; flujo de trabajo & Diseño centrado en un lienzo único compartido & \S\ref{sec:pre-proceso}». Existen `03_diseno_implementacion.tex:94` «\subsection{Pre-proceso interactivo}» y `:150` «\subsection{Post-proceso}»; la fila cita solo la primera.
+- Problema: el objetivo abarca tres fases y la evidencia que la matriz le asigna cubre una. Un lector que siga la matriz no llega al post-proceso ni al lienzo compartido entre fases.
+- Sugerencia: «\S\ref{sec:pre-proceso}–\S\ref{sec:post-proceso}».
+- Estado: abierto
+- Sesión: 2
+
+### B3 — Resultados
+
+**H-25**
+- Bloque y sección: B3 · §3.6 Cobertura del canal de cálculo ↔ OE4 ↔ §3.9 Validación de la hipótesis
+- Tipo: coherencia
+- Severidad: media
+- Evidencia: OE4 (`01_introduccion.tex:37`): «Desarrollar módulos educativos que expongan, paso a paso y sobre el modelo real, cada etapa del canal de cálculo del MEF». `04_resultados.tex:209`: «La cobertura del canal de cálculo por los módulos es completa hasta el ensamblaje; la recuperación de tensiones, último eslabón del canal, no tiene un módulo propio y se expone en el post-proceso mediante la sonda puntual …, la vista tridimensional y la memoria de cálculo». `04_resultados.tex:258`: «queda confirmada al verificarse … : el motor recorre la cadena completa …, los módulos educativos la exponen paso a paso». `05_conclusiones.tex:17`: «cada etapa del canal de cálculo del MEF, del mapeo isoparamétrico al ensamblaje global».
+- Problema: el resultado de OE4 es parcial (ni la resolución del sistema ni la recuperación de tensiones tienen módulo) y el Cap. 3 lo dice en §3.6, pero tres párrafos después la validación de la hipótesis lo da por completo y la conclusión reescribe «cada etapa» como «hasta el ensamblaje». El objetivo, el resultado y su lectura no dicen lo mismo. Taller 5, p. 21: «Mostrar si hay o no respuesta a los objetivos planteados».
+- Sugerencia: o reformular OE4 («cada etapa hasta el ensamblaje; la recuperación de tensiones mediante el post-proceso y la memoria») o declarar en §3.9 y en Conclusiones el cumplimiento parcial.
+- Estado: abierto
+- Sesión: 2
+
+**H-26**
+- Bloque y sección: B3 · §3.6 Resultados del software ↔ OE1, OE3 ↔ Estructura del documento
+- Tipo: coherencia
+- Severidad: media
+- Evidencia: `01_introduccion.tex:69`: «El \autoref{cap:resultados} presenta y analiza los resultados: expone el producto final, mide los datos…». §3.6 (`04_resultados.tex:205-213`) no contiene figura, tabla ni medida: las cinco figuras del capítulo (`:66, 72, 81, 143, 180`) y sus siete tablas son de V&V; el texto de `:211-213` («Cada módulo que exhibe formulación matemática incorpora un conmutador Fórmula~$\leftrightarrow$~Valores…», «La fase de post-proceso ofrece…») repite lo descrito en §2.2. OE1 no tiene resultado en el Cap. 3 (la matriz, `02b:56`, remite al Cap. 1). Taller 5, p. 3: «Deben responder a los objetivos planteados … Se presentan en tablas, gráficas que sean fáciles de entender».
+- Problema: dos objetivos (OE1, OE3) no tienen resultado en el capítulo de resultados, y el «producto final» que la Introducción anuncia para el Cap. 3 no se muestra allí (las capturas de la aplicación están en el Cap. 2 y en el Anexo B). §3.6 es prosa de diseño, no un resultado.
+- Sugerencia: para OE3, una figura de la aplicación con las tres fases sobre el mismo lienzo y una tabla «fase → operaciones disponibles → módulo»; para OE1, aceptar que el Cap. 1 es su producto y decirlo en §3.9, o reformular OE1 como fundamentación que «se materializa» y no como objetivo con resultado.
+- Estado: abierto
+- Sesión: 2
+
+**H-27**
+- Bloque y sección: B3 · §3.8.1 Alcances y §3.9 ↔ Anexo D
+- Tipo: coherencia
+- Severidad: baja
+- Evidencia: `04_resultados.tex:219`: «de hasta el $2{,}9\,\%$ en la tensión cortante … Frente a SAP2000 las diferencias son del $0{,}21\,\%$ en $\sigma_x$ y de hasta el $0{,}56\,\%$ en desplazamientos; en la componente cortante el modelo de cáscara queda más cerca de la solución analítica ($0{,}16\,\%$) que EduFEM»; `:260` repite «hasta el $0{,}56\,\%$ frente a SAP2000». Esas cifras no están en ninguna tabla del Cap. 3 (`tab:timoshenko-stress` solo $\sigma_x$; `tab:timoshenko-defl` solo analítico); provienen de `06_anexos.tex:580-595` (`tab:tim-componentes`) y de la tabla de desplazamientos del Anexo D. Taller 5, p. 4: «Se utilizan tablas y figuras para enriquecer los datos, no duplicarlos y con un texto que explique».
+- Problema: la interpretación y la validación de la hipótesis se apoyan en datos que el capítulo no presenta; el lector del Cap. 3 no puede verificar el 2,9 % ni el 0,56 % sin ir al anexo, y el capítulo los interpreta antes de mostrarlos.
+- Sugerencia: añadir a `tab:timoshenko-stress` las columnas de $\sigma_y$ y $\tau_{xy}$ (o una fila de máximos) y a `tab:timoshenko-defl` la columna SAP2000.
+- Estado: abierto
+- Sesión: 2
+
+**H-28**
+- Bloque y sección: B3 · §3.2–§3.5 ↔ §3.8 Interpretación de los resultados
+- Tipo: forma
+- Severidad: baja
+- Evidencia: Taller 5, p. 4: «Solo se debe describir y no interpretar o hacer comentarios de los resultados». El Cap. 3 tiene una sección propia de interpretación (§3.8) y, sin embargo, interpreta en cada sección de datos: `04_resultados.tex:120`: «no permite afirmar la superioridad de una herramienta sobre la otra»; `:137`: «Este detalle es pedagógicamente significativo … Este contraste ilustra, además, la importancia de seleccionar la referencia analítica adecuada»; `:174`: «La comparación a igualdad de grados de libertad es el argumento pedagógico central … Esta evidencia empírica permite al estudiante constatar de primera mano»; `:58`: relato del defecto de $\bm{E}_{\text{Q4}}$ «detectado y corregido durante el desarrollo».
+- Problema: descripción e interpretación van mezcladas, y §3.8 queda como segunda interpretación (repite las cifras de §3.4–§3.5). El material docente pide separarlas.
+- Sugerencia: dejar en §3.2–§3.6 tablas, figuras y descripción en pasado; concentrar juicios y lecciones pedagógicas en §3.8.
+- Estado: abierto
+- Sesión: 2
+
+**H-29**
+- Bloque y sección: B3 · §3.8.3 Limitaciones observadas (`tab:tiempos`) ↔ §2.1 metodología
+- Tipo: coherencia
+- Severidad: baja
+- Evidencia: `04_resultados.tex:231-251`: tabla `tab:tiempos` con «$t_{\text{ensamblaje}}$ (s) & $t_{\text{solución}}$ (s) & $\bm{K}$ densa (MB) & $\bm{K}$ dispersa (MB)» medidos con `tests/bench_timing.py` y comparación de ordenamientos («se reduce 1,7 veces con 2178 GDL, 2,0 veces con 8450 GDL y 2,9 veces con 33\,282 GDL»). En `02b_diseno_metodologico.tex` no aparecen «tiempo», «memoria (MB)» ni `bench_timing` como variable, indicador o instrumento (0 ocurrencias); la Tabla 2.1 no tiene fila de desempeño.
+- Problema: el Cap. 3 reporta una medición (rendimiento del solucionador) que la metodología no planificó: sin variable, sin instrumento declarado, sin criterio. Resultado que no responde a ningún objetivo ni pregunta (el criterio de B3 lo señala expresamente).
+- Sugerencia: o añadir «desempeño» como variable controlada/observada en la Tabla 2.1 con su instrumento, o mover `tab:tiempos` al Anexo D como dato complementario.
+- Estado: abierto
+- Sesión: 2
+
+**H-30**
+- Bloque y sección: B3 · §3.8.2 Comparación cualitativa con herramientas existentes ↔ §1.1 Antecedentes
+- Tipo: coherencia
+- Severidad: baja
+- Evidencia: `04_resultados.tex:223`: «En relación con las herramientas educativas reportadas en la literatura ---simuladores de armaduras, visualizadores de los modos propios de la matriz de rigidez o entornos de procesamiento interactivo de ecuaciones del MEF \autocite{bishay2020teaching,lee2015interactive,lee2015eigenmodes}---, la contribución distintiva de EduFEM es la cobertura integral del canal de cálculo …». Es el contenido de `02_marco_teorico.tex:11-43` y de `tab:comparativa`, sin dato nuevo del Cap. 3 y sin referencia a esa tabla.
+- Problema: una subsección de «resultados» que no presenta resultado alguno: repite la comparación cualitativa del marco teórico. Si la intención es contrastar los resultados con los antecedentes (Taller 5, p. 3: «Cada dimensión o indicador debe tener el contraste de la teoría y los antecedentes»), debería confrontar cifras (p. ej. los errores de Cook con los publicados por Cook/Hughes) y no repetir la tabla de atributos.
+- Sugerencia: reducir §3.8.2 a un párrafo que remita a `tab:comparativa` y añada lo que el Cap. 3 aporta a esa tabla (la fila «V\&V publicada»).
+- Estado: abierto
+- Sesión: 2
+
+**H-31**
+- Bloque y sección: B3 · §3.5 Membrana de Cook (nota al pie) ↔ §1.11
+- Tipo: coherencia
+- Severidad: baja
+- Evidencia: `02_marco_teorico.tex:414`: «el desplazamiento del extremo converge al valor de referencia de uso convencional, $23{,}96$, … \autocites[p.~98]{cook2002concepts}[p.~221]{hughes2000fem}». `04_resultados.tex:150` (nota): «su valor de referencia es un límite de convergencia y no un dato exacto, por lo que conviene tratarlo como tal y no como una constante tomada de una fuente. En lugar de descansar en el valor convencional, este trabajo lo corrobora con evidencia propia».
+- Problema: el marco teórico atribuye el 23,96 a dos fuentes con página; el Cap. 3 dice que no debe tratarse como constante tomada de una fuente. El lector no sabe si el valor está respaldado bibliográficamente o solo por la extrapolación de Richardson propia. B5 debe comprobar que Cook p. 98 y Hughes p. 221 efectivamente dan 23,96 (`tesis/respaldo_citas/verificado.json`).
+- Sugerencia: una sola procedencia: «valor convencional citado por Cook y Hughes y corroborado aquí por extrapolación de Richardson».
+- Estado: abierto
+- Sesión: 2
 
 ### B5 — Citación y referencias (registrados en sesión 1 desde B0; el bloque sigue pendiente)
 
@@ -272,3 +459,4 @@ la hipótesis se contrasta en el Cap. 3 y se discute en Conclusiones. B2–B4 ve
 | Sesión | Fecha | Bloque(s) | Hallazgos añadidos | Commit de la tesis auditado | Punto donde se detuvo | Siguiente paso |
 |---|---|---|---|---|---|---|
 | 1 | 2026-09-15 | B0 (auditado) · B1 (auditado) | H-1 a H-14 (1 alta, 8 medias, 5 bajas) | `bdbf18d` (2026-09-11, «Tesis: aplicada la auditoría del 2026-09-11») | B1 completo. Se leyeron `01_introduccion.tex`, `02b_diseno_metodologico.tex`, `00_resumen.tex`, `main.tex` y los 8 PDF del material docente | **B2**: `02_marco_teorico.tex` (414 líneas) y `02b_diseno_metodologico.tex` (ya leído en sesión 1): comprobar que §2.1 sirve a los seis objetivos y que el procedimiento de §2.1.5-2.1.6 es el que aplica `04_resultados.tex`; completar la columna «Metodología» de la trazabilidad. Prestar atención a población/muestra (Taller 4, p. 13) frente a §2.1.4 |
+| 2 | 2026-09-15 | B2 (auditado) · B3 (auditado) | H-15 a H-31 (0 altas, 7 medias, 10 bajas); evidencia adicional en H-3 y H-9 | `bdbf18d` (sin cambios en `tesis/` desde la sesión 1: `git log bdbf18d..HEAD -- tesis/` vacío) | B2 y B3 completos. Se leyeron `02_marco_teorico.tex`, `02b_diseno_metodologico.tex`, `01_introduccion.tex`, `04_resultados.tex`, `05_conclusiones.tex` (solo como evidencia de H-25; B4 no auditado), encabezados de `03_diseno_implementacion.tex` y `06_anexos.tex`, Taller 4 y Taller 5 completos, y los instrumentos `tests/vv_mms.py`, `tests/vv_timoshenko.py`, `tests/vv_cook.py` (criterios codificados). Los PDF del material docente se leen con `pymupdf` (`pip install pymupdf`; el `Read` del PDF falla sin poppler) | **B4**: `05_conclusiones.tex` (52 líneas): una conclusión por objetivo (`:11-21`) → verificar contra la columna «Resultado» de la trazabilidad; atención a `:23` («satisface los seis objetivos») frente a H-25/H-26, a la cifra «0,6 %» de `:29` (no está en el Cap. 3, ver H-27), a información nueva en `:43` (Cuthill-McKee, 7-19 %, no aparece en el Cap. 3) y a si cada recomendación (`:43-51`) deriva de una limitación de `:35-37`. Completar la columna «Conclusión» y el estado definitivo de la trazabilidad. Luego B5 con `tesis/respaldo_citas/verificado.json` (incluye comprobar H-31) |
