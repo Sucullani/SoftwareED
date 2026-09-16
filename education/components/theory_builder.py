@@ -28,9 +28,23 @@ class TheoryDoc:
     # Ver `matrix_factored_tex`.
     RELATIVE_ZERO = 1e-12
 
-    def __init__(self, title: str, subtitle: str = ""):
+    # Márgenes por defecto: documento de prosa (la Teoría MEF). Con 2,2 cm a
+    # cada lado el renglón mide 16,6 cm, que a 11 pt son ~80 caracteres: el
+    # ancho de lectura cómodo de la tipografía clásica.
+    MARGEN_LATERAL = "2.2cm"
+    MARGEN_VERTICAL = "2.2cm"
+
+    def __init__(self, title: str, subtitle: str = "",
+                 margen_lateral: Optional[str] = None,
+                 margen_vertical: Optional[str] = None):
+        """`margen_lateral` / `margen_vertical` permiten ensanchar la caja de
+        texto en documentos donde mandan las TABLAS y no la prosa — la Memoria
+        de Cálculo pide 1,5 cm laterales, que le dan 18 cm de ancho útil."""
         geometry_options = {
-            "margin": "2.2cm",
+            "left": margen_lateral or self.MARGEN_LATERAL,
+            "right": margen_lateral or self.MARGEN_LATERAL,
+            "top": margen_vertical or self.MARGEN_VERTICAL,
+            "bottom": margen_vertical or self.MARGEN_VERTICAL,
             "headheight": "14pt",
         }
         self.doc = Document(

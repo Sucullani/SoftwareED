@@ -153,6 +153,12 @@ class DxfImportDialog:
                   foreground=DIALOG_MUTED_FG_COLOR, font=FONT_UI,
                   ).pack(side=LEFT)
 
+        # La barra de botones se reserva ANTES del cuerpo elástico y al pie
+        # (regla dura 23): Tk recorta lo último empaquetado, y acá eso era
+        # justo [Cancelar / Importar]. Se llena más abajo, después del preview.
+        btn_bar = ttk.Frame(outer)
+        btn_bar.pack(side=BOTTOM, fill=X, pady=(10, 0))
+
         body = ttk.Frame(outer)
         body.pack(fill=BOTH, expand=YES)
 
@@ -198,9 +204,7 @@ class DxfImportDialog:
         )
         self._preview_info.pack(anchor=W, pady=(4, 0))
 
-        # ── Botones ──────────────────────────────────────────────────
-        btn_bar = ttk.Frame(outer)
-        btn_bar.pack(fill=X, pady=(10, 0))
+        # ── Botones ── (el frame ya quedó reservado al pie, arriba) ───
         ttk.Button(
             btn_bar, text="Cancelar", bootstyle="secondary",
             command=self._on_cancel, width=12,

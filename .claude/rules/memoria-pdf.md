@@ -28,6 +28,19 @@ Canon completo: **[docs/convenciones/memoria-calculo.md](../../docs/convenciones
   "factorización LU directa" en abstracto.
 - Los umbrales `_COMPACT_MAX_ELEMENTS_Q4 = 2` / `_Q9 = 1` gobiernan si se desarrollan todos
   los elementos o solo el de máxima energía. Subirlos desborda la página.
+- **Unidad APILADA bajo el símbolo**: todo encabezado con magnitud física pasa por
+  `MemoriaCalculo._th_unidad(simbolo, unidad)`, nunca `simbolo + unidad`. En línea, seis
+  columnas de tensiones repitiendo `[kgf/cm²]` sacaban las dos tablas de tensiones de la hoja
+  (89,9 pt con márgenes de 2,2 cm; 50,0 pt aun con los 1,5 cm actuales). Y el desborde depende
+  del **sistema de unidades**: con `MPa` entra, con `kgf/cm²` no — probalo con el ejemplo de
+  Timoshenko, no con el canónico.
+- **Márgenes laterales 1,5 cm** (`MemoriaCalculo.MARGEN_LATERAL`), contra los 2,2 cm que
+  `TheoryDoc` usa por defecto para la Teoría, que es prosa. No unificarlos.
+- **Al tocar tablas, matrices o ecuaciones: compilar y mirar el `.log`.**
+  `test_nada_se_sale_de_la_hoja` exige cero `Overfull \hbox` sobre Timoshenko Q9. Un
+  `equation*` no parte línea: la entrada simbólica `K_11` llegó a imprimirse **566 pt fuera de
+  la hoja**, invisible, por el ruido de redondeo que
+  `fem.symbolic_integrand.podar_ruido` ahora elimina.
 - **Compilación solo vía `latex_runtime.compile_document`** (`TheoryDoc.compile_to` y
   `TheoryViewer` ya pasan por ahí): resuelve el TeX Live embebido antes que el PATH, compila en
   un temporal con ruta ASCII sin ventana de consola y mueve el PDF al destino. No volver a

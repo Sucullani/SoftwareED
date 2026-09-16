@@ -810,6 +810,13 @@ class StiffnessElementModule(CanvasOverlayModule):
             font=("Segoe UI", 9, "italic"),
             anchor="w", justify="left", wraplength=860,
         ).pack(fill="x", pady=(2, 2))
+        # Pie reservado ANTES del cuerpo elástico (regla dura 23): Tk recorta
+        # lo último empaquetado, y el `Text` de la integral simbólica pide
+        # cientos de píxeles de alto, así que el resumen del pie —cuántas
+        # líneas son y que Esc cierra— quedaba fuera de la ventana.
+        footer = tk.Frame(top, bg=EDU_AXES_BG)
+        footer.pack(side="bottom", fill="x", padx=10, pady=(0, 10))
+
         body_frame = tk.Frame(top, bg=EDU_AXES_BG)
         body_frame.pack(fill="both", expand=True, padx=10, pady=(4, 10))
         text = tk.Text(
@@ -834,8 +841,6 @@ class StiffnessElementModule(CanvasOverlayModule):
             pretty = str(self._last_kij_expr)
         text.insert("1.0", pretty)
         text.configure(state="disabled")
-        footer = tk.Frame(top, bg=EDU_AXES_BG)
-        footer.pack(fill="x", padx=10, pady=(0, 10))
         n_lines = pretty.count("\n") + 1
         tk.Label(
             footer,
@@ -994,11 +999,14 @@ class StiffnessElementModule(CanvasOverlayModule):
             # explora arrastrando o con la rueda, en vez de salir a ~6 pt.
             # Viewport ALTO ACOTADO (200) para que la 18×18 de Q9 NO estire el
             # overlay a pantalla completa — scrollea en vertical (antes 300 lo
-            # hacía gigante). Ancho ceñido al overlay (600−60).
+            # hacía gigante). Ancho ceñido al overlay REAL de esta pantalla:
+            # `OVERLAY_WIDTH` son px de diseño a 96 dpi, y con el escalado de
+            # Windows al 125-150 % dejaba la k_e topada en 540 px dentro de una
+            # ventana de 750-900 (ver `matrix_viewport_width`).
             self._mat_k = ScrollableMatrixImage(
                 self._k_frame, matrix=Kn,
                 fmt="{:.0f}", fontsize=fs, prefix=prefix,
-                viewport=(self.OVERLAY_WIDTH - 60, 200),
+                viewport=(self.matrix_viewport_width(margen=60), 200),
             )
         else:
             self._mat_k.set_style(fontsize=fs)

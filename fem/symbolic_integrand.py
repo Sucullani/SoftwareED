@@ -21,7 +21,56 @@ from __future__ import annotations
 
 import sympy as sp
 
-from config.settings import ANALYSIS_PLANE_STRESS
+from config.settings import ANALYSIS_PLANE_STRESS, MATRIX_DISPLAY_ZERO_REL_TOL
+
+
+def podar_ruido(expr, tol: float = MATRIX_DISPLAY_ZERO_REL_TOL):
+    r"""Borra de cada suma los términos cuyo coeficiente numérico es
+    despreciable frente al mayor de ESA misma suma.
+
+    Las coordenadas de los nodos entran como flotantes, así que al armar el
+    Jacobiano de un elemento RECTANGULAR —donde la teoría dice que los
+    términos cruzados son exactamente cero— sympy arrastra el redondeo y
+    escribe cosas como::
+
+        (1.06581410364015e-13*eta - 750.0)**2
+
+    Eso no es solo feo: impide que sympy pliegue el paréntesis a ``562500.0``,
+    de modo que la expresión de $K_{11}$ queda con cientos de términos que la
+    teoría no tiene. En la Memoria se emite dentro de un ``equation*``, que no
+    admite corte de línea, y el resultado medido eran **566 pt de fórmula
+    impresa fuera de la hoja** (Timoshenko Q4), invisibles para el alumno.
+
+    El criterio es RELATIVO, igual que el de las matrices que se muestran en
+    pantalla (`config.settings.MATRIX_DISPLAY_ZERO_REL_TOL`): un coeficiente
+    doce órdenes menor que su vecino en la misma suma es ruido de doble
+    precisión, no un dato. Los términos simbólicos sin coeficiente numérico
+    legible se conservan siempre.
+
+    Función pura: no toca el cálculo, solo la expresión que se va a mostrar.
+    """
+    def _recorre(e):
+        if e.is_Add:
+            terminos = [_recorre(t) for t in e.args]
+            magnitudes = []
+            for t in terminos:
+                coef, _ = t.as_coeff_Mul()
+                try:
+                    magnitudes.append(abs(float(coef)))
+                except (TypeError, ValueError):
+                    magnitudes.append(float("inf"))   # sin número: se queda
+            finitas = [m for m in magnitudes if m != float("inf")]
+            mayor = max(finitas) if finitas else 0.0
+            if mayor > 0.0:
+                piso = mayor * tol
+                terminos = [t for t, m in zip(terminos, magnitudes)
+                            if m > piso]
+            return sp.Add(*terminos) if terminos else sp.Integer(0)
+        if e.args:
+            return e.func(*[_recorre(a) for a in e.args])
+        return e
+
+    return sp.simplify(_recorre(sp.sympify(expr)))
 
 
 class SymbolicIntegrandQ4:

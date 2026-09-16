@@ -38,3 +38,16 @@ Los bullets históricos del capítulo usan la numeración anterior (B era M4): l
 **LaTeX**: matrices con `LatexMatrixImage` / `ScrollableMatrixImage`, escalares con
 `LatexExpressionImage`. mathtext **no** soporta `\begin{bmatrix}` (los vectores van con
 `\substack`). Nada de duplicar `fem/`: los módulos solo visualizan.
+
+**Ancho de las matrices: `self.matrix_viewport_width()`, nunca `OVERLAY_WIDTH - N`.**
+`OVERLAY_WIDTH` es una medida de diseño a 96 dpi; el overlay real mide `scaled(OVERLAY_WIDTH)`
+recortado al área útil. Con el escalado de Windows al 125-150 % el número crudo dejaba la
+matriz topada en 700 px dentro de una ventana de 925-1110, cortándola con el panel medio
+vacío al lado.
+
+**El body del overlay SE DESPLAZA** (`CanvasOverlay._viewport`): el alto sale del contenido y
+se recorta a la pantalla, así que en un escritorio chico las últimas filas quedaban fuera y sin
+forma de alcanzarlas — medido en 1280x600: M2 perdía 76 px y M3, 61, justo donde están la J y
+la B. La rueda sobre cualquier punto del overlay desplaza el body (`_scroll_body`) y sigue
+cortando la propagación, que es lo que evita el zoom accidental de la MeshCanvas y el cuelgue
+del `FigureCanvasTkAgg`. Los módulos no cambian: siguen empaquetando en `self.body`.

@@ -117,6 +117,26 @@ class MaterialDialog:
             parent, text="Materiales", font=("Segoe UI", 10, "bold")
         ).pack(anchor=W, pady=(0, 6))
 
+        # Botones de accion (sin Duplicar). Bootstyle solido + texto-only:
+        # la combinacion `success-outline`/`danger-outline` + emojis
+        # (➕, 🗑) renderizaba los botones como rectangulos vacios en
+        # algunas combos Python/tk de Windows (el outline mostraba pero
+        # el texto se perdia por fallback de fuente emoji). Sin emojis
+        # y con bootstyle solido el render es 100% reliable.
+        # Se reservan al pie ANTES de la lista elastica (regla dura 23): la
+        # lista crece con la cantidad de materiales y, si se empaquetaba
+        # primero, [Nuevo / Eliminar] era lo que Tk dejaba fuera del panel.
+        btn_frame = ttk.Frame(parent)
+        btn_frame.pack(side=BOTTOM, fill=X, pady=(8, 0))
+        ttk.Button(
+            btn_frame, text="Nuevo", bootstyle="success",
+            command=self._add_material, width=10,
+        ).pack(side=LEFT, padx=2)
+        ttk.Button(
+            btn_frame, text="Eliminar", bootstyle="danger",
+            command=self._remove_material, width=11,
+        ).pack(side=LEFT, padx=2)
+
         # Lista custom: Canvas + Frame interno, scroll EXCLUSIVAMENTE con
         # la rueda del mouse (sin scrollbar visible, igual que el
         # spreadsheet del pre/post-proc).
@@ -145,23 +165,6 @@ class MaterialDialog:
         # heredan el bind al populate (cada widget hijo lo recibe).
         self.list_canvas.bind("<MouseWheel>", self._on_mousewheel)
         self.list_inner.bind("<MouseWheel>", self._on_mousewheel)
-
-        # Botones de accion (sin Duplicar). Bootstyle solido + texto-only:
-        # la combinacion `success-outline`/`danger-outline` + emojis
-        # (➕, 🗑) renderizaba los botones como rectangulos vacios en
-        # algunas combos Python/tk de Windows (el outline mostraba pero
-        # el texto se perdia por fallback de fuente emoji). Sin emojis
-        # y con bootstyle solido el render es 100% reliable.
-        btn_frame = ttk.Frame(parent)
-        btn_frame.pack(fill=X, pady=(8, 0))
-        ttk.Button(
-            btn_frame, text="Nuevo", bootstyle="success",
-            command=self._add_material, width=10,
-        ).pack(side=LEFT, padx=2)
-        ttk.Button(
-            btn_frame, text="Eliminar", bootstyle="danger",
-            command=self._remove_material, width=11,
-        ).pack(side=LEFT, padx=2)
 
     def _on_mousewheel(self, event):
         """Scroll de la lista de materiales con la rueda del mouse.

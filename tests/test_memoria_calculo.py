@@ -203,6 +203,65 @@ def test_memoria_minima_q9() -> bool:
         return True
 
 
+def test_nada_se_sale_de_la_hoja() -> bool:
+    r"""Ninguna tabla ni formula se imprime fuera del ancho de la hoja.
+
+    El reporte de campo (2026-09-16) llego con capturas del PDF: las dos
+    tablas de tensiones —ocho y siete columnas, cada una rotulada
+    `$\sigma$ [kgf/cm2]`— se cortaban por la derecha. `pdflatex` ya lo
+    denuncia en su log (`Overfull \hbox ... too wide`), solo que nadie lo
+    miraba.
+
+    Se usa el ejemplo de Timoshenko y NO el canonico porque el desborde
+    depende del sistema de unidades: con `MPa` el encabezado entra, con
+    `kgf/cm\textsuperscript{2}` no. El canonico nunca lo habria mostrado.
+
+    Medido antes de los arreglos de esa fecha: 8 desbordes, el peor de 89,9
+    pt (margenes de 2,2 cm) y de 50,0 pt ya con los 1,5 cm; mas una entrada
+    simbolica `K_11` de 566,2 pt en los modelos Q4. Ahora: cero.
+    """
+    print("test_nada_se_sale_de_la_hoja ...")
+    if not _has_pdflatex():
+        print("  SKIP: pdflatex no encontrado en PATH")
+        return True
+    import re
+    import subprocess
+    from education.components.latex_runtime import find_latex_runtime
+    from models.example_library import load_example_timoshenko_q9
+
+    project = load_example_timoshenko_q9()
+    solution = solve_system(project)
+    project.is_solved = True
+    es, ns = compute_all_stresses(project, solution)
+    memoria = MemoriaCalculo(project, solution, es, ns, style="educativo")
+    memoria.build()
+    runtime = find_latex_runtime()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tex = os.path.join(tmpdir, "documento.tex")
+        with open(tex, "w", encoding="utf-8") as f:
+            f.write(memoria.tex_source())
+        for _ in range(2):      # dos pasadas: indice y referencias
+            subprocess.run(
+                [runtime.pdflatex, "-interaction=nonstopmode",
+                 "-file-line-error", "documento.tex"],
+                cwd=tmpdir, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        log_path = os.path.join(tmpdir, "documento.log")
+        if not os.path.exists(log_path):
+            print("  FAIL: pdflatex no dejo log")
+            return False
+        with open(log_path, encoding="utf-8", errors="replace") as f:
+            log = f.read()
+    anchos = [float(x) for x in
+              re.findall(r"Overfull .hbox \(([0-9.]+)pt too wide\)", log)]
+    if anchos:
+        print(f"  FAIL: {len(anchos)} caja(s) fuera de la hoja, la peor de "
+              f"{max(anchos):.1f} pt")
+        return False
+    print("  OK: ninguna tabla ni formula se sale de la hoja")
+    return True
+
+
 def test_error_pdflatex_faltante() -> bool:
     print("test_error_pdflatex_faltante ...")
     try:
@@ -559,24 +618,49 @@ def test_tablas_con_unidades() -> bool:
 
     Es el mismo rotulado que las tablas del Pre (`X [mm]`, `q Inicio
     [N/mm]`) y del Post (`sigma_x [MPa]`): la Memoria era el unico lugar
-    donde los valores llegaban al alumno sin unidad."""
+    donde los valores llegaban al alumno sin unidad.
+
+    La unidad va APILADA bajo el simbolo (`_th_unidad`), no en la misma
+    linea. Con seis columnas de tensiones, repetir `[kgf/cm2]` en linea es lo
+    que empujaba las dos tablas de tensiones fuera de la hoja: 89,9 pt con
+    margenes de 2,2 cm y 50 pt aun con los 1,5 cm de ahora. Apilada, la
+    columna mide lo que mide la unidad y la tabla entra, sin perder el
+    rotulo, que `longtable` repite en cada hoja. El formato se escribe aca
+    literal —y no llamando a `_th_unidad`— para que el test siga siendo un
+    control externo del `.tex` y no un espejo del codigo que lo genera.
+    """
     print("test_tablas_con_unidades ...")
     from config.units import get_unit_labels
     project = load_example_project()
     u = get_unit_labels(project.unit_system)
     L, F, S = u["longitud"], u["fuerza"], u["esfuerzo"]
+
+    def apilado(simbolo: str, unidad: str) -> str:
+        return (r"\shortstack{" + simbolo + r"\\[1pt]{\scriptsize ["
+                + unidad + "]}}")
+
     for style in ("educativo", "directo"):
         tex = _tex(style)
         esperados = [
-            f"$X$ [{L}]", f"$Y$ [{L}]", f"Espesor [{L}]",
-            f"$F_x$ [{F}]", f"$R_x$ [{F}]", f"$u_x$ [{L}]",
-            f"$\\sigma_x$ [{S}]", f"$\\sigma_{{VM}}$ [{S}]", f"$E$ [{S}]",
+            apilado("$X$", L), apilado("$Y$", L), apilado("Espesor", L),
+            apilado("$F_x$", F), apilado("$R_x$", F), apilado("$u_x$", L),
+            apilado(r"$\sigma_x$", S), apilado(r"$\sigma_{VM}$", S),
+            apilado("$E$", S),
         ]
         faltan = [e for e in esperados if e not in tex]
         if faltan:
-            print(f"  FAIL ({style}): encabezados sin unidad: {faltan}")
+            print(f"  FAIL ({style}): encabezados sin unidad apilada: {faltan}")
             return False
-    print(f"  OK: encabezados con [{L}] / [{F}] / [{S}] en ambos estilos")
+        # Y que no haya quedado ninguno en linea: mezclar los dos formatos
+        # deja dos estilos de encabezado conviviendo en la misma hoja.
+        en_linea = [e for e in (f"$X$ [{L}]", f"$F_x$ [{F}]",
+                                f"$\\sigma_x$ [{S}]") if e in tex]
+        if en_linea:
+            print(f"  FAIL ({style}): encabezados en linea sin apilar: "
+                  f"{en_linea}")
+            return False
+    print(f"  OK: encabezados apilados con [{L}] / [{F}] / [{S}] en ambos "
+          f"estilos")
     return True
 
 
@@ -1598,6 +1682,7 @@ if __name__ == "__main__":
         test_hub_no_tiene_bibliografia(),
         test_memoria_minima_q4(),
         test_memoria_minima_q9(),
+        test_nada_se_sale_de_la_hoja(),
         test_error_pdflatex_faltante(),
     ]
     n_pass = sum(1 for r in results if r)

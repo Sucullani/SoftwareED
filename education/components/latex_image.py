@@ -35,7 +35,7 @@ matplotlib.use("Agg")
 from matplotlib.figure import Figure
 from PIL import Image, ImageTk
 
-from config.settings import EDU_FG, OVERLAY_BG
+from config.settings import EDU_FG, MATRIX_DISPLAY_ZERO_REL_TOL, OVERLAY_BG
 
 
 def _infer_bg(parent) -> str:
@@ -868,6 +868,25 @@ def _fig_to_photoimage(fig: Figure, *, dpi: int) -> ImageTk.PhotoImage:
     return ImageTk.PhotoImage(_fig_to_pil(fig, dpi=dpi))
 
 
+def _piso_de_cero(arr: np.ndarray) -> float:
+    """Módulo por debajo del cual una celda se escribe ``"0"``.
+
+    Es ``MATRIX_DISPLAY_ZERO_REL_TOL`` por el mayor módulo de la propia
+    matriz, de modo que el criterio viaja con la escala de los datos: sirve
+    igual para una B de entradas ~1e-3 que para una k_e de ~1e6. Devuelve
+    ``0.0`` (no snapea nada) si la matriz no tiene ningún número finito — el
+    caso de las matrices simbólicas, que llegan como texto.
+    """
+    magnitudes = [
+        abs(float(v)) for v in arr.ravel()
+        if isinstance(v, (int, float, np.floating, np.integer))
+        and math.isfinite(float(v))
+    ]
+    if not magnitudes:
+        return 0.0
+    return max(magnitudes) * MATRIX_DISPLAY_ZERO_REL_TOL
+
+
 def _matrix_to_strings(matrix: MatrixLike, *, fmt: str) -> Optional[np.ndarray]:
     """Convierte una matriz heterogénea a un array 2D de strings."""
     try:
@@ -889,12 +908,16 @@ def _matrix_to_strings(matrix: MatrixLike, *, fmt: str) -> Optional[np.ndarray]:
         arr = arr.reshape(-1, 1)
     if arr.ndim != 2:
         return None
+    piso = _piso_de_cero(arr)
     out = np.empty(arr.shape, dtype=object)
     for i in range(arr.shape[0]):
         for j in range(arr.shape[1]):
             v = arr[i, j]
             if isinstance(v, (int, float, np.floating, np.integer)):
-                out[i, j] = fmt.format(float(v))
+                f = float(v)
+                # Los ceros teóricos se escriben "0", no "-2.44e-18": ver
+                # MATRIX_DISPLAY_ZERO_REL_TOL. Solo afecta al texto.
+                out[i, j] = "0" if abs(f) <= piso else fmt.format(f)
             else:
                 s = str(v)
                 # Truncado solo para texto plano largo. Si la celda tiene

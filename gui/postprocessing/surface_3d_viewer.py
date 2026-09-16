@@ -251,6 +251,24 @@ class Surface3DViewer(tk.Toplevel):
         if _JET_CMAP is None:
             _JET_CMAP = _build_lut_cmap(JET_LUT)
 
+        # Footer: toggle Crudo/Suavizado + toggle discontinuidades + plano z=0.
+        # Se empaqueta ANTES que el cuerpo elástico y con `side=BOTTOM` (regla
+        # dura 23), y acá eso no es una precaución sino la condición para que
+        # la barra exista en pantalla.
+        #
+        # Tk le quita espacio a lo ÚLTIMO empaquetado, y el `FigureCanvasTkAgg`
+        # pide SIEMPRE más de lo que tiene: el backend de Tk multiplica su
+        # tamaño por el *device pixel ratio*, así que con el escalado de
+        # Windows al 150 % un lienzo que ocupa 1350 px declara pedir 2001
+        # (medido). Con el orden anterior —cuerpo primero, pie después— ese
+        # exceso se descontaba del pie, que desaparecía entero: el alumno se
+        # quedaba sin los modos Crudo/Suavizado, sin los dos interruptores y
+        # sin el botón Cerrar. En el equipo de desarrollo (1366x768 al 100 %)
+        # no se notaba. Reservando el pie primero, lo que se encoge es el
+        # gráfico, que es elástico y se redibuja al tamaño que le toque.
+        footer = ttk.Frame(self, padding=(10, 6, 10, 10))
+        footer.pack(side=tk.BOTTOM, fill=tk.X)
+
         body = ttk.Frame(self, padding=(8, 4))
         body.pack(fill=tk.BOTH, expand=True)
 
@@ -258,10 +276,6 @@ class Surface3DViewer(tk.Toplevel):
         self._ax = self._fig.add_subplot(111, projection="3d")
         self._mpl_canvas = FigureCanvasTkAgg(self._fig, master=body)
         self._mpl_canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
-
-        # Footer: toggle Crudo/Suavizado + toggle discontinuidades + plano z=0
-        footer = ttk.Frame(self, padding=(10, 6, 10, 10))
-        footer.pack(fill=tk.X)
 
         ttk.Label(
             footer, text="Modo:",
@@ -589,6 +603,8 @@ class Surface3DViewer(tk.Toplevel):
         la tabla de resultados (`post_tab._get_units`), para que el alumno
         lea la misma unidad en las tres vistas.
         """
+        if self.post_tab is None:
+            return ""       # visor abierto fuera del Post (tests de layout)
         try:
             unidades = self.post_tab._get_units()
         except Exception:

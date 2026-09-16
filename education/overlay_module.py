@@ -334,6 +334,49 @@ class CanvasOverlayModule:
                 # RECORTA lo de abajo, incluido el cross-ref al pie.
                 traceback.print_exc()
 
+    # ── Ancho real disponible para las matrices del panel ──────────
+    def matrix_viewport_width(self, *, margen: int = 40) -> int:
+        """Ancho útil, en píxeles REALES de esta pantalla, para las matrices
+        que el módulo pinta en el body.
+
+        `OVERLAY_WIDTH` es una medida de **diseño a 96 dpi**: el overlay se
+        abre con `scaled(OVERLAY_WIDTH)` recortado al área útil del monitor
+        (`CanvasOverlay._tamano_final`). Usar el número crudo como tope de las
+        matrices fallaba en las dos direcciones, y solo fuera del equipo de
+        desarrollo —que está al 100 %—:
+
+        - con el escalado de Windows al 125-150 %, la ventana mide 925-1110 px
+          pero la matriz seguía topada en 700, así que se cortaba —o exigía
+          arrastre— con 200-400 px de overlay **vacíos** a su derecha;
+        - en una pantalla chica el recorte al área útil deja la ventana MÁS
+          angosta que el tope, y entonces la matriz que `fit_matrix_widget`
+          resolvió como `LatexMatrixImage` (un label, sin scroll) queda
+          recortada por el borde sin forma alguna de ver el resto.
+
+        Las imágenes de matriz se rasterizan a `dpi` fijo, así que su ancho en
+        píxeles NO cambia con el escalado: comparar contra este ancho real es
+        exactamente lo correcto. `margen` (px de diseño) descuenta el padding
+        del body y del frame interno.
+
+        No lleva piso mínimo a propósito: cualquier piso por encima del ancho
+        real volvería a producir el recorte que esta función existe para
+        evitar. Si la pantalla obliga a una ventana angosta, el tope de la
+        matriz es esa ventana, y `fit_matrix_widget` elegirá el widget con
+        scroll.
+        """
+        from gui.scaling import (ANCHO_MINIMO, MARGEN_PANTALLA, scaled,
+                                 work_area)
+        diseno = self.OVERLAY_WIDTH or 460
+        win = getattr(self, "_overlay", None) or getattr(self, "_mesh", None)
+        if win is None:                     # sin widget no hay dpi que leer
+            return max(120, diseno - margen)
+        try:
+            tope = max(ANCHO_MINIMO, work_area(win)[2] - MARGEN_PANTALLA)
+            ancho_ventana = min(scaled(win, diseno), tope)
+            return max(120, ancho_ventana - scaled(win, margen))
+        except Exception:
+            return max(120, diseno - margen)
+
     def on_activated(self) -> None:
         """Hook tras inicialización completa (overlay visible + layer
         registrada). Default: no-op."""

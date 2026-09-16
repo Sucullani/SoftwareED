@@ -184,10 +184,23 @@ class CanvasOverlay(tk.Toplevel):
                            lambda _e: close_btn.configure(bg=bar_color))
 
         # ── Body donde el módulo poblará su contenido ────────────────
-        self.body = tk.Frame(self, bg=OVERLAY_BG, padx=8, pady=8,
+        # Va DENTRO de un canvas para poder DESPLAZARSE. El alto del overlay
+        # sale del contenido y se recorta al área útil del monitor
+        # (`_tamano_final`), así que en un escritorio chico las últimas filas
+        # quedaban sencillamente fuera y sin ninguna forma de alcanzarlas —en
+        # M2 y M3 eso era justo la J y la B, el resultado del módulo. Medido
+        # sobre un área útil de 1280x600: M2 perdía 76 px y M3, 61.
+        # Para los módulos no cambia nada: siguen empaquetando en `self.body`.
+        self._viewport = tk.Canvas(self, bg=OVERLAY_BG, highlightthickness=0,
+                                   bd=0, takefocus=0)
+        self._viewport.pack(fill="both", expand=True)
+        self.body = tk.Frame(self._viewport, bg=OVERLAY_BG, padx=8, pady=8,
                               highlightthickness=0,
                               highlightbackground=OVERLAY_BORDER)
-        self.body.pack(fill="both", expand=True)
+        self._body_win = self._viewport.create_window(
+            (0, 0), window=self.body, anchor="nw")
+        self.body.bind("<Configure>", self._on_body_configure)
+        self._viewport.bind("<Configure>", self._on_viewport_configure)
 
         # ── Drag por header ──────────────────────────────────────────
         for w in (self._header, self._title_lbl):
@@ -216,8 +229,10 @@ class CanvasOverlay(tk.Toplevel):
         final_w, final_h = self._tamano_final()
         # Un overlay de alto automático (OVERLAY_HEIGHT=None) puede pedir más
         # alto que la pantalla —M2 y M5 lo hacen en un escritorio de 680 px
-        # útiles— y ahí su última fila quedaba fuera. `_tamano_final` recorta;
-        # `fit_position` además garantiza que el panel entre entero.
+        # útiles—. `_tamano_final` recorta y `fit_position` garantiza que el
+        # panel entre entero; lo que el recorte deja abajo ya no se pierde:
+        # el body se desplaza con la rueda (ver `_scroll_body`).
+        self._on_body_configure()
         sx, sy = fit_position(sx, sy, final_w, final_h, work_area(self))
         self.geometry(f"{final_w}x{final_h}+{int(sx)}+{int(sy)}")
         # Tras el layout pass, build_overlay() ya pobló el body (incluso con
@@ -245,6 +260,7 @@ class CanvasOverlay(tk.Toplevel):
             self.update_idletasks()
             final_w, final_h = self._tamano_final()
             self.geometry(f"{final_w}x{final_h}")
+            self._on_body_configure()   # el contenido nuevo cambió el alto
             self._consume_wheel_recursive()
         except tk.TclError:
             pass
@@ -260,10 +276,62 @@ class CanvasOverlay(tk.Toplevel):
         más chico que el del equipo de desarrollo.
         """
         w, h = self._fixed_size
-        ancho = scaled(self, w) if w is not None else self.winfo_reqwidth()
-        alto = scaled(self, h) if h is not None else self.winfo_reqheight()
+        # El tamaño natural se mide sumando BODY + header + el marco, no
+        # preguntándoselo al Toplevel: desde que el body vive dentro del canvas
+        # de scroll, el `winfo_req*` del Toplevel refleja el tamaño del canvas
+        # —que es elástico— y no el del contenido, y el overlay habría salido
+        # del porte de un sello. El `borderwidth` va aparte para que la cuenta
+        # dé exactamente lo mismo que antes del cambio.
+        marco = 2 * self._ancho_marco()
+        ancho = (scaled(self, w) if w is not None
+                 else max(self.body.winfo_reqwidth(),
+                          self._header.winfo_reqwidth()) + marco)
+        alto = (scaled(self, h) if h is not None
+                else (self.body.winfo_reqheight()
+                      + self._header.winfo_reqheight() + marco))
         area = work_area(self)
         return fit_size(ancho, alto, 1.0, area[2], area[3])
+
+    def _ancho_marco(self) -> int:
+        """Grosor del borde del Toplevel (`borderwidth=1`), en px."""
+        try:
+            return int(float(self.cget("borderwidth")))
+        except (tk.TclError, ValueError):
+            return 1
+
+    # ── Scroll del body ────────────────────────────────────────────
+    def _on_body_configure(self, _e=None) -> None:
+        """Mantiene la región desplazable al día con el contenido real."""
+        try:
+            self._viewport.configure(scrollregion=self._viewport.bbox("all"))
+        except tk.TclError:
+            pass
+
+    def _on_viewport_configure(self, e) -> None:
+        """El frame interno ocupa todo el ancho del viewport: sin esto, los
+        `pack(fill="x")` de los módulos se ceñirían a su ancho natural y los
+        títulos y separadores dejarían de llegar al borde."""
+        try:
+            self._viewport.itemconfigure(self._body_win, width=e.width)
+        except tk.TclError:
+            pass
+
+    def _scroll_body(self, e):
+        """Handler de rueda de TODO el árbol del overlay.
+
+        Reemplaza al viejo `return "break"` a secas: además de cortar la
+        propagación —que es lo que impide que la rueda llegue a la MeshCanvas
+        y haga zoom, y lo que evita el cuelgue del `FigureCanvasTkAgg`
+        documentado en la regla de oro #3—, desplaza el body cuando el
+        contenido no entra. Si entra, no hace nada: el gesto se consume igual.
+        """
+        try:
+            caja = self._viewport.bbox("all")
+            if caja and (caja[3] - caja[1]) > self._viewport.winfo_height():
+                self._viewport.yview_scroll(int(-1 * (e.delta / 120)), "units")
+        except tk.TclError:
+            pass
+        return "break"
 
     def _consume_wheel_recursive(self) -> None:
         """Bind <MouseWheel> -> 'break' en este Toplevel y todos sus descendants.
@@ -292,7 +360,10 @@ class CanvasOverlay(tk.Toplevel):
             # exponen atributos que pueden confundir a Tkinter al inspeccionar
             # su árbol — no queremos que un widget exótico aborte el walk.
             try:
-                w.bind("<MouseWheel>", lambda _e: "break")
+                # `_scroll_body` corta la propagación igual que el viejo
+                # `lambda: "break"`, y además desplaza el body cuando el
+                # contenido no entra en la pantalla.
+                w.bind("<MouseWheel>", self._scroll_body)
             except Exception:
                 pass
             try:

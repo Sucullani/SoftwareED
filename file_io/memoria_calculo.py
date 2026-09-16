@@ -279,6 +279,10 @@ class MemoriaCalculo:
     # Tope de filas de las tablas de volcado. Ver `_longtable_topeada`.
     _TABLA_MAX_FILAS = 40
 
+    # Margen lateral de la hoja. Más angosto que el de la Teoría (2,2 cm):
+    # acá el ancho lo piden las tablas. Ver `_configure_preamble`.
+    MARGEN_LATERAL = "1.5cm"
+
     def __init__(self, project, solution, element_stresses, nodal_stresses,
                  *, mesh_diagram=None, contour_figures=None,
                  style: str = "educativo"):
@@ -306,7 +310,13 @@ class MemoriaCalculo:
         subtitle = TheoryDoc.escape(
             self.SUBTITLE_TEMPLATE.format(name=project.project_name)
         )
-        self._td = TheoryDoc(title=title, subtitle=subtitle)
+        # Márgenes laterales de 1,5 cm en vez de los 2,2 cm de la Teoría: este
+        # documento lo gobiernan las TABLAS de volcado, no la prosa. La caja
+        # de texto pasa de 16,6 a 18 cm (472 -> 512 pt), y esos 40 pt son los
+        # que hacían que las tablas de tensiones —ocho columnas con unidades
+        # en el encabezado— se salieran por la derecha de la hoja.
+        self._td = TheoryDoc(title=title, subtitle=subtitle,
+                             margen_lateral=self.MARGEN_LATERAL)
         self._configure_preamble()
 
     # ¿Incluir narrativa (párrafos, cajas pedagógicas, infografía)?
@@ -438,6 +448,28 @@ class MemoriaCalculo:
             except Exception:
                 self._units_cache = {}
         return self._units_cache
+
+    def _th_unidad(self, simbolo: str, unidad: str) -> str:
+        r"""Encabezado de columna con la unidad DEBAJO del símbolo.
+
+        Las dos tablas de tensiones tienen seis columnas rotuladas con un
+        símbolo corto —$\sigma_x$— y una unidad tres veces más ancha
+        —[kgf/cm\textsuperscript{2}]—. Puestas en línea, esas seis
+        repeticiones eran las que empujaban la tabla fuera de la hoja: con
+        márgenes de 2,2 cm se salía 89,9 pt y aun con los 1,5 cm de ahora
+        seguían sobrando 50. Apilada, la columna mide lo que mide la unidad
+        en `\scriptsize` y la tabla entra entera, sin perder el rótulo: el
+        encabezado es el que `longtable` repite en cada hoja, así que la
+        unidad viaja con la tabla aunque se parta.
+
+        Si el sistema de unidades no define la magnitud, `_u` devuelve
+        cadena vacía y el encabezado queda como el símbolo pelado.
+        """
+        unidad = (unidad or "").strip()
+        if not unidad:
+            return simbolo
+        return (r"\shortstack{" + simbolo + r"\\[1pt]{\scriptsize "
+                + unidad + r"}}")
 
     def _u(self, kind: str) -> str:
         """Sufijo de unidad para un encabezado de tabla: `` [MPa]``.
@@ -812,7 +844,9 @@ class MemoriaCalculo:
             self._td.para(r"\emph{Ningún material está referenciado por elementos.}")
             return
         self._longtable(
-            headers=["Material", "$E$" + self._u("esfuerzo"), r"$\nu$",
+            headers=["Material",
+                     self._th_unidad("$E$", self._u("esfuerzo")),
+                     r"$\nu$",
                      r"$\rho$"],
             rows=rows, col_align="lrrr")
 
@@ -826,7 +860,8 @@ class MemoriaCalculo:
                  fmt(proj.nodes[nid].y, "length")] for nid in claves]
         u = self._u("longitud")
         self._longtable_topeada(
-            headers=["ID", "$X$" + u, "$Y$" + u], rows=rows, col_align="rrr",
+            headers=["ID", self._th_unidad("$X$", u),
+                     self._th_unidad("$Y$", u)], rows=rows, col_align="rrr",
             claves=claves, destacadas=self._nodos_de_interes(), que="nodos")
 
     def _tabla_elementos(self) -> None:
@@ -837,12 +872,15 @@ class MemoriaCalculo:
         is_q9 = proj.element_type == ELEMENT_Q9
         if is_q9:
             headers = ["ID", "N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8",
-                       "N9", "Espesor" + self._u("longitud"), "Material"]
+                       "N9",
+                       self._th_unidad("Espesor", self._u("longitud")),
+                       "Material"]
             col_align = "r" * 10 + "rl"
             n_cols = 9
         else:
             headers = ["ID", "N1", "N2", "N3", "N4",
-                       "Espesor" + self._u("longitud"), "Material"]
+                       self._th_unidad("Espesor", self._u("longitud")),
+                       "Material"]
             col_align = "rrrrrrl"
             n_cols = 4
         claves = sorted(proj.elements.keys())
@@ -896,7 +934,8 @@ class MemoriaCalculo:
                 for nid in claves]
         u = self._u("fuerza")
         self._longtable_topeada(
-            headers=["Nodo", "$F_x$" + u, "$F_y$" + u], rows=rows,
+            headers=["Nodo", self._th_unidad("$F_x$", u),
+                     self._th_unidad("$F_y$", u)], rows=rows,
             col_align="rrr", claves=claves,
             destacadas=self._nodos_de_interes(),
             que="nodos cargados",
@@ -916,8 +955,9 @@ class MemoriaCalculo:
                          fmt(angle, "angle")])
         u = self._u_lineal()
         self._longtable(
-            headers=[r"\#", "N inicio", "N fin", r"$q_{inicio}$" + u,
-                     r"$q_{fin}$" + u, r"$\theta$ (°)"],
+            headers=[r"\#", "N inicio", "N fin",
+                     self._th_unidad(r"$q_{inicio}$", u),
+                     self._th_unidad(r"$q_{fin}$", u), r"$\theta$ (°)"],
             rows=rows, col_align="rrrrrr")
 
     def _tabla_restricciones(self) -> None:
@@ -1652,7 +1692,7 @@ class MemoriaCalculo:
     def _integrando_simbolico_q4(self, elem, node_coords, material) -> None:
         td = self._td
         try:
-            from fem.symbolic_integrand import SymbolicIntegrandQ4
+            from fem.symbolic_integrand import SymbolicIntegrandQ4, podar_ruido
             import sympy as sp
         except Exception as e:
             td.para(rf"\emph{{No se pudo cargar la capa simbólica: "
@@ -1664,7 +1704,18 @@ class MemoriaCalculo:
                 coords=[[float(x), float(y)] for x, y in node_coords[:4]],
             )
             expr = sim.integrand_entry(0, 0, self._project.analysis_type)
-            latex_expr = sp.latex(expr)
+            # Poda del ruido de redondeo ANTES de pasarlo a LaTeX. Las
+            # coordenadas entran como flotantes, así que en un elemento
+            # rectangular —donde la teoría dice cero— sympy arrastraba
+            # términos como `1.07e-13*eta` que además le impedían plegar los
+            # paréntesis. Medido en Timoshenko Q4: la entrada K_11 pasa de 659
+            # a 86 caracteres de LaTeX, o sea de **566 pt impresos fuera de la
+            # hoja** dentro de un `equation*` —que no admite corte de línea, y
+            # por lo tanto era texto invisible— a un renglón que entra y se
+            # lee. `sp.N(..., 6)` recorta de paso los 15 dígitos con que
+            # sympy escribe cada coeficiente.
+            expr = podar_ruido(expr)
+            latex_expr = sp.latex(sp.N(expr, 6))
             td.equation(
                 r"\mathbf{k}_e=\int_{-1}^{1}\!\!\int_{-1}^{1}"
                 r"\mathbf{B}^T(\xi,\eta)\,\mathbf{D}\,\mathbf{B}(\xi,\eta)\,"
@@ -1859,7 +1910,8 @@ class MemoriaCalculo:
         ]
         u = self._u("fuerza")
         self._longtable(
-            headers=["Fuente", r"$\sum F_x$" + u, r"$\sum F_y$" + u],
+            headers=["Fuente", self._th_unidad(r"$\sum F_x$", u),
+                     self._th_unidad(r"$\sum F_y$", u)],
             rows=rows, col_align="lrr")
 
     # ------------------------------------------------------------------
@@ -1998,7 +2050,9 @@ class MemoriaCalculo:
         # `uni`, no `u`: en este metodo `u` es el vector de desplazamientos.
         uni = self._u("longitud")
         self._longtable_topeada(
-            headers=["Nodo", "$u_x$" + uni, "$u_y$" + uni, "$|u|$" + uni],
+            headers=["Nodo", self._th_unidad("$u_x$", uni),
+                     self._th_unidad("$u_y$", uni),
+                     self._th_unidad("$|u|$", uni)],
             rows=rows, col_align="rrrr", claves=claves,
             destacadas=self._nodos_de_interes(), que="nodos",
             donde=self._DONDE_RESULTADOS)
@@ -2025,7 +2079,8 @@ class MemoriaCalculo:
         # La fila SUMA se emite aparte de la tabla topeada: es un total
         # sobre TODOS los apoyos, no una fila mas que se pueda muestrear.
         self._longtable_topeada(
-            headers=["Nodo", "$R_x$" + u, "$R_y$" + u], rows=rows,
+            headers=["Nodo", self._th_unidad("$R_x$", u),
+                     self._th_unidad("$R_y$", u)], rows=rows,
             col_align="rrr", claves=claves,
             destacadas=self._nodos_de_interes(), que="apoyos",
             criterio="los del elemento desarrollado, los puntos de "
@@ -2082,8 +2137,10 @@ class MemoriaCalculo:
         ]
         u = self._u("fuerza")
         self._longtable(
-            headers=["Dirección", "Cargas aplicadas" + u, "Reacciones" + u,
-                     "Residuo" + u],
+            headers=["Dirección",
+                     self._th_unidad("Cargas aplicadas", u),
+                     self._th_unidad("Reacciones", u),
+                     self._th_unidad("Residuo", u)],
             rows=rows, col_align="crrr")
 
     # ------------------------------------------------------------------
@@ -2308,7 +2365,7 @@ class MemoriaCalculo:
             ])
         u = self._u("esfuerzo")
         self._longtable_topeada(
-            headers=["Nodo"] + [sym + u for sym in
+            headers=["Nodo"] + [self._th_unidad(sym, u) for sym in
                                 (r"$\sigma_x$", r"$\sigma_y$",
                                  r"$\tau_{xy}$", r"$\sigma_1$",
                                  r"$\sigma_2$", r"$\sigma_{VM}$")],
@@ -2419,7 +2476,7 @@ class MemoriaCalculo:
             destacados.update(peores)
         u = self._u("esfuerzo")
         self._longtable_topeada(
-            headers=["Elem", "PG"] + [sym + u for sym in
+            headers=["Elem", "PG"] + [self._th_unidad(sym, u) for sym in
                                       (r"$\sigma_x$", r"$\sigma_y$",
                                        r"$\tau_{xy}$", r"$\sigma_1$",
                                        r"$\sigma_2$", r"$\sigma_{VM}$")],
@@ -2507,7 +2564,9 @@ class MemoriaCalculo:
         if hay_eps:
             headers += [r"$\varepsilon_x$", r"$\varepsilon_y$",
                         r"$\gamma_{xy}$"]
-        headers += [r"$\sigma_x$" + u, r"$\sigma_y$" + u, r"$\tau_{xy}$" + u]
+        headers += [self._th_unidad(r"$\sigma_x$", u),
+                    self._th_unidad(r"$\sigma_y$", u),
+                    self._th_unidad(r"$\tau_{xy}$", u)]
         self._longtable(headers=headers, rows=rows,
                         col_align="c" + "c" * (3 if hay_eps else 0) + "rrr")
         if not hay_eps and self._prose:
@@ -2683,7 +2742,7 @@ class MemoriaCalculo:
             for c, vs in ((c, vals_by_comp[c]) for c, _ in comps)])
         u = self._u("esfuerzo")
         self._longtable(
-            headers=["Origen"] + [sym + u for _, sym in comps],
+            headers=["Origen"] + [self._th_unidad(sym, u) for _, sym in comps],
             rows=rows, col_align="l" + "r" * len(comps))
         # Aviso en AMBOS estilos: es un hecho sobre los números de la tabla,
         # no prosa. La fila "Promedio" es la media aritmética de la columna

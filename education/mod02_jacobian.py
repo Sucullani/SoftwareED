@@ -870,8 +870,11 @@ class JacobianModule(CanvasOverlayModule):
     # ── Builders del toggle (Tk widgets, no axes) ──────────────────
     # ── Helpers de las matrices (fuente uniforme `_FS`, viewport ceñido) ──
     def _mat_vw(self) -> int:
-        """Ancho máximo de viewport (del overlay) — tope para matrices anchas."""
-        return max(440, self.OVERLAY_WIDTH - 40)
+        """Ancho máximo de viewport para matrices anchas: el ancho REAL que
+        tiene el overlay en ESTA pantalla, no `OVERLAY_WIDTH` crudo, que es
+        una medida de diseño a 96 dpi. Ver
+        `CanvasOverlayModule.matrix_viewport_width`."""
+        return self.matrix_viewport_width()
 
     def _fit_matrix(self, frame, matrix, *, prefix, fmt="{:.3g}",
                     fontsize=None, color=None, force_scroll=False):

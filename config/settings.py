@@ -451,6 +451,18 @@ OVERLAY_ACCENT_AMBER = "#ffd54f"   # Amber 300 — bridge / cross-references
 NUMERICAL_TOLERANCE = 1e-10
 JACOBIAN_MIN_DETERMINANT = 1e-12
 
+# Ceros de redondeo al MOSTRAR una matriz (solo display; el cálculo nunca ve
+# este valor). Una celda cuyo módulo es más de 12 órdenes menor que el mayor
+# de su propia matriz se escribe "0". Motivo: en un elemento rectangular la J
+# es diagonal, pero la inversión numérica deja 7,11e-18 fuera de la diagonal,
+# y ese ruido se propaga a ∂N_xy y a B. Con "{:.3g}" cada cero teórico ocupaba
+# nueve caracteres ("-2.44e-18"), de modo que la matriz se ensanchaba hasta no
+# entrar en el overlay y, peor, el alumno leía como valor lo que la teoría
+# dice que es cero. El umbral es RELATIVO al máximo de la matriz: 1e-12 queda
+# muy por encima del ruido de doble precisión (~1e-16 relativo) y muy por
+# debajo de cualquier entrada con significado físico.
+MATRIX_DISPLAY_ZERO_REL_TOL = 1e-12
+
 # ─── Solucionador ──────────────────────────────────────────────────────────
 # Ordenamiento de columnas de SuperLU (`permc_spec` de scipy.sparse.linalg.spsolve).
 # K es simetrica y definida positiva: "MMD_AT_PLUS_A" (minimo grado sobre

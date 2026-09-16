@@ -155,8 +155,11 @@ class BMatrixModule(CanvasOverlayModule):
 
     # ── Construcción del overlay (compacto UX 2026) ───────────────
     def _mat_vw(self) -> int:
-        """Ancho máximo de viewport (del overlay) — tope para matrices anchas."""
-        return max(440, self.OVERLAY_WIDTH - 40)
+        """Ancho máximo de viewport para matrices anchas: el ancho REAL que
+        tiene el overlay en ESTA pantalla, no `OVERLAY_WIDTH` crudo, que es
+        una medida de diseño a 96 dpi. Ver
+        `CanvasOverlayModule.matrix_viewport_width`."""
+        return self.matrix_viewport_width()
 
     def build_overlay(self, body):
         # Sin chip narrativo ni descripción del mapeo: el título ("③ Matriz B
