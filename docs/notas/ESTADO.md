@@ -1,6 +1,6 @@
 # Estado del trabajo
 
-**Última actualización**: 2026-09-11
+**Última actualización**: 2026-09-16
 
 > **Nota de sincronización (2026-09-11)**: todo lo que más abajo dice «sin commit» del
 > 2026-09-09 y 2026-09-10 (rediseño de la capa visual, Memoria que aprovecha la hoja,
@@ -23,12 +23,69 @@ tesis** (`tesis/`, 130 páginas, compila limpio).
 
 | Tema | Dónde | Estado |
 |---|---|---|
-| Cierre de la tesis | `tesis/` | Compila limpio (151 hojas, APA doble espacio). La auditoría integral del 2026-09-11 está **implementada** salvo lo que el autor reservó: tutor en la portada y macro del título (1.5), preliminares (1.6), abstract en inglés y *Title Case* (5.4). Pendiente que necesita la GUI: recapturar las Figuras 3.3, B.1 y B.6-B.13 a mayor resolución. Ver [2026-09-11_auditoria_tesis.md](../auditorias/2026-09-11_auditoria_tesis.md) §*Estado de implementación* |
+| Cierre de la tesis | `tesis/` | Compila limpio (158 hojas, APA doble espacio). La auditoría integral del 2026-09-11 está **implementada** salvo lo que el autor reservó (1.5, 1.6, 5.4), y la **auditoría por sesiones** ([AUDITORIA_TESIS.md](../auditorias/AUDITORIA_TESIS.md)) quedó **implementada el 2026-09-16**: 45 de 47 hallazgos resueltos, H-13 parcial y H-1 abierto (el Reglamento de Graduación, que solo el autor puede conseguir). **Sin commit**; el autor revisa (ver *Decisiones abiertas*). Pendiente que necesita la GUI: recapturar las Figuras 3.3, B.1 y B.6-B.13 a mayor resolución |
 | Deuda técnica de la auditoría 2026-06-10 | repo | **Cerrada el 2026-09-06** (Top-10 + medios y bajos de §1, §2, §5 y §6). Único pendiente: decidir si se cablea `TheoryDoc.margin_formula()` en la memoria — cambia el layout del PDF, así que necesita validación visual del autor |
 | Mejora continua del software | `docs/rutina/` | **Activa desde el 2026-09-08**: rutina horaria de claude.ai que trabaja directo sobre `main`, una área por sesión con rotación de 14. Qué hizo cada sesión: [../rutina/BITACORA.md](../rutina/BITACORA.md); qué falta y qué espera al autor: [../rutina/BACKLOG.md](../rutina/BACKLOG.md) |
 | Distribución del `.exe` | `installer/` | Vía principal decidida: instalador Inno Setup por usuario, sin admin. Sin firma de código (decisión tomada). Empaquetado **onedir** desde el 2026-09-10 (arranque 3 s en vez de 12; el entregable sigue siendo un solo archivo) |
 
 ## Decisiones abiertas (esperan al autor)
+
+- **Presentación y video puestos al día (2026-09-16)** — el guion quedó sincronizado con la
+  tesis posterior a la auditoría por sesiones y la capa visual se rediseñó entera (detalle en
+  *Hecho recientemente*). **Qué decide el autor**: (1) si la **lámina nueva 30** —cobertura del
+  canal, §3.6— se queda como figura apaisada a toda página con el remate «7/7 · 9/9», o vuelve
+  a texto con la figura al costado; (2) si el video, que pasó de 25:31 a 30:54 por el texto
+  agregado, se acorta subiendo `rate` en `narracion.json` (hoy +11 %); (3) si la tabla del
+  estado del arte, que en la tesis tiene siete atributos, se queda con los **seis** que caben
+  legibles en la lámina —quedó fuera «fenómenos numéricos observables», que sigue en el remate—.
+  Lo que **no** puede hacer un agente: mirar el video y juzgar el ritmo y la pronunciación de
+  las cifras, y ensayar los tiempos en vivo contra los 40-45 min del Taller 6.
+
+- **Versión 2 de la tesis en Arial 12 (2026-09-16)** — pedido del autor. `tesis/main_v2.tex`
+  comparte preámbulo, capítulos y bibliografía con `main.tex`: lo único que cambia es la
+  fuente del cuerpo (Arial real del sistema, por eso **xelatex**); las fórmulas siguen en
+  Latin Modern Math. 161 hojas contra 158, y **menos** invasiones de margen que la v1 (13
+  contra 27). **Qué decide el autor**: cuál de las dos versiones se entrega al tribunal, y si
+  con la v2 conviene reescalar alguna figura. Detalle, y los tres arreglos no obvios que
+  necesitó (babel-spanish bajo XeLaTeX, entre ellos):
+  [2026-09-16_tesis-version-arial.md](2026-09-16_tesis-version-arial.md).
+
+- **Lo que se cortaba en otro equipo (2026-09-16)** — **sin commit**, gate verde con
+  `--con-gui`. Tres reportes con capturas, tres causas medidas: (a) las matrices de M2/M3 se
+  cortaban porque el ruido de redondeo (`7,11e-18` donde la teoría dice 0) las ensanchaba,
+  porque el tope de ancho estaba en píxeles de diseño y no en los reales de la pantalla, y
+  porque el overlay se recortaba por abajo **sin scroll** (en 1280x600, M2 perdía 76 px);
+  (b) la **Vista 3D** empaquetaba su barra de controles después del área elástica, así que con
+  600 px de escritorio Tk le daba **1 px** y desaparecía el botón Cerrar — regla dura 23, más
+  otros tres casos de la misma familia; (c) las dos tablas de tensiones de la Memoria se salían
+  89,9 pt de la hoja, y en los modelos Q4 la `K_11` simbólica se imprimía **566 pt** afuera.
+  Márgenes a 1,5 cm como se pidió, y la unidad apilada bajo el símbolo en todas las tablas.
+  **Qué decide el autor**: si la **B de Q9 (3x18)** se parte en dos bloques de 9 columnas —hoy
+  sigue siendo una sola matriz con scroll, como estaba decidido— y si el encabezado apilado le
+  gusta también en las tablas donde no hacía falta por ancho (se aplicó a todas por
+  consistencia). Detalle y mediciones:
+  [2026-09-16_se-corta-en-otro-equipo.md](2026-09-16_se-corta-en-otro-equipo.md).
+
+- **Tesis tras la auditoría por sesiones (2026-09-16)** — implementados 45 de los 47 hallazgos
+  de [AUDITORIA_TESIS.md](../auditorias/AUDITORIA_TESIS.md); **sin commit**. Cinco decisiones
+  que el autor debe confirmar porque tocan lo que él mismo fijó o lo que el tribunal ya vio:
+  (1) la **hipótesis de diseño** ahora es condicional y comprobable —tres cláusulas con
+  criterios a priori en §2.1.6— y el «apoyo al aprendizaje» es un supuesto declarado, no
+  contrastado; (2) **OE2, OE4 y OE6 reformulados** (sin «verificado numéricamente»; módulos
+  hasta el ensamblaje con post-proceso y memoria para solución y tensiones; memoria principal e
+  interoperabilidad instrumental) y el **objetivo general** nombra Python; (3) el **Cap. 1 se
+  titula** «Marco teórico del análisis por el Método de los Elementos Finitos en elasticidad
+  plana» y tiene una §1.2 nueva de fundamentos pedagógicos, así que todas sus secciones
+  corrieron un número; (4) la lista se titula **«Referencias bibliográficas»** y los
+  **localizadores de página** siguen una regla única declarada en la Introducción, que
+  reemplaza la decisión «Vancouver puro sin página» del 09-09; (5) la **nota de procedencia de
+  Álvarez de Zayas** en el `.bib` («empleada en la Carrera de Ingeniería Civil de la UATF como
+  referencia del marco metodológico») se redactó a partir del uso que la carrera hace de la
+  fuente, no de un dato impreso: confirmar o ajustar. Qué mirar en el PDF: Tabla 2.1 (fila
+  nueva), Tabla 3.6 y Figura 3.5 (§3.6, las tres fases sobre el mismo lienzo), Tabla 3.2 (σy,
+  τxy y SAP2000), Tabla 3.3 (columna SAP2000), §3.8 (interpretación reunida), Conclusiones y
+  Recomendaciones (reescritas, tres grupos por capítulo), Anexo G (G.2.1–G.2.6). **H-1 sigue en
+  manos del autor**: conseguir el Reglamento de Graduación y dejarlo en `tesis/normas/`.
 
 - **Tabla 1.1 (`tab:comparativa`) reescrita como matriz de atributos (2026-09-10)**: los
   recursos pasaron a columnas y los atributos a filas, y se agregaron cuatro diferenciadores
@@ -38,10 +95,9 @@ tesis** (`tesis/`, 130 páginas, compila limpio).
   documenta el atributo dice **«No consta»**, y las categorías de propósito general llevan
   raya en V&V (criterio de armado del propio texto). De paso se aplicaron dos correcciones
   que el respaldo de citas tenía pendientes para Bishay: «1D/2D» → «2D/3D (barras)» y
-  licencia «Libre» → «No declarada (código MATLAB)». Compila limpio, sin overfull. Está
-  **sin commit**. El autor decide si conserva «No consta» como valor de celda (es honesto
-  pero visible) y si actualiza la copia de esta tabla en `tesis/presentacion/guion.json`,
-  que sigue con las columnas viejas.
+  licencia «Libre» → «No declarada (código MATLAB)». Compila limpio, sin overfull. El autor
+  decide si conserva «No consta» como valor de celda (es honesto pero visible). La copia de
+  esta tabla en `tesis/presentacion/guion.json` ya está actualizada (2026-09-16).
 - **Probar el instalador nuevo en un equipo limpio (2026-09-10)**: el entregable pasó a ser
   un instalador terminado (versión en el `.exe`, licencia, imágenes propias del asistente,
   asociación de `.edufem` con icono propio, detección de la app abierta, App Paths,
@@ -171,6 +227,63 @@ tesis** (`tesis/`, 130 páginas, compila limpio).
 
 ## Hecho recientemente
 
+- **2026-09-16** — **Presentación de defensa y video, puestos al día y rediseñados**
+  ([tesis/presentacion/](../../tesis/presentacion/)). *Contenido*: el guion se sincronizó con
+  la tesis después de la auditoría por sesiones —OE2/OE4/OE6 reformulados y objetivo general
+  con Python; hipótesis condicional de tres cláusulas más el supuesto declarado; Tabla 1.1
+  como matriz de atributos (la columna EduFEM va resaltada); Tabla 2.1 con los atributos del
+  artefacto; matriz de consistencia con OE6 → PI-2; criterios a priori completos (σx < 1 %
+  también contra SAP2000, equilibrio < 1e-8, cobertura 7/7 y 9/9); Timoshenko con σy, τxy y el
+  residuo de equilibrio; «puntos de Barlow» fuera; validador de salud con 22 chequeos (eran 18
+  en el guion viejo); conclusiones con OE1 como fundamento y no resultado medido; hipótesis
+  confirmada cláusula por cláusula; recomendaciones en tres grupos por capítulo—. Entra una
+  **lámina nueva** (la 30) con §3.6, la cobertura del canal, sobre `fig_fases_lienzo_ancho.png`
+  —versión apaisada de la Figura 3.5 que ahora genera `tesis/figuras/generar_figuras.py`—:
+  quedan **39 diapositivas** y el bloque de resultados pasa a 7 min (45 en total). *Forma*:
+  cabecera con rótulo del bloque en versalita y puntos de avance del hilo conductor, carátula y
+  cierre con panel oscuro y malla de marca, tarjetas con borde fino y barra de acento, tablas
+  con línea naranja bajo la cabecera y destacado de columna, tarjetas de cifra alineadas entre
+  sí (y hasta seis por lámina), pasos del flujo compactos y centrados, `comparacion` de hasta
+  tres tarjetas y figuras en tarjeta ajustada a su tamaño real. El **video** se regeneró
+  entero: `narracion.json` con los mismos cambios de contenido y la lámina nueva, y con él el
+  MP4, el guion cronometrado y la copia narrada del `.pptx`. De paso apareció un **bug del
+  video que venía del 09-11**: la carátula salía **negra sus 37 segundos**. El demuxer `concat`
+  entrega un fotograma por lámina con una duración larguísima, así que `fade=t=in:st=0:d=0.8`
+  —que aplica el alfa según el PTS— alcanzaba solo al primer fotograma, con alfa 0, y el
+  fundido de salida no llegaba a activarse nunca; se arregla poniendo `fps=25` antes de los
+  fundidos en `hacer_video.py`. Falta la revisión del autor (ver *Decisiones abiertas*).
+
+- **2026-09-16** — **Auditoría por sesiones de la tesis, implementada** (45 de 47 hallazgos;
+  H-13 parcial, H-1 espera el Reglamento). Introducción: problema en formulación única,
+  hipótesis condicional comprobable, OG con Python, OE2/OE4/OE6 reescritos, «canal de
+  cálculo» unificado, norma de citación declarada, lista «Referencias bibliográficas».
+  Cap. 1: título completo, §1.2 «Fundamentos pedagógicos» (cuatro principios con página y con
+  sus límites), justificación de las ediciones clásicas, decisiones de implementación movidas
+  a §2.2 (umbral del Jacobiano, `MMD_AT_PLUS_A`, cortes de calidad), Cholesky como teoría,
+  «validación» definida una vez, citas de Cook/Hughes recolocadas y 23,96 sin cita, «puntos
+  de Barlow» retirado. §2.1: tipo de investigación en §2.1.1 con nivel descriptivo y
+  comparativo, Tabla 2.1 con «atributos del artefacto» y «desempeño», matriz con OE6 → PI-2 y
+  OE3 → §2.2.6–2.2.8, casos con lo que ejercita cada uno y la excepción (carga variable),
+  procedimiento real (Timoshenko = contraste puntual Q9), criterios a priori ampliados (σx
+  < 1 % analítico y SAP2000, equilibrio < 1e-8, σ* como cota empírica ≥ 1,4/1,9, cobertura
+  7/7 y 9/9, fases, formatos), hipótesis contrastada cláusula por cláusula. §2.2: «El
+  software EduFEM», §2.2.1 con lo que cada fuente sostiene. Cap. 3: §3.6 con `tab:fases` y
+  `fig:fases-lienzo` (nueva, compuesta por `generar_figuras.py` a partir de tres capturas
+  reales), Tabla 3.2 con σy/τxy y Tabla 3.3 con SAP2000, equilibrio de reacciones reportado,
+  descripción e interpretación separadas (§3.8.1 reúne juicios y la lección de E_Q4), §3.8.2
+  reducido, §3.9 por cláusulas y con OE1 declarado sin resultado medido. Conclusiones
+  reescritas (sin citas; veredicto matizado; limitaciones remiten a la Introducción y agregan
+  lo descubierto; recomendaciones en tres grupos por capítulo, sin Cuthill-McKee ni cifras
+  nuevas). Anexo G con subsecciones numeradas. `.bib`: CSI con `publisher` (biblatex 3.21
+  imprimía `organization` antes del pie de imprenta), Reddy sin nota, Oñate «Barcelona:
+  CIMNE», García-Córdoba «México (DF)», Bishay con nota de procedencia, Álvarez con nota de
+  procedencia; citas múltiples con página separadas por punto y coma (delimitador de `\parencites`); localizadores según la regla única (100
+  citas revisadas). `tests/vv_timoshenko.py` (σx vs analítico y SAP2000 < 1 %, equilibrio,
+  CSV nuevo `timoshenko_equilibrio.csv`) y `tests/vv_mms.py` (cota empírica de σ*) corridos en
+  verde. Guía Vancouver (ficha E, ficha D con `publisher`, corrección 4) y respaldo de citas
+  regenerados. Compila limpia: 158 hojas, 0 errores, 0 indefinidas, biber 0 avisos, 0
+  desbordes. **Sin commit**; decisiones del autor en *Decisiones abiertas*.
+
 - **2026-09-11** — **Auditoría integral de la tesis, implementada el mismo día.** El informe
   ([docs/auditorias/2026-09-11_auditoria_tesis.md](../auditorias/2026-09-11_auditoria_tesis.md))
   cruzó el PDF con el código (V&V corrida, Anexo G regenerado bit a bit), los 22 ejemplares de
@@ -188,17 +301,13 @@ tesis** (`tesis/`, 130 páginas, compila limpio).
   interlineado doble se mantiene. **Queda para la GUI**: recapturar las figuras de baja
   resolución (3.3, B.1, B.6-B.13).
 
-- **2026-09-11** — **Presentación de defensa y video narrado** en
-  [tesis/presentacion/](../../tesis/presentacion/): `Defensa_EduFEM.pptx` (38 diapositivas,
-  editable, con notas del orador; también en PDF) se construye con `build_deck.py` a partir
-  de `guion.json`, sigue el orden y los tiempos del Taller 6 de la UATF y toma todas las
-  cifras de los `.tex` (actualizada tras la reestructuración de `tab:comparativa`).
-  `video/Defensa_EduFEM.mp4` (25:31, 1080p) narra la defensa completa en primera persona con
-  voz neuronal `es-BO-MarceloNeural` (edge-tts + ffmpeg, `video/hacer_video.py`), con el
-  guion cronometrado en `video/guion_video.md` y una copia del `.pptx` con la narración
-  embebida. `tesis/main.pdf` recompilado (149 hojas). Sin commit; los binarios (`.mp4`,
-  `.pptx` narrado) pesan ~60 MB, el autor decide si los versiona. Pendiente del autor:
-  revisar el video (voz, ritmo, pronunciación de las cifras) y ensayar los tiempos en vivo.
+- **2026-09-11** — **Presentación de defensa y video narrado**, primera versión, en
+  [tesis/presentacion/](../../tesis/presentacion/): `Defensa_EduFEM.pptx` (editable, con notas
+  del orador; también en PDF) construido con `build_deck.py` a partir de `guion.json`, con el
+  orden y los tiempos del Taller 6 de la UATF, y `video/Defensa_EduFEM.mp4` narrado con voz
+  neuronal `es-BO-MarceloNeural` (edge-tts + ffmpeg, `video/hacer_video.py`), su guion
+  cronometrado y una copia del `.pptx` con la narración embebida. Los binarios (`.mp4`,
+  `.pptx` narrado, ~60 MB) quedaron versionados. Estado actual: ver la entrada del 09-16.
 
 - **2026-09-10** — **Instalador profesional: un archivo que deja todo listo.** El `.exe` ya
   lleva datos de versión (Windows lo mostraba sin Descripción ni Empresa, que es además una

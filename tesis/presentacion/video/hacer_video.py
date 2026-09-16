@@ -130,7 +130,15 @@ with open(lista_v, "w", encoding="utf-8") as fv, open(lista_a, "w", encoding="ut
 
 # ---------------------------------------------------------------- 4. video
 fade_out = max(0.0, total - 1.5)
-vf = f"scale=1920:1080:flags=lanczos,format=yuv420p,fade=t=in:st=0:d=0.8,fade=t=out:st={fade_out:.2f}:d=1.5"
+# `fps=25` va ANTES de los fundidos y no es cosmético. El demuxer concat entrega
+# UN fotograma por lámina, con una duración larguísima: sin `fps`, el grafo de
+# filtros ve 39 fotogramas con PTS 0, 36,5, 43,5… y `fade=t=in:st=0:d=0.8` aplica
+# el alfa según el PTS del fotograma, de modo que el único que cae dentro de la
+# ventana es el primero —con alfa 0— y la lámina de portada salía **negra sus 37
+# segundos**, mientras el fundido de salida no llegaba a activarse nunca. Con
+# `fps` el grafo ya trabaja a 25 fps y los fundidos duran lo que dicen.
+vf = (f"scale=1920:1080:flags=lanczos,fps=25,format=yuv420p,"
+      f"fade=t=in:st=0:d=0.8,fade=t=out:st={fade_out:.2f}:d=1.5")
 af = f"afade=t=in:st=0:d=0.5,afade=t=out:st={fade_out:.2f}:d=1.5"
 run([FFMPEG, "-y", "-loglevel", "error", "-stats",
      "-f", "concat", "-safe", "0", "-i", lista_v,

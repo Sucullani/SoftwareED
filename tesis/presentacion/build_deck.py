@@ -25,19 +25,22 @@ from pptx.enum.shapes import MSO_SHAPE
 from pptx.enum.text import MSO_ANCHOR, MSO_AUTO_SIZE, PP_ALIGN
 from pptx.oxml import parse_xml
 from pptx.oxml.ns import nsdecls, qn
-from pptx.util import Emu, Inches, Pt
+from pptx.util import Inches, Pt
 
 # ---------------------------------------------------------------------------
 # Sistema visual
 # ---------------------------------------------------------------------------
-NAVY = RGBColor(0x1B, 0x2A, 0x4A)       # títulos, bandas de sección
-NAVY_DEEP = RGBColor(0x11, 0x1B, 0x33)  # fondo de sección/cierre
-ACCENT = RGBColor(0xF2, 0x8C, 0x28)     # naranja: acentos, remates
+NAVY = RGBColor(0x1B, 0x2A, 0x4A)       # títulos, cabeceras de tabla, chips
+NAVY_DEEP = RGBColor(0x0E, 0x18, 0x2E)  # fondo de sección y cierre
+NAVY_SOFT = RGBColor(0x2C, 0x3E, 0x63)  # chips «ya vistos» sobre fondo oscuro
+SLATE = RGBColor(0x3E, 0x5A, 0x86)      # tercera tarjeta de comparación
+ACCENT = RGBColor(0xF2, 0x8C, 0x28)     # naranja: acentos, remates, hilo actual
+ACCENT_TINT = RGBColor(0xFD, 0xF1, 0xE2)  # fondo de la columna/fila destacada
 INK = RGBColor(0x1F, 0x29, 0x37)        # texto principal
 MUTED = RGBColor(0x5B, 0x65, 0x75)      # texto secundario
-CARD = RGBColor(0xF3, 0xF4, 0xF6)       # tarjetas
-LINE = RGBColor(0xD1, 0xD5, 0xDB)       # bordes
-TINT = RGBColor(0xE9, 0xF0, 0xFB)       # fondo de remate
+CARD = RGBColor(0xF6, 0xF8, 0xFC)       # superficie de tarjetas y filas pares
+LINE = RGBColor(0xDC, 0xE3, 0xEE)       # bordes y hairlines
+TINT = RGBColor(0xEA, 0xF0, 0xFA)       # fondo de la barra de remate
 WHITE = RGBColor(0xFF, 0xFF, 0xFF)
 ON_DARK = RGBColor(0xC7, 0xD2, 0xE8)    # texto secundario sobre navy
 Q4_BLUE = RGBColor(0x1F, 0x77, 0xB4)    # mismo azul que las curvas de la tesis
@@ -48,13 +51,14 @@ MATH = "Cambria Math"
 
 SLIDE_W = 13.333
 SLIDE_H = 7.5
-MX = 0.6            # margen lateral
-TITLE_Y = 0.42
-CONTENT_Y = 1.62
-CONTENT_H = 4.55    # hasta el remate
-REMATE_Y = 6.28
+MX = 0.62           # margen lateral
+KICKER_Y = 0.34     # rótulo del bloque, encima del título
+TITLE_Y = 0.64
+RULE_Y = 1.50       # acento naranja bajo el título
+CONTENT_Y = 1.72
+REMATE_Y = 6.30
 REMATE_H = 0.58
-FOOTER_Y = 7.02
+FOOTER_Y = 7.04
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 FIGURAS = os.path.normpath(os.path.join(ROOT, "..", "figuras"))
@@ -67,6 +71,10 @@ def aviso(msg: str) -> None:
     print("  ! " + msg)
 
 
+def hexa(color: RGBColor) -> str:
+    return "%02X%02X%02X" % (color[0], color[1], color[2])
+
+
 # ---------------------------------------------------------------------------
 # Utilidades de texto
 # ---------------------------------------------------------------------------
@@ -74,18 +82,20 @@ def _set_lang(run) -> None:
     run._r.get_or_add_rPr().set("lang", "es-ES")
 
 
-def _style_run(run, size, bold=False, color=INK, font=FONT, italic=False):
+def _style_run(run, size, bold=False, color=INK, font=FONT, italic=False, spacing=None):
     run.font.size = Pt(size)
     run.font.bold = bold
     run.font.italic = italic
     run.font.name = font
     run.font.color.rgb = color
     _set_lang(run)
+    if spacing:  # separación entre letras, en puntos (para rótulos en versalita)
+        run._r.get_or_add_rPr().set("spc", str(int(spacing * 100)))
 
 
 def add_text(slide, x, y, w, h, text, size, bold=False, color=INK, font=FONT,
              align=PP_ALIGN.LEFT, anchor=MSO_ANCHOR.TOP, italic=False,
-             line_spacing=1.05, margins=(0.05, 0.03, 0.05, 0.03)):
+             line_spacing=1.05, margins=(0.05, 0.03, 0.05, 0.03), spacing=None):
     """Cuadro de texto simple. `text` admite '\n' para varios párrafos."""
     tb = slide.shapes.add_textbox(Inches(x), Inches(y), Inches(w), Inches(h))
     tf = tb.text_frame
@@ -99,7 +109,7 @@ def add_text(slide, x, y, w, h, text, size, bold=False, color=INK, font=FONT,
         p.line_spacing = line_spacing
         r = p.add_run()
         r.text = line
-        _style_run(r, size, bold, color, font, italic)
+        _style_run(r, size, bold, color, font, italic, spacing)
     return tb
 
 
@@ -110,8 +120,7 @@ def _add_bullet_xml(paragraph, color: RGBColor, level: int = 0, char: str = "•
     for tag in ("a:buNone", "a:buChar", "a:buAutoNum", "a:buClr", "a:buSzPct", "a:buFont"):
         for el in pPr.findall(qn(tag)):
             pPr.remove(el)
-    hexa = "%02X%02X%02X" % (color[0], color[1], color[2])
-    pPr.append(parse_xml(f'<a:buClr {nsdecls("a")}><a:srgbClr val="{hexa}"/></a:buClr>'))
+    pPr.append(parse_xml(f'<a:buClr {nsdecls("a")}><a:srgbClr val="{hexa(color)}"/></a:buClr>'))
     pPr.append(parse_xml(f'<a:buSzPct {nsdecls("a")} val="100000"/>'))
     pPr.append(parse_xml(f'<a:buFont {nsdecls("a")} typeface="Arial"/>'))
     pPr.append(parse_xml(f'<a:buChar {nsdecls("a")} char="{char}"/>'))
@@ -192,6 +201,32 @@ def add_rect(slide, x, y, w, h, fill=CARD, line=None, rounded=False, radius=0.06
     return shp
 
 
+def add_card(slide, x, y, w, h, fill=WHITE, border=LINE, radius=0.05, bar=None, bar_h=0.10,
+             bar_side="top"):
+    """Tarjeta: fondo claro, borde fino y —si se pide— una barra de color de acento."""
+    card = add_rect(slide, x, y, w, h, fill=fill, line=border, rounded=True, radius=radius)
+    if bar is not None:
+        if bar_side == "top":
+            add_rect(slide, x + 0.02, y + 0.02, w - 0.04, bar_h, fill=bar)
+        else:
+            add_rect(slide, x + 0.02, y + 0.02, bar_h, h - 0.04, fill=bar)
+    return card
+
+
+def add_oval(slide, x, y, d, fill, line=None):
+    shp = slide.shapes.add_shape(MSO_SHAPE.OVAL, Inches(x), Inches(y), Inches(d), Inches(d))
+    shp.shadow.inherit = False
+    shp.fill.solid()
+    shp.fill.fore_color.rgb = fill
+    if line is None:
+        shp.line.fill.background()
+    else:
+        shp.line.color.rgb = line
+        shp.line.width = Pt(1.0)
+    shp.text_frame.text = ""
+    return shp
+
+
 def shape_text(shp, text, size, bold=False, color=WHITE, font=FONT, align=PP_ALIGN.CENTER,
                anchor=MSO_ANCHOR.MIDDLE, margins=(0.08, 0.04, 0.08, 0.04), line_spacing=1.0):
     tf = shp.text_frame
@@ -234,6 +269,35 @@ def add_picture_fit(slide, path, x, y, w, h, border=True, align="center"):
     return pic
 
 
+def add_picture_card(slide, path, x, y, w, h, pad=0.13, radius=0.04):
+    """Imagen centrada en la caja, con la tarjeta ajustada a su tamaño real (sin franjas muertas)."""
+    if not os.path.isfile(path):
+        return add_picture_fit(slide, path, x, y, w, h)
+    with Image.open(path) as im:
+        iw, ih = im.size
+    ar = iw / ih
+    bw, bh = w - 2 * pad, h - 2 * pad
+    pw, ph = (bh * ar, bh) if bw / bh > ar else (bw, bw / ar)
+    px, py = x + (w - pw) / 2, y + (h - ph) / 2
+    add_rect(slide, px - pad, py - pad, pw + 2 * pad, ph + 2 * pad, fill=CARD, line=LINE,
+             rounded=True, radius=radius)
+    return slide.shapes.add_picture(path, Inches(px), Inches(py), Inches(pw), Inches(ph))
+
+
+def mesh_motif(slide, x, y, w, h, nx, ny, line_color, node_color=None, lw=0.012, nd=0.055):
+    """Malla de cuadriláteros como motivo de marca (líneas y nodos, todo editable)."""
+    for j in range(ny + 1):
+        yy = y + h * j / ny
+        add_rect(slide, x, yy, w, lw, fill=line_color)
+    for i in range(nx + 1):
+        xx = x + w * i / nx
+        add_rect(slide, xx, y, lw, h, fill=line_color)
+    if node_color is not None:
+        for j in range(ny + 1):
+            for i in range(nx + 1):
+                add_oval(slide, x + w * i / nx - nd / 2, y + h * j / ny - nd / 2, nd, node_color)
+
+
 def set_notes(slide, text):
     if text:
         slide.notes_slide.notes_text_frame.text = str(text)
@@ -246,10 +310,9 @@ def add_slide_number(slide, x, y, w, h, color=MUTED, size=12, align=PP_ALIGN.RIG
     tf.margin_top = tf.margin_bottom = Inches(0.02)
     p = tf.paragraphs[0]
     p.alignment = align
-    hexa = "%02X%02X%02X" % (color[0], color[1], color[2])
     fld = parse_xml(
         f'<a:fld {nsdecls("a")} id="{{B6F15528-21DE-4FAA-801E-634DDDAF4B2B}}" type="slidenum">'
-        f'<a:rPr lang="es-ES" sz="{int(size * 100)}" dirty="0"><a:solidFill><a:srgbClr val="{hexa}"/></a:solidFill>'
+        f'<a:rPr lang="es-ES" sz="{int(size * 100)}" dirty="0"><a:solidFill><a:srgbClr val="{hexa(color)}"/></a:solidFill>'
         f'<a:latin typeface="{FONT}"/></a:rPr><a:t>1</a:t></a:fld>'
     )
     p._p.append(fld)
@@ -281,19 +344,38 @@ class Deck:
         return s
 
     def header(self, s, d, title_size=32):
-        titulo = d.get("titulo", "")
-        size = title_size if len(titulo) <= 44 else 28
-        add_text(s, MX, TITLE_Y, SLIDE_W - 2 * MX - 3.2, 0.95, titulo, size, bold=True, color=NAVY,
-                 anchor=MSO_ANCHOR.MIDDLE)
-        # acento naranja bajo el título
-        add_rect(s, MX + 0.05, TITLE_Y + 1.0, 1.1, 0.06, fill=ACCENT)
-        # etiqueta del bloque (hilo conductor) arriba a la derecha
+        """Rótulo del bloque + título + acento, con el avance del hilo conductor a la derecha."""
         bloque = d.get("bloque", "")
         if bloque:
             idx = self.bloque_index(bloque)
-            label = f"{idx}  ·  {bloque}" if idx else bloque
-            pill = add_rect(s, SLIDE_W - MX - 3.1, TITLE_Y + 0.22, 3.1, 0.46, fill=CARD, rounded=True, radius=0.5)
-            shape_text(pill, label, 13, bold=True, color=NAVY)
+            label = f"{idx:02d}   {bloque.upper()}" if idx else bloque.upper()
+            add_rect(s, MX, KICKER_Y + 0.055, 0.055, 0.19, fill=ACCENT)
+            add_text(s, MX + 0.15, KICKER_Y, 7.4, 0.30, label, 12, bold=True, color=ACCENT,
+                     anchor=MSO_ANCHOR.MIDDLE, spacing=0.8)
+            self.progreso(s, d)
+        titulo = d.get("titulo", "")
+        size = title_size if len(titulo) <= 46 else (29 if len(titulo) <= 58 else 26)
+        add_text(s, MX - 0.02, TITLE_Y, SLIDE_W - 2 * MX, 0.82, titulo, size, bold=True, color=NAVY,
+                 anchor=MSO_ANCHOR.MIDDLE)
+        add_rect(s, MX, RULE_Y, 1.15, 0.055, fill=ACCENT)
+
+    def progreso(self, s, d):
+        """Puntos del hilo conductor arriba a la derecha: el bloque actual en naranja."""
+        n = len(self.bloques)
+        if not n:
+            return
+        idx = self.bloque_index(d.get("bloque", ""))
+        dot, gap = 0.125, 0.115
+        total = n * dot + (n - 1) * gap
+        x = SLIDE_W - MX - total
+        y = KICKER_Y + 0.085
+        for i in range(n):
+            actual = (i + 1) == idx
+            if actual:
+                add_oval(s, x - 0.035, y - 0.035, dot + 0.07, ACCENT)
+            else:
+                add_oval(s, x, y, dot, NAVY if (i + 1) < idx else LINE)
+            x += dot + gap
 
     def bloque_index(self, bloque):
         for i, b in enumerate(self.bloques, start=1):
@@ -302,7 +384,7 @@ class Deck:
         return 0
 
     def footer(self, s, d):
-        add_rect(s, MX, FOOTER_Y - 0.08, SLIDE_W - 2 * MX, 0.01, fill=LINE)
+        add_rect(s, MX, FOOTER_Y - 0.08, SLIDE_W - 2 * MX, 0.008, fill=LINE)
         add_text(s, MX, FOOTER_Y, 5.5, 0.32, self.meta.get("pie", "EduFEM · Defensa de tesis · Ingeniería Civil · UATF"),
                  12, color=MUTED, anchor=MSO_ANCHOR.MIDDLE)
         fuente = d.get("fuente", "")
@@ -332,7 +414,7 @@ class Deck:
         y, h, size = self.remate_geom(text)
         x, w = MX, SLIDE_W - 2 * MX
         add_rect(s, x, y, w, h, fill=TINT)
-        add_rect(s, x, y, 0.09, h, fill=ACCENT)
+        add_rect(s, x, y, 0.085, h, fill=ACCENT)
         add_text(s, x + 0.25, y, w - 0.35, h, text, size, bold=True, color=NAVY, anchor=MSO_ANCHOR.MIDDLE,
                  line_spacing=1.0)
 
@@ -340,8 +422,19 @@ class Deck:
         """(y, h) del área de contenido según haya remate o no, y de qué alto."""
         y, h, _ = self.remate_geom(d.get("remate"))
         if h:
-            return CONTENT_Y, y - CONTENT_Y - 0.1
+            return CONTENT_Y, y - CONTENT_Y - 0.12
         return CONTENT_Y, REMATE_Y + REMATE_H - CONTENT_Y
+
+    def subtitulo(self, s, d, y, h):
+        """Línea de aclaración bajo el título; devuelve el (y, h) restante."""
+        sub = d.get("subtitulo")
+        if not sub:
+            return y, h
+        size = 18 if len(sub) <= 110 else 16
+        lines = est_lines(sub, size, SLIDE_W - 2 * MX, char_w=0.50)
+        sh = min(0.86, lines * size * 1.15 / 72 + 0.10)
+        add_text(s, MX, y, SLIDE_W - 2 * MX, sh, sub, size, color=MUTED, italic=True, line_spacing=1.08)
+        return y + sh + 0.12, h - sh - 0.12
 
     def fig(self, name):
         name = str(name or "").strip()
@@ -354,56 +447,72 @@ class Deck:
     # ---- layouts -----------------------------------------------------------
     def portada(self, d):
         s = self.new_slide(WHITE)
-        add_rect(s, 0, 0, SLIDE_W, 0.32, fill=NAVY)
-        add_rect(s, 0, 0.32, SLIDE_W, 0.05, fill=ACCENT)
         m = self.meta
-        # Columna izquierda: encabezado institucional + título + autor
-        add_text(s, 0.8, 0.75, 8.0, 0.5, m.get("universidad", "Universidad Autónoma «Tomás Frías»").upper(),
-                 20, bold=True, color=NAVY)
-        add_text(s, 0.8, 1.2, 8.0, 0.4, m.get("facultad", "Facultad de Ingeniería").upper(), 16, bold=True, color=MUTED)
-        add_text(s, 0.8, 1.55, 8.0, 0.4, m.get("carrera", "Carrera de Ingeniería Civil").upper(), 16, bold=True, color=MUTED)
-        add_rect(s, 0.85, 2.15, 1.1, 0.06, fill=ACCENT)
+        panel_x = 9.05
+        # Panel derecho: escudo, logo y marca sobre navy, con malla de fondo
+        add_rect(s, panel_x, 0, SLIDE_W - panel_x, SLIDE_H, fill=NAVY_DEEP)
+        add_rect(s, panel_x, 0, 0.06, SLIDE_H, fill=ACCENT)
+        add_picture_fit(s, self.fig("logo_universidad"), panel_x + 0.75, 0.75, 2.8, 2.35, border=False)
+        add_rect(s, panel_x + 1.55, 3.42, 1.2, 0.045, fill=ACCENT)
+        add_picture_fit(s, self.fig("fig_logo_edufem"), panel_x + 1.05, 3.85, 2.2, 1.95, border=False)
+        add_text(s, panel_x, 5.85, SLIDE_W - panel_x, 0.5, "EduFEM", 26, bold=True, color=WHITE,
+                 align=PP_ALIGN.CENTER)
+        add_text(s, panel_x + 0.35, 6.32, SLIDE_W - panel_x - 0.7, 0.8,
+                 "Software educativo de elementos finitos", 13, color=ON_DARK, align=PP_ALIGN.CENTER)
+        # Banda superior y columna izquierda
+        add_rect(s, 0, 0, panel_x, 0.30, fill=NAVY)
+        add_rect(s, 0, 0.30, panel_x, 0.05, fill=ACCENT)
+        add_text(s, 0.8, 0.62, 7.9, 0.34, "DEFENSA DE TESIS", 13, bold=True, color=ACCENT,
+                 anchor=MSO_ANCHOR.MIDDLE, spacing=1.4)
+        add_text(s, 0.8, 1.00, 7.9, 0.42, m.get("universidad", "").upper(), 19, bold=True, color=NAVY)
+        add_text(s, 0.8, 1.42, 7.9, 0.34, m.get("facultad", "").upper(), 14, bold=True, color=MUTED)
+        add_text(s, 0.8, 1.72, 7.9, 0.34, m.get("carrera", "").upper(), 14, bold=True, color=MUTED)
+        add_rect(s, 0.82, 2.22, 1.15, 0.055, fill=ACCENT)
         titulo = m.get("titulo", d.get("titulo", ""))
-        add_text(s, 0.8, 2.35, 8.3, 2.1, titulo.upper(), 28, bold=True, color=NAVY, anchor=MSO_ANCHOR.TOP,
-                 line_spacing=1.08)
-        add_text(s, 0.8, 4.55, 8.3, 0.45, "Tesis para optar al " + m.get("grado", "Título de Licenciatura en Ingeniería Civil"),
-                 18, color=INK)
-        add_text(s, 0.8, 5.25, 8.3, 0.45, "Autor:  " + m.get("autor", ""), 22, bold=True, color=NAVY)
-        add_text(s, 0.8, 5.75, 8.3, 0.45, "Director:  " + m["director"] if m.get("director") else "", 18, color=INK)
-        add_text(s, 0.8, 6.45, 8.3, 0.45, f"{m.get('ciudad', 'Potosí – Bolivia')}   ·   {m.get('fecha', '')}", 18, color=MUTED)
-        # Columna derecha: escudo y logo de EduFEM
-        add_picture_fit(s, self.fig("logo_universidad"), 9.55, 0.9, 3.0, 3.0, border=False)
-        add_picture_fit(s, self.fig("fig_logo_edufem"), 9.9, 4.15, 2.3, 2.3, border=False)
-        add_text(s, 9.3, 6.4, 3.5, 0.5, "EduFEM", 22, bold=True, color=NAVY, align=PP_ALIGN.CENTER)
+        tsize = 27 if len(titulo) <= 150 else 24
+        add_text(s, 0.8, 2.45, 7.9, 2.15, titulo.upper(), tsize, bold=True, color=NAVY,
+                 anchor=MSO_ANCHOR.TOP, line_spacing=1.08)
+        add_text(s, 0.8, 4.72, 7.9, 0.42,
+                 "Tesis para optar al " + m.get("grado", "Título de Licenciatura en Ingeniería Civil"),
+                 17, color=MUTED)
+        add_rect(s, 0.82, 5.25, 7.75, 0.008, fill=LINE)
+        add_text(s, 0.8, 5.42, 7.9, 0.45, m.get("autor", ""), 23, bold=True, color=NAVY)
+        if m.get("director"):
+            add_text(s, 0.8, 5.92, 7.9, 0.40, "Tutor:  " + m["director"], 16, color=INK)
+        add_text(s, 0.8, 6.52, 7.9, 0.42,
+                 f"{m.get('ciudad', 'Potosí – Bolivia')}   ·   {m.get('fecha', '')}", 16, color=MUTED)
         set_notes(s, d.get("notas"))
         return s
 
     def seccion(self, d):
         s = self.new_slide(NAVY_DEEP)
         idx = self.bloque_index(d.get("bloque", "")) or (self.bloques.index(d) + 1 if d in self.bloques else 0)
+        mesh_motif(s, 8.95, 1.05, 3.95, 2.95, 4, 3, NAVY_SOFT, node_color=NAVY_SOFT, lw=0.012, nd=0.085)
         add_text(s, 0.8, 1.55, 2.4, 2.0, f"{idx:02d}" if idx else "", 96, bold=True, color=ACCENT,
                  anchor=MSO_ANCHOR.MIDDLE)
         add_rect(s, 3.35, 1.85, 0.06, 1.45, fill=ACCENT)
-        add_text(s, 3.7, 1.55, 9.0, 1.3, d.get("titulo", ""), 44, bold=True, color=WHITE, anchor=MSO_ANCHOR.MIDDLE)
-        add_text(s, 3.7, 2.85, 9.0, 1.4, d.get("subtitulo", ""), 22, color=ON_DARK, anchor=MSO_ANCHOR.TOP,
+        add_text(s, 3.7, 1.55, 8.9, 1.3, d.get("titulo", ""), 44, bold=True, color=WHITE, anchor=MSO_ANCHOR.MIDDLE)
+        add_text(s, 3.7, 2.85, 8.9, 1.4, d.get("subtitulo", ""), 21, color=ON_DARK, anchor=MSO_ANCHOR.TOP,
                  line_spacing=1.15)
         if d.get("bullets"):
-            add_bullets(s, 3.7, 3.7, 9.0, 2.2, d["bullets"], size=22, color=ON_DARK, bullet_color=ACCENT,
+            add_bullets(s, 3.7, 3.7, 8.9, 2.2, d["bullets"], size=22, color=ON_DARK, bullet_color=ACCENT,
                         min_size=18, bold_prefix=False)
         # Hilo conductor: chips de todos los bloques, con el actual resaltado
         n = len(self.bloques)
         if n:
             gap = 0.12
             cw = (SLIDE_W - 2 * MX - gap * (n - 1)) / n
-            y = 6.3
+            y = 6.35
             for i, b in enumerate(self.bloques):
                 x = MX + i * (cw + gap)
                 actual = (b is d)
                 pasado = self.bloques.index(b) < (self.bloques.index(d) if d in self.bloques else 0)
-                fill = ACCENT if actual else (RGBColor(0x2A, 0x3B, 0x60) if pasado else RGBColor(0x1C, 0x28, 0x45))
-                chip = add_rect(s, x, y, cw, 0.62, fill=fill, rounded=True, radius=0.25)
+                fill = ACCENT if actual else (NAVY_SOFT if pasado else None)
+                chip = add_rect(s, x, y, cw, 0.54, fill=fill, line=None if fill else NAVY_SOFT,
+                                rounded=True, radius=0.28)
                 shape_text(chip, f"{i + 1}. {b.get('bloque', b.get('titulo', ''))}", 12,
-                           bold=actual, color=WHITE if (actual or pasado) else ON_DARK, margins=(0.05, 0.02, 0.05, 0.02))
+                           bold=actual, color=WHITE if (actual or pasado) else ON_DARK,
+                           margins=(0.05, 0.02, 0.05, 0.02))
         set_notes(s, d.get("notas"))
         return s
 
@@ -411,13 +520,11 @@ class Deck:
         s = self.new_slide(WHITE)
         self.header(s, d)
         y, h = self.content_box(d)
+        y, h = self.subtitulo(s, d, y, h)
         items = d.get("bullets", [])
-        if d.get("subtitulo"):
-            add_text(s, MX, y, SLIDE_W - 2 * MX, 0.5, d["subtitulo"], 20, color=MUTED, italic=True)
-            y += 0.55
-            h -= 0.55
         add_bullets(s, MX + 0.1, y + 0.1, SLIDE_W - 2 * MX - 0.2, h - 0.1, items, size=26 if len(items) <= 4 else 24,
-                    gap_pt=14 if len(items) <= 4 else 10, anchor=MSO_ANCHOR.MIDDLE if not d.get("subtitulo") else MSO_ANCHOR.TOP)
+                    gap_pt=14 if len(items) <= 4 else 10,
+                    anchor=MSO_ANCHOR.MIDDLE if not d.get("subtitulo") else MSO_ANCHOR.TOP)
         self.remate(s, d.get("remate"))
         self.footer(s, d)
         set_notes(s, d.get("notas"))
@@ -427,6 +534,7 @@ class Deck:
         s = self.new_slide(WHITE)
         self.header(s, d)
         y, h = self.content_box(d)
+        y, h = self.subtitulo(s, d, y, h)
         img = self.fig(d.get("imagen"))
         left_w = 5.75 if img else 5.9
         add_bullets(s, MX + 0.05, y + 0.05, left_w, h - 0.1, d.get("bullets", []), size=24, gap_pt=12,
@@ -436,15 +544,14 @@ class Deck:
         if img:
             cap = d.get("caption", "")
             cap_h = 0.55 if cap else 0
-            pic = add_picture_fit(s, img, rx, y, rw, h - cap_h - 0.05)
+            pic = add_picture_card(s, img, rx, y, rw, h - cap_h - 0.02)
             if cap:
-                # el caption va pegado al borde inferior real de la imagen
                 bottom = (pic.top + pic.height) / 914400
-                add_text(s, rx, bottom + 0.05, rw, cap_h, cap, 15, color=MUTED, align=PP_ALIGN.CENTER,
-                         anchor=MSO_ANCHOR.TOP, italic=True)
+                add_text(s, rx, bottom + 0.05, rw, cap_h, cap, 15, color=MUTED,
+                         align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.TOP, italic=True)
         elif d.get("columna_derecha"):
-            card = add_rect(s, rx, y, rw, h, fill=CARD, rounded=True, radius=0.04)
-            add_bullets(s, rx + 0.2, y + 0.2, rw - 0.4, h - 0.4, d["columna_derecha"], size=22, gap_pt=10,
+            add_card(s, rx, y, rw, h, fill=CARD, bar=ACCENT, bar_h=0.09)
+            add_bullets(s, rx + 0.2, y + 0.3, rw - 0.4, h - 0.5, d["columna_derecha"], size=22, gap_pt=10,
                         anchor=MSO_ANCHOR.MIDDLE, bullet_color=NAVY)
         elif d.get("kpis"):
             self._kpi_cards(s, d["kpis"], rx, y, rw, h, cols=1 if len(d["kpis"]) <= 3 else 2)
@@ -457,13 +564,14 @@ class Deck:
         s = self.new_slide(WHITE)
         self.header(s, d)
         y, h = self.content_box(d)
+        y, h = self.subtitulo(s, d, y, h)
         cap = d.get("caption", "")
         cap_h = 0.5 if cap else 0
-        pic = add_picture_fit(s, self.fig(d.get("imagen")), MX, y, SLIDE_W - 2 * MX, h - cap_h - 0.05)
+        pic = add_picture_card(s, self.fig(d.get("imagen")), MX, y, SLIDE_W - 2 * MX, h - cap_h - 0.02)
         if cap:
             bottom = (pic.top + pic.height) / 914400
-            add_text(s, MX, bottom + 0.04, SLIDE_W - 2 * MX, cap_h, cap, 16, color=MUTED, align=PP_ALIGN.CENTER,
-                     anchor=MSO_ANCHOR.TOP, italic=True)
+            add_text(s, MX, bottom + 0.06, SLIDE_W - 2 * MX, cap_h, cap, 16,
+                     color=MUTED, align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.TOP, italic=True)
         self.remate(s, d.get("remate"))
         self.footer(s, d)
         set_notes(s, d.get("notas"))
@@ -473,18 +581,17 @@ class Deck:
         s = self.new_slide(WHITE)
         self.header(s, d)
         y, h = self.content_box(d)
+        y, h = self.subtitulo(s, d, y, h)
         t = d.get("tabla") or {}
         cab = [str(c) for c in t.get("cabeceras", [])]
         filas = [[str(c) for c in f] for f in t.get("filas", [])]
+        destacar_col = t.get("destacar_col")     # índice de columna a resaltar (0 = la primera)
+        destacar_fila = t.get("destacar_fila")   # índice de fila de datos a resaltar (0 = la primera)
         ncols = max(len(cab), max((len(f) for f in filas), default=0))
         nrows = len(filas) + 1
         if ncols == 0 or nrows == 1:
             aviso(f"tabla vacía en la diapositiva {d.get('n')}")
-        sub = d.get("subtitulo", "")
-        if sub:
-            add_text(s, MX, y, SLIDE_W - 2 * MX, 0.45, sub, 18, color=MUTED, italic=True)
-            y += 0.5
-            h -= 0.5
+            return s
         size = 22 if nrows <= 5 else (20 if nrows <= 7 else 18)
         # ancho por columna proporcional al contenido, con un mínimo que no parte la palabra más larga
         table_w = SLIDE_W - 2 * MX
@@ -516,7 +623,7 @@ class Deck:
         while True:
             widths = widths_for(size)
             row_hs = row_heights_for(size, widths)
-            if sum(row_hs) <= h or size <= 15:
+            if sum(row_hs) <= h or size <= 13:
                 break
             size -= 1
         if size < (22 if nrows <= 5 else (20 if nrows <= 7 else 18)):
@@ -525,7 +632,9 @@ class Deck:
         extra = max(0.0, h - sum(row_hs))
         row_hs = [min(0.62, rh + extra / nrows) for rh in row_hs]
         table_h = sum(row_hs)
-        ty = y + (h - table_h) / 2
+        if table_h > h:
+            aviso(f"la tabla de la diapositiva {d.get('n')} no entra en el area de contenido")
+        ty = max(y, y + (h - table_h) / 2)
         gt = s.shapes.add_table(nrows, ncols, Inches(MX), Inches(ty), Inches(table_w), Inches(table_h))
         tbl = gt.table
         # sin estilo predefinido: pintamos las celdas nosotros
@@ -543,8 +652,15 @@ class Deck:
                 else:
                     f = filas[r - 1]
                     txt = f[c] if c < len(f) else ""
+                marcada = (destacar_col is not None and c == destacar_col) or \
+                          (destacar_fila is not None and r == destacar_fila + 1)
                 cell.fill.solid()
-                cell.fill.fore_color.rgb = NAVY if r == 0 else (WHITE if r % 2 else CARD)
+                if r == 0:
+                    cell.fill.fore_color.rgb = NAVY
+                elif marcada:
+                    cell.fill.fore_color.rgb = ACCENT_TINT
+                else:
+                    cell.fill.fore_color.rgb = WHITE if r % 2 else CARD
                 cell.margin_left = cell.margin_right = Inches(0.08)
                 cell.margin_top = cell.margin_bottom = Inches(0.03)
                 cell.vertical_anchor = MSO_ANCHOR.MIDDLE
@@ -554,45 +670,59 @@ class Deck:
                 p.alignment = PP_ALIGN.LEFT if c == 0 else PP_ALIGN.CENTER
                 run = p.add_run()
                 run.text = txt
-                _style_run(run, size, bold=(r == 0 or c == 0), color=WHITE if r == 0 else INK)
+                _style_run(run, size, bold=(r == 0 or c == 0 or marcada),
+                           color=WHITE if r == 0 else INK)
+        # línea de acento bajo la cabecera (el borde inferior lo pone la propia tabla)
+        add_rect(s, MX, ty + row_hs[0] - 0.035, table_w, 0.045, fill=ACCENT)
         self.remate(s, d.get("remate"))
         self.footer(s, d)
         set_notes(s, d.get("notas"))
         return s
 
     def _kpi_cards(self, s, kpis, x, y, w, h, cols=None):
+        """Tarjetas de cifra: un solo tamaño y una sola línea de base para todas (sin huecos muertos)."""
         n = len(kpis)
         cols = cols or n
         rows = math.ceil(n / cols)
-        gap = 0.3
+        gap = 0.28
         cw = (w - gap * (cols - 1)) / cols
         ch = min(3.3, (h - gap * (rows - 1)) / rows)
         y0 = y + (h - (ch * rows + gap * (rows - 1))) / 2
+        # tamaños comunes: manda el valor más largo y la etiqueta más larga
+        vs = 44
+        for k in kpis:
+            valor = str(k.get("valor", ""))
+            v = 44 if len(valor) <= 7 else (36 if len(valor) <= 11 else (30 if len(valor) <= 14 else 24))
+            while v > 18 and est_lines(valor, v, cw - 0.5, char_w=0.56) > 1:
+                v -= 2
+            vs = min(vs, v)
+        es = 18 if all(len(str(k.get("etiqueta", ""))) <= 70 for k in kpis) else 16
+        vh = vs * 1.25 / 72
+        while True:  # el bloque acento + valor + etiqueta tiene que caber en la tarjeta
+            lab_lines = max(est_lines(str(k.get("etiqueta", "")), es, cw - 0.5, char_w=0.50) for k in kpis)
+            lh = lab_lines * es * 1.16 / 72
+            bloque = 0.26 + vh + 0.10 + lh
+            if bloque <= ch - 0.30 or es <= 13:
+                break
+            es -= 1
+        dy = max(0.16, (ch - bloque) / 2)
         for i, k in enumerate(kpis):
             r, c = divmod(i, cols)
             cx = x + c * (cw + gap)
             cy = y0 + r * (ch + gap)
-            add_rect(s, cx, cy, cw, ch, fill=CARD, rounded=True, radius=0.07)
-            add_rect(s, cx + 0.25, cy + 0.3, 0.6, 0.07, fill=ACCENT)
-            valor = str(k.get("valor", ""))
-            vs = 44 if len(valor) <= 8 else (36 if len(valor) <= 12 else 28)
-            add_text(s, cx + 0.2, cy + 0.45, cw - 0.4, 1.1, valor, vs, bold=True, color=NAVY,
-                     anchor=MSO_ANCHOR.MIDDLE)
-            etiqueta = str(k.get("etiqueta", ""))
-            label_h = ch - 1.75
-            es = 18 if est_lines(etiqueta, 18, cw - 0.4, char_w=0.5) * 18 * 1.15 / 72 <= label_h else 16
-            add_text(s, cx + 0.2, cy + 1.6, cw - 0.4, label_h, etiqueta, es, color=MUTED,
-                     anchor=MSO_ANCHOR.TOP, line_spacing=1.1)
+            add_card(s, cx, cy, cw, ch, fill=CARD, border=LINE, radius=0.06)
+            add_rect(s, cx + 0.28, cy + dy, 0.62, 0.06, fill=ACCENT)
+            add_text(s, cx + 0.25, cy + dy + 0.24, cw - 0.5, vh + 0.12, str(k.get("valor", "")), vs,
+                     bold=True, color=NAVY, anchor=MSO_ANCHOR.TOP, line_spacing=1.0)
+            add_text(s, cx + 0.25, cy + dy + 0.24 + vh + 0.12, cw - 0.5, lh + 0.2, str(k.get("etiqueta", "")),
+                     es, color=MUTED, anchor=MSO_ANCHOR.TOP, line_spacing=1.12)
 
     def kpi(self, d):
         s = self.new_slide(WHITE)
         self.header(s, d)
         y, h = self.content_box(d)
+        y, h = self.subtitulo(s, d, y, h)
         kpis = d.get("kpis", [])
-        if d.get("subtitulo"):
-            add_text(s, MX, y, SLIDE_W - 2 * MX, 0.5, d["subtitulo"], 20, color=MUTED, italic=True)
-            y += 0.55
-            h -= 0.55
         cols = len(kpis) if len(kpis) <= 4 else 3
         self._kpi_cards(s, kpis, MX, y, SLIDE_W - 2 * MX, h, cols=cols)
         self.remate(s, d.get("remate"))
@@ -604,43 +734,56 @@ class Deck:
         s = self.new_slide(WHITE)
         self.header(s, d)
         y, h = self.content_box(d)
+        y, h = self.subtitulo(s, d, y, h)
         pasos = d.get("pasos", [])
         n = len(pasos)
-        if d.get("subtitulo"):
-            add_text(s, MX, y, SLIDE_W - 2 * MX, 0.5, d["subtitulo"], 20, color=MUTED, italic=True)
-            y += 0.55
-            h -= 0.55
+        if not n:
+            aviso(f"flujo sin pasos en la diapositiva {d.get('n')}")
+            return s
         per_row = n if n <= 5 else math.ceil(n / 2)
         rows = math.ceil(n / per_row)
-        arrow_w = 0.42
-        gap = 0.12
+        arrow_w = 0.38
+        gap = 0.11
         cw = (SLIDE_W - 2 * MX - (per_row - 1) * (arrow_w + 2 * gap)) / per_row
-        # alto del chip según lo que piden rótulo (≤ 2 líneas a 20 pt) y sublínea (≤ 2 líneas a 13 pt)
-        any_sub = any(str(p.get("sub", "") or "") for p in pasos)
-        ch = 1.55 if any_sub else 1.1
-        total_h = rows * ch + (rows - 1) * 0.5
+        # alto del chip: lo que piden rótulo y sublínea, sin dejar hueco entre ambos
+        ls_all, ss_all = [], []
+        for p in pasos:
+            label = str(p.get("etiqueta", ""))
+            sub = str(p.get("sub", "") or "")
+            ls_all.append(20 if est_lines(label, 20, cw - 0.28, char_w=0.55) <= 1 else 17)
+            ss_all.append(13 if est_lines(sub, 13, cw - 0.28, char_w=0.50) <= 2 else 11)
+        ls = min(ls_all)
+        ss = min(ss_all)
+        lab_lines = max(est_lines(str(p.get("etiqueta", "")), ls, cw - 0.28, char_w=0.55) for p in pasos)
+        sub_lines = max(est_lines(str(p.get("sub", "") or ""), ss, cw - 0.28, char_w=0.50)
+                        for p in pasos) if any(p.get("sub") for p in pasos) else 0
+        lab_h = lab_lines * ls * 1.15 / 72
+        sub_h = sub_lines * ss * 1.15 / 72 if sub_lines else 0
+        texto_h = lab_h + (0.10 + sub_h if sub_h else 0)
+        # la tarjeta crece hasta ocupar el alto disponible, con el texto centrado dentro
+        row_gap = 0.5 if rows > 1 else 0.0
+        ch = min(2.3 if rows > 1 else 2.7, max(texto_h + 0.56, (h - row_gap * (rows - 1)) / rows - 0.25))
+        total_h = rows * ch + (rows - 1) * row_gap
         y0 = y + (h - total_h) / 2
         for i, p in enumerate(pasos):
             r, c = divmod(i, per_row)
             cx = MX + c * (cw + arrow_w + 2 * gap)
-            cy = y0 + r * (ch + 0.5)
-            chip = add_rect(s, cx, cy, cw, ch, fill=NAVY, rounded=True, radius=0.12)
+            cy = y0 + r * (ch + row_gap)
+            add_card(s, cx, cy, cw, ch, fill=CARD, border=LINE, radius=0.09, bar=NAVY, bar_h=0.11)
             label = str(p.get("etiqueta", ""))
             sub = str(p.get("sub", "") or "")
-            ls = 20 if est_lines(label, 20, cw - 0.16, char_w=0.55) <= 1 else 17
+            ty0 = cy + max(0.26, 0.11 + (ch - 0.11 - texto_h) / 2)
+            add_text(s, cx, ty0, cw, lab_h + 0.12, label, ls, bold=True, color=NAVY,
+                     align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.TOP, line_spacing=1.05,
+                     margins=(0.10, 0.02, 0.10, 0.02))
             if sub:
-                # rótulo arriba y sublínea abajo, cada uno en su propia caja: nunca se pisan
-                add_text(s, cx, cy + 0.1, cw, 0.8, label, ls, bold=True, color=WHITE, align=PP_ALIGN.CENTER,
-                         anchor=MSO_ANCHOR.TOP, line_spacing=1.0, margins=(0.08, 0.02, 0.08, 0.02))
-                ss = 13 if est_lines(sub, 13, cw - 0.16, char_w=0.5) <= 2 else 11
-                add_text(s, cx, cy + ch - 0.62, cw, 0.55, sub, ss, color=ON_DARK, align=PP_ALIGN.CENTER,
-                         anchor=MSO_ANCHOR.BOTTOM, line_spacing=1.0, margins=(0.08, 0.02, 0.08, 0.06))
-            else:
-                shape_text(chip, label, ls, bold=True, color=WHITE)
+                add_text(s, cx, ty0 + lab_h + 0.08, cw, sub_h + 0.14, sub, ss, color=MUTED,
+                         align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.TOP, line_spacing=1.05,
+                         margins=(0.10, 0.02, 0.10, 0.02))
             if c < per_row - 1 and i < n - 1:
                 ax = cx + cw + gap
-                arr = s.shapes.add_shape(MSO_SHAPE.RIGHT_ARROW, Inches(ax), Inches(cy + ch / 2 - 0.16),
-                                         Inches(arrow_w), Inches(0.32))
+                arr = s.shapes.add_shape(MSO_SHAPE.RIGHT_ARROW, Inches(ax), Inches(cy + ch / 2 - 0.13),
+                                         Inches(arrow_w), Inches(0.26))
                 arr.shadow.inherit = False
                 arr.fill.solid()
                 arr.fill.fore_color.rgb = ACCENT
@@ -654,26 +797,30 @@ class Deck:
         s = self.new_slide(WHITE)
         self.header(s, d)
         y, h = self.content_box(d)
-        tarjetas = d.get("tarjetas", [])[:2]
-        if d.get("subtitulo"):
-            add_text(s, MX, y, SLIDE_W - 2 * MX, 0.5, d["subtitulo"], 20, color=MUTED, italic=True)
-            y += 0.55
-            h -= 0.55
-        gap = 0.4
-        cw = (SLIDE_W - 2 * MX - gap) / max(1, len(tarjetas))
+        y, h = self.subtitulo(s, d, y, h)
+        tarjetas = d.get("tarjetas", [])[:3]
+        paleta = {"navy": NAVY, "accent": ACCENT, "slate": SLATE, "q4": Q4_BLUE, "q9": Q9_ORANGE}
+        por_defecto = [NAVY, ACCENT, SLATE]
+        n = max(1, len(tarjetas))
+        gap = 0.4 if n == 2 else 0.32
+        cw = (SLIDE_W - 2 * MX - gap * (n - 1)) / n
+        head_h = 0.68
         for i, t in enumerate(tarjetas):
             cx = MX + i * (cw + gap)
             titulo = str(t.get("titulo", ""))
             up = titulo.upper()
-            head_fill = Q4_BLUE if up.startswith("Q4") else (Q9_ORANGE if up.startswith("Q9") else (NAVY if i == 0 else ACCENT))
-            add_rect(s, cx, y, cw, h, fill=CARD, rounded=True, radius=0.05)
-            add_rect(s, cx, y, cw, 0.66, fill=head_fill, rounded=True, radius=0.12)
-            add_rect(s, cx, y + 0.36, cw, 0.30, fill=head_fill)  # cuadra la base de la cabecera
-            ts = 24 if est_lines(titulo, 24, cw - 0.3, char_w=0.55) <= 1 else 20
-            add_text(s, cx, y, cw, 0.66, titulo, ts, bold=True, color=WHITE, align=PP_ALIGN.CENTER,
-                     anchor=MSO_ANCHOR.MIDDLE)
-            add_bullets(s, cx + 0.25, y + 0.78, cw - 0.5, h - 0.9, t.get("lineas", []), size=22, gap_pt=9,
-                        min_size=18, bullet_color=head_fill, anchor=MSO_ANCHOR.MIDDLE)
+            color = paleta.get(str(t.get("color", "")).lower())
+            if color is None:
+                color = Q4_BLUE if up.startswith("Q4") else (Q9_ORANGE if up.startswith("Q9") else por_defecto[i])
+            add_rect(s, cx, y, cw, h, fill=CARD, line=LINE, rounded=True, radius=0.05)
+            add_rect(s, cx, y, cw, head_h, fill=color, rounded=True, radius=0.12)
+            add_rect(s, cx, y + head_h - 0.30, cw, 0.30, fill=color)  # cuadra la base de la cabecera
+            ts = 23 if est_lines(titulo, 23, cw - 0.3, char_w=0.55) <= 1 else (20 if n == 2 else 18)
+            add_text(s, cx, y, cw, head_h, titulo, ts, bold=True, color=WHITE, align=PP_ALIGN.CENTER,
+                     anchor=MSO_ANCHOR.MIDDLE, line_spacing=1.0)
+            add_bullets(s, cx + 0.22, y + head_h + 0.22, cw - 0.44, h - head_h - 0.36, t.get("lineas", []),
+                        size=22 if n == 2 else 19, gap_pt=9, min_size=15, bullet_color=color,
+                        anchor=MSO_ANCHOR.TOP, bold_prefix=(n == 2))
         self.remate(s, d.get("remate"))
         self.footer(s, d)
         set_notes(s, d.get("notas"))
@@ -683,24 +830,24 @@ class Deck:
         s = self.new_slide(WHITE)
         self.header(s, d)
         y, h = self.content_box(d)
+        y, h = self.subtitulo(s, d, y, h)
         eqs = d.get("ecuaciones", [])
-        if d.get("subtitulo"):
-            add_text(s, MX, y, SLIDE_W - 2 * MX, 0.5, d["subtitulo"], 20, color=MUTED, italic=True)
-            y += 0.55
-            h -= 0.55
         n = max(1, len(eqs))
         rh = min(1.35, h / n)
         y0 = y + (h - rh * n) / 2
         name_w = 3.7
+        eq_w = SLIDE_W - 2 * MX - name_w - 0.25
+        # un solo tamaño para todas las ecuaciones de la lámina: la más larga manda
+        es = 30
+        while es > 18 and any(est_lines(str(e.get("texto", "")), es, eq_w, char_w=0.56) > 1 for e in eqs):
+            es -= 2
         for i, e in enumerate(eqs):
             ry = y0 + i * rh
-            add_rect(s, MX, ry + 0.12, SLIDE_W - 2 * MX, rh - 0.24, fill=CARD, rounded=True, radius=0.08)
-            add_rect(s, MX, ry + 0.12, 0.09, rh - 0.24, fill=ACCENT)
-            add_text(s, MX + 0.3, ry + 0.12, name_w - 0.3, rh - 0.24, str(e.get("nombre", "")), 19, bold=True,
+            add_rect(s, MX, ry + 0.10, SLIDE_W - 2 * MX, rh - 0.20, fill=CARD, line=LINE, rounded=True, radius=0.07)
+            add_rect(s, MX, ry + 0.10, 0.085, rh - 0.20, fill=ACCENT)
+            add_text(s, MX + 0.3, ry + 0.10, name_w - 0.3, rh - 0.20, str(e.get("nombre", "")), 18, bold=True,
                      color=MUTED, anchor=MSO_ANCHOR.MIDDLE, line_spacing=1.05)
-            txt = str(e.get("texto", ""))
-            es = 30 if len(txt) <= 46 else (26 if len(txt) <= 64 else 22)
-            add_text(s, MX + name_w, ry + 0.12, SLIDE_W - 2 * MX - name_w - 0.2, rh - 0.24, txt, es, color=NAVY,
+            add_text(s, MX + name_w, ry + 0.10, eq_w, rh - 0.20, str(e.get("texto", "")), es, color=NAVY,
                      font=MATH, anchor=MSO_ANCHOR.MIDDLE)
         self.remate(s, d.get("remate"))
         self.footer(s, d)
@@ -713,22 +860,19 @@ class Deck:
         y, h = self.content_box(d)
         img = self.fig(d.get("imagen") or "fig_app_completa")
         iw = 7.9
-        add_picture_fit(s, img, MX, y, iw, h)
+        add_picture_card(s, img, MX, y, iw, h)
         rx = MX + iw + 0.4
         rw = SLIDE_W - MX - rx
         pasos = d.get("bullets") or [p.get("etiqueta", "") for p in d.get("pasos", [])]
-        add_text(s, rx, y, rw, 0.5, d.get("subtitulo", "En vivo"), 20, bold=True, color=ACCENT)
-        size = fit_size([str(p) for p in pasos], rw - 0.65, h - 0.7, 20, 16, line_h=1.15, gap_pt=22)
-        py = y + 0.62
+        add_text(s, rx, y, rw, 0.42, d.get("subtitulo", "En vivo"), 20, bold=True, color=ACCENT,
+                 anchor=MSO_ANCHOR.MIDDLE)
+        size = fit_size([str(p) for p in pasos], rw - 0.65, h - 0.7, 20, 15, line_h=1.15, gap_pt=22)
+        py = y + 0.58
         for i, p in enumerate(pasos):
-            step_h = est_lines(str(p), size, rw - 0.65) * size * 1.15 / 72 + 0.3
-            circ = s.shapes.add_shape(MSO_SHAPE.OVAL, Inches(rx), Inches(py + 0.06), Inches(0.5), Inches(0.5))
-            circ.shadow.inherit = False
-            circ.fill.solid()
-            circ.fill.fore_color.rgb = NAVY
-            circ.line.fill.background()
-            shape_text(circ, str(i + 1), 18, bold=True, color=WHITE, margins=(0, 0, 0, 0))
-            add_text(s, rx + 0.65, py, rw - 0.65, step_h, str(p), size, color=INK, anchor=MSO_ANCHOR.TOP,
+            step_h = est_lines(str(p), size, rw - 0.65) * size * 1.15 / 72 + 0.30
+            circ = add_oval(s, rx, py + 0.04, 0.46, NAVY)
+            shape_text(circ, str(i + 1), 17, bold=True, color=WHITE, margins=(0, 0, 0, 0))
+            add_text(s, rx + 0.62, py, rw - 0.62, step_h, str(p), size, color=INK, anchor=MSO_ANCHOR.TOP,
                      line_spacing=1.15)
             py += step_h
         self.remate(s, d.get("remate"))
@@ -739,16 +883,25 @@ class Deck:
     def cierre(self, d):
         s = self.new_slide(NAVY_DEEP)
         m = self.meta
-        add_text(s, 0.8, 1.5, 8.0, 1.2, d.get("titulo", "Gracias"), 54, bold=True, color=WHITE, anchor=MSO_ANCHOR.MIDDLE)
-        add_rect(s, 0.85, 2.75, 1.3, 0.07, fill=ACCENT)
-        add_text(s, 0.8, 3.0, 8.2, 1.2, d.get("subtitulo", ""), 22, color=ON_DARK, line_spacing=1.15)
-        if d.get("bullets"):
-            add_bullets(s, 0.8, 4.1, 8.2, 1.6, d["bullets"], size=20, color=ON_DARK, bullet_color=ACCENT,
+        add_text(s, 0.8, 1.35, 8.0, 1.2, d.get("titulo", "Gracias"), 54, bold=True, color=WHITE,
+                 anchor=MSO_ANCHOR.MIDDLE)
+        add_rect(s, 0.85, 2.60, 1.3, 0.07, fill=ACCENT)
+        add_text(s, 0.8, 2.88, 8.0, 1.2, d.get("subtitulo", ""), 21, color=ON_DARK, line_spacing=1.15)
+        chips = d.get("chips") or []
+        if chips:
+            gap = 0.22
+            cw = (8.0 - gap * (len(chips) - 1)) / len(chips)
+            for i, c in enumerate(chips):
+                chip = add_rect(s, 0.8 + i * (cw + gap), 4.40, cw, 0.62, fill=None, line=NAVY_SOFT,
+                                rounded=True, radius=0.28)
+                shape_text(chip, str(c), 14, bold=True, color=ON_DARK, margins=(0.08, 0.02, 0.08, 0.02))
+        elif d.get("bullets"):
+            add_bullets(s, 0.8, 4.20, 8.0, 1.5, d["bullets"], size=20, color=ON_DARK, bullet_color=ACCENT,
                         min_size=16, bold_prefix=False)
-        add_text(s, 0.8, 5.75, 8.2, 0.5, m.get("autor", ""), 24, bold=True, color=WHITE)
-        add_text(s, 0.8, 6.25, 8.2, 0.45, m.get("repo", "github.com/Sucullani/SoftwareED"), 20, color=ACCENT)
-        add_picture_fit(s, self.fig("logo_universidad"), 9.6, 1.4, 2.6, 2.6, border=False)
-        add_picture_fit(s, self.fig("fig_logo_edufem"), 9.75, 4.2, 2.3, 2.3, border=False)
+        add_text(s, 0.8, 5.72, 8.0, 0.5, m.get("autor", ""), 24, bold=True, color=WHITE)
+        add_text(s, 0.8, 6.22, 8.0, 0.45, m.get("repo", "github.com/Sucullani/SoftwareED"), 19, color=ACCENT)
+        add_picture_fit(s, self.fig("logo_universidad"), 9.55, 1.15, 2.6, 2.6, border=False)
+        add_picture_fit(s, self.fig("fig_logo_edufem"), 9.75, 4.15, 2.2, 2.2, border=False)
         set_notes(s, d.get("notas"))
         return s
 
