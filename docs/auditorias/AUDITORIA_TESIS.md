@@ -13,8 +13,10 @@
 
 ## 1. Resumen ejecutivo
 
-**Última sesión**: 3 · 2026-09-16 · commit de la tesis auditado: `bdbf18d` (2026-09-11; sin
-commits posteriores en `tesis/`).
+**Última sesión**: 4 · 2026-09-16 · commit de la tesis auditado: `bdbf18d` (2026-09-11; sin
+commits posteriores en `tesis/`). **Los seis bloques están auditados**: la siguiente sesión
+solo reaudita si `git log bdbf18d..HEAD -- tesis/` deja de estar vacío (y entonces, solo lo
+que cambió).
 
 | Bloque | Contenido | Estado |
 |---|---|---|
@@ -23,10 +25,10 @@ commits posteriores en `tesis/`).
 | B2 | Marco teórico y metodología | **auditado** (sesión 2) |
 | B3 | Resultados | **auditado** (sesión 2) |
 | B4 | Conclusiones y recomendaciones | **auditado** (sesión 3) |
-| B5 | Citación y referencias contra la norma de B0 | **en curso** (sesión 3: correspondencia cita↔referencia verificada, sin huérfanas; falta formato de citas, lista final y H-31; 4 hallazgos ya registrados desde B0: H-2, H-12 a H-14) |
-| B6 | Forma: títulos, numeración, jerarquía, preliminares | pendiente |
+| B5 | Citación y referencias contra la norma de B0 | **auditado** (sesiones 3-4: correspondencia cita↔referencia, orden de numeración, formato de las 100 citas, lista impresa entrada por entrada y respaldo de las citas cuestionadas) |
+| B6 | Forma: títulos, numeración, jerarquía, preliminares | **auditado** (sesión 4) |
 
-**Hallazgos abiertos por severidad**: alta 1 · media 18 · baja 20 · **total 39** (H-1 a H-39). Resueltos: 0.
+**Hallazgos abiertos por severidad**: alta 2 · media 21 · baja 24 · **total 47** (H-1 a H-47). Resueltos: 0.
 
 Lo que más pesa hoy: el **Reglamento de Graduación** que fija formato y referenciación no
 está en el repositorio (H-1), la tesis **no declara en su texto la norma de citación** que
@@ -44,7 +46,19 @@ ausencia de resultado para OE1 y OE3 (H-32), **dos conclusiones se sostienen en 
 de diseño y en citas, no en resultados** (H-33, H-39), y **las recomendaciones introducen
 mediciones y decisiones que ningún capítulo reporta** (Cuthill-McKee, 7-19 %, Cholesky; H-34).
 Estado final de la trazabilidad: 2 objetivos completos (OE2, OE5, solapados entre sí), 3
-débiles (OE1, OE3, OE6), 1 hueco (OE4) y la hipótesis débil.
+débiles (OE1, OE3, OE6), 1 hueco (OE4) y la hipótesis débil. B5 cierra la citación: la
+correspondencia cita↔referencia y el orden de numeración están bien, pero **el valor de
+referencia de la membrana de Cook (23,96) y el comportamiento del Q9 se citan a dos páginas
+que no los contienen** (Cook p. 98, Hughes p. 221; H-40, la segunda alta), **Cook p. 231 se
+cita para sostener lo contrario de lo que dice sobre el promediado nodal** (H-41), **la única
+fuente de las categorías metodológicas (objeto, campo, contradicción, modelo) es una
+monografía inédita, sin fecha ni dato de recuperación** (H-42) y **tres citas pedagógicas
+atribuyen a las fuentes una eficacia que ellas mismas niegan o matizan** (H-43); el
+localizador de página se usa en 28 de 100 citas sin criterio y contra lo que declara el
+propio respaldo documental (H-44), y la lista impresa tiene cinco entradas que se apartan de
+la plantilla de la guía propia (H-45). B6 (forma) solo deja dos hallazgos bajos: el Cap. 1 sin
+el complemento «de …» que pide el índice del Taller 1 y una numeración manual dentro del
+Anexo G (H-46, H-47).
 
 ## 2. Inventario (B0)
 
@@ -111,7 +125,8 @@ RESUMEN · INTRODUCCIÓN · Capítulo 1 MARCO TEÓRICO DE … · Capítulo 2 DIS
 DEL MODELO A DESARROLLAR · Capítulo 3 PRESENTACIÓN DE RESULTADOS Y ANÁLISIS DE LOS MISMOS ·
 Conclusiones y Recomendaciones · Bibliografía · Anexos. La tesis sigue ese orden
 (`tesis/main.tex:43-78`) y agrega índices, nota de autoría de figuras y nomenclatura entre el
-resumen y la introducción.
+resumen y la introducción. Contrastado en B6 (sesión 4): ver la cabecera de esa sección y
+H-46, H-47.
 
 ## 3. Tabla de trazabilidad
 
@@ -161,7 +176,8 @@ Recomendaciones (H-34, H-35).
 - Severidad: media
 - Evidencia: Taller 2, p. 20: «Exponer la normativa que utiliza, para el desarrollo de su investigación para su graduación (tesis, proyecto de grado)». En la tesis, la única declaración de la norma está en un comentario LaTeX invisible: `tesis/main.tex:70` «% ----- Bibliografia (estilo Vancouver) -----». Búsqueda de «Vancouver», «APA» y «norma» en `tesis/capitulos/*.tex`: 0 resultados en texto visible.
 - Problema: el tribunal no puede saber contra qué norma juzgar las citas ni por qué la lista es numérica por orden de aparición. El material docente pide exponerlo explícitamente; el documento lo omite.
-- Sugerencia: una frase en la Introducción (en «Estructura del documento») o al pie de la Bibliografía: «Las citas y referencias siguen la norma Vancouver (ICMJE/NLM); la presentación, APA 7.ª ed.».
+- Evidencia adicional (sesión 4): la única frase de la tesis que alude a la norma tampoco la nombra —`00_preliminares.tex:11`: «se encuentran debidamente referenciados conforme a la norma de citación adoptada en este documento»— y ese archivo está desactivado en `main.tex:41` («% \input{capitulos/00_preliminares}»). Además, los dos desvíos deliberados de Vancouver (títulos de revista completos, «y» antes del último autor) viven solo en `tesis/README.md:10-12`, invisible al tribunal, mientras el Taller 2 (p. 19) recomienda expresamente lo contrario: «Los títulos de las revistas deben abreviarse según el estilo que utiliza la normativa de referenciación». La frase que declare la norma debe declarar también esos dos desvíos.
+- Sugerencia: una frase en la Introducción (en «Estructura del documento») o al pie de la Bibliografía: «Las citas y referencias siguen la norma Vancouver (ICMJE/NLM), con títulos de revista completos y conjunción antes del último autor; la presentación, APA 7.ª ed.».
 - Estado: abierto
 - Sesión: 1
 
@@ -429,6 +445,7 @@ Recomendaciones (H-34, H-35).
 - Severidad: baja
 - Evidencia: `02_marco_teorico.tex:414`: «el desplazamiento del extremo converge al valor de referencia de uso convencional, $23{,}96$, … \autocites[p.~98]{cook2002concepts}[p.~221]{hughes2000fem}». `04_resultados.tex:150` (nota): «su valor de referencia es un límite de convergencia y no un dato exacto, por lo que conviene tratarlo como tal y no como una constante tomada de una fuente. En lugar de descansar en el valor convencional, este trabajo lo corrobora con evidencia propia».
 - Problema: el marco teórico atribuye el 23,96 a dos fuentes con página; el Cap. 3 dice que no debe tratarse como constante tomada de una fuente. El lector no sabe si el valor está respaldado bibliográficamente o solo por la extrapolación de Richardson propia. B5 debe comprobar que Cook p. 98 y Hughes p. 221 efectivamente dan 23,96 (`tesis/respaldo_citas/verificado.json`).
+- Comprobación (sesión 4): **ninguna de las dos páginas contiene el valor ni el caso**. El respaldo documental lo dice para Cook («La membrana de Cook no aparece en el índice de materias … ni en §8.10 “Tests of Element Quality” (pp. 293-295) … la co-cita de cook2002concepts … sólo puede sostener el mecanismo del bloqueo por cortante (pp. 98-99), no el caso de prueba ni su valor de referencia») y para Hughes («Ni el caso de la membrana de Cook ni ninguna de las cifras (23,96 / 22,08 / 7,9 %) aparecen en este libro: el indice alfabetico no tiene entrada ‘Cook’ ni ‘membrane’»). La contradicción entre §1.12 y §3.5 queda así resuelta a favor del Cap. 3: el 23,96 no tiene fuente en la bibliografía. El error de citación resultante se registra como H-40.
 - Sugerencia: una sola procedencia: «valor convencional citado por Cook y Hughes y corroborado aquí por extrapolación de Richardson».
 - Estado: abierto
 - Sesión: 2
@@ -515,7 +532,7 @@ Recomendaciones (H-34, H-35).
 - Estado: abierto
 - Sesión: 3
 
-### B5 — Citación y referencias (registrados en sesión 1 desde B0; bloque en curso desde la sesión 3)
+### B5 — Citación y referencias (H-2, H-12 a H-14 registrados en sesión 1 desde B0; bloque cerrado en la sesión 4)
 
 Comprobación mecánica de la sesión 3 (sin hallazgo): las 22 entradas de
 `tesis/bibliografia/referencias.bib` se citan al menos una vez y las 22 claves citadas en
@@ -523,6 +540,133 @@ Comprobación mecánica de la sesión 3 (sin hallazgo): las 22 entradas de
 (`02_marco_teorico` 47, `01_introduccion` 18, `04_resultados` 15, `05_conclusiones` 9,
 `02b_diseno_metodologico` 8, `03_diseno_implementacion` 3; 0 en anexos, resumen y
 nomenclatura). La correspondencia cita↔referencia se cumple en ambos sentidos.
+
+Comprobaciones de la sesión 4 (sin hallazgo, salvo lo que se registra abajo):
+
+- **Fuente de la lista impresa**: `tesis/main.pdf` (151 páginas, fecha interna
+  2026-09-11 13:51, un minuto anterior al commit `bdbf18d`), pp. 79-81. Es el PDF del texto
+  auditado, no una versión vieja.
+- **Orden de numeración**: las 22 referencias salen en el orden de su primera mención en el
+  texto (`[1]` Zienkiewicz y `[2]` Cook en `01_introduccion.tex:5` … `[22]` Sampieri en
+  `02b_diseno_metodologico.tex:4`), incluidas las cinco citas que viven en cabeceras de la
+  Tabla 1.1 (`02_marco_teorico.tex:26`), como exige el Taller 2 (p. 18: «en el texto, en las
+  tablas y en las leyendas de las figuras»).
+- **Citas de cita**: ninguna. Búsqueda de «citado en», «citado por», «apud» y «cit.» en
+  `tesis/capitulos/*.tex`: 0 resultados (Taller 2, p. 18: «no se deben hacer citas de cita»).
+- **Autocitas**: ninguna. El repositorio propio va en tres notas al pie
+  (`01_introduccion.tex:23`, `06_anexos.tex:10, 335`) y no entra en la numeración, forma que la
+  guía propia admite (`guia_vancouver.tex:426-428`).
+- **Identidad de los ejemplares**: las 22 entradas del `.bib` dan «COINCIDE» contra el
+  ejemplar consultado en `verificado.json` (autores, título, edición, editorial, año).
+- **Ya corregido por la auditoría del 2026-09-11 y verificado hoy en el texto**: la Tabla 1.1
+  ya dice «Comercial» para los simuladores de VisualFEA y «No declarada (código MATLAB)» para
+  Bishay; `02_marco_teorico.tex:11` distingue «modos propios de la matriz de rigidez … no
+  modos de vibración»; la frase de las integrales de error (`:412`) ya no cita a Salari-Knupp;
+  el ordenamiento de mínimo grado (`:302`) ya no se atribuye a SciPy; von Mises (`:304`) va a
+  Cook p. 117 y no a Timoshenko; el umbral de Verdict (`:382`) ya dice 0,30 y declara el 0,50
+  como endurecimiento de EduFEM; el minimalismo (`05_conclusiones.tex:15`) ya no se atribuye a
+  la literatura. No se repiten como hallazgo.
+- **Desvíos documentados no registrados**, por la decisión de B0 (§2.3): títulos de revista
+  completos y «y» ante el último autor; y el formato que `numeric-comp` impone a artículos y
+  pie de imprenta («En: … 31.5 (2023), págs. 1159-1173»; «Oxford: …, 2005» en vez de «; 2005»),
+  que la guía propia (`guia_vancouver.tex:522-543, 571-579`) reconoce como limitación del
+  estilo y `tesis/README.md` documenta. Se anota que el Taller 2 (p. 19) recomienda la
+  abreviatura; la obligación de declararlo va en H-2.
+
+**H-40**
+- Bloque y sección: B5 · §1.12 Verificación y validación (`02_marco_teorico.tex:414`) ↔ §3.5
+- Tipo: citación
+- Severidad: **alta**
+- Evidencia: `02_marco_teorico.tex:414`: «el desplazamiento del extremo converge al valor de referencia de uso convencional, $23{,}96$, pero el elemento Q4 lo subestima sensiblemente en las mallas gruesas por el bloqueo por cortante (\emph{shear-locking}) descrito en la \autoref{sec:locking}; el elemento Q9, de orden superior, lo evita y converge con rapidez \autocites[p.~98]{cook2002concepts}[p.~221]{hughes2000fem}». Respaldo documental (`tesis/respaldo_citas/verificado.json`, clave `cook2002concepts`, «sin_respaldo» 2): «el valor de referencia u_y^ref = 23,96 de la membrana de Cook … NO figura en esta obra. La membrana de Cook no aparece en el índice de materias … ni en §8.10 “Tests of Element Quality” (pp. 293-295), ni en los problemas del capítulo 6». Ídem, clave `hughes2000fem`, respaldo de esta misma frase: «pagina_impresa: 243 (nota al pie 10) … respalda: PARCIAL … Ni el caso de la membrana de Cook ni ninguna de las cifras (23,96 / 22,08 / 7,9 %) aparecen en este libro». La p. 221 de Hughes es, según el mismo respaldo, la Tabla 4.4.1 («U2 2 x 2 uniform integration (= exact in present case)»), que sostiene la frase sobre la cuadratura $2\times2$/$3\times3$ de `02_marco_teorico.tex:248`, no esta. La nota de `docs/notas/2026-09-08_bibliografia-tesis.md:467` lo había advertido: «Cook 2002 NO contiene la membrana de Cook (verificado página por página sobre el escaneo). Sirve para el fenómeno, no para la atribución». El artículo original (`cook1974membrane`) se retiró del `.bib` por no haberse consultado.
+- Problema: la oración que fija el valor de referencia que gobierna toda la columna de error de `tab:cook` y el comportamiento comparado Q4/Q9 cierra con dos localizadores de página, y ninguno de los dos contiene el caso, el valor ni la afirmación sobre el Q9 (la que Hughes sí hace está en la p. 243, nota 10). Un miembro del tribunal que abra Cook en la p. 98 no encuentra la membrana. La auditoría del 2026-09-11 (ítem 4.1, «mayor») pidió dejar el valor «sin cita»; se reescribió la prosa pero la cita quedó en el mismo lugar, y el localizador de Hughes se tomó de otra afirmación.
+- Sugerencia: mover «\autocite[pp.~98-99]{cook2002concepts}» a continuación de «bloqueo por cortante», poner «\autocite[p.~243]{hughes2000fem}» tras «lo evita y converge con rapidez», y dejar el 23,96 sin cita, remitiendo a la nota de `04_resultados.tex:150` (o citar Cook 1974 solo si se consigue y verifica).
+- Estado: abierto
+- Sesión: 4
+
+**H-41**
+- Bloque y sección: B5 · §1.10 Recuperación de tensiones (`02_marco_teorico.tex:321`) y §3.2 (`04_resultados.tex:58`)
+- Tipo: citación
+- Severidad: media
+- Evidencia: `02_marco_teorico.tex:321`: «En el elemento Q4 los puntos de la regla $2\times2$ coinciden con los \emph{puntos de Barlow}, ubicaciones donde las tensiones convergen con un orden superior al del resto del elemento (superconvergencia) \autocite[p.~231]{cook2002concepts}». `04_resultados.tex:58`: «Que el Q4 supere el orden $\mathcal{O}(h^{1})$ del gradiente crudo (seminorma $H^1$) refleja la superconvergencia del muestreo en los puntos de Barlow y del promediado nodal (\autoref{sec:resolucion-tensiones}) \autocite[p.~231]{cook2002concepts}». Respaldo documental (`verificado.json`, `cook2002concepts`): «El término “puntos de Barlow” NO aparece en esta obra: no figura en el índice de materias (p. 711 …)»; «en p. 230 Cook escribe “stresses at ξ = η = 0 in the Q4 element, and at Gauss points of a four-point rule in the Q8 element, are ‘superconvergent’”, situando el punto superconvergente del Q4 en el centro y no en los cuatro puntos de la regla 2×2»; y sobre el promediado: «en p. 231 Cook advierte para su ejemplo: “It is also too large at these locations in adjacent elements on either side, so that nodal averaging at shared nodes is of no benefit to accuracy.” … el aporte del promediado nodal a la tasa observada de O(h^1,54) no lo está en esta fuente». Cook atribuye la ganancia de orden a la recuperación por parches (p. 325, §9.9), no al promediado nodal simple que usa EduFEM.
+- Problema: la única fuente que queda tras retirar a Zienkiewicz (auditoría del 2026-09-11, ítem 4.3) se cita con página para (a) un término que no contiene, (b) una localización del punto superconvergente que su p. 230 sitúa en otro lugar, y (c) en `04:58`, un efecto del promediado nodal que la misma p. 231 niega expresamente. La explicación del orden $\mathcal{O}(h^{1{,}54})$ —resultado propio y correcto en sus cifras— queda apoyada en una cita que dice lo contrario.
+- Sugerencia: presentar la localización $2\times2$ y el efecto del promediado como observación propia verificada por el MMS («en este trabajo se observa que…»), citar a Cook pp. 230-231 solo para el concepto de superconvergencia en puntos de Gauss, y buscar Barlow (1976, *Int J Numer Methods Eng* 10:243-251) si se quiere el término con fuente.
+- Estado: abierto
+- Sesión: 4
+
+**H-42**
+- Bloque y sección: B5 · entrada `alvarez_metodologia` ↔ Introducción (`01_introduccion.tex:15, 17`) y §2.1.1 (`02b_diseno_metodologico.tex:14`)
+- Tipo: citación
+- Severidad: media
+- Evidencia: `referencias.bib:200-204`: «@unpublished{alvarez_metodologia, author = {{\'A}lvarez de Zayas, Carlos}, title = {Metodolog{\'i}a de la investigaci{\'o}n cient{\'i}fica}, note = {Monograf{\'i}a in{\'e}dita de 80 p{\'a}ginas, de circulaci{\'o}n acad{\'e}mica en formato electr{\'o}nico; sin lugar, editorial ni fecha declarados. [lugar desconocido]: [editorial desconocida]; [fecha desconocida]}}». Impresa (`main.pdf` p. 79, [7]): «Álvarez de Zayas C. «Metodología de la investigación científica». Monografía inédita de 80 páginas, de circulación académica en formato electrónico; sin lugar, editorial ni fecha declarados. [lugar desconocido]: [editorial desconocida]; [fecha desconocida].» Es la única fuente de las cuatro categorías que estructuran el problema y el modelo: «La insuficiencia de una herramienta con esos atributos es la contradicción que origina el trabajo \autocite{alvarez_metodologia}» (`01:15`), «El \textbf{objeto de estudio} \autocite{alvarez_metodologia}» y «El \textbf{campo de acción} … \autocite{alvarez_metodologia}» (`01:17`), «una representación ideal del objeto … \autocite[p.~21]{alvarez_metodologia}» (`02b:14`). Guía propia, `guia_vancouver.tex:228-233`: la plantilla prevista es la de libro («Álvarez de Zayas C. Metodología de la investigación científica. [lugar desconocido]: [editorial desconocida]; [fecha desconocida].») y su inventario (`:238`, `:458-462`) la cuenta entre «12 libros», cuando el `.bib` tiene 11 `@book` y este `@unpublished`. Taller 1, p. 24, jerarquía de fuentes: «Nivel 1: … Artículos en revistas reconocidas (paper) · Nivel 2: Tesis publicadas · Nivel 3: Libros publicados con data no mayor a 10 años · Nivel 4: Publicaciones en revistas o documentos técnicos». La auditoría del 2026-09-11 (ítem 4.4, «mayor») pidió «Si circuló en la carrera, @unpublished con “Apuntes de la Carrera de Ingeniería Civil, UATF”».
+- Problema: el marco metodológico completo (contradicción, objeto, campo, modelo) descansa en una sola fuente que no encaja en ningún nivel de la jerarquía del tribunal, no tiene fecha ni dato alguno de recuperación (institución, curso, URL), se imprime con un título entre comillas y una nota editorial de tres líneas que ninguna plantilla de la guía propia contempla, y la guía la describe como libro. El cambio de tipo aplicado tras la auditoría anterior resolvió la honestidad del pie de imprenta pero no la localizabilidad: un lector sigue sin poder obtener el documento. Las mismas categorías están en el material docente que sí está en el repositorio («Situación problemática, objeto de estudio y campo de acción», Ing. J. S. Miranda), que no se cita.
+- Sugerencia: completar la nota con el dato de procedencia («Apuntes de la asignatura CIV 400, Carrera de Ingeniería Civil, UATF; documento electrónico, 2007 según metadatos») o sustituir/acompañar la cita con Hernández-Sampieri (ya en el `.bib`) para objeto y problema; actualizar el inventario de la guía.
+- Estado: abierto
+- Sesión: 4
+
+**H-43**
+- Bloque y sección: B5 · §2.2.1 Requisitos (`03_diseno_implementacion.tex:9`), Justificación (`01_introduccion.tex:21`), §3.6 (`04_resultados.tex:207`)
+- Tipo: citación
+- Severidad: media
+- Evidencia: `03_diseno_implementacion.tex:9`: «El software educativo interactivo demuestra eficacia para consolidar conceptos abstractos del análisis estructural \autocite{lee2015interactive,bishay2020teaching,perezsantiago2023fem}». Respaldo documental (`verificado.json`): Lee 2015a, p. 168: «Lee dice expresamente que NO hay datos cuantitativos de eficacia y que su evaluación fue cualitativa y observacional, sobre sus propios cursos, sin grupo de control»; Bishay 2020, pp. 13 y 17: «Bishay si mide eficacia (mejora estadisticamente significativa, p = .048 …), pero en la p. 17 atribuye explicitamente esa mejora ‘principalmente’ a la actividad de generacion de tareas entre pares, no a las herramientas computacionales, que solo la ‘facilitaron’»; Pérez-Santiago 2023 es una encuesta a expertos (`02_marco_teorico.tex:9`: «Un estudio que recoge la opinión de expertos»), no un estudio de eficacia. `01_introduccion.tex:21`: «La literatura sobre enseñanza del método coincide en que la simulación interactiva … \autocite{lee2015interactive,lee2015eigenmodes,bishay2020teaching}» — Bishay: «la palabra ‘interactive’ no aparece en el articulo y las herramientas son scripts de MATLAB sin interfaz interactiva». `04_resultados.tex:207`: «Cada módulo es una \emph{capa superpuesta} interactiva que ilumina sobre la malla real el punto donde ocurre el cálculo, evitando la abstracción de una ventana desconectada del modelo \autocite{lee2015interactive,bishay2020teaching}» — Bishay: «no dice nada sobre superposicion de capas, resaltado sobre el modelo ni ventanas desconectadas; sus herramientas … producen graficos estaticos». La propia tesis fija el registro correcto en `01_introduccion.tex:56`: «los criterios de diseño pedagógico se fundamentan cualitativamente en la literatura».
+- Problema: el verbo «demuestra eficacia» atribuye a tres fuentes una evidencia que la primera niega tener, la segunda asigna a otra causa y la tercera no mide; y dos citas de encuadre cargan a Bishay con atributos (interactividad, capas superpuestas) que su herramienta no tiene. Como la dimensión pedagógica no tiene resultado propio (H-5, H-19, H-39), estas citas son el único sustento de la finalidad del objetivo general, y están sobredimensionadas. Taller 1, p. 24: «Referenciar todo lo que se tome del material bibliográfico» supone tomar lo que la fuente dice.
+- Sugerencia: «El software educativo interactivo se reporta como conducente a una mejor comprensión … \autocite[p.~168]{lee2015interactive}, y la construcción paso a paso de herramientas de cálculo con el alumno resulta eficaz \autocite[p.~17]{bishay2020teaching}»; en `01:21` y `04:207` dejar solo `lee2015interactive` (y `lee2015eigenmodes` donde corresponda).
+- Estado: abierto
+- Sesión: 4
+
+**H-44**
+- Bloque y sección: B5 · formato de la cita en el texto (localizadores), todo el documento
+- Tipo: citación
+- Severidad: baja
+- Evidencia: de los 100 comandos de cita, 28 llevan localizador y 72 no; la distribución no sigue el tipo de afirmación. Con localizador: `02b_diseno_metodologico.tex:4` «\autocite[pp.~90-92]{garciacordoba2005tecnologica}», `02_marco_teorico.tex:276` «\autocite[p.~265]{virtanen2020scipy}». Sin localizador, afirmaciones igual de concretas: `01_introduccion.tex:64` «la matriz constitutiva crece a $6\times6$, la de deformación-desplazamiento a $6\times24$ … y la rigidez elemental a $24\times24$ \autocite{cook2002concepts}» (el respaldo da p. 218: «La cita no lleva localizador; convendría añadir \autocite[p.~218]»), `04_resultados.tex:172` «\autocite{cook2002concepts,bathe2014fem}» para el bloqueo del Q4, las cuatro citas de `alvarez_metodologia` en la Introducción (`verificado.json`: «NINGUNA DE LAS CUATRO CITAS LLEVA LOCALIZADOR … Para las categorias del marco metodologico … el tribunal UATF suele exigir pagina»). El documento de respaldo declara lo contrario de lo que el texto hace: `tesis/respaldo_citas/respaldo_citas.tex:21`: «Las citas del cuerpo de la tesis siguen el estilo Vancouver puro, sin localizador de página; el localizador vive aquí». Formas no uniformes del localizador: «\autocites[pp.~21 y 26]{salari2000mms}» (`02:402`), «\autocite[art.~21, pp.~39-43]{timoshenko1970elasticity}» (`02:414`) frente a «\autocite[art.~21]{timoshenko1970elasticity}» (`04:137`). Guía propia, `guia_vancouver.tex:135`: la adaptación «no es un error, siempre que se aplique de forma uniforme».
+- Problema: Vancouver admite el localizador en la cita, pero exige un criterio uniforme; hoy el lector no puede inferir por qué unas citas de valores o prescripciones lo llevan y otras no, y el documento anexo que debería explicar la convención afirma que no hay localizadores. La auditoría del 2026-09-11 (ítem 4.13) pidió agregarlos «al menos donde se cita una ecuación, un valor o una prescripción»; se aplicó en parte.
+- Sugerencia: fijar la regla («localizador en toda cita de valor numérico, ecuación, umbral o definición; ninguno en citas de encuadre»), aplicarla a las 72 restantes o retirarla de las 28, corregir la frase de `respaldo_citas.tex:21` y unificar «pp.~21, 26».
+- Estado: abierto
+- Sesión: 4
+
+**H-45**
+- Bloque y sección: B5 · lista final impresa (`main.pdf` pp. 79-81) ↔ `referencias.bib` ↔ `guia_vancouver.tex`
+- Tipo: citación
+- Severidad: baja
+- Evidencia: cinco entradas se apartan de la plantilla de la guía propia o de lo que la guía dice haber corregido. (a) [17] impresa: «Computers & Structures, Inc. CSI Analysis Reference Manual for SAP2000, ETABS, SAFE and CSiBridge. Rev. 18. Computers & Structures, Inc. [Estados Unidos], 2017.» — la guía (`:516-519`) da por «Corregido» el pie «…: Computers \& Structures, Inc.; 2017» y su plantilla (`:354-355`) es «Lugar (Estado): Organización; año»; lo impreso invierte editorial y lugar y omite los dos puntos. (b) [5] impresa: «Reddy JN. An Introduction to the Finite Element Method. 3.a ed. International Edition. New York: McGraw-Hill, 2006.» — `referencias.bib:52` «note = {International Edition}», mientras el propio `.bib` (`:17-19`) borró la nota análoga de Bathe «porque Vancouver no contempla notas entre el titulo y el pie de imprenta». (c) [15] impresa: «Barcelona: CIMNE y Springer, 2009» — coedición con un solo lugar; NLM pide el primer editor o cada editor con su lugar. (d) [6] impresa: «México, D.F.: Limusa» frente al ejemplo de la guía (`:254-255`) «México (DF): Limusa». (e) [10] Bishay: «28.4 (2020), págs. 1007-1027» — `docs/notas/2026-09-09_diagnostico-bibliografia.md:110-114`: «El ejemplar es la versión *Early View* … paginada 1-21 y sin volumen ni fascículo impresos … `volume = {28}`, `number = {4}` y `pages = {1007--1027}` **no son verificables contra la copia que el autor tiene**»; el `.bib` no lo anota, a diferencia de `perezsantiago2023fem` (`:246-249`), y la guía (`:638-640`) manda: «¿Hay algún DOI, ISBN o número de página que no hayas leído del ejemplar? Si no lo confirmaste, el campo se borra». Además, la guía cuenta «12 libros» (`:238`) y el `.bib` tiene 11 (`alvarez_metodologia` es `@unpublished`).
+- Problema: la guía es el instrumento con que el autor promete a la vez uniformidad y trazabilidad de cada dato; hoy describe un estado de la lista que el PDF no reproduce (manual, conteo) y tolera en una entrada lo que prohíbe en otra (nota de edición; campo no leído del ejemplar). Ninguno de los cinco puntos afecta la identificación de la fuente; afectan la coherencia entre norma declarada y norma aplicada.
+- Sugerencia: para (a) usar `publisher` en vez de `organization` o un `\DeclareBibliographyDriver{manual}`; (b) quitar la nota o pasarla a `edition = {3, International}`; (c) «Barcelona: CIMNE; 2009» (con Springer en nota) ; (d) unificar; (e) anotar en el `.bib` la procedencia (Crossref) o comprobar en el fascículo, y corregir el conteo de la guía.
+- Estado: abierto
+- Sesión: 4
+
+### B6 — Forma: títulos, numeración, jerarquía, preliminares
+
+Comprobado sin hallazgo (sesión 4): el orden de secciones de `tesis/main.tex:43-78` es el del
+índice modelo del Taller 1 (p. 20): Resumen · Introducción · Capítulo 1 · Capítulo 2 · Capítulo 3
+· Conclusiones y recomendaciones · Bibliografía · Anexos. La Introducción y las Conclusiones
+van sin número (`\chapter*`), los tres capítulos con «Capítulo N» centrado (`preambulo.tex:233-235`)
+y secciones `1.1`, `2.1.1`, los anexos como «Anexo A…G» (`main.tex:76`). Cap. 2 y Cap. 3 llevan
+el nombre que el índice modelo prescribe («Diseño e implementación del modelo a desarrollar»,
+«Presentación de resultados y análisis»). Entre el resumen y la introducción se intercalan
+índice general, de figuras y de tablas, una nota de autoría de figuras y la nomenclatura, que
+el índice modelo no lista pero tampoco excluye. La declaración de originalidad, la dedicatoria
+y los agradecimientos existen (`00_preliminares.tex`) y están desactivados a propósito para el
+borrador (`main.tex:40-41`); no es hallazgo, pero la versión final debe reactivarlos. El
+modelo de investigación está en el Cap. 2 (§2.1), donde el Taller 4 lo ubica.
+
+**H-46**
+- Bloque y sección: B6 · título del Capítulo 1 y estructura interna del Capítulo 2
+- Tipo: forma
+- Severidad: baja
+- Evidencia: Taller 1, p. 20, índice de una tesis: «Capítulo 1 MARCO TEÓRICO DE …… · Capítulo 2 DISEÑO E IMPLEMENTACION DEL MODELO A DESARROLLAR · Capítulo 3 PRESENTACION DE RESULTADOS Y ANÁLISIS DE LOS MISMO». `02_marco_teorico.tex:1`: «\chapter{Marco teórico}». Índice impreso (`main.pdf` p. iii): «1. Marco teórico». Capítulo 2: `02b_diseno_metodologico.tex:1` «\chapter{Diseño e implementación del modelo a desarrollar}», `:6` «\section{Diseño metodológico}» (seis subsecciones), `03_diseno_implementacion.tex:1` «\section{Diseño e implementación de EduFEM}» (nueve subsecciones); el capítulo tiene exactamente dos secciones.
+- Problema: el índice modelo deja el Cap. 1 abierto a un complemento descriptivo («MARCO TEÓRICO DE ……») y fija los otros dos; la tesis completa los fijos al pie de la letra y deja el único que pedía completarse con la etiqueta genérica. En el Cap. 2, la sección 2.2 repite casi literalmente el título del capítulo («Diseño e implementación …») y la jerarquía queda desbalanceada: dos secciones que cargan quince subsecciones, con la matriz de consistencia, el software y la memoria de cálculo todos al mismo nivel `2.x.y`.
+- Sugerencia: «Marco teórico del análisis por elementos finitos en elasticidad plana» (o el complemento que el tutor prefiera); en el Cap. 2, renombrar 2.2 («El software EduFEM») o ascender sus subsecciones principales (motor, pre-proceso, módulos, post-proceso, memoria) a secciones.
+- Estado: abierto
+- Sesión: 4
+
+**H-47**
+- Bloque y sección: B6 · Anexo G (`07_anexo_memoria.tex:76-173`)
+- Tipo: forma
+- Severidad: baja
+- Evidencia: `07_anexo_memoria.tex:74`: «\section{Procedimiento}»; `:76` «\subsection*{1. Matriz constitutiva}», `:88` «\subsection*{2. Rigidez del elemento}», `:124` «\subsection*{3. Ensamblaje}», `:141` «\subsection*{4. Restricciones y solución}», `:157` «\subsection*{5. Reacciones}», `:173` «\subsection*{6. Recuperación de tensiones}». En el resto de los anexos las subsecciones se numeran automáticamente («B.1.1 Definición de la geometría», `06_anexos.tex:71`) y en el cuerpo, `1.1`, `2.1.1`.
+- Problema: dentro de un documento con numeración jerárquica automática (`G.2`), un tramo numera a mano «1.» a «6.» con subsecciones sin número, que además no aparecen en el índice; la jerarquía de encabezados deja de ser uniforme justo en el anexo que reproduce el documento generado por el software. La nota de presentación (`docs/notas/2026-09-10_apa-presentacion.md:25-28`) decidió conservar la numeración de títulos en todo el documento.
+- Sugerencia: `\subsection{Matriz constitutiva}` … (numeradas como G.2.1–G.2.6) o, si se quiere imitar la memoria generada, envolver los seis pasos en una lista `enumerate` en vez de encabezados.
+- Estado: abierto
+- Sesión: 4
 
 **H-12**
 - Bloque y sección: B5 · formato de la cita en el texto
@@ -540,6 +684,7 @@ nomenclatura). La correspondencia cita↔referencia se cumple en ambos sentidos.
 - Severidad: media
 - Evidencia: Taller 1, p. 26: «El listado de bibliografía de referencia debe ser ordenado según su aparición en el documento, señalando nombre de autor, título de la publicación, Editorial, año y páginas de referencia. El listado de bibliografía utilizada en el documento de graduación, debe ser en orden alfabético, según: Nombre de autor o autores, título de la publicación, Editorial, país y año». `tesis/main.tex:72`: una sola lista, `\printbibliography[title={Bibliografía},heading=bibintoc]`, con `sorting=none`.
 - Problema: el material docente distingue dos listados (referencias citadas, por orden de aparición; bibliografía consultada, alfabética). La tesis entrega uno solo, titulado «Bibliografía», ordenado por aparición, que en realidad es la lista de referencias. Falta decidir si el tribunal exige el segundo listado y, en cualquier caso, el título no corresponde al contenido.
+- Evidencia adicional (sesión 4): el índice modelo del Taller 1 (p. 20) rotula esa sección simplemente «Bibliografía», así que el título de la tesis coincide con el índice esperado; lo que sigue sin resolverse es la distinción de la p. 26 entre las dos listas. El orden de la lista impresa (`main.pdf` del 2026-09-11, pp. 79-81) se verificó entrada por entrada contra la primera cita de cada clave en los `.tex`: las 22 están en orden de primera mención, como exige el Taller 2 (p. 18).
 - Sugerencia: titular «Referencias» a la lista actual y, si el Reglamento (H-1) lo pide, añadir «Bibliografía» alfabética con las obras consultadas y no citadas (`\nocite`).
 - Estado: abierto
 - Sesión: 1
@@ -550,6 +695,7 @@ nomenclatura). La correspondencia cita↔referencia se cumple en ambos sentidos.
 - Severidad: baja
 - Evidencia: Taller 1, p. 24: «Nivel 3: Libros publicados con data no mayor a 10 años»; Taller 2, p. 19: «Los documentos que se citen deben ser actuales, salvo por motivos históricos o si no encontrásemos referencias actualizadas». Campo `year` de `tesis/bibliografia/referencias.bib` anterior a 2016 en 15 de las 22 entradas: `zienkiewicz2013fem` (2005), `bathe2014fem` (1996), `cook2002concepts` (2002), `hughes2000fem` (1987), `reddy2006introduction` (2006), `onate2009structural` (2009), `timoshenko1970elasticity` (1951), `salari2000mms` (2000), `stimpson2007verdict` (2007), `suarez1998edelas2d` (1998), `lee2015interactive` y `lee2015eigenmodes` (2015), `garciacordoba2005tecnologica` (2005), `strang2008analysis` (1973), `oberkampf2010vv` (2010); `alvarez_metodologia` no tiene año.
 - Problema: dos tercios de las fuentes superan los diez años que fija el material docente para libros; son los clásicos del MEF y la excepción «por motivos históricos» los ampara, pero la tesis no lo dice en ningún lugar. B5 debe comprobar si alguna tiene edición más reciente disponible (p. ej. Bathe 2014, Zienkiewicz 7.ª ed. 2013, que son justamente los años que sugieren las claves).
+- Comprobación (sesión 4): existe edición más reciente para cinco de los libros y el propio repositorio lo documenta. `tesis/respaldo_citas/verificado.json` registra que el `.bib` declaraba, antes de la corrección del 2026-09-10, «edition = {2}, publisher = {K. J. Bathe}, location = {Watertown, MA}, year = {2014}» para Bathe, «edicion 7 (2013), ISBN 978-1-85617-633-0» para Zienkiewicz, «edition = {3}, year = {1970}» para Timoshenko-Goodier y «Dover Publications, Mineola, NY, 2000» para Hughes; la clave `strang2008analysis` apunta a la 2.ª ed. de 2008 (Wellesley-Cambridge) y de Reddy existe la 4.ª ed. (McGraw-Hill, 2019). Es decir: el autor consultó ediciones anteriores a las que él mismo conocía, corrigió el `.bib` al ejemplar en mano —lo correcto— y no dejó en el texto la justificación «por motivos históricos» que el Taller 2 (p. 19) exige para citar fuentes no actuales.
 - Sugerencia: una frase en el marco teórico que justifique el uso de las ediciones clásicas.
 - Estado: abierto
 - Sesión: 1
@@ -561,3 +707,4 @@ nomenclatura). La correspondencia cita↔referencia se cumple en ambos sentidos.
 | 1 | 2026-09-15 | B0 (auditado) · B1 (auditado) | H-1 a H-14 (1 alta, 8 medias, 5 bajas) | `bdbf18d` (2026-09-11, «Tesis: aplicada la auditoría del 2026-09-11») | B1 completo. Se leyeron `01_introduccion.tex`, `02b_diseno_metodologico.tex`, `00_resumen.tex`, `main.tex` y los 8 PDF del material docente | **B2**: `02_marco_teorico.tex` (414 líneas) y `02b_diseno_metodologico.tex` (ya leído en sesión 1): comprobar que §2.1 sirve a los seis objetivos y que el procedimiento de §2.1.5-2.1.6 es el que aplica `04_resultados.tex`; completar la columna «Metodología» de la trazabilidad. Prestar atención a población/muestra (Taller 4, p. 13) frente a §2.1.4 |
 | 2 | 2026-09-15 | B2 (auditado) · B3 (auditado) | H-15 a H-31 (0 altas, 7 medias, 10 bajas); evidencia adicional en H-3 y H-9 | `bdbf18d` (sin cambios en `tesis/` desde la sesión 1: `git log bdbf18d..HEAD -- tesis/` vacío) | B2 y B3 completos. Se leyeron `02_marco_teorico.tex`, `02b_diseno_metodologico.tex`, `01_introduccion.tex`, `04_resultados.tex`, `05_conclusiones.tex` (solo como evidencia de H-25; B4 no auditado), encabezados de `03_diseno_implementacion.tex` y `06_anexos.tex`, Taller 4 y Taller 5 completos, y los instrumentos `tests/vv_mms.py`, `tests/vv_timoshenko.py`, `tests/vv_cook.py` (criterios codificados). Los PDF del material docente se leen con `pymupdf` (`pip install pymupdf`; el `Read` del PDF falla sin poppler) | **B4**: `05_conclusiones.tex` (52 líneas): una conclusión por objetivo (`:11-21`) → verificar contra la columna «Resultado» de la trazabilidad; atención a `:23` («satisface los seis objetivos») frente a H-25/H-26, a la cifra «0,6 %» de `:29` (no está en el Cap. 3, ver H-27), a información nueva en `:43` (Cuthill-McKee, 7-19 %, no aparece en el Cap. 3) y a si cada recomendación (`:43-51`) deriva de una limitación de `:35-37`. Completar la columna «Conclusión» y el estado definitivo de la trazabilidad. Luego B5 con `tesis/respaldo_citas/verificado.json` (incluye comprobar H-31) |
 | 3 | 2026-09-16 | B4 (auditado) · B5 (en curso) | H-32 a H-39 (0 altas, 3 medias, 5 bajas) | `bdbf18d` (sin cambios en `tesis/` desde la sesión 1: `git log bdbf18d..HEAD -- tesis/` vacío) | B4 completo: se leyó `05_conclusiones.tex` entero y se contrastó cada cifra con `04_resultados.tex` y `06_anexos.tex:578-615`; se leyeron Taller 5 p. 3-4 y 21, «Cómo se construye el objetivo general» p. 12-15 (tríada) y las líneas de `03_diseno_implementacion.tex` que las conclusiones parafrasean (`:97, 108, 110, 148, 167`). B5 iniciado solo con la correspondencia cita↔referencia (22/22 en ambos sentidos, sin huérfanas; anotado en la cabecera de B5). **Punto de retoma de B5**: formato de las citas en el texto contra `tesis/normas/guia_vancouver.tex` y Taller 2 p. 18-19 (corchetes vs. superíndice ya en H-12; falta: 28 de los 100 comandos llevan página o artículo (`[p.~n]`, `[pp.~a-b]`, `[art.~21]`, una con «pp.~21 y 26») y 72 no; decidir contra la guía si la cita de libro exige página; citas múltiples con `\autocites`; citas de cita); después la lista final entrada por entrada (`referencias.bib`, 22 entradas: campos obligatorios por tipo, ediciones más recientes de H-14, `alvarez_metodologia` sin año) y H-31 (Cook p. 98 y Hughes p. 221 en `tesis/respaldo_citas/verificado.json`) | **B5** desde el punto anotado; si sobra tiempo, **B6** con `tesis/main.tex:43-78`, `00_preliminares.tex` y el índice del Taller 1 p. 20 (ya transcrito en §2.4 de este archivo) |
+| 4 | 2026-09-16 | B5 (auditado) · B6 (auditado) | H-40 a H-47 (1 alta, 3 medias, 4 bajas); comprobaciones y evidencia adicional en H-2, H-13, H-14 y H-31 | `bdbf18d` (sin cambios en `tesis/` desde la sesión 1: `git log bdbf18d..HEAD -- tesis/` vacío) | B5 y B6 completos. Se leyeron `guia_vancouver.tex` (678 líneas), `referencias.bib` (22 entradas), `preambulo.tex:255-295`, los 100 comandos de cita con su contexto, `respaldo_citas/verificado.json` entero (22 claves; se leyó cada respaldo NO/PARCIAL y cada bloque «sin_respaldo», y se comprobó contra el texto actual cuál persiste tras `bdbf18d`), la sección 4 de `docs/auditorias/2026-09-11_auditoria_tesis.md`, `docs/notas/2026-09-08_bibliografia-tesis.md` y `2026-09-09_diagnostico-bibliografia.md`, Taller 1 pp. 2-5, 18-26 y Taller 2 pp. 16-20 (con `pymupdf`), y la lista de referencias e índice general impresos en `tesis/main.pdf` (pp. 79-81 y iii; PDF del 2026-09-11, coincide con el commit). B6: encabezados de los 10 `.tex` (`grep '^\\chapter\|^\\section\|^\\subsection'`) contra el índice del Taller 1 p. 20 y el formato de `preambulo.tex:233-236` | **Ningún bloque pendiente.** La siguiente sesión: (1) `git log bdbf18d..HEAD -- tesis/`; si está vacío, no hay nada que auditar y la sesión termina anotándolo en este registro; si hay commits, revisar solo los archivos tocados contra los hallazgos abiertos del bloque correspondiente y anotar cuáles quedaron resueltos **sin cambiar su estado** (eso lo marca el autor). (2) Si el Reglamento de Graduación aparece en `tesis/normas/` (H-1), reabrir B5 y B6 para contrastar formato de citas, listas y estructura contra el texto completo. |
