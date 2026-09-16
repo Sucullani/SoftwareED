@@ -32,8 +32,9 @@
 *-SAVE-ERROR
 
 # PDF compilado de la tesis (regenerable).
-# Si queres versionar el PDF final, comenta esta linea.
+# Si queres versionar el PDF final, comenta estas lineas.
 main.pdf
+main_v2.pdf
 
 # Copias de seguridad y temporales de editores
 *.bak

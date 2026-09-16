@@ -1,0 +1,97 @@
+% =====================================================================
+%  main_v2.tex  --  Tesis EduFEM, VERSION 2: cuerpo del texto en Arial 12 pt
+%
+%  Es el MISMO documento que main.tex: los dos leen los mismos capitulos, la
+%  misma bibliografia y el mismo preambulo.tex. Lo unico que cambia es la fuente
+%  del TEXTO. Las FORMULAS quedan en LaTeX (Latin Modern Math), identicas a las
+%  de main.pdf -- la razon esta explicada en preambulo.tex.
+%
+%  OJO: se compila con xelatex, NO con pdflatex. Es lo que permite usar la Arial
+%  real del sistema (C:\Windows\Fonts\arial.ttf) en vez de un clon de Helvetica.
+%
+%  Compilar (MiKTeX/Windows), desde la carpeta tesis/:
+%     xelatex main_v2
+%     biber   main_v2
+%     xelatex main_v2
+%     xelatex main_v2
+%  (o, mas simple:  latexmk -xelatex main_v2.tex)
+% =====================================================================
+% La v1 fija aca la version menor del PDF con un primitivo de pdfTeX que en
+% XeLaTeX no existe. No hace falta: el driver xdvipdfmx acepta sin avisar el
+% PDF 1.6 que embebe el Anexo E.
+
+\documentclass[12pt,a4paper,oneside]{report}
+
+% Interruptor de fuente que lee el preambulo. Tiene que quedar definido ANTES de
+% que se cargue preambulo.tex; es lo unico que separa esta version de la v1.
+\def\tesisFuenteArial{}
+
+
+% ---------------------------------------------------------------------
+%  Metadatos de portada  --  COMPLETAR estos placeholders
+% ---------------------------------------------------------------------
+\newcommand{\universidad}{Universidad Autónoma ``Tomás Frías''}
+\newcommand{\facultad}{Facultad de Ingeniería}
+\newcommand{\carrera}{Carrera de Ingeniería Civil}
+\newcommand{\gradoTesis}{Título de Licenciatura en Ingeniería Civil}
+\newcommand{\tituloTesis}{Desarrollo de software educativo de elementos finitos para el análisis estructural empleando el lenguaje de programación Python}
+\newcommand{\autorTesis}{Hedy Yhassmany Oyola Sucullani}
+\newcommand{\anioTesis}{Septiembre de 2026}
+\newcommand{\ciudadTesis}{Potosí -- Bolivia}
+
+\input{preambulo}
+
+\begin{document}
+
+% ----- Portada -----
+% Sin ancla de página en la portada: es la página "1" de la numeración inicial y
+% el cuerpo vuelve a empezar en 1, lo que duplicaba el destino page.1 de hyperref.
+\hypersetup{pageanchor=false}
+\input{portada/portada}
+
+% ----- Material preliminar (numeracion romana) -----
+\cleardoublepage
+\pagenumbering{roman}
+\hypersetup{pageanchor=true}
+
+% Preliminares (declaración de originalidad, dedicatoria, agradecimientos) — para la versión FINAL, no el borrador:
+% \input{capitulos/00_preliminares}
+
+\input{capitulos/00_resumen}
+
+\cleardoublepage
+\tableofcontents
+\cleardoublepage
+\listoffigures
+\cleardoublepage
+\listoftables
+
+\vspace{1.5em}
+\noindent\textit{\small Salvo que se indique lo contrario, todas las figuras y tablas de este documento son de elaboración propia: corresponden a capturas de pantalla del software EduFEM —desarrollado por el autor en el marco de esta tesis— o a gráficos generados por el autor a partir de sus propias corridas de verificación y validación.}
+
+% ----- Nomenclatura: lista de simbolos y abreviaturas -----
+\cleardoublepage
+\input{capitulos/00b_nomenclatura}
+
+% ----- Cuerpo (numeracion arabiga) -----
+\cleardoublepage
+\pagenumbering{arabic}
+
+\input{capitulos/01_introduccion}
+\input{capitulos/02_marco_teorico}
+\input{capitulos/02b_diseno_metodologico}
+\input{capitulos/03_diseno_implementacion}
+\input{capitulos/04_resultados}
+\input{capitulos/05_conclusiones}
+
+% ----- Referencias bibliograficas (Vancouver; la norma se declara en la Introduccion, 'Estructura del documento') -----
+\cleardoublepage
+\printbibliography[title={Referencias bibliográficas},heading=bibintoc]
+
+% ----- Anexos -----
+\appendix
+\renewcommand{\appendixname}{Anexo}  % rotular "Anexo A/B/..." (no el "Apéndice" por defecto de babel)
+\input{capitulos/06_anexos}
+\input{capitulos/07_anexo_memoria}
+
+\end{document}

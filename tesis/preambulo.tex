@@ -1,15 +1,71 @@
 % =====================================================================
 %  preambulo.tex  -- Paquetes y configuracion de la tesis EduFEM
-%  Cargado desde main.tex. Clase: report (12pt, a4paper).
+%  Cargado por las DOS versiones del documento. Clase: report (12pt, a4paper).
+%
+%    main.tex     pdflatex + biber    Latin Modern (serif)   -> main.pdf
+%    main_v2.tex  xelatex  + biber    Arial 12 pt            -> main_v2.pdf
+%
+%  Mismos capitulos, misma bibliografia, mismo formato APA: lo unico que cambia
+%  es la fuente de TEXTO. Editar un capitulo actualiza las dos versiones.
 % =====================================================================
 
-% --- Codificacion e idioma ---
-\usepackage[utf8]{inputenc}      % fuente .tex en UTF-8
-\usepackage[T1]{fontenc}
-\usepackage{lmodern}
+% --- Codificacion y fuente de TEXTO ---
+% main_v2.tex define \tesisFuenteArial ANTES de este \input; ese es el unico
+% interruptor de todo el mecanismo.
+%
+% Las FORMULAS no se tocan en ninguna de las dos versiones: amsmath las sigue
+% componiendo con las fuentes matematicas de LaTeX (Latin Modern Math). Es lo que
+% corresponde en una tesis de ingenieria y ademas no hay alternativa real: Arial
+% no trae alfabeto matematico, ni italica matematica, ni los simbolos de extension
+% (integral, sumatoria, \nabla, los delimitadores que crecen con la matriz).
+% Forzarla romperia las ecuaciones del marco teorico y del Anexo F.
+\ifdefined\tesisFuenteArial
+  % --- XeLaTeX: la Arial de verdad, la del sistema (C:\Windows\Fonts\arial.ttf) ---
+  % lmodern va PRIMERO y a proposito: declara las familias MATEMATICAS en Latin
+  % Modern, las mismas de main.pdf. Recien despues fontspec redefine las familias
+  % de TEXTO (rm/sf/tt), asi que las formulas salen identicas a las de la v1.
+  \usepackage{lmodern}
+  \usepackage{fontspec}
+  % Ligatures=TeX (-- , --- y las comillas de TeX) va SOLO en las familias de
+  % texto, nunca en la monoespaciada: en un listado de codigo convierte el "--"
+  % de Python en una raya y las comillas rectas en curvas.
+  \setmainfont{Arial}[Ligatures=TeX]
+  \setsansfont{Arial}[Ligatures=TeX]
+  % La monoespaciada se queda en Latin Modern Mono, la MISMA de main.pdf, y no
+  % pasa a una mono de Windows. No es cosmetica: medido sobre el Anexo C, con
+  % Consolas el codigo sale con U+2010 HYPHEN en vez del guion ASCII (y con
+  % Ligatures=TeX, ademas con U+201D en vez de la comilla recta), asi que lo que
+  % el tribunal copia del PDF ya no es Python valido. Con Latin Modern Mono el
+  % texto extraido no tiene un solo caracter espurio, igual que en la v1.
+  \setmonofont{Latin Modern Mono}
+\else
+  % --- pdflatex: la version original ---
+  \usepackage[utf8]{inputenc}      % fuente .tex en UTF-8
+  \usepackage[T1]{fontenc}
+  \usepackage{lmodern}
+\fi
 % es-noindentfirst se retiro al adoptar APA: la norma sangra la primera linea de
 % TODO parrafo, incluido el primero que sigue a un titulo.
 \usepackage[spanish,es-tabla]{babel}  % "Tabla" (no "Cuadro")
+
+% --- Parche: babel-spanish rompe los \caption con formulas bajo XeLaTeX ---
+% Sintoma exacto: "! Argument of \es@a has an extra }." al procesar un
+% \caption{... $D_{\max}$.}, que aborta la compilacion de main_v2.
+% Causa: babel-spanish redefine \max, \min, \lim e \inf para que impriman "max",
+% "min", "lim" e "inf" ACENTUADOS, que es lo correcto en espanol. Para poner ese
+% acento elige entre dos implementaciones segun el motor, y la que reserva para
+% XeLaTeX (\es@op@ac@TU, activada porque ahi existe \Umathchar) no sobrevive a la
+% expansion que hace \caption al escribir el rotulo en el archivo .lof.
+% La rama base -la que usa pdflatex, o sea la que ya produce main.pdf- si.
+% Verificado: con este \let, el texto extraido del PDF es identico al de
+% pdflatex ("max" "min" "lim" "inf" con tilde); sin el, no compila. La
+% alternativa \unaccentedoperators tambien evita el error pero deja los
+% operadores SIN acento, apartandose de main.pdf.
+\ifdefined\XeTeXversion
+  \makeatletter
+  \@ifundefined{es@op@ac@base}{}{\let\es@op@ac\es@op@ac@base}
+  \makeatother
+\fi
 \usepackage{csquotes}            % requerido por biblatex
 
 % babel-spanish redefine \% para anteponer un espacio fino, y esa version rompe en
@@ -100,8 +156,17 @@
 % bandera derecha libre ese relleno pelea con el \rightskip y el titulo de la
 % figura se mete en el margen. No son texto corrido, asi que la alineacion de
 % APA no les aplica.
+% Y ADEMAS admiten guion de corte, por el mismo motivo que las celdas p{} de
+% mas arriba: el titulo de una figura o de una seccion no se puede reformular
+% para que entre, y aca no hay bandera derecha que absorba el sobrante -el
+% relleno de puntos ocupa hasta el numero de pagina-, asi que sin guiones la
+% unica salida que le queda a TeX es meter la palabra en el margen. Medido: con
+% Arial se salian 8 pt (2,8 mm) la entrada del capitulo 2 y una de la lista de
+% figuras. Los valores son los que LaTeX trae por defecto.
 \let\tesis@starttoc\@starttoc
-\renewcommand{\@starttoc}[1]{\begingroup\justifying\tesis@starttoc{#1}\endgroup}
+\renewcommand{\@starttoc}[1]{\begingroup\justifying
+  \hyphenpenalty=50 \exhyphenpenalty=50
+  \tesis@starttoc{#1}\endgroup}
 \makeatother
 
 % --- Matematica ---
@@ -292,6 +357,14 @@
 % para forzarla habria que sobrescribir el delimitador de babel, lo que es fragil.
 
 \addbibresource{bibliografia/referencias.bib}
+
+% Citas multiples con localizador (\autocites[p.~a]{k1}[p.~b]{k2}): el delimitador
+% por defecto (coma) era ambiguo, "[20, pp. 21, 26, 19, pp. 219-222]". Se redeclara
+% SOLO el comando multiple \parencites (al que \autocites se mapea con autocite=inline)
+% con punto y coma, "[20, pp. 21, 26; 19, pp. 219-222]", y se deja \multicitedelim
+% en coma para que \autocite{k1,k2} siga imprimiendo "[4, 14]" como pide Vancouver.
+\DeclareMultiCiteCommand{\parencites}[\mkbibbrackets]{\parencite}{\addsemicolon\space}
+\ExecuteBibliographyOptions{autocite=inline}
 
 % --- Comando para figuras todavia inexistentes (placeholder compilable) ---
 % Uso: dentro de un entorno figure, \figpend{descripcion de la figura}.
