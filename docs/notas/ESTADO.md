@@ -2,11 +2,12 @@
 
 **Última actualización**: 2026-09-16
 
-> **Nota de sincronización (2026-09-11)**: todo lo que más abajo dice «sin commit» del
-> 2026-09-09 y 2026-09-10 (rediseño de la capa visual, Memoria que aprovecha la hoja,
-> ventanas contra la pantalla real, instalador profesional, onedir, presentación de defensa)
-> **ya está en `origin/main`** desde los commits `0477524`, `33856fe` y `53d1e4c`. Lo que
-> sigue pendiente de esos ítems es solo la **validación visual del autor**.
+> **Nota de sincronización (2026-09-16)**: **no queda nada sin commitear**. Todo lo que más
+> abajo dice «sin commit» —del 2026-09-09 al 2026-09-16: rediseño de la capa visual, Memoria
+> que aprovecha la hoja, ventanas contra la pantalla real, instalador profesional, onedir,
+> presentación de defensa, auditoría por sesiones de la tesis, versión en Arial y lo que se
+> cortaba en otro equipo— **está en `origin/main`**, hasta el commit `3ce0492`. Lo que sigue
+> pendiente de esos ítems es solo la **validación del autor**, que un agente no puede hacer.
 
 > Lo primero que lee un agente al entrar. Qué está en curso, qué quedó a medias y qué
 > decisión espera al autor. Se edita; lo que deja de aplicar se borra.
@@ -23,7 +24,7 @@ tesis** (`tesis/`, 130 páginas, compila limpio).
 
 | Tema | Dónde | Estado |
 |---|---|---|
-| Cierre de la tesis | `tesis/` | Compila limpio (158 hojas, APA doble espacio). La auditoría integral del 2026-09-11 está **implementada** salvo lo que el autor reservó (1.5, 1.6, 5.4), y la **auditoría por sesiones** ([AUDITORIA_TESIS.md](../auditorias/AUDITORIA_TESIS.md)) quedó **implementada el 2026-09-16**: 45 de 47 hallazgos resueltos, H-13 parcial y H-1 abierto (el Reglamento de Graduación, que solo el autor puede conseguir). **Sin commit**; el autor revisa (ver *Decisiones abiertas*). Pendiente que necesita la GUI: recapturar las Figuras 3.3, B.1 y B.6-B.13 a mayor resolución |
+| Cierre de la tesis | `tesis/` | Compila limpio (158 hojas, APA doble espacio). La auditoría integral del 2026-09-11 está **implementada** salvo lo que el autor reservó (1.5, 1.6, 5.4), y la **auditoría por sesiones** ([AUDITORIA_TESIS.md](../auditorias/AUDITORIA_TESIS.md)) quedó **implementada el 2026-09-16**: 45 de 47 hallazgos resueltos, H-13 parcial y H-1 abierto (el Reglamento de Graduación, que solo el autor puede conseguir). En `origin/main`; el autor revisa (ver *Decisiones abiertas*). Pendiente que necesita la GUI: recapturar las Figuras 3.3, B.1 y B.6-B.13 a mayor resolución |
 | Deuda técnica de la auditoría 2026-06-10 | repo | **Cerrada el 2026-09-06** (Top-10 + medios y bajos de §1, §2, §5 y §6). Único pendiente: decidir si se cablea `TheoryDoc.margin_formula()` en la memoria — cambia el layout del PDF, así que necesita validación visual del autor |
 | Mejora continua del software | `docs/rutina/` | **Activa desde el 2026-09-08**: rutina horaria de claude.ai que trabaja directo sobre `main`, una área por sesión con rotación de 14. Qué hizo cada sesión: [../rutina/BITACORA.md](../rutina/BITACORA.md); qué falta y qué espera al autor: [../rutina/BACKLOG.md](../rutina/BACKLOG.md) |
 | Distribución del `.exe` | `installer/` | Vía principal decidida: instalador Inno Setup por usuario, sin admin. Sin firma de código (decisión tomada). Empaquetado **onedir** desde el 2026-09-10 (arranque 3 s en vez de 12; el entregable sigue siendo un solo archivo) |
@@ -50,8 +51,8 @@ tesis** (`tesis/`, 130 páginas, compila limpio).
   necesitó (babel-spanish bajo XeLaTeX, entre ellos):
   [2026-09-16_tesis-version-arial.md](2026-09-16_tesis-version-arial.md).
 
-- **Lo que se cortaba en otro equipo (2026-09-16)** — **sin commit**, gate verde con
-  `--con-gui`. Tres reportes con capturas, tres causas medidas: (a) las matrices de M2/M3 se
+- **Lo que se cortaba en otro equipo (2026-09-16)** — gate verde con `--con-gui`. Tres reportes
+  con capturas, tres causas medidas: (a) las matrices de M2/M3 se
   cortaban porque el ruido de redondeo (`7,11e-18` donde la teoría dice 0) las ensanchaba,
   porque el tope de ancho estaba en píxeles de diseño y no en los reales de la pantalla, y
   porque el overlay se recortaba por abajo **sin scroll** (en 1280x600, M2 perdía 76 px);
@@ -67,7 +68,7 @@ tesis** (`tesis/`, 130 páginas, compila limpio).
   [2026-09-16_se-corta-en-otro-equipo.md](2026-09-16_se-corta-en-otro-equipo.md).
 
 - **Tesis tras la auditoría por sesiones (2026-09-16)** — implementados 45 de los 47 hallazgos
-  de [AUDITORIA_TESIS.md](../auditorias/AUDITORIA_TESIS.md); **sin commit**. Cinco decisiones
+  de [AUDITORIA_TESIS.md](../auditorias/AUDITORIA_TESIS.md). Cinco decisiones
   que el autor debe confirmar porque tocan lo que él mismo fijó o lo que el tribunal ya vio:
   (1) la **hipótesis de diseño** ahora es condicional y comprobable —tres cláusulas con
   criterios a priori en §2.1.6— y el «apoyo al aprendizaje» es un supuesto declarado, no
@@ -282,7 +283,7 @@ tesis** (`tesis/`, 130 páginas, compila limpio).
   CSV nuevo `timoshenko_equilibrio.csv`) y `tests/vv_mms.py` (cota empírica de σ*) corridos en
   verde. Guía Vancouver (ficha E, ficha D con `publisher`, corrección 4) y respaldo de citas
   regenerados. Compila limpia: 158 hojas, 0 errores, 0 indefinidas, biber 0 avisos, 0
-  desbordes. **Sin commit**; decisiones del autor en *Decisiones abiertas*.
+  desbordes. Decisiones del autor en *Decisiones abiertas*.
 
 - **2026-09-11** — **Auditoría integral de la tesis, implementada el mismo día.** El informe
   ([docs/auditorias/2026-09-11_auditoria_tesis.md](../auditorias/2026-09-11_auditoria_tesis.md))
