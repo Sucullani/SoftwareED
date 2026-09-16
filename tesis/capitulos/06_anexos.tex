@@ -220,7 +220,7 @@ Las figuras \ref{fig:mod-m0} a \ref{fig:mod-m7} reproducen cada módulo en funci
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{fig_modulo_m3}
-\caption{Módulo M3 (matriz de deformación $\bm{B}$). La cadena de derivadas $\partial\bm{N}_{\xi\eta}\to\bm{J}^{-1}\to\bm{B}$ evaluada en el punto natural, anclada a los puntos de Gauss del elemento.}
+\caption{Módulo M3 (matriz de deformación $\bm{B}$). La secuencia de derivadas $\partial\bm{N}_{\xi\eta}\to\bm{J}^{-1}\to\bm{B}$ evaluada en el punto natural, anclada a los puntos de Gauss del elemento.}
 \label{fig:mod-m3}
 \end{figure}
 
@@ -486,7 +486,7 @@ Verificación por el método de soluciones manufacturadas: tasas asintóticas de
 \autoref{tab:mms}, \autoref{fig:convergencia}, \autoref{fig:convergencia-tension}, \autoref{tab:mms-rel}, \autoref{tab:mms-configs}, \autoref{fig:mms-campos} \\
 \addlinespace
 \texttt{python -m tests.vv\_timoshenko} &
-Validación de la viga simplemente apoyada frente a la solución analítica de Timoshenko-Goodier y al modelo de cáscara de SAP2000: tensión normal $\sigma_x$, componentes $\sigma_y$ y $\tau_{xy}$, desplazamientos y deflexión máxima. &
+Validación de la viga simplemente apoyada frente a la solución analítica de Timoshenko-Goodier y al modelo de cáscara de SAP2000: tensión normal $\sigma_x$, componentes $\sigma_y$ y $\tau_{xy}$, desplazamientos, deflexión máxima y equilibrio global de reacciones. &
 \autoref{tab:timoshenko-stress}, \autoref{tab:timoshenko-defl}, \autoref{fig:timoshenko-contorno}, \autoref{tab:tim-componentes}, \autoref{tab:tim-desp}, \autoref{fig:tim-perfil} \\
 \addlinespace
 \texttt{python -m tests.vv\_cook} &

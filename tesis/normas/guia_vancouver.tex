@@ -235,11 +235,12 @@ desconocida]}, \texttt{[fecha desconocida]}. Esto te aplica directamente en la m
 % =====================================================================
 \section{Los cuatro tipos que usás hoy}
 
-Las 22 fuentes de \texttt{referencias.bib} se reparten en cuatro tipos: 12 libros, 7 artículos
-de revista, 2 informes técnicos y 1 manual de organización. Una ficha por tipo.
+Las 22 fuentes de \texttt{referencias.bib} se reparten en cinco tipos: 11 libros, 7 artículos
+de revista, 2 informes técnicos, 1 manual de organización y 1 monografía inédita. Una ficha
+por tipo.
 
 % ---------------------------------------------------------------------
-\begin{ficha}{A \textperiodcentered\ LIBRO COMPLETO \hfill \normalfont\texttt{@book} \textperiodcentered\ 12 entradas}
+\begin{ficha}{A \textperiodcentered\ LIBRO COMPLETO \hfill \normalfont\texttt{@book} \textperiodcentered\ 11 entradas}
 \rot{plantilla}
 \plantilla{Autor AA, Autor BB, Autor CC. Título del libro: subtítulo. Edición. Lugar
 (Estado): Editorial; año.}
@@ -253,10 +254,6 @@ fundamentals. 6.ª ed. Oxford: Elsevier Butterworth-Heinemann; 2005.}
 \rot{ejemplo --- tu fuente en español}
 \refv{García-Córdoba F. La investigación tecnológica: investigar, idear e innovar en
 ingenierías y ciencias sociales. México (DF): Limusa; 2005.}
-
-\rot{ejemplo --- ejemplar sin pie de imprenta}
-\refv{Álvarez de Zayas C. Metodología de la investigación científica. [lugar desconocido]:
-[editorial desconocida]; [fecha desconocida].}
 
 \rot{entrada .bib}
 \begin{Verbatim}[fontsize=\small,xleftmargin=4pt]
@@ -368,17 +365,53 @@ la convención del NLM para un dato que no está impreso.}
 \rot{entrada .bib}
 \begin{Verbatim}[fontsize=\small,xleftmargin=4pt]
 @manual{csi2017sap2000,
-  author  = {{Computers \& Structures, Inc.}},
-  title   = {{CSI} Analysis Reference Manual for {SAP2000}, {ETABS},
-             {SAFE} and {CSiBridge}},
-  version = {Rev. 18},
-  location = {...},          % <-- leer de la portada del manual
-  year    = {2017},
+  author    = {{Computers \& Structures, Inc.}},
+  title     = {{CSI} Analysis Reference Manual for {SAP2000}, {ETABS},
+               {SAFE} and {CSiBridge}},
+  publisher = {Computers \& Structures, Inc.},
+  location  = {[Estados Unidos]},
+  year      = {2017},
+  note      = {Rev. 18},
 }
 \end{Verbatim}
 \anot{Las llaves dobles \texttt{\{\{...\}\}} son obligatorias: sin ellas biber lee «Inc.» como
-apellido y «Computers \& Structures» como nombre de pila. Y no pongas \texttt{author} y
-\texttt{organization} a la vez: el estilo imprime los dos y la editorial sale duplicada.}
+apellido y «Computers \& Structures» como nombre de pila. La organización va dos veces, en
+\texttt{author} y en \texttt{publisher}: es lo que pide el NLM cuando una entidad publica su
+propia obra. No uses \texttt{organization} para eso: biblatex 3.21 lo imprime \emph{antes} del
+pie de imprenta y la referencia sale invertida («Computers \& Structures, Inc. [Estados
+Unidos], 2017»); sólo \texttt{publisher} ocupa el lugar «Lugar: Editorial, año». La revisión
+va en \texttt{note} y no en \texttt{version}, que imprimiría «Ver. Rev. 18».}
+\end{ficha}
+
+% ---------------------------------------------------------------------
+\begin{ficha}{E \textperiodcentered\ MONOGRAFÍA INÉDITA \hfill \normalfont\texttt{@unpublished} \textperiodcentered\ 1 entrada}
+\rot{plantilla}
+\plantilla{Autor AA. Título. Nota de procedencia. [lugar desconocido]: [editorial
+desconocida]; [fecha desconocida].}
+\anot{Vancouver no permite omitir en silencio lugar, editorial o fecha: se declara la
+ausencia entre corchetes. La nota de procedencia es lo que vuelve localizable un documento
+sin pie de imprenta: qué es, dónde circula y qué fecha lleva el archivo.}
+
+\rot{ejemplo --- tu monografía de Álvarez de Zayas}
+\refv{Álvarez de Zayas C. Metodología de la investigación científica. Monografía inédita de
+80 páginas, en formato electrónico (PDF fechado en 2007 según sus metadatos), empleada en la
+Carrera de Ingeniería Civil de la UATF como referencia del marco metodológico. [lugar
+desconocido]: [editorial desconocida]; [fecha desconocida].}
+
+\rot{entrada .bib}
+\begin{Verbatim}[fontsize=\small,xleftmargin=4pt]
+@unpublished{alvarez_metodologia,
+  author = {{\'A}lvarez de Zayas, Carlos},
+  title  = {Metodolog{\'i}a de la investigaci{\'o}n cient{\'i}fica},
+  note   = {Monograf{\'i}a in{\'e}dita de 80 p{\'a}ginas, ... [lugar desconocido]:
+            [editorial desconocida]; [fecha desconocida]},
+}
+\end{Verbatim}
+\anot{La fecha desconocida no puede ir en \texttt{year}: biber la parsea como fecha y la
+descarta con aviso. Va al final de \texttt{note}, que es lo que la deja en el renglón
+correcto. El estilo imprime el título entre comillas, como hace con todo
+\texttt{@unpublished}: es una limitación de \texttt{numeric-comp}, la misma de los
+artículos.}
 \end{ficha}
 
 % =====================================================================
@@ -455,11 +488,13 @@ su plantilla de la §4.
 \toprule
 \textbf{Tipo} & \textbf{N.º} & \textbf{Fuentes} \\
 \midrule\endhead
-Libro \newline \anot{\texttt{@book}} & 12 &
+Libro \newline \anot{\texttt{@book}} & 11 &
 Zienkiewicz \textperiodcentered\ Bathe \textperiodcentered\ Cook \textperiodcentered\ Hughes
 \textperiodcentered\ Reddy \textperiodcentered\ Oñate \textperiodcentered\ Timoshenko
-\textperiodcentered\ Strang \textperiodcentered\ Oberkampf \textperiodcentered\ Álvarez de
-Zayas \textperiodcentered\ Hernández-Sampieri \textperiodcentered\ García-Córdoba \\
+\textperiodcentered\ Strang \textperiodcentered\ Oberkampf
+\textperiodcentered\ Hernández-Sampieri \textperiodcentered\ García-Córdoba \\
+\addlinespace[3pt]
+Monografía inédita \newline \anot{\texttt{@unpublished}} & 1 & Álvarez de Zayas \\
 \addlinespace[3pt]
 Artículo \newline \anot{\texttt{@article}} & 7 &
 Harris (NumPy) \textperiodcentered\ Virtanen (SciPy) \textperiodcentered\ Bishay
@@ -515,8 +550,8 @@ El lugar es obligatorio en libros, informes y manuales &
 
 Editorial del manual &
 \texttt{...: Computers \& Structures, Inc.; 2017} &
-La organización va de autor \emph{y} de editorial &
-\textcolor{bien}{\textbf{Corregido}} (§7). Salía sin editorial. \\
+La organización va de autor \emph{y} de editorial (\texttt{publisher}) &
+\textcolor{bien}{\textbf{Corregido}} (§7, ítems 3 y 4). Salía sin editorial y luego invertida. \\
 \addlinespace[3pt]
 
 Título del artículo &
@@ -621,13 +656,41 @@ correcto.}
 
 \subsection*{3. El manual salía sin editorial}
 
-En \texttt{@manual}, biblatex imprime como editorial el campo \texttt{organization}, no
-\texttt{author}. Con sólo \texttt{author} la referencia terminaba en
-«\texttt{[Estados Unidos], 2017}», sin editorial. La organización va ahora \textbf{dos veces},
-en \texttt{author} y en \texttt{organization}: es lo que pide el NLM cuando una entidad publica
-su propia obra («Chicago: The Association;»). También se sacó \texttt{version = \{Rev. 18\}},
-porque biblatex le antepone «Ver.» e imprimía «\texttt{Ver. Rev. 18}»; la revisión vive ahora
-en \texttt{note}.
+En \texttt{@manual}, biblatex no imprime \texttt{author} en el lugar de la editorial. Con sólo
+\texttt{author} la referencia terminaba en «\texttt{[Estados Unidos], 2017}», sin editorial. La
+organización va ahora \textbf{dos veces}, en \texttt{author} y en \texttt{publisher}: es lo que
+pide el NLM cuando una entidad publica su propia obra («Chicago: The Association;»). (El
+2026-09-10 se había puesto en \texttt{organization}, y biblatex 3.21 imprime ese campo antes
+del pie de imprenta: la referencia salió invertida; corregido el 2026-09-16, ítem 4.)
+También se sacó \texttt{version = \{Rev. 18\}}, porque biblatex le antepone «Ver.» e imprimía
+«\texttt{Ver. Rev. 18}»; la revisión vive ahora en \texttt{note}.
+
+\subsection*{4. Correcciones del 2026-09-16 (auditoría por sesiones, H-42, H-44 y H-45)}
+
+\begin{itemize}\setlength{\itemsep}{3pt}
+\item \textbf{El manual salía invertido.} Con la organización en \texttt{organization}, la
+  referencia imprimía «Computers \& Structures, Inc. [Estados Unidos], 2017»: biblatex 3.21
+  coloca ese campo \emph{antes} del pie de imprenta. Pasó a \texttt{publisher}, que es el
+  que ocupa el lugar «Lugar: Editorial, año». La ficha D y la corrección 3 quedaron
+  actualizadas.
+\item \textbf{Reddy sin nota de edición.} Se quitó \texttt{note = \{International Edition\}},
+  por la misma regla con que se había quitado la nota de Bathe: Vancouver no contempla notas
+  entre el título y el pie de imprenta.
+\item \textbf{Oñate con un solo editor.} «Barcelona: CIMNE» en vez de «CIMNE y Springer»: el
+  NLM manda consignar un único editor —el primero o el más destacado— y no listar varios.
+\item \textbf{García-Córdoba} pasa a «México (DF)», como el ejemplo de la ficha A.
+\item \textbf{Bishay} deja anotado en el \texttt{.bib} de dónde salen volumen, fascículo y
+  páginas (ficha de CrossRef del DOI, verificada el 2026-09-11): el ejemplar es la versión
+  \emph{Early View}, sin esos datos impresos.
+\item \textbf{Álvarez de Zayas} pasa a la ficha E, con nota de procedencia; la guía ya no lo
+  cuenta entre los libros.
+\item \textbf{Localizadores de página.} La regla es ahora una sola y está declarada en la
+  Introducción de la tesis: llevan localizador todas las citas que sostienen una ecuación, un
+  valor numérico, un umbral, una definición o una atribución concreta, y no lo llevan las
+  citas de encuadre. Las citas múltiples con localizador (\texttt{\textbackslash autocites}) se separan con punto
+  y coma —delimitador de \texttt{\textbackslash parencites}, redeclarado en el preámbulo— para que
+  cada página quede junto a su fuente; dentro de una cita simple de varias claves sigue la coma.
+\end{itemize}
 
 % =====================================================================
 \section{Checklist antes de entregar}

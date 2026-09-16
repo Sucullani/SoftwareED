@@ -33,6 +33,7 @@ Outputs:
   docs/vyv/datos/timoshenko_stress.csv
   docs/vyv/datos/timoshenko_disp.csv
   docs/vyv/datos/timoshenko_deflexion.csv
+  docs/vyv/datos/timoshenko_equilibrio.csv
   docs/vyv/figuras/timoshenko_sigma_x_contour.png
   docs/vyv/figuras/timoshenko_perfil_x0.png
   docs/vyv/figuras/timoshenko_deformada.png
@@ -350,6 +351,8 @@ def main():
 
     rows_stress = []
     rows_disp = []
+    errs_anal = []   # error de sigma_x vs analitica, por punto
+    errs_sap = []    # error de sigma_x vs SAP2000, por punto
     for pt_name, pt_data in SAP_DATA.items():
         x_pdf, y_pdf = pt_data["x"], pt_data["y"]
         # Punto FEM equivalente
@@ -373,6 +376,8 @@ def main():
         sx_sap = pt_data["sigma_x_kgcm2"]
         err_anal_pct = 100 * abs(sx_fem - sx_anal) / max(abs(sx_anal), 1e-12)
         err_sap_pct = 100 * abs(sx_fem - sx_sap) / max(abs(sx_sap), 1e-12)
+        errs_anal.append(err_anal_pct)
+        errs_sap.append(err_sap_pct)
         print(f"  {pt_name:>3}  {x_pdf:>6.2f} {y_pdf:>6.2f}  "
               f"{sx_fem:>10.3f} {sx_anal:>10.3f} {sx_sap:>10.3f}  "
               f"{err_anal_pct:>9.3f}% {err_sap_pct:>9.3f}%")
@@ -412,6 +417,22 @@ def main():
         f"{err_pct:.4f}",
     ]]
 
+    # Equilibrio global: la suma de las reacciones verticales en los dos apoyos
+    # debe igualar la carga total q*L (positiva hacia +y porque la carga va
+    # hacia -y) y la suma horizontal debe anularse. Es uno de los criterios de
+    # aceptacion que declara la tesis (sec. 2.1.6). Los GDL y ocupan las
+    # posiciones impares (2i+1); las reacciones valen 0 fuera de los apoyos.
+    reactions = np.asarray(sol["reactions"], dtype=float)
+    rx_sum = float(reactions[0::2].sum())
+    ry_sum = float(reactions[1::2].sum())
+    total_load = Q_NM * L_TOTAL
+    eq_res = abs(ry_sum - total_load) / total_load
+    print("\n--- Equilibrio global ---")
+    print(f"  Suma Ry : {ry_sum:.6f} N  (carga total q*L = {total_load:.6f} N)")
+    print(f"  Suma Rx : {rx_sum:.3e} N")
+    print(f"  Residuo relativo |sum Ry - qL| / qL : {eq_res:.3e}")
+    rows_eq = [[f"{ry_sum:.6f}", f"{total_load:.6f}", f"{eq_res:.3e}", f"{rx_sum:.3e}"]]
+
     # CSVs
     save_csv(
         os.path.join(datos_dir, "timoshenko_stress.csv"),
@@ -433,6 +454,11 @@ def main():
         ["medicion", "v_fem_cm", "v_anal_cm", "err_pct"],
         rows_defl,
     )
+    save_csv(
+        os.path.join(datos_dir, "timoshenko_equilibrio.csv"),
+        ["sum_Ry_N", "carga_total_qL_N", "residuo_relativo", "sum_Rx_N"],
+        rows_eq,
+    )
 
     # Figuras
     plot_sigma_x_contour(
@@ -448,13 +474,21 @@ def main():
     print(f"\nOutputs en {out_dir}")
 
     # ─── Verificacion automatica de regresion ──────────────────────────────
-    # La deflexion central FEM debe coincidir con la analitica (Timoshenko con
-    # correccion de cortante) dentro de tolerancia. Antes solo se imprimia.
+    # Criterios de aceptacion fijados a priori (tesis, sec. 2.1.6): flecha
+    # central dentro del 3 % de la analitica con correccion de cortante;
+    # sigma_x dentro del 1 % de la analitica y de SAP2000 en los tres puntos
+    # de control; equilibrio global de reacciones con residuo < 1e-8.
     checks = [
         ("Timoshenko: probe central (0,0) dentro de malla",
          result_center is not None),
         (f"Timoshenko: deflexion central converge a la analitica "
          f"(err={err_pct:.2f}% < 3%)", err_pct < 3.0),
+        (f"Timoshenko: sigma_x vs analitica en A, B, C "
+         f"(err max={max(errs_anal):.3f}% < 1%)", max(errs_anal) < 1.0),
+        (f"Timoshenko: sigma_x vs SAP2000 en A, B, C "
+         f"(err max={max(errs_sap):.3f}% < 1%)", max(errs_sap) < 1.0),
+        (f"Timoshenko: equilibrio global sum Ry = qL "
+         f"(residuo={eq_res:.1e} < 1e-8)", eq_res < 1e-8),
     ]
     failed = [n for n, ok in checks if not ok]
     print("\n--- Verificacion ---")

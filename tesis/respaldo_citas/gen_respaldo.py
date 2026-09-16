@@ -98,8 +98,11 @@ A(r'{\large EduFEM --- tesis de grado}\\[8pt]')
 A(r'\begin{minipage}{0.86\textwidth}\small')
 A(r'Este documento acompaña a la tesis y no forma parte de ella. Registra, para cada fuente '
   r'citada, el ejemplar exactamente consultado, la página donde se encuentra lo que la tesis '
-  r'le atribuye y el pasaje textual que lo sostiene. Las citas del cuerpo de la tesis siguen '
-  r'el estilo Vancouver puro, sin localizador de página; el localizador vive aquí.\\[4pt]')
+  r'le atribuye y el pasaje textual que lo sostiene. Las citas del cuerpo de la tesis llevan '
+  r'localizador de página cuando sostienen una ecuación, un valor numérico, un umbral, una '
+  r'definición o una atribución concreta, y van sin localizador cuando son de encuadre (regla '
+  r'declarada en la Introducción de la tesis); este documento registra, para todas, la página '
+  r'impresa y el pasaje.\\[4pt]')
 A(r'Todas las páginas indicadas son \textbf{páginas impresas del ejemplar}, leídas del '
   r'encabezado o del pie de la propia página. No se calcularon por desplazamiento: en varios '
   r'ejemplares el desfase entre la página del visor y la impresa no es constante.')

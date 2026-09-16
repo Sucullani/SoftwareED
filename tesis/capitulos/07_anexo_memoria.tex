@@ -11,7 +11,7 @@
 \chapter{Memoria de cálculo: ejemplo resuelto paso a paso}
 \label{anexo:memoria}
 
-Este anexo presenta, en forma condensada, el contenido de la \emph{Memoria de Cálculo} que EduFEM genera para el ejemplo canónico de validación: nueve nodos, cuatro elementos Q4, tensión plana. La memoria completa que produce el programa consta de nueve capítulos en dos estilos (\autoref{sec:memoria-io}); aquí se conserva la cadena de sustitución numérica esencial. Cada matriz, vector y valor que sigue es la salida real del motor numérico, generada con las mismas funciones del programa, con sustitución directa sobre la formulación matricial. Las magnitudes se expresan en un sistema de unidades coherente y arbitrario (por ejemplo, kN y cm, con $E$ en kN/cm$^2$): la formulación no depende de la elección mientras sea coherente.
+Este anexo presenta, en forma condensada, el contenido de la \emph{Memoria de Cálculo} que EduFEM genera para el ejemplo canónico de validación: nueve nodos, cuatro elementos Q4, tensión plana. La memoria completa que produce el programa consta de nueve capítulos en dos estilos (\autoref{sec:memoria-io}); aquí se conserva la secuencia de sustitución numérica esencial. Cada matriz, vector y valor que sigue es la salida real del motor numérico, generada con las mismas funciones del programa, con sustitución directa sobre la formulación matricial. Las magnitudes se expresan en un sistema de unidades coherente y arbitrario (por ejemplo, kN y cm, con $E$ en kN/cm$^2$): la formulación no depende de la elección mientras sea coherente.
 
 \section{Datos}
 
@@ -73,7 +73,7 @@ Apoyos & Nodos 1, 3, 6 (empotrados) \\
 
 \section{Procedimiento}
 
-\subsection*{1. Matriz constitutiva}
+\subsection{Matriz constitutiva}
 
 Para tensión plana, con $E=\valE$ y $\nu=\valNu$ (idéntica para los cuatro elementos, que comparten material):
 % Partida en dos renglones: las tres matrices 3x3 seguidas mas la fraccion no
@@ -85,7 +85,7 @@ Para tensión plana, con $E=\valE$ y $\nu=\valNu$ (idéntica para los cuatro ele
 &=\Dmat .
 \end{align*}
 
-\subsection*{2. Rigidez del elemento}
+\subsection{Rigidez del elemento}
 
 Se desarrolla el elemento E\showId{} (nodos \showNodes), el de mayor energía de deformación $U_e=\tfrac12\,\bm{u}_e^{\mathsf{T}}\bm{k}_e\,\bm{u}_e$ (\energiaInline); los tres restantes se calculan igual. Sus coordenadas nodales son
 \[
@@ -121,7 +121,7 @@ La rigidez del elemento es la suma de cuadratura sobre los cuatro puntos de Gaus
 \]
 }%
 
-\subsection*{3. Ensamblaje}
+\subsection{Ensamblaje}
 
 Cada $\bm{k}_e$ se dispersa a la matriz global según los grados de libertad (GDL) de sus nodos, y las cargas nodales arman $\bm{F}$:
 \[
@@ -138,7 +138,7 @@ La \autoref{fig:mem-K} muestra la estructura de no-nulos de $\bm{K}$.
 \label{fig:mem-K}
 \end{figure}
 
-\subsection*{4. Restricciones y solución}
+\subsection{Restricciones y solución}
 
 Los nodos 1, 3 y 6 fijan sus dos GDL: quedan \nRestr{} GDL restringidos y \nFree{} libres. Reordenando el sistema en bloques libre ($f$) y restringido ($r$),
 \[
@@ -154,7 +154,7 @@ con $\bm{u}_r=\bm{0}$ el subsistema libre ($\nFree\times\nFree$) se reduce a
 \]
 Su factorización entrega los desplazamientos nodales (\autoref{tab:mem-resultados}).
 
-\subsection*{5. Reacciones}
+\subsection{Reacciones}
 
 En los GDL restringidos, $\bm{R}=\bm{K}\,\bm{u}-\bm{F}$:
 \begin{center}
@@ -170,7 +170,7 @@ $\sum$ & $\RxTot$ & $\RyTot$ \\
 \end{center}
 La suma vertical $\RyTot$ equilibra exactamente la carga aplicada $-\valP$, y la horizontal es nula: el modelo está en equilibrio.
 
-\subsection*{6. Recuperación de tensiones}
+\subsection{Recuperación de tensiones}
 
 En cada punto de Gauss del elemento, $\bm{\varepsilon}=\bm{B}\,\bm{u}_e$ y $\bm{\sigma}=\bm{D}\,\bm{\varepsilon}$. En $\gpA$:
 \[

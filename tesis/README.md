@@ -9,7 +9,12 @@ Idioma: español (babel).
   con `biblatex/numeric-comp` + `sorting=none` + `terseinits` (no existe un estilo
   `vancouver` cargado como tal). Los títulos de revista se escriben **completos**, no con la
   abreviatura ISO del NLM, por legibilidad en un documento en español, y el último autor se
-  separa con «y» en vez de coma: las dos son decisiones tomadas, no descuidos.
+  separa con «y» en vez de coma: las dos son decisiones tomadas, no descuidos. Los **localizadores de página** siguen una
+  regla única, declarada en la Introducción («Estructura del documento»): llevan página las
+  citas que sostienen una ecuación, un valor, un umbral, una definición o una atribución
+  concreta; las de encuadre van sin página (regla del 2026-09-16, que reemplaza al «Vancouver
+  puro sin página» del 09-09). Las citas múltiples con página se separan con punto y coma y
+  la lista se titula **«Referencias bibliográficas»**.
   Guía completa con plantilla y ejemplo por tipo de fuente:
   [normas/guia_vancouver.pdf](normas/guia_vancouver.pdf).
 - **Presentación del documento: APA 7.ª ed.** Márgenes de 2,54 cm, interlineado doble,
@@ -46,10 +51,16 @@ Vancouver no dice nada sobre el interlineado.
   canal) y VD (observabilidad y contrastabilidad del procedimiento); el «apoyo a la
   comprensión» es el para qué, no lo medido. Delimitación institucional (Carrera de Ing.
   Civil UATF), espacial, temporal (gestión 2026) y disciplinar está en la Introducción. Son
-  **seis** objetivos específicos (OE1 = fundamentación teórica → Cap. 1). No volver al
+  **seis** objetivos específicos (OE1 = fundamentación teórica → Cap. 1). Desde el 2026-09-16: OE2 sin «verificado
+  numéricamente», OE4 acotado a «hasta el ensamblaje, con post-proceso y memoria para solución y
+  tensiones», OE6 con la memoria como principal e interoperabilidad instrumental, y el objetivo
+  general nombra Python (el «cómo» del título). No volver al
   objeto «proceso de enseñanza-aprendizaje» ni a cinco objetivos sin decisión del autor.
 - **Validación: por diseño.** El eje es la V&V numérica (MMS, Timoshenko vs. SAP2000, Cook);
-  la dimensión pedagógica se fundamenta en la literatura. **No** se hace validación por
+  la dimensión pedagógica se fundamenta en la literatura (§1.2 «Fundamentos pedagógicos», desde
+  el 2026-09-16). La **hipótesis de diseño** se enuncia desde esa fecha en forma condicional
+  comprobable —tres cláusulas con criterios a priori en §2.1.6— y el «apoyo al aprendizaje» es
+  un supuesto declarado, no contrastado. **No** se hace validación por
   juicio de expertos. Un **piloto con estudiantes** queda como contingencia solo si lo
   solicitan en la defensa final (limpio).
 - **Idioma:** español neto. Se permiten glosas de términos técnicos con el inglés entre
@@ -85,25 +96,49 @@ tesis/
 └── .gitignore               # ignora artefactos de compilación
 ```
 
+## Dos versiones del mismo documento
+
+El documento existe en dos tipografías. **Comparten todo**: los mismos
+`capitulos/`, la misma `bibliografia/` y el mismo `preambulo.tex`. Editar un
+capítulo actualiza las dos; lo único que cambia es la fuente del cuerpo.
+
+| Fuente | Texto | Fórmulas | Motor | Salida |
+|---|---|---|---|---|
+| `main.tex` | Latin Modern (serif) 12 pt | LaTeX (Latin Modern Math) | `pdflatex` | `main.pdf` |
+| `main_v2.tex` | **Arial 12 pt** | LaTeX (Latin Modern Math) | `xelatex` | `main_v2.pdf` |
+
+Las fórmulas son **idénticas en las dos**: Arial no tiene alfabeto matemático ni
+símbolos de extensión, así que la matemática se compone siempre con las fuentes de
+LaTeX. Lo mismo vale para los listados de código del Anexo C, que se quedan en
+Latin Modern Mono para que el Python siga siendo copiable carácter por carácter.
+
+El interruptor es una sola línea: `main_v2.tex` define `\tesisFuenteArial` antes
+de cargar `preambulo.tex`. No dupliques el preámbulo.
+
 ## Compilar (MiKTeX en Windows)
 
-Desde la carpeta `tesis/`:
+Desde la carpeta `tesis/`. **v1 va con `pdflatex`; v2 va con `xelatex`** — v2 usa la
+Arial real del sistema (`C:\Windows\Fonts\arial.ttf`), y eso `pdflatex` no lo sabe hacer.
 
 ```
-pdflatex main
-biber    main
-pdflatex main
-pdflatex main
+pdflatex main            xelatex main_v2
+biber    main            biber   main_v2
+pdflatex main            xelatex main_v2
+pdflatex main            xelatex main_v2
 ```
 
 O, más simple, con latexmk:
 
 ```
-latexmk -pdf main.tex
+latexmk -pdf     main.tex
+latexmk -xelatex main_v2.tex
 ```
 
 > Usa **biber** (no bibtex). Si las citas salen como `[?]`, faltó correr biber o la
 > clave no existe en `referencias.bib`.
+>
+> v2 necesita Arial instalada. En Windows viene de fábrica; en Linux hay que poner
+> las *core fonts* de Microsoft o cambiar el `\setmainfont` del preámbulo.
 
 ## Antes de entregar
 

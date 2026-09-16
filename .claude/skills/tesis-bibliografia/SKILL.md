@@ -21,16 +21,18 @@ El preambulo (`tesis/preambulo.tex`) ya carga biblatex con biber.
 - `@article`: author, title, journaltitle, year, volume, number, pages; (doi si se confirma).
 - `@inproceedings`: author, title, booktitle, year, pages; (publisher, location).
 - `@techreport`: author, title, **location**, institution, year, number.
-- `@manual`: author (la organizacion), title, **organization** (la misma, otra vez),
+- `@manual`: author (la organizacion), title, **publisher** (la misma, otra vez),
   location, year.
 
 `location` es **obligatorio** en libros, informes y manuales: Vancouver exige el lugar de
 edicion. Si la portada no lo trae, buscalo en la pagina de creditos del ejemplar.
 
-En `@manual` la organizacion va **dos veces**: en `author` y en `organization`. Es lo que
-pide Vancouver/NLM cuando una entidad publica su propia obra ("Chicago: The Association");
-sin `organization` la referencia sale sin editorial. La regla vieja decia lo contrario
---nunca los dos-- y estaba mal: se corrigio el 2026-09-10 al auditar el .bib contra la norma.
+En `@manual` la organizacion va **dos veces**: en `author` y en `publisher`. Es lo que
+pide Vancouver/NLM cuando una entidad publica su propia obra ("Chicago: The Association").
+**No** usar `organization` para eso: biblatex 3.21 imprime ese campo ANTES del pie de
+imprenta y la referencia sale invertida ("Computers & Structures, Inc. [Estados Unidos],
+2017"); solo `publisher` ocupa el lugar "Lugar: Editorial, ano". Corregido el 2026-09-16 (la
+regla del 2026-09-10 decia `organization` y la del 2026-09-09 decia "nunca los dos").
 
 Cuando el ejemplar no consigna un dato obligatorio, Vancouver no permite omitirlo en
 silencio: se declara entre corchetes (`[lugar desconocido]`, `[editorial desconocida]`,
@@ -116,11 +118,17 @@ Los PDF de los libros viven en `tesis/bibliografia/` con el nombre `Autor ANO - 
 estan **gitignorados** (material con copyright, repo publico). Sacar de ahi los metadatos:
 portada y pagina de creditos, nunca la web.
 
-**Las citas del cuerpo van en Vancouver puro: `\autocite{clave}`, sin `[p.~NN]`** (decision del
-autor, 2026-09-09). La pagina y el pasaje que respalda cada cita viven en
-`tesis/respaldo_citas/respaldo_citas.tex`, un documento aparte que acompana a la tesis. Si se
-agrega o cambia una cita, actualizar ahi el respaldo. **No reintroducir localizadores en el
-cuerpo** sin decision del autor.
+**Localizadores de pagina: regla unica (2026-09-16), declarada en la Introduccion de la tesis
+("Estructura del documento").** Llevan `[p.~NN]` (o `[pp.~a-b]`, `[art.~n, pp.~a-b]`) las
+citas que sostienen una ecuacion, un valor numerico, un umbral, una definicion o una
+atribucion concreta; van sin localizador las citas de encuadre (mencion de la literatura o
+del producto en general). La pagina sale de `tesis/respaldo_citas/verificado.json` (pagina
+IMPRESA del ejemplar). Las citas multiples con pagina van con `\autocites[p.~a]{k1}[p.~b]{k2}`
+y se separan con punto y coma (delimitador de `\parencites`, redeclarado en el preambulo;
+`\autocite{k1,k2}` sin pagina sigue con coma). Reemplaza a la regla
+"Vancouver puro sin pagina" del 2026-09-09 y a su aplicacion parcial del 2026-09-11. El
+respaldo pagina a pagina sigue viviendo en `tesis/respaldo_citas/respaldo_citas.tex`: si se
+agrega o cambia una cita, actualizar ahi el respaldo.
 
 Si alguna vez hiciera falta una pagina, **abrir el libro y leer el numero impreso**: el desfase
 entre pagina del PDF y pagina impresa no es constante dentro de un mismo ejemplar (en Sampieri

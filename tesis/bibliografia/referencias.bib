@@ -49,7 +49,9 @@
   publisher = {McGraw-Hill},
   location  = {New York},
   year      = {2006},
-  note      = {International Edition},
+  % El ejemplar es la "International Edition" (ISBN 007-124473-5). No se imprime la
+  % nota: Vancouver no contempla notas entre el titulo y el pie de imprenta (misma
+  % regla con que se retiro la nota de Bathe).
   isbn      = {007-124473-5},
 }
 
@@ -58,7 +60,9 @@
   title     = {Structural Analysis with the Finite Element Method: Linear Statics},
   subtitle  = {Basis and Solids},
   volume    = {1},
-  publisher = {CIMNE and Springer},
+  % Coedicion CIMNE (Barcelona) y Springer: el NLM manda consignar un unico editor
+  % --el primero o el mas destacado en la portada-- y no listar varios.
+  publisher = {CIMNE},
   location  = {Barcelona},
   year      = {2009},
   isbn      = {978-1-4020-8732-5},
@@ -120,11 +124,13 @@
 @manual{csi2017sap2000,
   author  = {{Computers \& Structures, Inc.}},
   title   = {{CSI} Analysis Reference Manual for {SAP2000}, {ETABS}, {SAFE} and {CSiBridge}},
-  % La organizacion va DOS veces a proposito: como autor y en el lugar de la
-  % editorial. Es lo que pide Vancouver/NLM cuando una entidad publica su propia
-  % obra y no hay autor personal; sin "organization" la referencia salia sin
-  % editorial. No es una duplicacion por descuido.
-  organization = {Computers \& Structures, Inc.},
+  % La organizacion va DOS veces a proposito: como autor y como editorial. Es lo
+  % que pide Vancouver/NLM cuando una entidad publica su propia obra y no hay
+  % autor personal. Va en "publisher" y NO en "organization": biblatex 3.21
+  % imprime "organization" antes del pie de imprenta (salia "Computers &
+  % Structures, Inc. [Estados Unidos], 2017") y solo "publisher" ocupa el lugar
+  % "Lugar: Editorial, ano". Corregido el 2026-09-16.
+  publisher = {Computers \& Structures, Inc.},
   location = {[Estados Unidos]},
   year    = {2017},
   % La revision va en "note" y no en "version": biblatex antepone "Ver." a ese
@@ -138,6 +144,10 @@
   % entre corchetes, que es la convencion del NLM para un dato no impreso.
 }
 
+% Volumen 28, fasciculo 4 y paginas 1007-1027 verificados en la ficha de CrossRef
+% del DOI el 2026-09-11: el ejemplar del autor es la version Early View, paginada
+% 1-21 y sin volumen ni fasciculo impresos, asi que esos tres campos NO se leyeron
+% del PDF sino del registro del editor.
 @article{bishay2020teaching,
   author       = {Bishay, Peter L.},
   title        = {Teaching the Finite Element Method Fundamentals to Undergraduate Students through Truss Builder and Truss Analyzer Computational Tools and Student-Generated Assignments Mini-Projects},
@@ -200,7 +210,7 @@
 @unpublished{alvarez_metodologia,
   author    = {{\'A}lvarez de Zayas, Carlos},
   title     = {Metodolog{\'i}a de la investigaci{\'o}n cient{\'i}fica},
-  note      = {Monograf{\'i}a in{\'e}dita de 80 p{\'a}ginas, de circulaci{\'o}n acad{\'e}mica en formato electr{\'o}nico; sin lugar, editorial ni fecha declarados. [lugar desconocido]: [editorial desconocida]; [fecha desconocida]},
+  note      = {Monograf{\'i}a in{\'e}dita de 80 p{\'a}ginas, en formato electr{\'o}nico (PDF fechado en 2007 seg{\'u}n sus metadatos), empleada en la Carrera de Ingenier{\'i}a Civil de la UATF como referencia del marco metodol{\'o}gico; sin lugar, editorial ni fecha declarados. [lugar desconocido]: [editorial desconocida]; [fecha desconocida]},
 }
 
 @book{sampieri2018metodologia,
@@ -216,7 +226,7 @@
   author    = {Garc{\'i}a-C{\'o}rdoba, Fernando},
   title     = {La investigaci{\'o}n tecnol{\'o}gica: investigar, idear e innovar en ingenier{\'i}as y ciencias sociales},
   publisher = {Limusa},
-  location  = {M{\'e}xico, D.F.},
+  location  = {M{\'e}xico (DF)},
   year      = {2005},
   isbn      = {968-18-6597-9},
 }

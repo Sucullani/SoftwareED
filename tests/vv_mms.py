@@ -436,22 +436,32 @@ def main():
     # Las tasas de convergencia deben tender a las asintoticas teoricas en
     # las cuatro configuraciones:
     #   Q4 -> L2 O(h^2), H1 O(h^1);   Q9 -> L2 O(h^3), H1 O(h^2).
-    # Campo de tensiones recuperado: O(h^1.5) Q4 (superconvergencia interior
-    # degradada por la capa de contorno) y O(h^2) Q9.
     # Tolerancia +-0.5 por la desviacion pre-asintotica de las mallas finitas.
+    # Campo de tensiones recuperado: la literatura consultada no fija una tasa
+    # teorica para la cadena Gauss -> extrapolacion -> promediado nodal del
+    # motor, asi que el criterio es una COTA EMPIRICA MINIMA, declarada como tal
+    # en la tesis (sec. 2.1.6): tasa >= 1.4 en Q4 (observado ~1.54, la capa de
+    # contorno degrada la superconvergencia interior) y >= 1.9 en Q9 (~2.00).
+    # Antes se usaba 1.5 +- 0.5, que aceptaba tambien el orden del gradiente
+    # crudo (1.0) y realimentaba el valor observado como expectativa.
     TOL = 0.5
-    expected = {"q4": (2.0, 1.0, 1.5), "q9": (3.0, 2.0, 2.0)}
+    expected = {"q4": (2.0, 1.0), "q9": (3.0, 2.0)}
+    stress_min = {"q4": 1.4, "q9": 1.9}
     checks = []
     for cfg_key, corners, analysis_type, label in CONFIGS:
         for et_key in ("q4", "q9"):
             rows = all_results[cfg_key][et_key]
-            exp_L, exp_H, exp_S = expected[et_key]
-            for key, exp, name in (("rate_L2", exp_L, "L2"), ("rate_H1", exp_H, "H1"),
-                                   ("rate_stress", exp_S, "L2(sigma*)")):
+            exp_L, exp_H = expected[et_key]
+            for key, exp, name in (("rate_L2", exp_L, "L2"), ("rate_H1", exp_H, "H1")):
                 obs = _rate_last(rows, key)
                 if obs is not None:
                     checks.append((f"MMS [{cfg_key}] {et_key.upper()} tasa {name}~{exp} "
                                    f"(obs {obs:.2f})", abs(obs - exp) < TOL))
+            obs_s = _rate_last(rows, "rate_stress")
+            if obs_s is not None:
+                checks.append((f"MMS [{cfg_key}] {et_key.upper()} tasa L2(sigma*) >= "
+                               f"{stress_min[et_key]} (obs {obs_s:.2f})",
+                               obs_s >= stress_min[et_key]))
     failed = [n for n, ok in checks if not ok]
     print("\n--- Verificacion ---")
     for name, ok in checks:

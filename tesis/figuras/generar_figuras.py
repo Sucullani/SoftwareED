@@ -22,7 +22,8 @@ Reproducible (desde la raíz del repositorio):
 
     .venv\\Scripts\\python.exe tesis\\figuras\\generar_figuras.py
 
-Genera: fig_isoparametricos.png, fig_arquitectura.png en tesis/figuras/.
+Genera: fig_isoparametricos.png, fig_arquitectura.png y fig_fases_lienzo.png
+(composición de tres capturas ya existentes) en tesis/figuras/.
 NO toca las capturas de GUI ni los gráficos de V&V.
 """
 
@@ -200,11 +201,63 @@ def fig_arquitectura():
     _save_fig(fig, "fig_arquitectura.png")
 
 
+def fig_fases_lienzo():
+    """Compone, una debajo de otra, las tres capturas de la GUI real del ejemplo
+    canónico que produce gui_capture.py —pre-proceso (fig_lienzo_lod), proceso
+    con un módulo desplegado (fig_modulo_capa) y post-proceso (fig_postproceso)—
+    para mostrar en el Cap. 3 que las tres fases operan sobre el mismo lienzo y
+    el mismo modelo. No reescala ninguna captura: la más ancha fija el ancho y
+    las otras se centran sobre fondo blanco, separadas por una banda blanca."""
+    from PIL import Image
+    names = ["fig_lienzo_lod.png", "fig_modulo_capa.png", "fig_postproceso.png"]
+    ims = [Image.open(os.path.join(OUT, n)).convert("RGB") for n in names]
+    gap = 18
+    width = max(im.width for im in ims)
+    height = sum(im.height for im in ims) + gap * (len(ims) - 1)
+    out = Image.new("RGB", (width, height), (255, 255, 255))
+    y = 0
+    for im in ims:
+        out.paste(im, ((width - im.width) // 2, y))
+        y += im.height + gap
+    out.save(os.path.join(OUT, "fig_fases_lienzo.png"))
+    print("  guardado: fig_fases_lienzo.png", out.size)
+
+
+def fig_fases_lienzo_ancho():
+    """Misma composición que `fig_fases_lienzo`, pero en fila: es la que usa la
+    presentación de defensa (`tesis/presentacion/`), donde la lámina es apaisada
+    y el apilado vertical dejaría cada captura demasiado baja. Cada fase lleva su
+    rótulo debajo. No reescala las capturas: la más alta fija el alto."""
+    from PIL import Image, ImageDraw, ImageFont
+    names = ["fig_lienzo_lod.png", "fig_modulo_capa.png", "fig_postproceso.png"]
+    rotulos = ["Pre-proceso", "Proceso", "Post-proceso"]
+    ims = [Image.open(os.path.join(OUT, n)).convert("RGB") for n in names]
+    gap, pie = 26, 46
+    height = max(im.height for im in ims)
+    width = sum(im.width for im in ims) + gap * (len(ims) - 1)
+    out = Image.new("RGB", (width, height + pie), (255, 255, 255))
+    try:
+        fuente = ImageFont.truetype("calibrib.ttf", 30)
+    except OSError:
+        fuente = ImageFont.load_default()
+    draw = ImageDraw.Draw(out)
+    x = 0
+    for im, rotulo in zip(ims, rotulos):
+        out.paste(im, (x, (height - im.height) // 2))
+        ancho_txt = draw.textlength(rotulo, font=fuente)
+        draw.text((x + (im.width - ancho_txt) / 2, height + 6), rotulo, font=fuente, fill=(27, 42, 74))
+        x += im.width + gap
+    out.save(os.path.join(OUT, "fig_fases_lienzo_ancho.png"))
+    print("  guardado: fig_fases_lienzo_ancho.png", out.size)
+
+
 def main():
     print("Generando diagramas conceptuales de la tesis en:", OUT)
     print("-" * 60)
     for name, fn in [("isoparametricos", fig_isoparametricos),
-                     ("arquitectura", fig_arquitectura)]:
+                     ("arquitectura", fig_arquitectura),
+                     ("fases_lienzo", fig_fases_lienzo),
+                     ("fases_lienzo_ancho", fig_fases_lienzo_ancho)]:
         print(f"[{name}]")
         try:
             fn()
