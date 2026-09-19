@@ -1,0 +1,105 @@
+% =====================================================================
+%  main_v4.tex  --  Tesis EduFEM, VERSION 4: eje causa-efecto PEDAGOGICO LIGERO
+%  (alternativa 3 del documento tesis/alternativas/alternativas_causa_efecto.pdf,
+%  elegida por el autor el 2026-09-19).
+%
+%  Que cambia respecto de main.tex (v1):
+%   - Problema con el molde del tribunal: «el uso del software como caja negra
+%     -> bajo criterio para interpretar la respuesta estructural». VI = forma de
+%     exponer el canal y la respuesta; VD = criterio del estudiante; EduFEM es la
+%     variable interviniente. Objeto de estudio pedagogico; campo = medios didacticos.
+%   - Cinco objetivos especificos en escalera (diagnosticar, fundamentar,
+%     desarrollar, verificar, validar) y tres preguntas, una por clausula.
+%   - Hipotesis en futuro afirmativo, comprobada en su parte de diseno y contenido:
+%     (a) exposicion, (b) correccion (la V&V de siempre), (c) validez de contenido
+%     y coherencia. El efecto sobre el estudiante se fundamenta y se deja a una
+%     prueba de campo disenada en las recomendaciones.
+%   - Cap. 3, §3.6: tabla de especificaciones contra los items de expertos de
+%     Perez-Santiago y Campos 2023 (15 destrezas + 3 conceptos) y matriz de los
+%     cuatro principios de §1.2. Tres referencias nuevas (Rutten 2012, Chi y
+%     Wylie 2014, Atkinson et al. 2000), ya en referencias.bib.
+%
+%  Que se comparte con v1/v2 (NO duplicar): preambulo.tex, portada/, figuras/,
+%  bibliografia/referencias.bib y los capitulos que no cambian
+%  (03_diseno_implementacion, 06_anexos, 07_anexo_memoria, 00_preliminares).
+%  Los capitulos reescritos viven en capitulos_v4/. La v3 (capitulos_v3/,
+%  referencias_v3.bib) queda como archivo de referencia y NO se usa aqui.
+%
+%  Compilar (MiKTeX/Windows), desde la carpeta tesis/:
+%     pdflatex main_v4
+%     biber    main_v4
+%     pdflatex main_v4
+%     pdflatex main_v4
+%  (o usar latexmk -pdf main_v4.tex)
+% =====================================================================
+\pdfminorversion=6   % el PDF embebido del Anexo E es 1.6; evita el aviso de pdfTeX en cada inclusión
+\documentclass[12pt,a4paper,oneside]{report}
+
+% ---------------------------------------------------------------------
+%  Metadatos de portada  --  COMPLETAR estos placeholders
+% ---------------------------------------------------------------------
+\newcommand{\universidad}{Universidad Autónoma ``Tomás Frías''}
+\newcommand{\facultad}{Facultad de Ingeniería}
+\newcommand{\carrera}{Carrera de Ingeniería Civil}
+\newcommand{\gradoTesis}{Título de Licenciatura en Ingeniería Civil}
+\newcommand{\tituloTesis}{Desarrollo de software educativo de elementos finitos para el análisis estructural empleando el lenguaje de programación Python}
+\newcommand{\autorTesis}{Hedy Yhassmany Oyola Sucullani}
+\newcommand{\anioTesis}{Septiembre de 2026}
+\newcommand{\ciudadTesis}{Potosí -- Bolivia}
+
+\input{preambulo}
+
+\begin{document}
+
+% ----- Portada -----
+% Sin ancla de página en la portada: es la página "1" de la numeración inicial y
+% el cuerpo vuelve a empezar en 1, lo que duplicaba el destino page.1 de hyperref.
+\hypersetup{pageanchor=false}
+\input{portada/portada}
+
+% ----- Material preliminar (numeracion romana) -----
+\cleardoublepage
+\pagenumbering{roman}
+\hypersetup{pageanchor=true}
+
+% Preliminares (declaración de originalidad, dedicatoria, agradecimientos) — para la versión FINAL, no el borrador:
+% \input{capitulos/00_preliminares}
+
+\input{capitulos_v4/00_resumen}
+
+\cleardoublepage
+\tableofcontents
+\cleardoublepage
+\listoffigures
+\cleardoublepage
+\listoftables
+
+\vspace{1.5em}
+\noindent\textit{\small Salvo que se indique lo contrario, todas las figuras y tablas de este documento son de elaboración propia: corresponden a capturas de pantalla del software EduFEM —desarrollado por el autor en el marco de esta tesis— o a gráficos generados por el autor a partir de sus propias corridas de verificación y validación.}
+
+% ----- Nomenclatura: lista de simbolos y abreviaturas -----
+\cleardoublepage
+\input{capitulos_v4/00b_nomenclatura}
+
+% ----- Cuerpo (numeracion arabiga) -----
+\cleardoublepage
+\pagenumbering{arabic}
+
+\input{capitulos_v4/01_introduccion}
+\input{capitulos_v4/02_marco_teorico}
+\input{capitulos_v4/02b_diseno_metodologico}
+\input{capitulos/03_diseno_implementacion}
+\input{capitulos_v4/04_resultados}
+\input{capitulos_v4/05_conclusiones}
+
+% ----- Referencias bibliograficas (Vancouver; la norma se declara en la Introduccion, 'Estructura del documento') -----
+\cleardoublepage
+\printbibliography[title={Referencias bibliográficas},heading=bibintoc]
+
+% ----- Anexos -----
+\appendix
+\renewcommand{\appendixname}{Anexo}  % rotular "Anexo A/B/..." (no el "Apéndice" por defecto de babel)
+\input{capitulos/06_anexos}
+\input{capitulos/07_anexo_memoria}
+
+\end{document}

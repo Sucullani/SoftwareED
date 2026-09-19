@@ -99,3 +99,6 @@ tesis/bibliografia/resaltados/
 # Guias de estilo de terceros en tesis/normas/: mismo criterio que los papers.
 # Las guias propias (guia_*.tex / .pdf) SI se versionan.
 tesis/normas/Tavares*.pdf
+
+# PDF de la bibliografia pedagogica (copyright, repo publico): misma regla que tesis/bibliografia/*.pdf
+tesis/bibliografia/**/*.pdf

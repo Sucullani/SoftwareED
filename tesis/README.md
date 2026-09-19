@@ -76,16 +76,23 @@ tesis/
 ├── preambulo.tex            # paquetes y configuración (presentación APA + biblatex Vancouver)
 ├── portada/
 │   └── portada.tex          # portada (usa los placeholders de main.tex)
+├── main_v2.tex              # misma tesis en Arial (xelatex); lee capitulos/
+├── main_v3.tex              # tesis con eje pedagógico (alternativa C); lee capitulos_v3/ + capitulos/
 ├── capitulos/
 │   ├── 00_resumen.tex
 │   ├── 01_introduccion.tex
 │   ├── 02_marco_teorico.tex            # Capítulo 1
-│   ├── 03_diseno_implementacion.tex    # Capítulo 2
+│   ├── 02b_diseno_metodologico.tex     # Capítulo 2, §2.1
+│   ├── 03_diseno_implementacion.tex    # Capítulo 2, §2.2
 │   ├── 04_resultados.tex               # Capítulo 3
 │   ├── 05_conclusiones.tex
-│   └── 06_anexos.tex
+│   ├── 06_anexos.tex
+│   └── 07_anexo_memoria.tex
+├── capitulos_v3/            # solo los capítulos que la v3 reescribe (resumen, nomenclatura,
+│                            # introducción, cap. 1, §2.1, cap. 3, conclusiones)
 ├── bibliografia/
-│   ├── referencias.bib      # referencias en biblatex
+│   ├── referencias.bib      # referencias en biblatex (v1, v2 y v3)
+│   ├── referencias_v3.bib   # 16 entradas que solo carga main_v3.tex (ejemplares pendientes)
 │   └── *.pdf                # ejemplares consultados (gitignored: copyright)
 ├── normas/                  # las dos normas que rigen el documento
 │   ├── guia_vancouver.tex/.pdf   # citas y referencias (propia, se versiona)
@@ -96,9 +103,20 @@ tesis/
 └── .gitignore               # ignora artefactos de compilación
 ```
 
-## Dos versiones del mismo documento
+## Cuatro versiones del mismo documento
 
-El documento existe en dos tipografías. **Comparten todo**: los mismos
+**La v4 (2026-09-19) es la candidata a reemplazar a la v1**: aplica la alternativa 3 elegida
+por el autor —problema «uso del software como caja negra → bajo criterio para interpretar la
+respuesta estructural», con el molde de las guías del tribunal— sobre los capítulos de la v1,
+con cinco objetivos específicos en escalera, tres preguntas, hipótesis en futuro afirmativo
+comprobada en su parte de diseño y contenido, tabla de especificaciones contra el consenso de
+expertos de Pérez-Santiago y Campos y matriz de los cuatro principios de §1.2. Tres
+referencias nuevas (Rutten 2012, Chi y Wylie 2014, Atkinson 2000), ya en `referencias.bib`
+con ejemplar y respaldo. `main_v4.tex` lee `capitulos_v4/` y, para lo que no cambia,
+`capitulos/`. Detalle: [docs/notas/2026-09-19_tesis-v4-alternativa-3.md](../docs/notas/2026-09-19_tesis-v4-alternativa-3.md).
+La v3 queda como archivo de referencia y no se mantiene.
+
+Las dos primeras son tipografías del mismo texto. **Comparten todo**: los mismos
 `capitulos/`, la misma `bibliografia/` y el mismo `preambulo.tex`. Editar un
 capítulo actualiza las dos; lo único que cambia es la fuente del cuerpo.
 
@@ -106,6 +124,23 @@ capítulo actualiza las dos; lo único que cambia es la fuente del cuerpo.
 |---|---|---|---|---|
 | `main.tex` | Latin Modern (serif) 12 pt | LaTeX (Latin Modern Math) | `pdflatex` | `main.pdf` |
 | `main_v2.tex` | **Arial 12 pt** | LaTeX (Latin Modern Math) | `xelatex` | `main_v2.pdf` |
+| `main_v3.tex` | Latin Modern 12 pt | LaTeX (Latin Modern Math) | `pdflatex` | `main_v3.pdf` |
+| `main_v4.tex` | Latin Modern 12 pt | LaTeX (Latin Modern Math) | `pdflatex` | `main_v4.pdf` |
+
+La **v3 (2026-09-18) es otra tesis, no otra tipografía**: aplica el **eje causa-efecto
+pedagógico** (alternativa C elegida por el autor). La variable dependiente pasa a ser la
+comprensión de los fundamentos del MEF por el estudiante, el objeto de estudio vuelve a ser
+el proceso de enseñanza-aprendizaje, y el trabajo se organiza como **primer ciclo de
+investigación basada en diseño**: contrasta relevancia, corrección, consistencia y
+practicidad esperada con tres instrumentos documentales (tabla de especificaciones, mapa de
+conjeturas con matriz de trazabilidad, evaluación heurística LORI) y deja diseñada la
+prueba de campo del segundo ciclo. Siete objetivos específicos, cuatro preguntas. Sus
+capítulos reescritos viven en `capitulos_v3/` (los que no cambian se leen de `capitulos/`)
+y sus 16 referencias nuevas en `bibliografia/referencias_v3.bib`, que **solo** `main_v3.tex`
+carga y cuyos ejemplares **están pendientes de conseguir** (20 localizadores marcados con
+`% LOCALIZADOR PENDIENTE`). Detalle, decisiones y pendientes:
+[docs/notas/2026-09-18_tesis-v3-eje-pedagogico.md](../docs/notas/2026-09-18_tesis-v3-eje-pedagogico.md).
+Mientras el autor no decida cuál se entrega, **v1/v2 y v3 no se sincronizan entre sí**.
 
 Las fórmulas son **idénticas en las dos**: Arial no tiene alfabeto matemático ni
 símbolos de extensión, así que la matemática se compone siempre con las fuentes de

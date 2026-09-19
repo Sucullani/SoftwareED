@@ -24,12 +24,34 @@ tesis** (`tesis/`, 130 páginas, compila limpio).
 
 | Tema | Dónde | Estado |
 |---|---|---|
-| Cierre de la tesis | `tesis/` | Compila limpio (158 hojas, APA doble espacio). La auditoría integral del 2026-09-11 está **implementada** salvo lo que el autor reservó (1.5, 1.6, 5.4), y la **auditoría por sesiones** ([AUDITORIA_TESIS.md](../auditorias/AUDITORIA_TESIS.md)) quedó **implementada el 2026-09-16**: 45 de 47 hallazgos resueltos, H-13 parcial y H-1 abierto (el Reglamento de Graduación, que solo el autor puede conseguir). En `origin/main`; el autor revisa (ver *Decisiones abiertas*). Pendiente que necesita la GUI: recapturar las Figuras 3.3, B.1 y B.6-B.13 a mayor resolución |
+| **Tesis v4, alternativa 3** | `tesis/main_v4.tex`, `tesis/capitulos_v4/` | **Construida el 2026-09-19** sobre la v1 con la alternativa 3 confirmada por el autor («caja negra → bajo criterio para interpretar la respuesta estructural», molde de Miranda, 5 OE, 3 PI, tabla de especificaciones contra Pérez-Santiago, matriz de 4 principios, 3 refs nuevas con ejemplar y respaldo). Compila limpia: 167 hojas, 0 indefinidas, 0 desbordes. Respaldo de citas y resaltados regenerados. **Sin commit.** Espera revisión del autor y su decisión de reemplazar `capitulos/`. Detalle: [2026-09-19_tesis-v4-alternativa-3.md](2026-09-19_tesis-v4-alternativa-3.md) |
+| Tesis v3, eje pedagógico (archivo, no se mantiene) | `tesis/main_v3.tex`, `tesis/capitulos_v3/`, `tesis/bibliografia/referencias_v3.bib` | **Construida el 2026-09-18** a pedido del autor (alternativa C: VD = comprensión del estudiante; primer ciclo de investigación basada en diseño; tabla de especificaciones + mapa de conjeturas + LORI; 7 OE y 4 PI). Compila limpia: 178 hojas, 0 indefinidas, 0 desbordes. **Sin commit.** Espera que el autor decida si reemplaza a v1/v2 y que consiga los 16 ejemplares nuevos (20 localizadores pendientes). Detalle: [2026-09-18_tesis-v3-eje-pedagogico.md](2026-09-18_tesis-v3-eje-pedagogico.md) |
+| Cierre de la tesis (v1/v2, eje de diseño) | `tesis/` | Compila limpio (158 hojas, APA doble espacio). La auditoría integral del 2026-09-11 está **implementada** salvo lo que el autor reservó (1.5, 1.6, 5.4), y la **auditoría por sesiones** ([AUDITORIA_TESIS.md](../auditorias/AUDITORIA_TESIS.md)) quedó **implementada el 2026-09-16**: 45 de 47 hallazgos resueltos, H-13 parcial y H-1 abierto (el Reglamento de Graduación, que solo el autor puede conseguir). En `origin/main`; el autor revisa (ver *Decisiones abiertas*). Pendiente que necesita la GUI: recapturar las Figuras 3.3, B.1 y B.6-B.13 a mayor resolución |
 | Deuda técnica de la auditoría 2026-06-10 | repo | **Cerrada el 2026-09-06** (Top-10 + medios y bajos de §1, §2, §5 y §6). Único pendiente: decidir si se cablea `TheoryDoc.margin_formula()` en la memoria — cambia el layout del PDF, así que necesita validación visual del autor |
 | Mejora continua del software | `docs/rutina/` | **Activa desde el 2026-09-08**: rutina horaria de claude.ai que trabaja directo sobre `main`, una área por sesión con rotación de 14. Qué hizo cada sesión: [../rutina/BITACORA.md](../rutina/BITACORA.md); qué falta y qué espera al autor: [../rutina/BACKLOG.md](../rutina/BACKLOG.md) |
 | Distribución del `.exe` | `installer/` | Vía principal decidida: instalador Inno Setup por usuario, sin admin. Sin firma de código (decisión tomada). Empaquetado **onedir** desde el 2026-09-10 (arranque 3 s en vez de 12; el entregable sigue siendo un solo archivo) |
 
 ## Decisiones abiertas (esperan al autor)
+
+- **Elegir el eje pedagógico definitivo y aplicarlo sobre la v1 (2026-09-18, tarde)** — el autor
+  encontró la v3 demasiado pesada y pidió alternativas pedagógicas lineales con los moldes de
+  Miranda: están en `tesis/alternativas/alternativas_causa_efecto.pdf` (12 pág.). **Recomendada:
+  alternativa 3**, «uso del software como caja negra → bajo criterio para interpretar la
+  respuesta estructural», propuesta por el autor; validación de contenido con los ítems de
+  expertos de Pérez-Santiago y Campos (anexo del PDF), 0 referencias nuevas, prueba de campo
+  como contingencia. **Qué decide el autor**: cuál de las tres (1 comprensión, 2 competencia de
+  verificar, 3 criterio); el paso siguiente es aplicarla sobre `capitulos/` (v1), no sobre la v3.
+- **¿Se entrega la v3 (eje pedagógico) o la v1/v2 (eje de diseño)? (2026-09-18)** — el autor
+  eligió la alternativa C y pidió la v3 completa; está construida y compila, pero **no
+  reemplaza** a la v1/v2 y el autor la considera **demasiado pesada** (ver el ítem anterior): son dos tesis con problema, objeto, hipótesis, variables y Cap. 3
+  distintos, y la presentación y el video siguen con el eje A. **Qué decide el autor**: (1) si
+  adopta la v3 (entonces se mueve `capitulos_v3/` sobre `capitulos/`, se fusiona
+  `referencias_v3.bib` y se rehacen las láminas de problema, hipótesis, variables, matriz y
+  §3.6); (2) conseguir los 16 ejemplares nuevos y completar los 20 `% LOCALIZADOR PENDIENTE`
+  y el `% DATO PENDIENTE` de la asignatura (§2.1.4); (3) revisar celda por celda las tablas
+  3.7 a 3.10, que afirman qué hace el software. Lo que un agente **no** puede hacer: decidir
+  el eje ni descargar los PDF de pago. Detalle:
+  [2026-09-18_tesis-v3-eje-pedagogico.md](2026-09-18_tesis-v3-eje-pedagogico.md).
 
 - **Presentación y video puestos al día (2026-09-16)** — el guion quedó sincronizado con la
   tesis posterior a la auditoría por sesiones y la capa visual se rediseñó entera (detalle en

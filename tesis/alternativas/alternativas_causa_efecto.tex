@@ -1,0 +1,273 @@
+% =====================================================================
+%  alternativas_causa_efecto.tex -- Documento de trabajo para el autor.
+%  Alternativas de eje causa-efecto (problema, objeto, campo, objetivo
+%  general, objetivos especificos, hipotesis) para la tesis EduFEM,
+%  construidas con los moldes de las tres guias del tribunal:
+%    - Como se construye el objetivo general (Miranda)
+%    - Planteamiento del problema cientifico e hipotesis (Miranda)
+%    - Situacion problematica, objeto de estudio y campo de accion (Miranda)
+%  Compilar: pdflatex alternativas_causa_efecto  (dos veces, por las refs)
+%  NO forma parte de la tesis. 2026-09-18.
+% =====================================================================
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[spanish,es-tabla]{babel}
+\usepackage[a4paper,margin=2.2cm]{geometry}
+\usepackage{booktabs,array,longtable}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage{amsmath,bm}
+\setlength{\parskip}{4pt}
+\setlength{\parindent}{0pt}
+\setlength{\tabcolsep}{3pt}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcommand{\vi}{\textbf{VI}}
+\newcommand{\vd}{\textbf{VD}}
+\newcommand{\molde}[1]{\textcolor{blue!60!black}{\small #1}}
+\AtBeginDocument{\DeclareRobustCommand{\%}{\char37\relax}}
+
+\title{Alternativas de eje causa--efecto para la tesis EduFEM\\
+\large según los moldes de las tres guías del tribunal (Miranda)}
+\author{Documento de trabajo para el autor}
+\date{18 de septiembre de 2026}
+
+\begin{document}
+\maketitle
+
+\section*{Antes de las alternativas: tus tres preguntas}
+
+\subsection*{1. ¿Alcanza la literatura para «validar pedagógicamente»?}
+
+Alcanza para dos cosas y no alcanza para una tercera, y conviene decir las tres con su nombre en la tesis.
+
+\begin{itemize}
+\item \textbf{Validez de contenido (relevancia).} Que lo que el software enseña es lo que la enseñanza del MEF exige. Se establece con una \emph{tabla de especificaciones}: contenidos por un lado, criterio externo por el otro. Hernández-Sampieri la admite como vía de la validez de contenido sin panel propio cuando el criterio externo ya está publicado. Lo tenés.
+\item \textbf{Coherencia del diseño (consistencia).} Que cada decisión de diseño remite a un principio documentado. Se establece con una \emph{matriz principio $\to$ decisión $\to$ evidencia}. Los cuatro principios de tu §1.2 (Lee, Bishay, Pérez-Santiago) bastan para esa matriz. Lo tenés.
+\item \textbf{Efectividad.} Que el estudiante comprende más. Eso vive en el estudiante y \emph{ninguna} bibliografía lo contrasta para EduFEM; solo lo fundamenta. En la predefensa se declara así: «validación por diseño y por literatura; la prueba de campo (o el juicio de expertos propio) queda como contingencia para la defensa final». Es exactamente lo que dijiste que harías si te lo piden, y es una posición honesta y defendible.
+\end{itemize}
+
+\subsection*{2. ¿El consenso de expertos de Pérez-Santiago y Campos sirve como juicio de expertos?}
+
+Sirve como \textbf{criterio externo de validez de contenido}, que es lo que una tabla de especificaciones necesita, y con una ventaja: es un juicio de 67 expertos (24 académicos, 39 de industria y 4 de ambos, p.~1165), publicado, con instrumento validado (alfa de Cronbach 0,968 en la categoría de conceptos y 0,968 en la de destrezas, p.~1164). Lo concreto que podés usar:
+
+\begin{itemize}
+\item Los \textbf{15 ítems de conceptos teóricos} (Tabla 1, p.~1162): FEM1 rigidez de un resorte, FEM2 ensamblaje y restricciones, FEM3 métodos alternativos (energía, variacional), FEM4 barra en el plano, FEM9 integración numérica de Gauss, FEM8 formulación isoparamétrica de elementos 2D, etc.
+\item Los \textbf{34 ítems de destrezas prácticas} (Tabla 2, p.~1163), agrupados en planificación, modelado, materiales, mallado, restricciones, post-proceso, conceptos fundamentales y V\&V. Los de mallado (FEA13--FEA18: selección del elemento, tamaño, efecto de la relación de aspecto y la distorsión, efecto del orden del elemento, convergencia con el refinamiento), los de post-proceso (FEA26--FEA28: resultados, tensiones nodales frente a elementales, deformada escalada), los de conceptos (FEA29--FEA31: efecto de las cargas, prueba de convergencia, von Mises) y los de V\&V (FEA32--FEA34: revisar tensiones para refinar, comparar reacciones con las cargas, correlacionar con ensayos) son casi una descripción de EduFEM.
+\item El \textbf{ranking} (Tabla 8, p.~1168): planificación 90, mallado 87, V\&V 84, conceptos 82, post-proceso 79. Y la conclusión 3 (p.~1171): «los ingenieros deben aprender a planificar, verificar y validar sus estudios».
+\end{itemize}
+
+Lo que \emph{no} es: no es una validación de EduFEM ni de su efecto. Y tiene una salvedad que el propio artículo declara (p.~1171): expertos mexicanos de ingeniería mecánica, no generalizables a otro contexto. En la tesis se cita esa salvedad y se la neutraliza con el argumento de que los ítems que se usan (isoparamétrico, Gauss, ensamblaje, mallado, convergencia, V\&V) son contenido universal del MEF, no preferencias de un país. El Anexo de este documento trae la correspondencia ítem por ítem entre esa lista y EduFEM, lista para pegar.
+
+\subsection*{3. ¿La v3 se complicó de más? ¿La tesis debe ser lineal con una brecha?}
+
+Sí a las dos. Tu interpretación es correcta y te corrijo solo un punto de vocabulario. La v3 adoptó el aparato completo de la investigación basada en diseño (Nieveen, Sandoval, LORI, dieciséis fuentes) porque era la forma más rigurosa de hacer contrastable una hipótesis cuya variable efecto vive en el estudiante. Rigurosa, pero pesada: cuatro cláusulas, tres instrumentos, dos ciclos. Para una predefensa con una sola brecha y pocas referencias nuevas, alcanza con \textbf{un instrumento y cero o una fuente nueva}, y la cadena queda lineal: brecha $\to$ problema $\to$ objeto y campo $\to$ objetivo general $\to$ objetivos específicos en escalera $\to$ hipótesis con tres variables $\to$ resultados que cierran cada peldaño $\to$ conclusiones. Eso es lo que desarrollan las tres alternativas pedagógicas de abajo, y la sección final dice qué se toma de la v3 y qué se descarta.
+
+Sobre tu segunda pregunta, la del efecto: sí, «el bajo criterio de los estudiantes para interpretar la respuesta estructural» es un efecto pedagógico válido, y de los tres que desarrollo es el que recomiendo. La razón corta: es el único cuyo déficit tiene diagnóstico con fuente publicada y cuyas destrezas asociadas los expertos califican más alto; la razón larga está en la sección 2 y en la alternativa 3.
+
+El punto de vocabulario: lo que harías si te lo piden no es un «estudio piloto» (en Sampieri, la prueba piloto ensaya el instrumento) sino una \textbf{prueba de campo}, o cuasiexperimento con preprueba y posprueba; y el «criterio de expertos» se llama \textbf{juicio de expertos}. Usá esos dos nombres en la defensa y el tribunal te sigue.
+
+\section{El molde de las tres guías, en una página}
+
+Las alternativas de la sección 3 llenan todas el mismo molde. Es el que las tres guías fijan, y conviene tenerlo a la vista para juzgarlas.
+
+\begin{longtable}{L{3.4cm}L{12.4cm}}
+\toprule
+\textbf{Pieza} & \textbf{Qué exige la guía} \\
+\midrule
+\endhead
+Situación problemática & Está en la teoría o en la práctica, contiene las contradicciones a resolver, y a ella se regresa con la solución para convalidarla (guía de objeto y campo). \\
+Problema científico & Interrogante; dos variables, \vi{} causa (conocida) y \vd{} efecto (por conocer); relación lógica; delimitación institucional, espacial y temporal; verificable en fuentes. Molde: \molde{«¿De qué manera [un mal / una buena] \vi{} podrá afectar en [el elevado / la baja] \vd{} en [institución, lugar] en la gestión [año]?»} \\
+Objeto de estudio & Área del conocimiento o de la práctica donde se manifiesta la contradicción y que hay que estudiar para resolverla. De él salen los fundamentos teóricos (Cap.~1). \\
+Campo de acción & La parte de la situación problemática que resultará mejorada por el aporte; de la misma naturaleza que el objeto. \\
+Objetivo general & Cuatro partes: verbo en infinitivo + ¿qué cosa? (va a la \vi) + ¿cómo? + ¿para qué? (va a la \vd). Molde: \molde{«Determinar el diseño de una losa, mediante la optimización del acero, para que reduzca el costo de la obra.»} El título sale del objetivo general. \\
+Objetivos específicos & Escalera de cinco: diagnosticar, fundamentar, experimentar (elaborar modelos), calcular, validar. Verbo + objeto + finalidad; logros, no actividades. Mapa a capítulos: fundamentar $\to$ Cap.~1; desarrollo práctico $\to$ Cap.~2; aplicación y validación $\to$ Cap.~3. \\
+Hipótesis & Tres variables (\vd, \vi, interviniente), relación lógica, tiempo futuro, afirmativa, solución tentativa comprobable. Molde: \molde{«Bajo la aplicación de [interviniente] permitirá mejorar [\vi] disminuyendo [\vd] en [lugar].»} El flujograma pregunta al final: ¿se puede comprobar? \\
+\bottomrule
+\end{longtable}
+
+Una observación sobre el molde que te conviene saber antes de la defensa: la guía llama «interviniente» a lo que en Sampieri se llamaría tratamiento o solución propuesta, y su ejemplo de hipótesis («permitirá mejorar») es circular por construcción. No lo discutas en la mesa: llená el molde con sus nombres y agregá, en una frase, con qué se comprueba. Eso es lo que hace cada alternativa.
+
+\section{Causales y efectos en el contexto de EduFEM}
+
+La guía del problema pide primero listar varias causales con sus efectos y elegir una «global» cuyo efecto influya antes y después. Estas son las parejas que tu situación problemática admite; las dos primeras columnas son la lista, la tercera dice qué sería EduFEM en cada una.
+
+\begin{longtable}{L{0.6cm}L{5.2cm}L{5.2cm}L{4.4cm}}
+\toprule
+\# & \textbf{Causa (\vi)} & \textbf{Efecto (\vd)} & \textbf{EduFEM es\ldots} \\
+\midrule
+\endhead
+1 & Exposición transparente e interactiva del canal de cálculo del MEF (frente a la caja negra del software profesional) & Comprensión de los fundamentos del método por el estudiante & la interviniente que produce la causa \\
+2 & Disponibilidad de una memoria de cálculo verificable paso a paso sobre el modelo propio & Capacidad del estudiante de planificar, verificar y validar un análisis (competencia que los expertos exigen) & la interviniente \\
+3 & Abstracción de los textos clásicos, sin vínculo con la geometría del elemento & Dificultad para interpretar $\bm{J}$, $\bm{B}$ y la cuadratura de Gauss & la interviniente que revierte la causa \\
+4 & Ausencia de una herramienta educativa libre, en español, para elasticidad plana & Enseñanza apoyada en software comercial cerrado, sin fundamentos visibles & el aporte que cubre la ausencia \\
+5 & Tipo de elemento (Q4 o Q9) y densidad de malla & Exactitud del análisis (error frente a referencias) & la interviniente que hace observable la relación \\
+6 & Forma de exponer el canal (transparencia, interactividad, verificabilidad) & Observabilidad y contrastabilidad del procedimiento & el aporte (es la v1 actual) \\
+7 & Uso del software de análisis como caja negra (resultados sin procedimiento visible) & Bajo criterio del estudiante para interpretar y juzgar la respuesta estructural que el MEF le entrega & la interviniente que revierte la causa \\
+\bottomrule
+\end{longtable}
+
+Las parejas 3 y 4 son formas de la 1 (la 3 es la misma causa vista desde los textos; la 4 es la situación problemática, no una variable). La 5 es numérica y la 6 es de diseño: ninguna de las dos tiene al estudiante como sujeto del efecto, así que no son ejes pedagógicos y quedan fuera de las alternativas desarrolladas (la 5 se conserva como cláusula de corrección dentro de cualquiera de ellas; la 6 es la v1 actual). Quedan tres ejes pedagógicos reales: \textbf{1} (comprensión de los fundamentos), \textbf{2} (competencia de verificar y validar) y \textbf{7} (criterio para interpretar la respuesta estructural). Las tres alternativas que siguen los desarrollan con el mismo molde; la recomendación está en la sección 4.
+
+La pareja 7 la propusiste vos y merece una nota. Es la formulación que más se parece al ejemplo de la guía («un mal diseño de losas $\to$ el elevado costo»): la causa es una práctica deficiente y el efecto es un déficit medible en el sujeto. Tiene tres apoyos que las otras no tienen tan directos: la Introducción ya lo dice («el estudiante puede aprender a operar una herramienta profesional sin comprender qué ocurre internamente, lo que dificulta diagnosticar resultados anómalos, evaluar la calidad de una malla o reconocer fenómenos numéricos»); los expertos lo califican alto (dimensiones de post-proceso, conceptos fundamentales y V\&V, ítems FEA26--FEA34, p.~1163 y p.~1168); y el diagnóstico del «bajo criterio» tiene fuente sin encuesta propia (la encuesta de la ASME citada en p.~1160, donde solo el 31\,\% de los ingenieros se considera conocedor del análisis por elementos finitos, y la preocupación por la «caja negra» que el artículo recoge de la literatura). Su costo es que el efecto es más estrecho que «comprensión»: hay que argumentar que juzgar un resultado exige entender cómo se produjo (malla, orden del elemento, convergencia, equilibrio), y ese argumento es justamente lo que los módulos y la memoria exponen.
+
+\section{Alternativas desarrolladas con el molde}
+
+\subsection{Alternativa 1: eje pedagógico amplio, «exposición $\to$ comprensión»}
+
+Es la alternativa C que elegiste, sin el aparato de la v3. Una brecha, un instrumento, cero fuentes nuevas obligatorias. Las alternativas 2 y 3 comparten con ella la situación problemática, el objeto, la escalera de objetivos y la forma de validar; solo cambia el efecto y, con él, el problema, el «para qué» y la hipótesis.
+
+\begin{longtable}{L{3.4cm}L{12.4cm}}
+\toprule
+\textbf{Pieza} & \textbf{Formulación} \\
+\midrule
+\endhead
+Causa (\vi) & La exposición transparente, interactiva y numéricamente verificable del canal de cálculo del MEF en elasticidad plana. \\
+Efecto (\vd) & La comprensión de los fundamentos del MEF por el estudiante de ingeniería civil. \\
+Interviniente & EduFEM, software educativo de elementos finitos desarrollado en Python. \\
+Situación problemática & Los textos clásicos exponen el método en abstracto y el software profesional lo encapsula como caja negra; el estudiante aprende a operar sin comprender, y no existe una herramienta libre, en español, que exponga el canal completo sobre su propio modelo (es tu Introducción actual, sin cambios). \\
+Problema científico & ¿De qué manera la exposición transparente e interactiva del canal de cálculo del MEF en elasticidad plana, mediante un software educativo, podrá mejorar la comprensión de los fundamentos del método en los estudiantes de la Carrera de Ingeniería Civil de la Universidad Autónoma Tomás Frías en la gestión 2026? \\
+Objeto de estudio & El proceso de enseñanza y aprendizaje del análisis de medios continuos en elasticidad lineal plana por el MEF, en la formación de grado en ingeniería civil. \\
+Campo de acción & Los medios didácticos de ese proceso: el software educativo que expone el canal de cálculo sobre el modelo del estudiante y la memoria de cálculo que lo documenta. \\
+Objetivo general & \emph{Desarrollar} [verbo] \emph{un software educativo de elementos finitos para el análisis estructural de medios continuos en elasticidad plana con elementos Q4 y Q9} [qué], \emph{empleando el lenguaje de programación Python y bibliotecas numéricas de código abierto} [cómo], \emph{para apoyar la comprensión de los fundamentos del MEF en los estudiantes de ingeniería civil} [para qué]. Coincide con tu título, que ya tiene el «cómo». \\
+Objetivos específicos & OE1 \emph{Diagnosticar}, a partir de la literatura y de los antecedentes de software educativo, la brecha entre la exposición abstracta del método y su operación como caja negra, para delimitar los atributos que el software debe tener. OE2 \emph{Fundamentar} teóricamente el MEF en elasticidad plana con elementos Q4 y Q9 y los principios de aprendizaje que orientan el diseño. OE3 \emph{Desarrollar} el motor de cálculo, la interfaz en pre-proceso, proceso y post-proceso, los módulos educativos y la memoria de cálculo, para exponer cada etapa del canal sobre el modelo del estudiante. OE4 \emph{Verificar} el motor mediante el método de soluciones manufacturadas y los casos de Timoshenko y Cook, contrastando con soluciones analíticas y con SAP2000. OE5 \emph{Validar} el contenido del software frente a las competencias que los expertos exigen para el MEF, mediante una tabla de especificaciones, para establecer su potencial didáctico. \\
+Hipótesis & Bajo el desarrollo de EduFEM, la exposición transparente e interactiva del canal de cálculo del MEF permitirá mejorar la comprensión de los fundamentos del método en los estudiantes de la Carrera de Ingeniería Civil de la UATF. \emph{Se comprueba, en esta etapa, en su parte de diseño: que el software expone el canal completo con un motor verificado (OE4) y cubre los contenidos y competencias que la enseñanza del MEF exige (OE5); su efecto sobre la comprensión se fundamenta en la literatura y se deja a una prueba de campo como recomendación.} \\
+Cómo se valida en la predefensa & (a) La V\&V numérica que ya tenés (cláusula de corrección). (b) Una \textbf{tabla de especificaciones} con las once unidades del canal (o las nueve etapas) en filas y, en columnas, los ítems de Pérez-Santiago y Campos que cada unidad cubre y el instrumento de EduFEM que la expone: es validez de contenido con criterio de expertos publicado (Anexo). (c) La \textbf{matriz de los cuatro principios} de tu §1.2 (visibilidad, interactividad con vínculo, construcción paso a paso, fundamento--operación) con la decisión de diseño y la evidencia de cada uno. Los tres caben en una sección 3.6 de tres o cuatro páginas. \\
+Qué preguntará el tribunal & «¿Y la comprensión, la midió?» Respuesta: «No en esta etapa. La hipótesis se comprueba en su parte de diseño y de contenido con criterios fijados a priori; el efecto sobre la comprensión está fundamentado en la literatura y su prueba de campo, con preprueba y posprueba en un curso, queda diseñada como recomendación y puede ejecutarse para la defensa final si el tribunal lo solicita.» \\
+Referencias nuevas & Ninguna obligatoria. Opcional: Nieveen y Folmer 2013 (acceso abierto) solo para citar la distinción entre practicidad y efectividad «esperada» y «real». \\
+Cambios sobre la v1 & Introducción: problema, objeto y campo, objetivo general (para qué), cinco OE en escalera, hipótesis con el molde; §2.1: una sola pareja \vi/\vd{} en la Tabla 2.1 (lo numérico como factores y magnitudes), matriz de consistencia con cinco filas, criterios; §3.6: la tabla de especificaciones y la matriz de principios (se toman de la v3 y se recortan); §3.8 y conclusiones. Un día de edición; nada del Cap.~1 salvo tres párrafos. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Alternativa 2: eje de competencia, «memoria verificable $\to$ capacidad de verificar y validar»}
+
+Es la alternativa 1 con la \vd{} anclada a la competencia concreta que el consenso de expertos exige. Gana en fuerza documental y pierde en amplitud: deja los módulos M1--M7 como medio y pone la memoria de cálculo en el centro.
+
+\begin{longtable}{L{3.4cm}L{12.4cm}}
+\toprule
+\textbf{Pieza} & \textbf{Formulación} \\
+\midrule
+\endhead
+Causa (\vi) & La disponibilidad de una memoria de cálculo verificable paso a paso, generada sobre el modelo del propio estudiante. \\
+Efecto (\vd) & La capacidad del estudiante de planificar, verificar y validar un análisis por el MEF (Pérez-Santiago y Campos, conclusión 3, p.~1171; dimensiones FEA1 y FEA8 de la Tabla 8, p.~1168). \\
+Interviniente & EduFEM. \\
+Problema científico & ¿De qué manera una memoria de cálculo verificable paso a paso, generada por un software educativo sobre el modelo del propio estudiante, podrá mejorar la capacidad de verificar y validar análisis por el MEF en los estudiantes de la Carrera de Ingeniería Civil de la UATF en la gestión 2026? \\
+Objeto / campo & Iguales a la alternativa 1; el campo se estrecha a «la memoria de cálculo y los módulos que la preparan». \\
+Objetivo general & Desarrollar un software educativo de elementos finitos para elasticidad plana [qué], empleando Python y bibliotecas de código abierto, con generación automática de una memoria de cálculo verificable [cómo], para desarrollar en el estudiante la capacidad de verificar y validar sus análisis [para qué]. \\
+Objetivos específicos & Los mismos cinco de la alternativa 1, con OE5: \emph{Validar} el contenido de la memoria y de los módulos frente a las destrezas de planificación, post-proceso y V\&V que los expertos exigen (FEA1--FEA5, FEA26--FEA34), mediante una tabla de especificaciones. \\
+Hipótesis & Bajo el desarrollo de EduFEM, la memoria de cálculo verificable paso a paso permitirá mejorar la capacidad de verificar y validar análisis por el MEF en los estudiantes de la Carrera de Ingeniería Civil de la UATF. \\
+Cómo se valida & Igual que la 1, pero la tabla de especificaciones cruza la memoria (nueve capítulos: planteo, discretización, calidad, formulación, ensamblaje, solución, post-proceso, diagnóstico y validación, resumen) con los ítems FEA1--FEA5 y FEA26--FEA34. La coincidencia es casi uno a uno (Anexo), y el Anexo F de la tesis es la evidencia. \\
+Riesgo & El título habla de «software educativo para el análisis estructural», más amplio que la memoria; y el tribunal puede leer «capacidad de verificar» como algo que exige medir con estudiantes tanto como la comprensión. La ventaja frente a la 1 es solo retórica: el efecto lleva el nombre exacto que un panel publicado de 67 expertos usó. \\
+Referencias nuevas & Ninguna. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Alternativa 3 (recomendada): eje de criterio, «caja negra $\to$ bajo criterio para interpretar la respuesta estructural»}
+
+Es la pareja 7, la que propusiste. Se formula en negativo, como el ejemplo de la guía, y el software es la solución tentativa que revierte la causa. El efecto no es «saber la teoría» sino \emph{saber juzgar un resultado}: si la deformada tiene sentido, si la malla es admisible, si las tensiones nodales cierran con las de los puntos de Gauss, si las reacciones equilibran la carga, si el elemento bloquea.
+
+\begin{longtable}{L{3.4cm}L{12.4cm}}
+\toprule
+\textbf{Pieza} & \textbf{Formulación} \\
+\midrule
+\endhead
+Causa (\vi) & El uso del software de análisis como caja negra: el estudiante obtiene la respuesta estructural sin ver el procedimiento que la produce. En positivo, cuando interviene EduFEM: la exposición transparente e interactiva del canal de cálculo y de la respuesta. \\
+Efecto (\vd) & El criterio del estudiante para interpretar y juzgar la respuesta estructural obtenida por el MEF: desplazamientos, tensiones, reacciones, calidad de la malla y fenómenos numéricos. \\
+Interviniente & EduFEM. \\
+Situación problemática & La misma de la alternativa 1, con el acento en su consecuencia: el egresado opera el software pero no sabe planificar, verificar ni validar el análisis (Pérez-Santiago y Campos, p.~1171), y una encuesta profesional recogida por ese artículo muestra que solo el 31\,\% de los ingenieros se considera conocedor del análisis por elementos finitos (p.~1160). \\
+Problema científico & ¿De qué manera el uso del software de análisis estructural como caja negra podrá afectar en el bajo criterio para interpretar la respuesta estructural obtenida por el MEF en los estudiantes de la Carrera de Ingeniería Civil de la Universidad Autónoma Tomás Frías en la gestión 2026? \\
+Objeto de estudio & El proceso de enseñanza y aprendizaje del análisis de medios continuos en elasticidad lineal plana por el MEF, en la formación de grado en ingeniería civil. \\
+Campo de acción & Los medios didácticos con que el estudiante aprende a interpretar y verificar la respuesta estructural: el software educativo que expone el canal de cálculo y la memoria que documenta el resultado. \\
+Objetivo general & \emph{Desarrollar} [verbo] \emph{un software educativo de elementos finitos para el análisis estructural de medios continuos en elasticidad plana con elementos Q4 y Q9} [qué], \emph{empleando el lenguaje de programación Python y bibliotecas numéricas de código abierto} [cómo], \emph{para mejorar el criterio de los estudiantes de ingeniería civil en la interpretación de la respuesta estructural obtenida por el MEF} [para qué]. Compatible con el título vigente. \\
+Objetivos específicos & OE1 \emph{Diagnosticar}, a partir de la literatura y de los antecedentes de software, la brecha entre operar un software de análisis y saber juzgar su respuesta, para delimitar los atributos que el software educativo debe tener. OE2 \emph{Fundamentar} teóricamente el MEF en elasticidad plana con elementos Q4 y Q9, los fenómenos numéricos que condicionan la respuesta y los principios de aprendizaje que orientan el diseño. OE3 \emph{Desarrollar} el motor de cálculo, la interfaz en pre-proceso, proceso y post-proceso, los módulos educativos y la memoria de cálculo, para exponer cada etapa del canal y cada resultado sobre el modelo del estudiante. OE4 \emph{Verificar} el motor mediante el método de soluciones manufacturadas y los casos de Timoshenko y Cook, contrastando con soluciones analíticas y con SAP2000, para que la respuesta expuesta sea correcta. OE5 \emph{Validar} el contenido del software frente a las destrezas de post-proceso, conceptos fundamentales y verificación y validación que los expertos exigen, mediante una tabla de especificaciones, para establecer su potencial para formar criterio. \\
+Hipótesis & Bajo el desarrollo de EduFEM, la exposición transparente e interactiva del canal de cálculo y de la respuesta estructural permitirá mejorar el criterio para interpretar la respuesta obtenida por el MEF en los estudiantes de la Carrera de Ingeniería Civil de la UATF. \emph{Se comprueba, en esta etapa, en su parte de diseño: que el software expone el canal completo con un motor verificado (OE4) y cubre las destrezas de interpretación y verificación que los expertos exigen (OE5); su efecto sobre el criterio del estudiante se fundamenta en la literatura y se deja a una prueba de campo como recomendación.} \\
+Cómo se valida en la predefensa & (a) La V\&V numérica que ya tenés. (b) La \textbf{tabla de especificaciones} del Anexo, que para este eje se recorta a las destrezas de post-proceso (FEA26--FEA28), conceptos fundamentales (FEA29--FEA31) y V\&V (FEA32--FEA34), más las de mallado (FEA13--FEA18): son las que definen «criterio sobre la respuesta», y EduFEM cubre las quince con un instrumento identificable. (c) La \textbf{matriz de los cuatro principios} de §1.2. \\
+Qué preguntará el tribunal & «¿Cómo sabe que el criterio es bajo?» Respuesta: con el diagnóstico de la literatura (p.~1160 y p.~1171 del artículo de expertos) y con la brecha del estado del arte; no se hizo encuesta propia y se declara. «¿Y midió que mejora?» Respuesta: no en esta etapa; la hipótesis se comprueba en su parte de diseño y contenido, y la prueba de campo queda diseñada: un curso, preprueba y posprueba con resultados de MEF para juzgar (malla admisible o no, tensión anómala, equilibrio), que es un instrumento más fácil de construir que una prueba de comprensión general. \\
+Referencias nuevas & Ninguna. \\
+Cambios sobre la v1 & Los mismos de la alternativa 1, más dos: el párrafo de la situación problemática cita la encuesta de la ASME vía Pérez-Santiago (p.~1160) y el Cap.~3, §3.6, presenta la tabla de especificaciones recortada a las dieciséis destrezas de interpretación y verificación. \\
+\bottomrule
+\end{longtable}
+
+\subsection*{Nota sobre los ejes no pedagógicos}
+
+El eje numérico (pareja 5: discretización $\to$ exactitud) y el eje de diseño de la v1 (pareja 6) se comprueban por completo dentro de la tesis, pero no tienen al estudiante como sujeto del efecto, así que no responden a lo que pediste. El numérico sobrevive dentro de las tres alternativas como OE4 y como cláusula de corrección de la hipótesis; el de diseño desaparece como par de variables y sus indicadores (7 de 7 módulos, 9 de 9 etapas en la memoria, tres fases en un lienzo) pasan a ser la evidencia de que la causa existe.
+
+\section{Comparación y recomendación}
+
+\begin{longtable}{L{2.6cm}L{4.2cm}L{4.2cm}L{4.2cm}}
+\toprule
+& \textbf{1 Comprensión} & \textbf{2 Competencia de verificar} & \textbf{3 Criterio sobre la respuesta} \\
+\midrule
+\endhead
+Encaje con el molde de Miranda & Total: la \vd{} es el «para qué» del OG, hipótesis con tres variables & Total & Total, y además en la forma negativa del ejemplo («un mal X $\to$ el bajo Y») \\
+Amplitud del efecto & Amplia («comprensión de los fundamentos»): fácil de enunciar, difícil de acotar & Estrecha: una competencia con nombre de los expertos & Intermedia y concreta: juzgar desplazamientos, tensiones, malla, equilibrio y fenómenos \\
+Diagnóstico del déficit con fuente & Indirecto (caja negra, abstracción) & Directo (conclusión 3, p.~1171) & Directo (p.~1160 y p.~1171) y coincide con la Introducción actual \\
+Criterio externo de validez de contenido & Todos los ítems FEM y FEA aplicables (26) & FEA1--FEA5 y FEA26--FEA34 (14) & FEA13--FEA18 y FEA26--FEA34 (15), las de ranking más alto \\
+Efecto contrastado en el documento & No; fundamentado. Contenido y diseño sí & No; fundamentado & No; fundamentado. Contenido y diseño sí \\
+Instrumento de la prueba de campo futura & Prueba de comprensión general: difícil de construir & Tarea de verificación & Resultados de MEF para juzgar (malla, tensión anómala, equilibrio): el más fácil de construir \\
+Referencias nuevas & 0 (1 opcional) & 0 & 0 \\
+Edición sobre la v1 & Un día & Un día & Un día \\
+Riesgo principal en la mesa & «¿La midió?» & Igual, más «¿y los módulos?» & «¿Cómo sabe que es bajo?» (respuesta con fuente) \\
+\bottomrule
+\end{longtable}
+
+\textbf{Recomendación: alternativa 3.} Es la tuya, y es la mejor de las tres por cuatro razones. Se formula igual que el ejemplo de la guía, con una práctica deficiente como causa y un déficit en el sujeto como efecto, así que el tribunal la reconoce sin explicación. El déficit tiene diagnóstico con fuente publicada, cosa que «comprensión» no tiene. Las destrezas que definen el efecto son las que los expertos ranquean más alto y las que EduFEM cubre con más instrumentos (post-proceso, sonda, memoria, equilibrio, Cook). Y si en la defensa final te exigen medir, el instrumento es el más fácil de construir: resultados de elementos finitos para que el estudiante juzgue. La alternativa 1 queda como respaldo si el tribunal prefiere un efecto más amplio; la 2 es una variante de la 3 con el foco solo en la memoria.
+
+Sea cual sea la que elijas, el cierre es el mismo y es honesto: la parte de diseño y contenido se comprueba en la tesis; el efecto sobre el estudiante se fundamenta y se deja a la prueba de campo, que queda diseñada.
+
+\section{Plan mínimo para la predefensa con la alternativa elegida}
+
+Qué se toma de la v3 y qué se descarta, para que el resultado sea lineal.
+
+\begin{itemize}
+\item \textbf{Se toma}: el problema, objeto y campo pedagógicos; la hipótesis en futuro; la Tabla 2.1 con una sola pareja; la \emph{tabla de especificaciones} (recortada: filas = nueve etapas del canal más calidad de malla y fenómenos numéricos; columnas = ítems de Pérez-Santiago cubiertos e instrumento de EduFEM; sin los cinco niveles de Bloom, que exigirían una fuente más); la \emph{matriz de principios} con los cuatro de tu §1.2 en vez de diez.
+\item \textbf{Se descarta}: la investigación basada en diseño como modelo (Plomp, Nieveen, Sandoval), el mapa de conjeturas, LORI y las heurísticas, la sección §1.3 nueva, los seis principios generales y las dieciséis referencias. El «primer ciclo» se dice sin fuente: «la hipótesis se comprueba en su parte de diseño y contenido; el efecto se fundamenta en la literatura y su prueba de campo queda como recomendación», que es lo que ya decía la v1 con la figura de hipótesis tecnológica de García-Córdoba (p.~85).
+\item \textbf{Cinco objetivos específicos} en escalera (diagnosticar, fundamentar, desarrollar, verificar, validar) en lugar de siete; el desarrollo del motor, la interfaz, los módulos y la memoria se agrupan en OE3, porque la guía pide logros y no actividades, y el Cap.~2 ya los separa por secciones.
+\item \textbf{Guion de defensa} de la pregunta inevitable, en tres frases: qué se comprobó (motor verificado y contenido alineado con 67 expertos), qué se fundamentó (el efecto sobre la comprensión, con Lee, Bishay y Pérez-Santiago) y qué queda diseñado (la prueba de campo).
+\end{itemize}
+
+Si confirmás la alternativa 3 (o la 1), el paso siguiente es aplicarla sobre la v1 (no sobre la v3): siete archivos, las secciones listadas en la tabla de la alternativa, y la tabla del Anexo pegada en §3.6, recortada a los ítems del eje elegido. La v3 queda como archivo de referencia: de ella se rescatan la tabla de especificaciones y la matriz de principios, y se descarta el resto.
+
+\clearpage
+\section*{Anexo. Correspondencia entre EduFEM y los ítems del consenso de expertos}
+
+Ítems de Pérez-Santiago y Campos (2023), Tabla 1 (conceptos, p.~1162) y Tabla 2 (destrezas, p.~1163), que EduFEM expone, con el instrumento que los cubre. Es la columna de criterio externo de la tabla de especificaciones. Los ítems no cubiertos (3D, placas y cáscaras, térmico, CAD, tipos de análisis más allá del estático lineal) quedan fuera del alcance declarado de la tesis y se listan al pie para que el tribunal vea que no se ocultan.
+
+\begin{longtable}{L{1.5cm}L{6.0cm}L{5.4cm}L{2.5cm}}
+\toprule
+\textbf{Ítem} & \textbf{Enunciado (traducido)} & \textbf{Instrumento de EduFEM} & \textbf{Evidencia en la tesis} \\
+\midrule
+\endhead
+FEM2 & Ensamblar las rigideces elementales en la global, aplicar restricciones y resolver & M7 (ensamblaje, filas y columnas de $\bm{K}$ por elemento); memoria (caps. ensamblaje y solución) & §2.2.7; Anexo F \\
+FEM3 & Métodos alternativos (energía, variacional, residuos) para derivar la rigidez & Formulación débil del Cap.~1; memoria (formulación elemental) & §1.3 \\
+FEM8 & Formulación isoparamétrica de elementos 2D & M1 (mapeo), M2 (Jacobiano), M3 (matriz $\bm{B}$), M4 (matriz $\bm{D}$) & §2.2.7; Tabla 2.5 \\
+FEM9 & Integración numérica (cuadratura de Gauss) para evaluar tensiones en cualquier punto & M5 (rigidez por cuadratura, puntos de Gauss variables); sonda del post-proceso & §2.2.7; §2.2.8 \\
+FEA1 & Comprender objetivos y limitaciones del análisis & Tipo de análisis (tensión o deformación plana) y alcance declarado; validador de salud & §2.2.6 \\
+FEA2 & Selección de unidades & Sistema de unidades del proyecto; encabezados con unidades en CSV y memoria & §2.2.9 \\
+FEA4 & Efecto de la incertidumbre en geometría, material, cargas y apoyos & Edición del modelo con deshacer y rehacer; M4 ($\nu \to 0{,}5$) & §2.2.6 \\
+FEA11 & Crear y asignar materiales propios & Biblioteca de materiales del proyecto & §2.2.6 \\
+FEA12 & Influencia de las propiedades del material en la exactitud & M4; invariancia de tensiones ante $E$ (Timoshenko) & §3.4 \\
+FEA13 & Selección del tipo de elemento & Conversión Q4 $\leftrightarrow$ Q9 & §2.2.6; §3.5 \\
+FEA14 & Definición del tamaño de elemento & Refinamiento manual; casos con $N$ de 2 a 32 & §3.2; §3.5 \\
+FEA15 & Efecto de la relación de aspecto y la distorsión en la exactitud & M0 (calidad de malla en vivo); M2 ($\det\bm{J}$); MMS distorsionado & §2.2.6; §3.2 \\
+FEA16 & Efecto del orden del elemento en la exactitud & Cook Q4 frente a Q9 a igual GDL & §3.5 \\
+FEA17 & Refinamiento y convergencia de malla & Tasas MMS; curvas de convergencia & §3.2; Fig.~3.1 \\
+FEA18 & Refinar en zonas de concentración de tensiones & Cook (esquinas empotradas) & §3.5 \\
+FEA20 & Aplicación de cargas estructurales & Cargas nodales, superficiales y de volumen; M6 (fuerzas equivalentes) & §2.2.6; §2.2.7 \\
+FEA24 & Mínimo de restricciones en un cuerpo & Validador de salud (movimientos de cuerpo rígido) & §2.2.6 \\
+FEA26 & Presentar resultados de desplazamiento y tensión & Contornos, isolíneas, vista 3D, tabla de resultados & §2.2.8 \\
+FEA27 & Diferencia entre tensiones nodales y elementales & Sonda en modo crudo y suavizado; vista 3D cruda y suavizada & §2.2.8 \\
+FEA28 & Deformada escalada & Deformada con factor de escala & §2.2.8 \\
+FEA29 & Visualizar el efecto de las cargas y compararlo con los resultados & Lienzo único: pre-proceso, proceso y post-proceso sobre el mismo modelo & §3.6; Fig.~3.5 \\
+FEA30 & Prueba de convergencia refinando hasta una diferencia dada & Secuencias MMS y Cook; extrapolación de Richardson & §3.2; §3.5 \\
+FEA31 & Definición de la tensión de von Mises & Contorno y sonda de von Mises; círculo de Mohr & §2.2.8 \\
+FEA32 & Revisar tensiones para decidir el refinamiento & Modo crudo frente a suavizado; $\kappa_2$ en la memoria & §2.2.8; §2.2.9 \\
+FEA33 & Comparar reacciones con las cargas aplicadas & Reacciones en el post-proceso; verificación de equilibrio en la memoria & §2.2.8; §3.4 \\
+FEA34 & Correlacionar con ensayos o referencias & Contraste con solución analítica y SAP2000 & §3.4 \\
+\bottomrule
+\end{longtable}
+
+Fuera del alcance de EduFEM, declarados: FEM1, FEM4 (resorte y barra: análisis matricial de barras), FEM5--FEM7 (vigas y axisimétrico), FEM10--FEM15 (3D, placas y cáscaras, térmico), FEA3, FEA6--FEA10 (CAD, simetría, biblioteca de materiales del fabricante), FEA19, FEA21--FEA23, FEA25, y todos los tipos de análisis TYPE1--TYPE7 (modal, pandeo, fatiga, no lineal, dinámico, térmico). Coinciden con las limitaciones que la Introducción ya declara.
+
+\end{document}

@@ -35,6 +35,10 @@
 # Si queres versionar el PDF final, comenta estas lineas.
 main.pdf
 main_v2.pdf
+main_v3.pdf
+main_v4.pdf
+compile_v4.txt
+compile_v3.txt
 
 # Copias de seguridad y temporales de editores
 *.bak

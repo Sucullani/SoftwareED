@@ -1611,6 +1611,22 @@
     "pasaje_textual": "Acknowledgements — The development of ED-Elas2D has been partially funded by the EC programmes COMETT and Leonardo da Vinci. The authors are also grateful to the International Centre for Numerical Methods in Engineering of Barcelona for the support in the development of this project. [Y en REFERENCES: «[1] ED-ElAs2D (1996) Educational Program for the Analysis of 2D Solids Using the Finite Element Method (Barcelona, CIMNE).»]",
     "respalda": "PARCIAL",
     "comentario": "El artículo no declara licencia alguna, ni «cerrado», ni «propietario», ni «código abierto». Lo único impreso es el origen académico/institucional (UPC, CIMNE, financiación COMETT y Leonardo da Vinci) y que se distribuye como producto de CIMNE. «Académico» es una inferencia razonable de esa procedencia; «cerrado» es una inferencia del silencio (no hay mención de disponibilidad del código) y no está sostenida por ningún pasaje."
+   },
+   {
+    "afirmacion_tesis": "01_introduccion (Planteamiento): con los programas comerciales el estudiante queda limitado a introducir los datos e interpretar los resultados, sin acceso a los detalles del analisis. \\autocite[p.~246]{suarez1998edelas2d}",
+    "pagina_impresa": "246",
+    "pagina_pdf": "5",
+    "pasaje_textual": "On the other hand, there are many FEM commercial programs which can be used as a base for computer tutorials. The main difficulty of these programs is the lack of transparency to be used as a fully teacher environment. In many cases, these commercial programs operate like a blackbox and therefore the student is practically limited to the introduction of the problem data and the interpretation of the results and has no access to the details of the analysis.",
+    "respalda": "SI",
+    "comentario": "Pagina escaneada sin capa de texto: pasaje transcrito de la imagen (p. 246, parrafo bajo la Fig. 6). No se puede resaltar; recibe nota anclada."
+   },
+   {
+    "afirmacion_tesis": "02_marco_teorico §1.1 y tab:comparativa: los propios autores reconocen que el post-proceso de ED-Elas2D no explica conceptos clave como el suavizado nodal y es una herramienta meramente descriptiva. \\autocite[p.~253]{suarez1998edelas2d}",
+    "pagina_impresa": "253",
+    "pagina_pdf": "12",
+    "pasaje_textual": "The post-processing module, however, does not explain key concepts such as the nodal smoothing of stresses and strains. It is therefore a mere descriptive tool which simply provides visual information on the main results of the structural analysis.",
+    "respalda": "SI",
+    "comentario": "Pagina escaneada sin capa de texto: pasaje transcrito de la imagen (p. 253, parrafo previo a '3. Conclusions'). No se puede resaltar; recibe nota anclada."
    }
   ],
   "sin_respaldo": "Ninguna de las tres citas del .tex lleva localizador (`\\autocite{suarez1998edelas2d}` sin `[p.~NN]`), así que no hubo páginas declaradas que comprobar; las páginas de esta tabla son las que localicé yo.\n\nAfirmaciones sin respaldo localizable, o con respaldo solo indirecto, en esta fuente:\n\n1. «disponible en español» / «comparte [...] también el idioma» (02_marco_teorico.tex:13) y la celda «Idioma: Español» de la tabla (02_marco_teorico.tex:28) — el artículo, escrito íntegramente en inglés, no dice en ninguna parte que el programa esté en español. Solo se ve castellano en tres detalles de capturas (barra del visor de ayuda de Windows en p. 246; «Puntos de Gauss 1» en p. 249; «Nivel3» en el título de ventana de p. 253), mientras que los menús del pre y post-proceso y el índice teórico aparecen en inglés. Marcado PARCIAL arriba: la afirmación tal como está escrita («disponible en español», sin matices) excede lo que el artículo sostiene.\n\n2. «software académico cerrado» y la celda «Licencia: Académico» (02_marco_teorico.tex:13, :28, :30) — no hay ningún pasaje sobre licencia, distribución, precio ni disponibilidad del código fuente. Solo consta la filiación UPC/CIMNE y la financiación COMETT y Leonardo da Vinci (agradecimientos, p. 254). Marcado PARCIAL: «académico» se infiere de la procedencia, «cerrado» no tiene respaldo textual.\n\n3. Nota metodológica sobre el PDF: solo las páginas PDF 1, 2 y 13 tienen capa de texto (páginas impresas 243 y 254). Las páginas PDF 3-12 (impresas 244-253) son escaneo sin OCR y se leyeron como imagen. El desfase impreso = PDF + 241 se verificó en dos extremos (PDF 2 → «243», PDF 13 → «254») y en cada encabezado intermedio leído."
@@ -1832,8 +1848,162 @@
     "pasaje_textual": "This would allow the student to connect the theoretical fundamentals with the operation of FEA codes while the time required for alternative approaches, like potential energy and virtual work, may be allocated to other topics.",
     "respalda": "SI",
     "comentario": "Es la frase que mejor justifica el diseno de EduFEM: exponer el canal de calculo para unir fundamento y operacion."
+   },
+   {
+    "afirmacion_tesis": "01_introduccion (Planteamiento): una encuesta profesional recogida por el articulo muestra que solo el 31 % de los ingenieros se considera conocedor del analisis por elementos finitos. \\autocite[p.~1160]{perezsantiago2023fem}",
+    "pagina_impresa": "1160",
+    "pagina_pdf": "2",
+    "pasaje_textual": "However, the same study reveals that only 31% of the respondents consider themselves “knowledgeable” about FEA, suggesting the need to strengthen FEM education in undergraduate engineering studies. In Mechanical Engineering (ME) programs, FEM education must prepare the students for their proficiency and adequate use in structural and machine design activities. Several factors may impact the course outline, like the a",
+    "respalda": "SI",
+    "comentario": "'only 31% of the respondents consider themselves \"knowledgeable\" about FEA' (encuesta de la ASME, ref. 4 del articulo). Es dato de segunda mano: la tesis lo dice asi."
+   },
+   {
+    "afirmacion_tesis": "01_introduccion, 02_marco_teorico §1.2 (cuarto principio) y 02b §2.1.4: el consenso enumera 15 conceptos teoricos (Tabla 1) y 34 destrezas practicas (Tabla 2), de las que la tesis toma el universo de contenido. \\autocite[pp.~1162-1163]{perezsantiago2023fem}",
+    "pagina_impresa": "1162-1163",
+    "pagina_pdf": "4-5",
+    "pasaje_textual": "DFEA4: Meshing FEA13—Selection of elements (1D, 2D, etc.) FEA14—Definition of element size FEA15—Understanding the impact of element aspect ratio and distortion in the solution accuracy FEA16—Understanding the impact of element order on the solution accuracy FEA17—Understanding mesh refinement and mesh density convergence FEA18—Refining the mesh at stress concentration or high‐stress gradient regions DFEA5: BC FEA19—",
+    "respalda": "SI",
+    "comentario": "Tabla 2, bloque de mallado (FEA13-FEA18); en la misma tabla estan post-proceso (FEA26-28), conceptos fundamentales (FEA29-31) y V&V (FEA32-34). La Tabla 1 (p. 1162) trae FEM2, FEM8 y FEM9."
+   },
+   {
+    "afirmacion_tesis": "02b §2.1.4 y 04 §3.7: las dimensiones de planificacion, mallado y V&V son las que el consenso califica mas alto. \\autocite[p.~1168]{perezsantiago2023fem}",
+    "pagina_impresa": "1168",
+    "pagina_pdf": "10",
+    "pasaje_textual": "FEA1—Planning 449 5 90 FEA4—Meshing 521 6 87 FEA8—V&V 251 3 84 FEA2—Modeling and defeaturing 328 4 82 FEA3—Materials 246 3 82 FEA7—Concepts 246 3 82 FEA5—BC 552 7 79 FEA6—Postprocessing 236 3 79 Abbreviations: BC, Boundary Conditions; FEA, Finite Element Analysis; V&V, Verification and Validation. FIGURE 5 Frequency percentage for all items of the type category. 1168 | PEREZ‐SANTIAGO and CAMPOS 10990542, 2023, 5, Dow",
+    "respalda": "SI",
+    "comentario": "Tabla 8: Planning 90, Meshing 87, V&V 84, Modeling 82, Materials 82, Concepts 82, BC 79, Postprocessing 79 (ratio de acuerdo)."
+   },
+   {
+    "afirmacion_tesis": "01_introduccion (Planteamiento): el egresado debe aprender a planificar, verificar y validar sus estudios (conclusion 3). \\autocite[p.~1171]{perezsantiago2023fem}",
+    "pagina_impresa": "1171",
+    "pagina_pdf": "13",
+    "pasaje_textual": "Specialists have confirmed that practical FEA com- petencies should be included in the FEM course content. Besides the generally accepted stages of modeling to postprocessing, engineers must learn how to plan, verify, and validate their FEA studies. (4) The historical focus of FEM‐related courses on linear static problems is justified by its predominance in structural design. Nevertheless, procedures to ana- lyze mod",
+    "respalda": "SI",
+    "comentario": "Conclusion (3): 'engineers must learn how to plan, verify, and validate their FEA studies'."
+   },
+   {
+    "afirmacion_tesis": "02b §2.1.5: el propio estudio declara que sus resultados no son generalizables a otros contextos geograficos. \\autocite[p.~1171]{perezsantiago2023fem}",
+    "pagina_impresa": "1171",
+    "pagina_pdf": "13",
+    "pasaje_textual": "the results of this work may not be generalized to other geographical contexts because the industry's needs may vary from country to country. Despite these limitations, the findings from this study should benefit the design of FEM‐related courses and offer guidance to course instructors about the four surveyed aspects. At the authors' university, the traditional 16‐week FEM course evolved into the gradual exposition ",
+    "respalda": "SI",
+    "comentario": "Limitaciones del estudio: 'may not be generalized to other geographical contexts because the industry's needs may vary from country to country'."
    }
   ],
   "sin_respaldo": "La afirmacion de que la carencia conceptual \"dificulta diagnosticar resultados anomalos o evaluar la calidad de una malla\" no aparece formulada asi en el articulo. Por eso la prosa se reescribio el 2026-09-09 a lo que la fuente si sostiene: que el egresado debe saber planificar, verificar y validar su analisis, no solo operarlo."
+ },
+ {
+  "clave": "rutten2012learning",
+  "id": {
+   "archivo": "Rutten et al 2012 - The Learning Effects of Computer Simulations in Science Education.pdf",
+   "clave_bib": "rutten2012learning",
+   "autores_reales": "Nico Rutten, Wouter R. van Joolingen, Jan T. van der Veen (University of Twente)",
+   "titulo_real": "The learning effects of computer simulations in science education",
+   "edicion_real": "",
+   "editorial_real": "Elsevier (Computers & Education 58(1):136-153)",
+   "ciudad_real": "",
+   "anio_real": "2012",
+   "isbn_real": "",
+   "veredicto": "COINCIDE",
+   "gravedad": "ninguna",
+   "campos_que_discrepan": "",
+   "notas": "Ejemplar completo del editor, con capa de texto. Folio impreso = pagina del PDF + 135 (la p.1 del PDF es la 136). DOI impreso: 10.1016/j.compedu.2011.07.017.",
+   "nombre_archivo_propuesto": "Rutten et al 2012 - The Learning Effects of Computer Simulations in Science Education.pdf"
+  },
+  "respaldos": [
+   {
+    "afirmacion_tesis": "01_introduccion (Justificacion) y 02_marco_teorico §1.2, primer principio: la revision de una decada de estudios cuasiexperimentales encuentra evidencia solida de que las simulaciones mejoran la instruccion tradicional, sobre todo en laboratorio, y que el efecto depende de como se visualiza la informacion y del apoyo instruccional. \\autocite[p.~136]{rutten2012learning}",
+    "pagina_impresa": "136",
+    "pagina_pdf": "1",
+    "pasaje_textual": "In particular, we consider the effects of variations in how information is visualized, how instructional support is provided, and how computer simulations are embedded within the lesson scenario. The reviewed literature provides robust evidence that computer simulations can enhance traditional instruction, especially as far as laboratory activities are concerned. However, in most of this research the use of computer ",
+    "respalda": "SI",
+    "comentario": "Resumen del articulo. Sostiene literalmente las tres afirmaciones: evidencia robusta, mejora de la instruccion tradicional (especialmente laboratorio) y dependencia de la visualizacion y del apoyo instruccional."
+   },
+   {
+    "afirmacion_tesis": "02_marco_teorico §1.2, primer principio: entre los resultados destacados esta el gran efecto de aprendizaje de visualizar fenomenos invisibles. \\autocite[p.~151]{rutten2012learning}",
+    "pagina_impresa": "151",
+    "pagina_pdf": "16",
+    "pasaje_textual": "There is one outstanding result: the visualization of invisible phenomena that was investigated by Trey and Khan (2008). A large learning effect on these unobservable phenomena was found, which is in line with one of the main advantages of computer simulation hypothesized by de Jong and colleagues (van Berkum & de Jong, 1991; van Joolingen & de Jong, 1991). With respect to the level of immersion in 3D simulations, no",
+    "respalda": "SI",
+    "comentario": "Seccion de discusion sobre representacion: 'A large learning effect on these unobservable phenomena was found' (Trey y Khan 2008). La tesis lo usa por analogia con las matrices intermedias y los fenomenos numericos del MEF; la analogia es del autor, no del articulo."
+   }
+  ],
+  "sin_respaldo": ""
+ },
+ {
+  "clave": "chi2014icap",
+  "id": {
+   "archivo": "Chi y Wylie 2014 - The ICAP Framework.pdf",
+   "clave_bib": "chi2014icap",
+   "autores_reales": "Michelene T. H. Chi, Ruth Wylie (Arizona State University)",
+   "titulo_real": "The ICAP Framework: Linking Cognitive Engagement to Active Learning Outcomes",
+   "edicion_real": "",
+   "editorial_real": "Routledge/Taylor & Francis (Educational Psychologist 49(4):219-243)",
+   "ciudad_real": "",
+   "anio_real": "2014",
+   "isbn_real": "",
+   "veredicto": "COINCIDE",
+   "gravedad": "ninguna",
+   "campos_que_discrepan": "",
+   "notas": "Ejemplar del editor con portada de descarga: la p.1 del PDF es la caratula de Taylor & Francis y la p.2 del PDF es la impresa 219 (folio = pagina del PDF + 217). DOI impreso: 10.1080/00461520.2014.965823.",
+   "nombre_archivo_propuesto": "Chi y Wylie 2014 - The ICAP Framework.pdf"
+  },
+  "respaldos": [
+   {
+    "afirmacion_tesis": "02_marco_teorico §1.2, segundo principio, y 04_resultados matriz de principios: el marco ICAP clasifica las conductas en pasivo, activo, constructivo e interactivo y postula que el aprendizaje crece al pasar de un modo al siguiente (I>C>A>P). \\autocite[p.~220]{chi2014icap}",
+    "pagina_impresa": "220",
+    "pagina_pdf": "3",
+    "pasaje_textual": "greater than the Con- structive mode, which is greater than the Active mode, which in turn is greater than the Passive mode (I>C>A>P). Thus, the ICAP hypothesis predicts different levels of learning for different modes of overt behaviors. Higher levels imply learning with deeper understanding. Although a preliminary version of this framework has been presented in the literature (Chi, 2009), this article expands the f",
+    "respalda": "SI",
+    "comentario": "Enunciado de la hipotesis ICAP: 'I>C>A>P ... predicts different levels of learning for different modes of overt behaviors'."
+   },
+   {
+    "afirmacion_tesis": "02_marco_teorico §1.2, segundo principio: lo constructivo exige que el alumno produzca algo nuevo con la informacion, no solo que la manipule. \\autocite[p.~222]{chi2014icap}",
+    "pagina_impresa": "222",
+    "pagina_pdf": "5",
+    "pasaje_textual": "Our taxonomy defines constructive behaviors as those in which learners generate or produce additional externalized outputs or products beyond what was provided in the learning materi- als. Thus, a characteristic descriptor of the constructive mode is generative. To meet the criteria for constructive, the outputs of generative behaviors should contain new ideas that go beyond the information given; otherwise such beha",
+    "respalda": "SI",
+    "comentario": "Definicion del modo constructivo: 'learners generate or produce additional externalized outputs or products beyond what was provided'; si no van mas alla de lo dado 'such behaviors are merely active/manipulative'. Que juzgar una respuesta del MEF sea una conducta constructiva es inferencia del autor a partir de esta definicion."
+   }
+  ],
+  "sin_respaldo": ""
+ },
+ {
+  "clave": "atkinson2000learning",
+  "id": {
+   "archivo": "Atkinson et al 2000 - Learning from Examples.pdf",
+   "clave_bib": "atkinson2000learning",
+   "autores_reales": "Robert K. Atkinson, Sharon J. Derry, Alexander Renkl, Donald Wortham",
+   "titulo_real": "Learning from Examples: Instructional Principles from the Worked Examples Research",
+   "edicion_real": "",
+   "editorial_real": "American Educational Research Association (Review of Educational Research 70(2):181-214)",
+   "ciudad_real": "",
+   "anio_real": "2000",
+   "isbn_real": "",
+   "veredicto": "COINCIDE",
+   "gravedad": "ninguna",
+   "campos_que_discrepan": "",
+   "notas": "Ejemplar de JSTOR con capa de texto (OCR). Folio impreso = pagina del PDF + 180 (la p.1 del PDF es la 181). El DOI del .bib (10.3102/00346543070002181) no esta impreso en el ejemplar; se tomo del registro de SAGE.",
+   "nombre_archivo_propuesto": "Atkinson et al 2000 - Learning from Examples.pdf"
+  },
+  "respaldos": [
+   {
+    "afirmacion_tesis": "02_marco_teorico §1.2, tercer principio, y 04_resultados matriz de principios: un ejemplo resuelto es la solucion de un experto que el alumno estudia; los ejemplos eficaces tienen componentes integrados, estructura rotulada o segmentada y varios ejemplos por tipo de problema. \\autocite[p.~181]{atkinson2000learning}",
+    "pagina_impresa": "181",
+    "pagina_pdf": "1",
+    "pasaje_textual": "Worked examples are instructional devices that provide an expert's problem solution for a learner to study. Worked-examples research is a cognitive-experimental program that has relevance to classroom in- struction and the broader educational research community. A frame- work for organizing the findings of this research is proposed, leading to instructional design principles. For instance, one instructional de- sign ",
+    "respalda": "SI",
+    "comentario": "Resumen del articulo: definicion y principios de diseno (integracion, multiples modalidades, rotulado o segmentacion, varios ejemplos por tipo, variacion de formato)."
+   },
+   {
+    "afirmacion_tesis": "02_marco_teorico §1.2, tercer principio: separar el texto de la figura o de las ecuaciones divide la atencion y perjudica el aprendizaje. \\autocite[p.~187]{atkinson2000learning}",
+    "pagina_impresa": "187",
+    "pagina_pdf": "7",
+    "pasaje_textual": "the split-attention effect and hypothesized that it interfered with the student's acquisition of schemas representing the basic domain concepts and principles that students should learn from examples. Tarmizi and Sweller (1988) further hypothesized that requiring students to split their attention between multiple sources of information during example- based geometry instruction would decrease subsequent problem-solvi",
+    "respalda": "SI",
+    "comentario": "Seccion 'Integrating Text and Diagrams': efecto de atencion dividida (Tarmizi y Sweller 1988) e hipotesis de que interfiere con la adquisicion de esquemas."
+   }
+  ],
+  "sin_respaldo": ""
  }
 ]
