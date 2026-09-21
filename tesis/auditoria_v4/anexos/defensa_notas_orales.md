@@ -1,0 +1,20 @@
+## Lo que conviene responder de palabra y NO escribir en la tesis
+
+| Pregunta | Respuesta oral | Por qué no va al texto |
+|---|---|---|
+| ¿Por qué una hipótesis sobre estudiantes si no midió a ninguno? | «El molde de investigación de la carrera exige formular el problema en términos del efecto sobre el estudiante. El trabajo respeta ese molde y, a la vez, declara con precisión qué parte contrasta y qué parte deja diseñada. Lo que se comprobó es lo que se podía comprobar sobre el artefacto.» | Escribir que el molde institucional obliga a la formulación puede leerse como crítica al reglamento; de palabra es una explicación, por escrito es un conflicto. |
+| ¿Quién validó el contenido? | «El universo no lo fijé yo: lo fija un consenso publicado de 67 expertos. Lo que hice fue cruzarlo con el software con una regla de marcado explícita. No sustituye a un panel propio, y así está declarado en tres lugares del documento.» | El texto ya declara la limitación; insistir por escrito la agranda. |
+| ¿Qué prueba un 18/18 autoevaluado? | «Prueba trazabilidad, no suficiencia: que ninguna destreza exigida se quedó sin un lugar del software donde se ejercite, y que el lector puede ir de cada una a la función concreta. La suficiencia la mide la prueba de campo.» | Conviene que esta distinción sí entre al texto (hallazgo 6); la versión oral es el resumen de esa frase. |
+| ¿Usó inteligencia artificial? | Responder sin rodeos qué se usó y para qué, y remitir a la batería de V&V: la corrección del código no depende de quién lo escribió sino de que cualquiera pueda reejecutar las pruebas. | La declaración escrita debe ser breve y formal (hallazgo 14); el detalle del flujo de trabajo es conversación, no documento. |
+| ¿Y si la prueba de campo lo refuta? | «Quedan en pie el artefacto verificado, la cobertura de contenido y los dos instrumentos; caería la atribución del efecto. Un resultado negativo sería informativo: las celdas de la tabla indican qué instrumento revisar.» | Escribir en la tesis un escenario de refutación de la propia propuesta debilita el cierre sin añadir información. |
+| ¿Las versiones académicas gratuitas no desmontan el argumento del costo? | Conceder de inmediato y reconducir: el motivo es la opacidad y la ausencia de propósito didáctico, no el precio. | Basta con no apoyarse en el costo; discutir licencias comerciales en el texto envejece mal. |
+| ¿No existe ninguna herramienta así? | «Dentro del alcance de mi revisión, no encontré ninguna que reúna el conjunto completo de atributos.» Si nombran un contraejemplo, concederlo y volver al conjunto simultáneo. | La acotación sí debe entrar al texto (hallazgo 12); la concesión ante un contraejemplo concreto es cuestión de oficio en sala. |
+| ¿Por qué Python? | Gratuidad para el alumno, un solo lenguaje para el motor y la interfaz, instalador autónomo sin intérprete, ecosistema numérico maduro. | Una frase en la justificación basta (pregunta 20); el resto es defensa oral. |
+
+## Preparación material para la sesión
+
+1. **Correr en vivo uno de los guiones de V&V** (`tests/vv_cook.py` o `tests/vv_mms.py`) desde el equipo de la defensa: responde de una vez las preguntas de reproducibilidad, de determinismo y de confianza en el motor.
+2. **Llevar el instalador y el archivo del modelo de SAP2000**, y tener abierto el ejemplo canónico con un módulo desplegado y la memoria de cálculo generada.
+3. **Tener a mano las tres cifras clave** para no dudar: 0,04 % en la tensión normal y 0,26 % en la flecha frente al analítico; 0,21 % y 0,56 % frente a SAP2000; trece veces menos error del Q9 a igualdad de grados de libertad.
+4. **Preparar la respuesta de treinta segundos** a «¿qué aporta frente a ED-Elas2D?» y a «¿para qué sirve en ingeniería civil?»: son las dos preguntas con mayor probabilidad de aparecer y las que más rápido fijan la impresión del tribunal.
+5. **Nombrar la asignatura y su semestre** antes de la defensa: es el único dato de la tesis que un tribunal de la propia carrera puede corregir de memoria.

@@ -1,0 +1,88 @@
+% Preambulo del PLAN-CORRECCION (XeLaTeX). Pensado para imprimir en A4, a una cara o a doble cara.
+\documentclass[10pt,a4paper]{article}
+\usepackage[a4paper,top=2.3cm,bottom=2.4cm,left=2.2cm,right=2.2cm,headsep=0.7cm,footskip=1.0cm]{geometry}
+\usepackage{fontspec}
+\setmainfont{Palatino Linotype}[Ligatures=TeX,Numbers=Lining]
+\setsansfont{Segoe UI}[Ligatures=TeX,Scale=0.92,BoldFont={Segoe UI Semibold}]
+\setmonofont{Consolas}[Scale=0.88]
+\newfontfamily\simbolos{Segoe UI Symbol}[Scale=0.9]
+\newfontfamily\mates{Cambria Math}[Scale=0.95]
+\usepackage[spanish,es-tabla,es-nodecimaldot]{babel}
+\usepackage{xcolor}
+\usepackage{array,booktabs,longtable,tabularx,multirow}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{ragged2e}
+\usepackage{needspace}
+\usepackage[most]{tcolorbox}
+\usepackage[hidelinks,bookmarksnumbered]{hyperref}
+\hypersetup{pdftitle={Plan de corrección — Tesis EduFEM (main\_v4)},pdfauthor={Auditoría de redacción, 2026-09-20}}
+
+% ---------- color: sobrio, imprime bien en escala de grises ----------
+\definecolor{tinta}{HTML}{1B1F24}
+\definecolor{gris}{HTML}{5A6470}
+\definecolor{grisclaro}{HTML}{E9ECEF}
+\definecolor{papel}{HTML}{F6F7F8}
+\definecolor{critica}{HTML}{9B1C1C}
+\definecolor{alta}{HTML}{B45309}
+\definecolor{media}{HTML}{1D4E89}
+\definecolor{baja}{HTML}{4B5563}
+\definecolor{verde}{HTML}{1F6F43}
+\color{tinta}
+
+% ---------- parrafos ----------
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{4.5pt plus 1pt minus 1pt}
+\linespread{1.06}
+\emergencystretch=2em
+\tolerance=1200
+\hyphenpenalty=600
+\widowpenalty=10000
+\clubpenalty=10000
+\raggedbottom
+
+% ---------- titulos ----------
+\titleformat{\section}{\sffamily\bfseries\LARGE\color{tinta}}{\thesection}{0.7em}{}[\vspace{2pt}{\color{tinta}\titlerule[1.2pt]}]
+\titleformat{\subsection}{\sffamily\bfseries\large\color{tinta}}{\thesubsection}{0.6em}{}
+\titleformat{\subsubsection}{\sffamily\bfseries\normalsize\color{gris}}{\thesubsubsection}{0.6em}{}
+\titlespacing*{\section}{0pt}{18pt plus 4pt}{10pt}
+\titlespacing*{\subsection}{0pt}{14pt plus 3pt}{5pt}
+\titlespacing*{\subsubsection}{0pt}{10pt plus 2pt}{3pt}
+
+% ---------- cabecera y pie ----------
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0pt}
+\fancyhead[L]{\sffamily\footnotesize\color{gris}Plan de corrección · Tesis EduFEM (main\_v4.pdf)}
+\fancyhead[R]{\sffamily\footnotesize\color{gris}\nouppercase{\leftmark}}
+\fancyfoot[C]{\sffamily\footnotesize\color{gris}\thepage}
+\renewcommand{\sectionmark}[1]{\markboth{#1}{}}
+
+% ---------- listas ----------
+\setlist{leftmargin=1.4em,itemsep=2pt,topsep=3pt,parsep=0pt}
+
+% ---------- piezas ----------
+\newcommand{\chip}[2]{{\sffamily\bfseries\footnotesize\color{#1}\MakeUppercase{#2}}}
+\newcommand{\casilla}{{\simbolos\char"2610}\hspace{0.35em}}
+\newcommand{\rotulo}[1]{{\sffamily\bfseries\footnotesize\color{gris}#1}\hspace{0.4em}}
+\newcommand{\cita}[1]{{\itshape «#1»}}
+
+% ficha de hallazgo: #1 color, #2 cabecera (ID, severidad, ubicacion, esfuerzo)
+\newtcolorbox{ficha}[2]{enhanced,breakable,colback=white,colframe=#1,boxrule=0pt,leftrule=2.6pt,
+  arc=0pt,outer arc=0pt,left=8pt,right=4pt,top=3pt,bottom=4pt,before skip=9pt,after skip=9pt,
+  title={#2},coltitle=tinta,colbacktitle=papel,fonttitle=\sffamily\small,toptitle=3pt,bottomtitle=3pt,
+  titlerule=0pt,pad at break=2mm,before upper={\setlength{\parskip}{3.5pt}\small}}
+
+% par «dice / debe decir» de la seccion de calibracion
+\newtcolorbox{dice}{enhanced,breakable,colback=papel,colframe=grisclaro,boxrule=0.4pt,arc=1.5pt,
+  left=6pt,right=6pt,top=4pt,bottom=4pt,before skip=3pt,after skip=2pt,fontupper=\small}
+\newtcolorbox{debedecir}{enhanced,breakable,colback=white,colframe=verde,boxrule=0.6pt,arc=1.5pt,
+  left=6pt,right=6pt,top=4pt,bottom=4pt,before skip=2pt,after skip=8pt,fontupper=\small}
+\newtcolorbox{recuadro}[1]{enhanced,breakable,colback=papel,colframe=tinta,boxrule=0.6pt,arc=1.5pt,
+  left=8pt,right=8pt,top=6pt,bottom=6pt,before skip=8pt,after skip=10pt,title={#1},
+  fonttitle=\sffamily\bfseries\small,coltitle=white,colbacktitle=tinta}
+
+\newcolumntype{L}[1]{>{\RaggedRight\arraybackslash\small}p{#1}}
+\newcolumntype{Y}{>{\RaggedRight\arraybackslash\small}X}

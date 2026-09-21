@@ -49,6 +49,10 @@ El gate que toda sesión debe pasar antes de pushear es `python -m tests.run_gat
   auditoría técnica del repositorio.
 - [2026-06-10_revision_tesis.md](auditorias/2026-06-10_revision_tesis.md) — revisión de la
   tesis estilo tribunal.
+- [../tesis/auditoria_v4/](../tesis/auditoria_v4/) — auditoría de **redacción** de la tesis v4
+  (2026-09-20): `AUDITORIA-REDACCION.md` (diagnóstico, hallazgos con ID estable) y
+  `PLAN-CORRECCION.pdf` (plan para corregir, compuesto para imprimir). Vive junto a la tesis
+  porque se trabaja con ella al lado.
 - [historico/](auditorias/historico/) — informes superados, conservados como referencia.
 
 ## Teoría — [teoria/](teoria/)

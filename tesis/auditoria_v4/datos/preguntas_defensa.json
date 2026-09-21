@@ -1,0 +1,364 @@
+{
+  "preguntas": [
+    {
+      "n": 1,
+      "pregunta": "Su hipótesis afirma que la exposición del canal de cálculo mejorará el criterio de los estudiantes, y su objetivo general termina diciendo «para mejorar el criterio de los estudiantes de ingeniería civil». ¿A cuántos estudiantes midió?",
+      "quien": "M1 metodologia",
+      "por_que": "Es la contradicción visible entre el molde de investigación exigido y la naturaleza tecnológica del trabajo; ningún tribunal la deja pasar y suele ser la primera pregunta.",
+      "donde_responde": "Introducción, Hipótesis y preguntas de investigación, folios 6-7; 2.1.1, folio 38 («la unidad de análisis de esta etapa es el artefacto»); 3.8, folio 84; Conclusiones, folio 89",
+      "estado": "parcial",
+      "que_falta": "La respuesta está construida y es sólida, pero el objetivo general (folio 5) y el OE5 (folio 6) siguen prometiendo la mejora y el «potencial para formar criterio»: reformularlos como propiedades del artefacto (DEF-02) y suavizar el «queda comprobada» del Resumen, 3.8 y Conclusiones (DEF-04). De palabra, tres frases: qué se comprobó, qué no y dónde queda diseñado lo que falta.",
+      "severidad": "critica"
+    },
+    {
+      "n": 2,
+      "pregunta": "Usted parte de que los estudiantes de esta carrera tienen «bajo criterio» para interpretar la respuesta estructural. ¿De dónde sale ese diagnóstico? ¿Lo midió aquí?",
+      "quien": "M1 metodologia",
+      "por_que": "El problema científico afirma una condición de la población local; si la premisa no está sostenida, todo lo que sigue queda en el aire, y el tribunal de la propia casa de estudios está en posición de hacerla.",
+      "donde_responde": "Introducción, Planteamiento del problema, folio 2: se apoya en el consenso de expertos y en la encuesta de Pérez-Santiago y Campos, ambos externos; no hay ningún dato de la UATF en todo el documento",
+      "estado": "sin respuesta",
+      "que_falta": "El párrafo de DEF-01: declarar que el «bajo criterio» es una premisa tomada de la literatura y del diagnóstico docente, no un dato medido, y que la preprueba de la prueba de campo lo establecería en la población concreta.",
+      "severidad": "critica"
+    },
+    {
+      "n": 3,
+      "pregunta": "Usted cuenta que encontró un error en la matriz de extrapolación que su batería de convergencia no detectó, y luego concluye que el motor está «libre de errores de orden». ¿En qué quedamos?",
+      "quien": "M3 numerico-pedagogico",
+      "por_que": "La honestidad del relato del defecto es un punto fuerte del trabajo, pero el verbo absoluto de las Conclusiones lo convierte en munición contra toda la verificación.",
+      "donde_responde": "3.7.1, folio 79 («no lo delataron las normas de desplazamiento sino la inspección de la memoria de cálculo»); Conclusiones, folio 88",
+      "estado": "parcial",
+      "que_falta": "Reformular el cierre de las Conclusiones (DEF-03). De palabra: la verificación prueba la ausencia de una clase de errores, y el trabajo demuestra madurez al mostrar el límite de su propia batería y la prueba que se añadió para cubrirlo.",
+      "severidad": "critica"
+    },
+    {
+      "n": 4,
+      "pregunta": "¿Cuál es exactamente su variable dependiente y cómo puede medirla en un programa de computadora si la definió como una capacidad del estudiante?",
+      "quien": "M1 metodologia",
+      "por_que": "Es la objeción técnica de metodología detrás de la primera pregunta: observar la variable dependiente en el artefacto parece sustituirla por un subrogado.",
+      "donde_responde": "2.1.2 Variables e indicadores y Tabla 2.1, folios 39-40; medición de los datos, folio 75",
+      "estado": "parcial",
+      "que_falta": "La tabla lo resuelve, pero el texto no lo defiende: añadir el párrafo de DEF-11, con la distinción entre validez de contenido como condición necesaria y criterio logrado como magnitud que solo se mide en el estudiante.",
+      "severidad": "alta"
+    },
+    {
+      "n": 5,
+      "pregunta": "Su tabla de especificaciones da dieciocho de dieciocho. Si usted elige el universo, elige el instrumento y pone la marca, ¿qué prueba ese resultado?",
+      "quien": "M3 numerico-pedagogico",
+      "por_que": "Un resultado perfecto autoevaluado con criterio binario despierta sospecha inmediata; es la pregunta incómoda por excelencia sobre la cláusula (c).",
+      "donde_responde": "3.7.2, folio 77 («la cobertura no es uniforme y conviene decirlo»); 2.1.6, folio 46, donde se fija el criterio «al menos un instrumento identificable»",
+      "estado": "parcial",
+      "que_falta": "Decir en el texto qué prueba y qué no prueba el 18/18 (DEF-20): es cobertura y trazabilidad, no suficiencia ni profundidad. De palabra, subrayar que el universo no lo fijó el autor sino el consenso publicado, y ahí está la parte que no es autoevaluación.",
+      "severidad": "alta"
+    },
+    {
+      "n": 6,
+      "pregunta": "¿Quién validó el contenido de su software? ¿Hubo un panel de expertos, jueces, docentes de la materia?",
+      "quien": "M1 metodologia",
+      "por_que": "La validez de contenido es el pilar de la tercera cláusula y en la práctica académica se espera un juicio de expertos; aquí no hay panel propio.",
+      "donde_responde": "2.1.5, folios 45-46 («el criterio externo es el consenso publicado de expertos, que hace las veces de juicio de expertos sin panel propio»; «su limitación, que se declara, es que las construye el autor»); Limitaciones, folio 91",
+      "estado": "parcial",
+      "que_falta": "Está declarado pero no procedimentado: falta la regla de marcado de las celdas (DEF-15). De palabra, ofrecer un ejemplo de celda que quedaría vacía con esa regla y decir que el consenso publicado aporta el criterio externo que el autor no podía darse a sí mismo.",
+      "severidad": "alta"
+    },
+    {
+      "n": 7,
+      "pregunta": "Sus 67 expertos son mexicanos y de ingeniería mecánica, y el propio estudio dice que no son generalizables. ¿Por qué valen para ingeniería civil en Bolivia?",
+      "quien": "M1 metodologia",
+      "por_que": "Es el único criterio externo del trabajo y su limitación la declara la propia fuente; el argumento de universalidad que la tesis opone es hoy una aserción del autor sin respaldo.",
+      "donde_responde": "2.1.5, folio 45 («se acota porque los ítems que se toman son contenido universal del método»); 2.1.4, folio 42",
+      "estado": "parcial",
+      "que_falta": "Sostener la universalidad con las dos vías de DEF-05 —los ítems tomados son operaciones del método respaldadas por los textos clásicos, y los ítems dependientes de contexto quedan fuera del universo— y llevar la salvedad al Resumen, a la Introducción y a las Limitaciones. Reconocer que lo intrasladable es la ponderación, y que la tabla no pondera.",
+      "severidad": "alta"
+    },
+    {
+      "n": 8,
+      "pregunta": "Su criterio de aceptación exige menos del 1 % de error en la tensión normal, pero su propia tabla muestra 4,56 % en la componente transversal frente a SAP2000 y 2,89 % en el cortante. ¿No fijó el criterio sobre lo que sabía que iba a pasar?",
+      "quien": "M3 numerico-pedagogico",
+      "por_que": "Es la objeción más técnica y más dañina sobre la validación: sugiere que el umbral se recortó a la medida del resultado.",
+      "donde_responde": "2.1.6, folio 46, donde el criterio se fija solo sobre la tensión normal y la flecha; 3.6, folios 71-72, que reporta las componentes secundarias; 3.7.1, folio 80, que explica la diferencia de escala",
+      "estado": "parcial",
+      "que_falta": "Que el propio criterio diga por qué excluye las componentes secundarias (DEF-14). El argumento de escala existe, pero aparece después del dato y no antes, que es donde el tribunal lo necesita.",
+      "severidad": "alta"
+    },
+    {
+      "n": 9,
+      "pregunta": "La cota de 1,4 para la tasa del campo de tensiones, ¿la fijó antes o después de medir 1,54? ¿Y de dónde salen los demás umbrales?",
+      "quien": "M3 numerico-pedagogico",
+      "por_que": "Un umbral «empírico» apenas por debajo del valor obtenido es la firma de un criterio fijado a posteriori, y el documento insiste en que sus criterios son a priori.",
+      "donde_responde": "2.1.6, folio 46; 3.2, folio 63",
+      "estado": "parcial",
+      "que_falta": "Explicar la procedencia de los seis umbrales o degradar la cota a observación sin criterio de aceptación (DEF-13). De palabra, tener a mano el registro en el guion de V&V con su historial de versiones.",
+      "severidad": "alta"
+    },
+    {
+      "n": 10,
+      "pregunta": "Su tabla de síntesis dice «error máx.». ¿Máximo sobre qué? ¿Barrió todo el dominio o solo esos tres puntos?",
+      "quien": "M3 numerico-pedagogico",
+      "por_que": "El rótulo se lee como el error máximo del software en el caso, cuando es el máximo entre tres puntos elegidos sin criterio declarado; es una cifra que el tribunal citará.",
+      "donde_responde": "3.4, folio 68, tabla de puntos A, B y C; tabla de síntesis, folio 72",
+      "estado": "sin respuesta",
+      "que_falta": "Declarar el criterio de elección de los tres puntos, reportar el error máximo sobre todos los nodos o decir que no se calculó, y cambiar el rótulo de la tabla de síntesis (DEF-18).",
+      "severidad": "alta"
+    },
+    {
+      "n": 11,
+      "pregunta": "¿De dónde sale la partición del canal de cálculo en nueve etapas contra la que mide la cobertura de sus módulos?",
+      "quien": "M3 numerico-pedagogico",
+      "por_que": "Si la partición la fija el propio trabajo y a ella ajusta los módulos, el criterio de cobertura se mide contra su propio diseño y el siete de siete pierde valor probatorio.",
+      "donde_responde": "Cap. 3, cobertura del canal de cálculo, folio 75, y su eco en folio 78",
+      "estado": "sin respuesta",
+      "que_falta": "La frase de DEF-19: que la partición reproduce la secuencia con que la literatura de referencia presenta la formulación isoparamétrica, con cita y localizador, y que con ella se fijó el criterio en 2.1.6 antes de construir los módulos.",
+      "severidad": "alta"
+    },
+    {
+      "n": 12,
+      "pregunta": "Yo calculo pórticos y losas. Si su programa no hace pórticos, ni losas, ni tres dimensiones, ¿para qué me sirve en ingeniería civil?",
+      "quien": "M2 estructuralista",
+      "por_que": "Es la pregunta de pertinencia profesional y la más probable del miembro no especialista; el documento enumera con precisión lo que no hace y nunca lo que sí resuelve de la práctica civil.",
+      "donde_responde": "Introducción, Alcance y limitaciones, folios 8-9, con la justificación pedagógica del dominio plano; 3.6, folio 68, viga de hormigón; Limitaciones observadas, folio 85",
+      "estado": "parcial",
+      "que_falta": "La frase en positivo de DEF-07: vigas pared, ménsulas, regiones D, muros y, en deformación plana, presas, muros de contención y túneles. Y recordar que el propósito declarado es formativo, no productivo.",
+      "severidad": "alta"
+    },
+    {
+      "n": 13,
+      "pregunta": "¿Por qué solo Q4 y Q9? El programa de 1998 que usted cita como antecedente ya tenía triángulos, Q4, Q8 y Q9.",
+      "quien": "M2 estructuralista",
+      "por_que": "La comparación la introduce la propia tesis en su sección de antecedentes y queda sin responder, lo que da la impresión de un retroceso de veinticinco años.",
+      "donde_responde": "Introducción, Alcance, folio 8; 1.1, folio 14, biblioteca de ED-Elas2D; Recomendaciones, folio 93",
+      "estado": "parcial",
+      "que_falta": "El párrafo de DEF-08: la pareja mínima contrastante, por qué no el Q8 serendípito y por qué los triángulos pertenecen al mallado automático que esta versión no incorpora.",
+      "severidad": "alta"
+    },
+    {
+      "n": 14,
+      "pregunta": "Usted afirma que «no existe» un entorno con estas características. ¿Qué buscó, dónde y con qué criterio?",
+      "quien": "M3 numerico-pedagogico",
+      "por_que": "Una afirmación de inexistencia se derriba con un solo contraejemplo, y el documento no declara la estrategia de búsqueda que la acotaría.",
+      "donde_responde": "1.1, folios 15 y 17; la nota de la Tabla 1.1 acota «no consta» como límite de la revisión, pero el cierre generaliza a «no existe»",
+      "estado": "parcial",
+      "que_falta": "El párrafo de método de la revisión y el acotamiento del cierre (DEF-09). De palabra, si aparece un contraejemplo, conceder de inmediato y reconducir al conjunto simultáneo de atributos, que es donde el vacío se sostiene.",
+      "severidad": "alta"
+    },
+    {
+      "n": 15,
+      "pregunta": "¿Qué impide que el estudiante use EduFEM como otra caja negra, más lenta que SAP2000?",
+      "quien": "M3 numerico-pedagogico",
+      "por_que": "Es la objeción que desactiva el argumento central del trabajo desde dentro, y el documento no la anticipa en ningún punto.",
+      "donde_responde": "En ninguna parte de forma directa; lo más próximo es la consigna del tratamiento de la prueba de campo, folio 94",
+      "estado": "sin respuesta",
+      "que_falta": "El párrafo de limitaciones de DEF-22: la exposición es una posibilidad, no una obligación; el recorrido lo fija la consigna docente, y la memoria y los archivos de proyecto permiten verificar si se hizo.",
+      "severidad": "alta"
+    },
+    {
+      "n": 16,
+      "pregunta": "¿Nadie más que usted ha usado el programa? ¿Lo probó algún estudiante o algún docente? ¿Quién revisó su código?",
+      "quien": "M1 metodologia",
+      "por_que": "Es la pregunta que sigue naturalmente a «lo construyó y lo evaluó el autor», y hoy el documento no la contempla ni en los aportes ni en las limitaciones.",
+      "donde_responde": "Aportes, folio 90, y Limitaciones, folio 91, que declaran que las tablas las construye el autor pero no dicen nada sobre uso o revisión por terceros",
+      "estado": "sin respuesta",
+      "que_falta": "Las dos frases de limitaciones de DEF-21. Si hay tiempo antes de la defensa, hacer que dos o tres compañeros instalen el programa y resuelvan el ejemplo canónico, y reportarlo en una línea: es la evidencia más barata disponible.",
+      "severidad": "alta"
+    },
+    {
+      "n": 17,
+      "pregunta": "¿Qué parte de este trabajo se hizo con asistencia de inteligencia artificial y cómo lo declara?",
+      "quien": "M1 metodologia",
+      "por_que": "Es hoy pregunta de rutina ante una tesis de software extenso hecha por una sola persona, y el documento no dice nada al respecto.",
+      "donde_responde": "En ninguna parte del documento",
+      "estado": "sin respuesta",
+      "que_falta": "La declaración de herramientas de DEF-06, en los términos que el reglamento de la carrera admita. De palabra: la responsabilidad intelectual del diseño, de la formulación y de la verificación es del autor, y la corrección del código no descansa en quién lo escribió sino en la batería de V&V que cualquiera puede reejecutar.",
+      "severidad": "alta"
+    },
+    {
+      "n": 18,
+      "pregunta": "¿Podemos reproducir sus resultados? ¿Qué versión exacta del programa produjo estas cifras?",
+      "quien": "M3 numerico-pedagogico",
+      "por_que": "La tesis hace de la reproducibilidad una de sus banderas; la pregunta es la comprobación natural de esa bandera.",
+      "donde_responde": "2.1.5, folio 46, determinismo del motor y guiones reejecutables; nota al pie del folio 4 con la dirección del repositorio; Anexo A, manual de instalación",
+      "estado": "parcial",
+      "que_falta": "Fijar versión, etiqueta y confirmación del repositorio (DEF-16). Para la defensa: llevar el instalador y una corrida en vivo de uno de los guiones de V&V, que responde la pregunta mejor que cualquier párrafo.",
+      "severidad": "alta"
+    },
+    {
+      "n": 19,
+      "pregunta": "¿Cómo se usaría esto en la cátedra? ¿Tiene una guía o una secuencia de prácticas para el docente?",
+      "quien": "M3 numerico-pedagogico",
+      "por_que": "Un software educativo se juzga por su insertabilidad en la asignatura; el tribunal querrá saber qué recibe el docente además del ejecutable.",
+      "donde_responde": "Recomendaciones, folio 94, dentro del tratamiento de la prueba de campo; Anexo B, manual de uso, folios 121 y siguientes",
+      "estado": "parcial",
+      "que_falta": "El ítem de guía de uso en la cátedra con tres prácticas (DEF-25). Hoy el manual enseña a operar el programa, no a enseñar con él.",
+      "severidad": "alta"
+    },
+    {
+      "n": 20,
+      "pregunta": "¿En qué asignatura, de qué semestre y con cuántos estudiantes se introduce el MEF en esta carrera? Su población dice «las asignaturas» y más adelante «la asignatura».",
+      "quien": "M1 metodologia",
+      "por_que": "Un tribunal de la propia casa de estudios detecta de inmediato que la población de su plan de estudios no está determinada, y la delimitación de la población es exigencia formal del marco metodológico.",
+      "donde_responde": "2.1.4 Población, universo de contenido y casos de estudio, folio 41; Recomendaciones, prueba de campo, folio 94",
+      "estado": "sin respuesta",
+      "que_falta": "Nombrar la asignatura con sigla, semestre y matrícula aproximada, en singular y de forma idéntica en 2.1.4 y en las recomendaciones (DEF-12).",
+      "severidad": "alta"
+    },
+    {
+      "n": 21,
+      "pregunta": "Su prueba de campo es de preprueba y posprueba con un solo grupo, sin hipótesis estadística ni criterio de éxito fijado de antemano. ¿Cómo atribuiría la ganancia a la exposición del canal, si es el mismo reparo que usted le hace a Lee?",
+      "quien": "M1 metodologia",
+      "por_que": "Todas las salvedades del trabajo remiten a esa prueba; si el diseño diferido está incompleto y adolece del defecto que la propia tesis critica, la estrategia de diferir la comprobación pierde fuerza.",
+      "donde_responde": "Recomendaciones, Prueba de campo, folio 94; 1.2, folio 18, donde se le reprocha a Lee la falta de grupo de control",
+      "estado": "parcial",
+      "que_falta": "Declarar preferente el diseño con grupo de comparación y reportar la limitación si solo hay un grupo (DEF-23), y completar el protocolo con hipótesis estadística, potencia, validación del instrumento, criterio de éxito a priori, ética y plazo (DEF-24).",
+      "severidad": "alta"
+    },
+    {
+      "n": 22,
+      "pregunta": "¿Por qué debo creerle a su motor con solo tres casos de prueba?",
+      "quien": "M3 numerico-pedagogico",
+      "por_que": "Tres casos parecen pocos para respaldar un programa completo; es la pregunta natural sobre la cláusula (b).",
+      "donde_responde": "2.1.4, folios 42-43, selección intencional por valor probatorio y cobertura de todos los términos del modelo matemático; 3.2 a 3.6, folios 62-74; Limitaciones, folios 92-93",
+      "estado": "respondida",
+      "que_falta": "Nada esencial. Subrayar de palabra que el método de soluciones manufacturadas no es «un caso» sino veinte corridas en cuatro configuraciones con solución exacta, y que la verificación de código se juzga por cobertura de términos, no por número de ejemplos.",
+      "severidad": "media"
+    },
+    {
+      "n": 23,
+      "pregunta": "Si ED-Elas2D ya hacía análisis de sólidos bidimensionales, en español y con pre, proceso y post, ¿qué aporta su trabajo?",
+      "quien": "M2 estructuralista",
+      "por_que": "El propio documento presenta un antecedente muy cercano; el tribunal querrá oír la diferencia en una frase.",
+      "donde_responde": "1.1, folios 14-15, con la diferencia declarada «no reside en la lengua sino en la concepción y la tecnología»; Tabla 1.1, folios 15-16; Aportes, folio 90",
+      "estado": "respondida",
+      "que_falta": "Nada. Llevar preparada la versión de una frase: exposición interactiva de cada matriz sobre el elemento del alumno, memoria de cálculo trazable y reproducible a mano, lectura de la respuesta con crudo y suavizado, reacciones y Mohr, y V&V publicada con la herramienta.",
+      "severidad": "media"
+    },
+    {
+      "n": 24,
+      "pregunta": "Usted dice «validación», pero no contrastó contra ningún ensayo físico. ¿Es correcto llamarlo validación?",
+      "quien": "M3 numerico-pedagogico",
+      "por_que": "Es la precisión terminológica que un docente de métodos numéricos suele exigir, y la tesis invoca la distinción de Oberkampf en la entradilla del capítulo y a renglón seguido titula dos secciones «Validación».",
+      "donde_responde": "Cap. 3, entradilla, folio 61; Conclusiones, folio 89 («la validación en sentido estricto, contra mediciones físicas, queda fuera del alcance»)",
+      "estado": "parcial",
+      "que_falta": "Llevar la acotación al punto de uso, en la entradilla del capítulo (DEF-30). De palabra: verificación es resolver bien las ecuaciones, validación es resolver las ecuaciones correctas, y aquí la referencia es una solución analítica de la teoría de la elasticidad y un programa comercial, no un ensayo.",
+      "severidad": "media"
+    },
+    {
+      "n": 25,
+      "pregunta": "SAP2000 resuelve ese modelo con cáscaras Mindlin-Reissner y usted con tensión plana. ¿Es legítimo comparar y llamar «error» a la diferencia? ¿Quién construyó ese modelo, con qué versión y con qué malla?",
+      "quien": "M2 estructuralista",
+      "por_que": "Es la referencia externa que el tribunal conoce de primera mano y la que puede auditar mejor; el miembro usuario de SAP2000 querrá comprobar que el autor conoce la diferencia de formulación y que el modelo de contraste es trazable.",
+      "donde_responde": "3.6, folios 62-63 («pequeñas discrepancias entre ambos modelos son esperables y no deben interpretarse como mayor o menor exactitud»); 3.7.1, folio 80; Anexo E, folios 128-139",
+      "estado": "parcial",
+      "que_falta": "Comprobar que el Anexo E declare versión del programa, tipo y tamaño de elemento de cáscara, condiciones de apoyo y puntos de extracción; si falta alguno, añadirlo. Llevar el archivo del modelo a la defensa y usar el dato que juega en contra: en la componente cortante el modelo de cáscara queda más cerca del analítico que EduFEM.",
+      "severidad": "media"
+    },
+    {
+      "n": 26,
+      "pregunta": "El campo de tensiones del Q4 no alcanza el orden cuadrático y usted lo atribuye a la capa de contorno. ¿Lo comprobó?",
+      "quien": "M3 numerico-pedagogico",
+      "por_que": "La explicación se enuncia como causa establecida y es una conjetura que el propio trabajo podía contrastar recomputando la norma sin la franja de contorno.",
+      "donde_responde": "3.2, folio 65",
+      "estado": "sin respuesta",
+      "que_falta": "Marcar el estatus de la explicación como plausible y no contrastada, y proponer la comprobación como trabajo futuro (DEF-17).",
+      "severidad": "media"
+    },
+    {
+      "n": 27,
+      "pregunta": "El estudio que usted invoca como evidencia cuantitativa atribuye la mejora principalmente a que los alumnos formulan sus propios problemas, cosa que su software no hace. ¿Por qué deriva de ahí el diseño de sus módulos?",
+      "quien": "M3 numerico-pedagogico",
+      "por_que": "Es la única evidencia con significación estadística que cita el marco pedagógico, y su mecanismo principal no está presente en EduFEM.",
+      "donde_responde": "1.2 Fundamentos pedagógicos, tercer principio, folio 19",
+      "estado": "sin respuesta",
+      "que_falta": "La frase de acotación de DEF-10: lo que se toma del estudio es la construcción por etapas de las herramientas de cálculo, y el punto de contacto con aquella condición es que la memoria se genera sobre el modelo que el propio alumno construye.",
+      "severidad": "media"
+    },
+    {
+      "n": 28,
+      "pregunta": "¿Por qué Python y no una hoja de cálculo, MATLAB u Octave, que ya tienen todo esto resuelto?",
+      "quien": "M2 estructuralista",
+      "por_que": "El título del trabajo destaca el lenguaje, de modo que el tribunal espera una justificación explícita de esa elección.",
+      "donde_responde": "Introducción, Justificación, plano metodológico, folio 4; Tabla 1.1, folio 15, que marca «Requiere MATLAB» como requisito del antecedente de Bishay; 2.2, pila tecnológica",
+      "estado": "parcial",
+      "que_falta": "Una frase explícita en la Justificación: gratuidad y ausencia de licencia para el alumno, ecosistema numérico y de interfaz en un solo lenguaje, empaquetado en un instalador autónomo sin requerir el intérprete; y la hoja de cálculo como límite, aunque sirva —y el trabajo lo aproveche— para reproducir a mano una etapa de la memoria.",
+      "severidad": "media"
+    },
+    {
+      "n": 29,
+      "pregunta": "Si el Q4 bloquea, ¿qué impide que un alumno entregue un resultado equivocado sin enterarse? ¿El programa le avisa?",
+      "quien": "M2 estructuralista",
+      "por_que": "Convertir una patología numérica en recurso pedagógico tiene el riesgo de que el alumno se quede con el resultado malo.",
+      "donde_responde": "Limitaciones observadas, folio 85, y Limitaciones, folio 91 (el bloqueo «exige al usuario refinar la malla o recurrir al Q9»); 3.5, membrana de Cook, folios 73-74",
+      "estado": "parcial",
+      "que_falta": "Decir qué hace el software al respecto —la conversión Q4-Q9 en un paso y la comparación sobre el mismo modelo son la respuesta de diseño— y, si no existe un aviso explícito, proponerlo entre las recomendaciones sobre el software.",
+      "severidad": "media"
+    },
+    {
+      "n": 30,
+      "pregunta": "¿Cómo eligió los cuatro principios de aprendizaje? ¿Por qué esos y no un marco completo de diseño instruccional?",
+      "quien": "M1 metodologia",
+      "por_que": "La matriz de principios es uno de los dos instrumentos de la cláusula (c); si los principios se eligieron ad hoc, el instrumento pierde valor.",
+      "donde_responde": "1.2 Fundamentos pedagógicos, folios 18-20, donde cada principio se apoya en la literatura de enseñanza del MEF y en una fuente general; folio 20, que declara que no constituyen evidencia de eficacia de EduFEM",
+      "estado": "parcial",
+      "que_falta": "Una frase sobre el criterio de selección: son los principios que la literatura específica de enseñanza del MEF invoca para justificar el software didáctico, cada uno con respaldo en investigación general; no se adopta un marco completo de diseño instruccional porque el objeto evaluado es el contenido del artefacto y no una intervención educativa.",
+      "severidad": "media"
+    },
+    {
+      "n": 31,
+      "pregunta": "¿Qué pasa si la prueba de campo que usted propone refuta la parte diferida de la hipótesis? ¿Qué queda de este trabajo?",
+      "quien": "M1 metodologia",
+      "por_que": "Pregunta incómoda de cierre que mide la madurez del postulante sobre el alcance de sus propias afirmaciones.",
+      "donde_responde": "",
+      "estado": "sin respuesta",
+      "que_falta": "No requiere texto nuevo. Respuesta oral: quedarían en pie el artefacto verificado, la cobertura del contenido y los dos instrumentos reutilizables; lo que caería sería la atribución del efecto, y un resultado negativo sería informativo porque las celdas de la tabla de especificaciones indican qué instrumento revisar.",
+      "severidad": "media"
+    },
+    {
+      "n": 32,
+      "pregunta": "¿Cuál es el aporte a la ingeniería civil y no solo a la didáctica?",
+      "quien": "M2 estructuralista",
+      "por_que": "Es una tesis de ingeniería civil y el tribunal debe encontrar el aporte dentro de su disciplina.",
+      "donde_responde": "Aportes del trabajo, folio 90: herramienta libre verificada, motor completo Q4/Q9, memoria de cálculo y dos instrumentos metodológicos reutilizables",
+      "estado": "parcial",
+      "que_falta": "Nombrar el aporte en clave disciplinar, en el texto o de palabra: un medio para que el egresado sepa auditar los resultados del software que usará en su ejercicio profesional, y un ejemplo documentado de verificación y validación aplicado a un programa de cálculo estructural, procedimiento que la práctica civil rara vez ve escrito.",
+      "severidad": "media"
+    },
+    {
+      "n": 33,
+      "pregunta": "¿Cómo maneja las unidades? Usted valida en kgf y centímetros; ¿qué pasa si el alumno mezcla sistemas?",
+      "quien": "M2 estructuralista",
+      "por_que": "Es un error clásico de estudiante con cualquier programa de cálculo y una fuente real de resultados absurdos.",
+      "donde_responde": "3.6, folio 68, que declara el sistema técnico del caso; 2.2 y Anexo B, manual de uso",
+      "estado": "parcial",
+      "que_falta": "Comprobar qué dice el manual sobre la coherencia de unidades y, si el programa no la impone, decirlo con la misma franqueza con que se declaran las demás limitaciones.",
+      "severidad": "media"
+    },
+    {
+      "n": 34,
+      "pregunta": "¿Por qué la solución del sistema y la recuperación de tensiones no tienen módulo propio, si son las dos etapas donde el alumno más se pierde?",
+      "quien": "M3 numerico-pedagogico",
+      "por_que": "La cobertura declarada es de siete de nueve etapas con módulo, y el tribunal notará las dos que faltan.",
+      "donde_responde": "Cap. 3, alcances, folio 76, y Limitaciones, folio 91: ambas se exponen en el post-proceso —sonda con modos crudo y suavizado, vista tridimensional, tabla de resultados— y en la memoria de cálculo",
+      "estado": "respondida",
+      "que_falta": "Nada. De palabra: son las dos etapas cuya salida el alumno manipula directamente en el post-proceso, de modo que su exposición es la interfaz misma más el desarrollo numérico de la memoria.",
+      "severidad": "media"
+    },
+    {
+      "n": 35,
+      "pregunta": "Usted dice que las herramientas comerciales son costosas, pero SAP2000, ANSYS y Abaqus tienen versiones académicas o de estudiante gratuitas. ¿Sigue siendo un argumento?",
+      "quien": "M2 estructuralista",
+      "por_que": "Es un dato que el miembro usuario de SAP2000 conoce de primera mano y que debilita uno de los motivos declarados del trabajo.",
+      "donde_responde": "Introducción, Planteamiento del problema, folio 2 («las herramientas comerciales suelen ser costosas, no estar diseñadas con un propósito didáctico explícito y ofrecer una localización al español limitada»)",
+      "estado": "parcial",
+      "que_falta": "Conceder el punto y reordenar el argumento, en el texto o de palabra: el motivo principal no es el costo sino la opacidad y la ausencia de propósito didáctico; las versiones académicas son gratuitas pero igual de opacas, están limitadas en tamaño de modelo y atadas a registro, plataforma y vigencia anual.",
+      "severidad": "media"
+    },
+    {
+      "n": 36,
+      "pregunta": "¿Por qué la viga de Timoshenko se resolvió solo con Q9 y no también con Q4, que es el elemento que un estudiante usará por defecto?",
+      "quien": "M3 numerico-pedagogico",
+      "por_que": "Es la asimetría visible entre los tres casos y puede leerse como haber evitado el elemento que peor se comporta en el único caso de ingeniería civil.",
+      "donde_responde": "2.1.4, folio 43, y 3.6, folio 68: el caso es «un contraste puntual de exactitud sobre una malla fina y no un estudio de convergencia»; la nota de la tabla lo repite",
+      "estado": "respondida",
+      "que_falta": "Nada en el texto. De palabra, ofrecer el dato si se tiene a mano o comprometerse a incorporar la corrida Q4 del mismo caso: el comportamiento del Q4 bajo flexión ya está documentado en la membrana de Cook.",
+      "severidad": "baja"
+    }
+  ]
+}
