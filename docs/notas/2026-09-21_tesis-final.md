@@ -1,6 +1,6 @@
 # Tesis final: eje tecnológico «caja negra → análisis no trazable ni verificable»
 
-**Fecha**: 2026-09-21 · **Autor**: Claude (sesión con el autor) · **Estado**: construida y compilada; espera la revisión del autor
+**Fecha**: 2026-09-21 · **Autor**: Claude (sesión con el autor) · **Estado**: en `origin/main` (commits `f22d139` y `e06f884`); espera la revisión del autor
 
 ## Qué se pedía
 
@@ -69,6 +69,23 @@ Cuatro zonas en paralelo, cada una con un agente que aplicó los hallazgos de su
 verificó sintaxis LaTeX, términos prohibidos, remisiones y cifras: teoría §1.3-1.13 más
 nomenclatura, software §2.2, verificación y validación §3.2-3.5, y anexos A-G.
 
+### La revisión de defensa, y lo que encontró
+
+Terminado el documento, una revisión simuló un tribunal de tres miembros —metodología,
+estructuralista usuario de SAP2000 y métodos numéricos— y verificó cada hallazgo contra las
+tablas del propio documento y contra el código del software. Salieron doce, todos válidos, y
+todos aplicados. El más grave: la memoria del ejemplo canónico se declaraba «coincide con el
+cálculo manual», pero el Anexo G reproduce la salida del motor y no un cálculo independiente,
+de modo que el criterio era circular; ahora el criterio es que cada etapa se desarrolle con
+sustitución numérica remitida a su ecuación, que es lo que sí se sostiene. El más fino: lo que
+se compara contra SAP2000 pasa a llamarse «diferencia» y no «error», porque el propio documento
+advierte que la cáscara y el continuo de tensión plana no son la misma formulación y ninguna es
+el patrón de la otra. También apareció una contradicción de cifras —la flecha es un
+desplazamiento, y el texto le atribuía menos del 0,3 % frente a SAP2000 mientras admitía
+0,56 % en desplazamientos— y una mezcla de umbrales del Jacobiano entre el comprobador de salud
+(0,30 y 0,70) y el módulo M0 (0,50 y 0,80), comprobada leyendo `fem/mesh_quality.py` y
+`education/mod00_mesh_quality.py`.
+
 ### Bibliografía: +3 y −3
 
 Entran `hevner2004design`, `peffers2007dsrm` y `wieringa2014design`, con ejemplar en
@@ -121,3 +138,18 @@ lista de referencias de la versión final queda en el mismo tamaño que antes.
 4. **Presentación y video**: `tesis/presentacion/guion_v2.json` sigue con el eje de la v4. Hay
    que rehacer las láminas de problema, objeto y campo, objetivos, hipótesis, variables, matriz
    y §3.6, y regenerar el video.
+
+## Verificación
+
+- `latexmk -pdf main_final.tex`: EXIT 0, **189 hojas**, 0 errores, 0 `Overfull`, 0 referencias
+  ni citas indefinidas, 0 `Float too large`, biber sin avisos.
+- **25 entradas citadas** (las 22 de siempre más las tres de la ciencia del diseño); las tres
+  pedagógicas quedan en el `.bib` sin citar, como se decidió.
+- **Términos prohibidos: cero** en los once capítulos (el único hit de «esta etapa» está en los
+  agradecimientos y significa otra cosa).
+- **Universo de contenido**: 18 dentro + 31 fuera = 49, sin repeticiones, sin solapamientos y
+  sin ítems por clasificar. Comprobado por script sobre los códigos de la tabla y de su nota.
+- **Oraciones de 70 palabras o más: 14**, frente a las 101 que medía la auditoría de la v4.
+- 152 `\label`, sin duplicados; ningún `DATO PENDIENTE` ni `\pendiente` en el documento.
+- Páginas revisadas en imagen: planteamiento del problema, Tabla 1.1, §1.13, tabla de contraste
+  de la hipótesis y conclusiones.
