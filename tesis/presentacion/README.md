@@ -10,6 +10,42 @@
 | `video/narracion.json` | Texto que se narra en cada lámina, voz y velocidad (fuente del video) |
 | `video/Defensa_EduFEM_narrada.pptx` | Copia del `.pptx` con la narración embebida y avance automático (se proyecta sola) |
 
+## Segunda versión (v2): la de la tesis v4
+
+Desde el 2026-09-19 existe una segunda versión, sincronizada con la **tesis v4**
+(`tesis/main_v4.tex`: problema «caja negra → bajo criterio para interpretar la respuesta
+estructural», cinco objetivos específicos en escalera, tres preguntas, hipótesis comprobada en
+su parte de diseño y contenido). La v1 sigue a la tesis v1 y no se tocó.
+
+| Archivo | Qué es |
+|---|---|
+| `guion_v2.json` | Fuente de la v2: 40 láminas. Cambian 13 de la v1 y se agrega la 31, «Validez de contenido: lo que los expertos exigen» (§3.6.2, Tablas 3.7 y 3.8) |
+| `Defensa_EduFEM_v2.pptx` · `.pdf` | Presentación v2 editable y su PDF |
+| `video/narracion_v2.json` | Narración de la v2, misma voz y velocidad |
+| `video/Defensa_EduFEM_v2.mp4` | Video v2 (1080p, 34:16) |
+| `video/guion_video_v2.md` | Guion de la v2 con marcas de tiempo |
+| `video/Defensa_EduFEM_v2_narrada.pptx` | Copia de la v2 con la narración embebida |
+
+Láminas que cambian respecto de la v1: 3 (la brecha, con el dato del 31 %), 4 (del problema al
+objetivo), 5 (cinco objetivos), 6 (hipótesis y preguntas), 8 (estado del arte, fila «Lectura de
+la respuesta»), 14 (variables: una sola pareja), 15 (matriz de consistencia), 17 (criterios:
+18/18 y 4/4), 23 y 30 (una frase), 31 (nueva), 33 (responde PI-2), 36 (cinco conclusiones),
+37 (hipótesis comprobada en diseño y contenido), 38 (limitaciones) y 39 (prueba de campo).
+
+Se regenera igual que la v1, cambiando los nombres de archivo. `hacer_video.py` nombra el guion
+con tiempos con el sufijo del MP4 (`Defensa_EduFEM_v2.mp4` → `guion_video_v2.md`), así una
+versión no pisa a la otra. En esta consola hay que exportar `PYTHONIOENCODING=utf-8` antes de
+`build_deck.py`: sus avisos llevan el signo «−» y cp1252 no lo imprime.
+
+```
+set PYTHONIOENCODING=utf-8
+python tesis/presentacion/build_deck.py tesis/presentacion/guion_v2.json tesis/presentacion/Defensa_EduFEM_v2.pptx
+python tesis/presentacion/exportar_pdf.py tesis/presentacion/Defensa_EduFEM_v2.pptx tesis/presentacion/Defensa_EduFEM_v2.pdf
+python tesis/presentacion/exportar_png.py tesis/presentacion/Defensa_EduFEM_v2.pptx <frames_1920> 1920
+python tesis/presentacion/video/hacer_video.py tesis/presentacion/video/narracion_v2.json <frames_1920> <carpeta_trabajo> tesis/presentacion/video/Defensa_EduFEM_v2.mp4
+python tesis/presentacion/video/narrar_pptx.py tesis/presentacion/Defensa_EduFEM_v2.pptx <carpeta_trabajo>/audio tesis/presentacion/video/Defensa_EduFEM_v2_narrada.pptx 0.7
+```
+
 ## Regenerar la presentación
 
 ```

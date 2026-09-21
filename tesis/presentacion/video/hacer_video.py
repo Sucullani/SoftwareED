@@ -153,7 +153,11 @@ def mmss(t):
     m, s = divmod(int(round(t)), 60)
     return f"{m:02d}:{s:02d}"
 
-md = os.path.join(os.path.dirname(OUT), "guion_video.md")
+# El guion con tiempos hereda el sufijo del MP4 (Defensa_EduFEM_v2.mp4 -> guion_video_v2.md)
+# para que una segunda version no pise el de la primera.
+_stem = os.path.splitext(os.path.basename(OUT))[0]
+_suf = _stem[len("Defensa_EduFEM"):] if _stem.startswith("Defensa_EduFEM") else "_" + _stem
+md = os.path.join(os.path.dirname(OUT), "guion_video" + _suf + ".md")
 t = 0.0
 lines = ["# Guion del video de defensa — EduFEM", "",
          f"Voz: {VOZ} (Microsoft Edge TTS, rate {RATE}) · duración {mmss(total)} · {len(LAMINAS)} láminas.", "",
