@@ -2151,5 +2151,51 @@
    }
   ],
   "sin_respaldo": ""
+ },
+ {
+  "clave": "stembera2019dkmq24",
+  "id": {
+   "archivo": "Stembera y Fussl 2019 - DKMQ24 shell element with improved membrane behaviour.pdf",
+   "clave_bib": "stembera2019dkmq24",
+   "autores_reales": "Vitezslav Stembera, Josef Fussl (Institute for Mechanics of Materials and Structures, TU Wien)",
+   "titulo_real": "DKMQ24 shell element with improved membrane behaviour",
+   "edicion_real": "Preprint arXiv 1906.06136v3 [math.NA], 15 de octubre de 2019",
+   "editorial_real": "arXiv (preprint remitido a Finite Elements in Analysis and Design)",
+   "ciudad_real": "",
+   "anio_real": "2019",
+   "isbn_real": "",
+   "veredicto": "COINCIDE",
+   "gravedad": "ninguna",
+   "campos_que_discrepan": "",
+   "notas": "Ejemplar con capa de texto. El pie de la primera pagina imprime «Preprint submitted to Finite Elements in Analysis and Design / October 16, 2019» y la marca lateral «arXiv:1906.06136v3 [math.NA] 15 Oct 2019». El ejemplar NO imprime revista, volumen ni DOI, por eso el .bib no los consigna y la entrada es @online. Folio impreso = pagina del PDF (verificado en las paginas 27 y 28).",
+   "nombre_archivo_propuesto": "Stembera y Fussl 2019 - DKMQ24 shell element with improved membrane behaviour.pdf"
+  },
+  "respaldos": [
+   {
+    "afirmacion_tesis": "04_resultados, seccion de la membrana de Cook: el planteamiento del caso reproduce el de la literatura reciente, con la misma geometria, el mismo material y la misma carga tangencial unitaria. \\autocite[p.~27]{stembera2019dkmq24}",
+    "pagina_impresa": "27",
+    "pagina_pdf": "27",
+    "pasaje_textual": "5.1. Cook’s membrane L1 L2 L3 F",
+    "respalda": "SI",
+    "comentario": "La Figura 10 de esa pagina da L1 = 48 m, L2 = 44 m, L3 = 16 m, h = 1 m, E = 1 kPa, nu = 1/3 y FZ = 1 N: los mismos datos del caso que resuelve la tesis."
+   },
+   {
+    "afirmacion_tesis": "04_resultados: el problema no tiene solucion analitica disponible y la fuente obtiene su referencia por via numerica, con una malla de 192x128 elementos, en 23,965. \\autocite[p.~28]{stembera2019dkmq24}",
+    "pagina_impresa": "28",
+    "pagina_pdf": "28",
+    "pasaje_textual": "The analytical solution for this example is not available, therefore the reference solution is obtained numerically using the DKMQ242+ element on the reﬁned mesh 192×128. The numerical results are summarized in Table 3.",
+    "respalda": "SI",
+    "comentario": "La Tabla 5 de esa pagina («Deflection uZ(A) for Cook's membrane problem») cierra con «Reference solution: uZ(A) = 23.965 mm (DKMQ242+ element on mesh 192x128)»."
+   },
+   {
+    "afirmacion_tesis": "04_resultados: los desplazamientos que EduFEM calcula con Q4 coinciden, en las cinco mallas, con los que la fuente publica para un cuadrilatero de cuatro nodos: 11,845; 18,299; 22,079; 23,430 y 23,818. \\autocite[p.~28]{stembera2019dkmq24}",
+    "pagina_impresa": "28",
+    "pagina_pdf": "28",
+    "pasaje_textual": "Reference solution: uZ(A) = 23.965 mm (DKMQ242+ element on mesh 192 [Tabla 5, columna DKMQ24: 11.845 / 18.299 / 22.079 / 23.430 / 23.818]",
+    "respalda": "SI",
+    "comentario": "Columna DKMQ24 de la Tabla 5: 11.845 / 18.299 / 22.079 / 23.430 / 23.818 para las mallas 2x2 a 32x32. Coinciden digito a digito con la columna Q4 de la tabla de Cook de la tesis."
+   }
+  ],
+  "sin_respaldo": ""
  }
 ]

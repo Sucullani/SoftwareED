@@ -22,7 +22,7 @@ tesis** (`tesis/`, 130 páginas, compila limpio).
 
 | Tema | Dónde | Estado |
 |---|---|---|
-| **TESIS FINAL (entrega)** | `tesis/main_final.tex` + `tesis/capitulos_final/` | **Terminada el 2026-09-21 y en `origin/main`.** Autocontenida: no lee de `capitulos/` ni de `capitulos_v4/`, y las versiones v1 a v4 quedan como archivo. Eje tecnológico: causa = uso del software como caja negra, efecto = **baja trazabilidad y verificabilidad del análisis** (propiedad del medio de cálculo, medible en el software). Dos cláusulas, las dos comprobadas dentro del documento: **no hay prueba de campo ni efecto diferido**. Método: ciencia del diseño (Hevner, Peffers, Wieringa). Compila limpio: 189 hojas, 0 errores, 0 desbordes, 0 referencias indefinidas. **Reglas de edición obligatorias**: `tesis/capitulos_final/CRITERIOS.md`. Detalle: [2026-09-21_tesis-final.md](2026-09-21_tesis-final.md) |
+| **TESIS FINAL (entrega)** | `tesis/main_final.tex` + `tesis/capitulos_final/` | **Terminada el 2026-09-21 y en `origin/main`.** Autocontenida: no lee de `capitulos/` ni de `capitulos_v4/`, y las versiones v1 a v4 quedan como archivo. Eje tecnológico: causa = uso del software como caja negra, efecto = **baja trazabilidad y verificabilidad del análisis** (propiedad del medio de cálculo, medible en el software). Dos cláusulas, las dos comprobadas dentro del documento: **no hay prueba de campo ni efecto diferido**. Método: ciencia del diseño (Hevner, Peffers, Wieringa). Compila limpio: 189 hojas, 0 errores, 0 desbordes, 0 referencias indefinidas. **Reglas de edición obligatorias**: `tesis/capitulos_final/CRITERIOS.md`. El mismo día se aplicaron las correcciones de la **auditoría de defensa** (`docs/auditorias/Auditoria_defensa_tesis_EduFEM.md`): alineación de problema, hipótesis y conclusión con lo que el trabajo evalúa; tres errores técnicos comprobados con contraejemplo (von Mises, Jacobiano, base del Q4); la membrana de Cook con fuente publicada y **contraste externo de las cinco mallas**; licencias y alcance del CSV; FEA18 reforzado sin bajar el 18/18. **Los preliminares quedan fuera para la predefensa** (una línea comentada en `main_final.tex`). 187 hojas. Detalle: [2026-09-21_tesis-final.md](2026-09-21_tesis-final.md) y [2026-09-21_correcciones-auditoria-defensa.md](2026-09-21_correcciones-auditoria-defensa.md) |
 | **Presentación y video v2** | `tesis/presentacion/guion_v2.json`, `Defensa_EduFEM_v2.pptx/.pdf`, `video/*_v2.*` | **Construidos el 2026-09-19** para la tesis v4: 40 láminas (13 cambian, la 31 es nueva: validez de contenido) y video de 34:16 con la misma voz. La v1 (39 láminas, 30:54) no se tocó. **Sin commit.** Falta que el autor mire el video (ritmo, pronunciación) y ensaye los tiempos. Cómo regenerar: `tesis/presentacion/README.md` |
 | **Auditoría de redacción de la tesis v4** | `tesis/auditoria_v4/` (`AUDITORIA-REDACCION.md`, `PLAN-CORRECCION.pdf`, `anexos/`, `datos/`) | **Hecha el 2026-09-20** sobre `main_v4.pdf`, sin editar la tesis: 19 agentes (9 lectores de unidad + 10 barredores transversales), consolidación por eje y verificación independiente de cada crítico o alto. Quedan 225 hallazgos (4 críticos, 27 altos, 177 medios, 17 bajos) y 36 preguntas de defensa. Lo que pesa en la defensa son ~14 h: salvedad canónica pegada al objetivo general, al problema, al OE5 y a la primera conclusión; tabla criterio–umbral–cifra–veredicto en 2.1.6 y 3.8; «0,56 % en desplazamientos» en el Resumen y la razón Q4/Q9 de Cook, que sí depende de la referencia; la validez de contenido declarada como cotejo del autor. **Las correcciones las aplica el autor** con el plan en la mano; los ID (CAL-01, TRZ-07…) son estables |
 | **Tesis v4, alternativa 3** | `tesis/main_v4.tex`, `tesis/capitulos_v4/` | **Construida el 2026-09-19** sobre la v1 con la alternativa 3 confirmada por el autor («caja negra → bajo criterio para interpretar la respuesta estructural», molde de Miranda, 5 OE, 3 PI, tabla de especificaciones contra Pérez-Santiago, matriz de 4 principios, 3 refs nuevas con ejemplar y respaldo). Compila limpia: 167 hojas, 0 indefinidas, 0 desbordes. Respaldo de citas y resaltados regenerados. **Sin commit.** Espera revisión del autor y su decisión de reemplazar `capitulos/`. Detalle: [2026-09-19_tesis-v4-alternativa-3.md](2026-09-19_tesis-v4-alternativa-3.md) |
@@ -34,12 +34,22 @@ tesis** (`tesis/`, 130 páginas, compila limpio).
 
 ## Decisiones abiertas (esperan al autor)
 
+- **Elegir la licencia con que se publica EduFEM (2026-09-21)** — la auditoría de defensa
+  detectó, y se comprobó en el entorno del proyecto, que **PyMuPDF se distribuye bajo AGPL-3.0
+  o licencia comercial**, no permisiva, y el instalador lo incluye dentro del ejecutable. La
+  tesis ya no afirma que todas las dependencias sean permisivas. **Qué decide el autor**: bajo
+  qué licencia publica EduFEM y si la declara en el repositorio. Si prefiere una licencia
+  permisiva, habría que sustituir PyMuPDF —se usa solo para mostrar los PDF de teoría dentro de
+  la herramienta— o distribuir ese visor por separado. No afecta a lo que la tesis afirma, pero
+  es una pregunta posible en la defensa.
+
 - **Revisar la tesis final (2026-09-21)** — el autor confirmó la formulación de eje
   tecnológico y se construyó la tesis de entrega, que ya está en `origin/main`. **Qué decide
   el autor**: (1) leer la Introducción, la §2.1 y la §3.8 y confirmar que es la tesis que
-  quiere defender; (2) personalizar `capitulos_final/00_preliminares.tex` —dedicatoria,
-  agradecimientos y la decisión sobre el párrafo, hoy comentado, de declaración de uso de
-  herramientas de inteligencia artificial—; (3) conseguir el Reglamento de Graduación (H-1),
+  quiere defender; (2) para la **entrega final**, descomentar en `main_final.tex` la línea de
+  `00_preliminares` —que la predefensa lleva fuera— y personalizar ese archivo:
+  dedicatoria, agradecimientos y la decisión sobre el párrafo, hoy comentado, de
+  declaración de uso de herramientas de inteligencia artificial; (3) conseguir el Reglamento de Graduación (H-1),
   del que depende también si la carátula debe llevar tutor. **Queda pendiente de un agente**:
   rehacer la presentación y el video, que siguen con el eje de la v4.
   **Esta decisión reemplaza a las dos que seguían abiertas sobre el eje** (elegir el eje
