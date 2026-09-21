@@ -1,0 +1,90 @@
+% =====================================================================
+%  main_final.tex  --  Tesis EduFEM, VERSION FINAL (2026-09-21).
+%
+%  Eje tecnologico: «el uso del software de analisis como caja negra -> la baja
+%  trazabilidad y verificabilidad del analisis por el MEF». La variable efecto es
+%  una propiedad del analisis y se mide sobre el software; EduFEM es la variable
+%  interviniente. La evidencia sale del diseno, el desarrollo, la verificacion y la
+%  validacion del software. Metodo: ciencia del diseno (Hevner 2004, Peffers 2007,
+%  Wieringa 2014). Formulacion: tesis/alternativas/formulacion_final.pdf.
+%
+%  Es AUTOCONTENIDA: todos los capitulos viven en capitulos_final/ (no lee de
+%  capitulos/ ni de capitulos_v4/). Comparte preambulo.tex, portada/, figuras/ y
+%  bibliografia/referencias.bib con las versiones anteriores, que quedan como archivo.
+%  Criterios editoriales (terminos, estilo, lo prohibido): capitulos_final/CRITERIOS.md.
+%
+%  Compilar (MiKTeX/Windows), desde la carpeta tesis/:
+%     latexmk -pdf main_final.tex
+% =====================================================================
+\pdfminorversion=6   % el PDF embebido del Anexo E es 1.6; evita el aviso de pdfTeX en cada inclusión
+\documentclass[12pt,a4paper,oneside]{report}
+
+% ---------------------------------------------------------------------
+%  Metadatos de portada  --  COMPLETAR estos placeholders
+% ---------------------------------------------------------------------
+\newcommand{\universidad}{Universidad Autónoma ``Tomás Frías''}
+\newcommand{\facultad}{Facultad de Ingeniería}
+\newcommand{\carrera}{Carrera de Ingeniería Civil}
+\newcommand{\gradoTesis}{Título de Licenciatura en Ingeniería Civil}
+\newcommand{\tituloTesis}{Desarrollo de software educativo de elementos finitos para el análisis estructural empleando el lenguaje de programación Python}
+\newcommand{\autorTesis}{Hedy Yhassmany Oyola Sucullani}
+\newcommand{\anioTesis}{Septiembre de 2026}
+\newcommand{\ciudadTesis}{Potosí -- Bolivia}
+
+\input{preambulo}
+
+\begin{document}
+
+% ----- Portada -----
+% Sin ancla de página en la portada: es la página "1" de la numeración inicial y
+% el cuerpo vuelve a empezar en 1, lo que duplicaba el destino page.1 de hyperref.
+\hypersetup{pageanchor=false}
+\input{portada/portada}
+
+% ----- Material preliminar (numeracion romana) -----
+\cleardoublepage
+\pagenumbering{roman}
+\hypersetup{pageanchor=true}
+
+% Preliminares: declaración de originalidad, dedicatoria y agradecimientos. Van en la versión
+% final; el autor personaliza la dedicatoria y los agradecimientos en ese archivo.
+\input{capitulos_final/00_preliminares}
+
+\input{capitulos_final/00_resumen}
+
+\cleardoublepage
+\tableofcontents
+\cleardoublepage
+\listoffigures
+\cleardoublepage
+\listoftables
+
+\vspace{1.5em}
+\noindent\textit{\small Salvo que se indique lo contrario, todas las figuras y tablas de este documento son de elaboración propia: corresponden a capturas de pantalla del software EduFEM —desarrollado por el autor en el marco de esta tesis— o a gráficos generados por el autor a partir de sus propias corridas de verificación y validación.}
+
+% ----- Nomenclatura: lista de simbolos y abreviaturas -----
+\cleardoublepage
+\input{capitulos_final/00b_nomenclatura}
+
+% ----- Cuerpo (numeracion arabiga) -----
+\cleardoublepage
+\pagenumbering{arabic}
+
+\input{capitulos_final/01_introduccion}
+\input{capitulos_final/02_marco_teorico}
+\input{capitulos_final/02b_diseno_metodologico}
+\input{capitulos_final/03_diseno_implementacion}
+\input{capitulos_final/04_resultados}
+\input{capitulos_final/05_conclusiones}
+
+% ----- Referencias bibliograficas (Vancouver; la norma se declara en la Introduccion, 'Estructura del documento') -----
+\cleardoublepage
+\printbibliography[title={Referencias bibliográficas},heading=bibintoc]
+
+% ----- Anexos -----
+\appendix
+\renewcommand{\appendixname}{Anexo}  % rotular "Anexo A/B/..." (no el "Apéndice" por defecto de babel)
+\input{capitulos_final/06_anexos}
+\input{capitulos_final/07_anexo_memoria}
+
+\end{document}

@@ -39,6 +39,8 @@ main_v3.pdf
 main_v4.pdf
 compile_v4.txt
 compile_v3.txt
+compile_final.txt
+# main_final.pdf SI se versiona: es el entregable de la version final.
 
 # Copias de seguridad y temporales de editores
 *.bak

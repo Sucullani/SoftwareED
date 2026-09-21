@@ -1,0 +1,464 @@
+% =====================================================================
+%  formulacion_final.tex -- Documento de trabajo para el autor.
+%  Formulacion metodologica final de la tesis EduFEM: eje tecnologico
+%  «caja negra -> analisis no trazable ni verificable», con la evidencia
+%  en el diseno, desarrollo, verificacion y validacion del artefacto.
+%  Sin prueba de campo y sin disfrazar el trabajo de tesis experimental.
+%  Fuentes leidas para escribirlo:
+%    - tesis/Material docente (8 PDF: 3 de Miranda, Talleres 1, 2, 4, 5, 6)
+%    - tesis/bibliografia/Bib. DSM (Hevner 2004, Peffers 2007, Wieringa 2014)
+%    - capitulos/ (v1), capitulos_v4/ (v4), auditoria_v4/
+%  Compilar: pdflatex formulacion_final  (dos veces, por las refs)
+%  NO forma parte de la tesis. 2026-09-21.
+% =====================================================================
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[spanish,es-tabla]{babel}
+\usepackage[a4paper,margin=2.2cm]{geometry}
+\usepackage{booktabs,array,longtable}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{amsmath,bm}
+\setlength{\parskip}{4pt}
+\setlength{\parindent}{0pt}
+\setlength{\tabcolsep}{3pt}
+\setlist{itemsep=1pt,topsep=2pt}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcommand{\vi}{\textbf{VI}}
+\newcommand{\vd}{\textbf{VD}}
+\newcommand{\molde}[1]{\textcolor{blue!60!black}{\small #1}}
+\newcommand{\pegar}[1]{\begin{quote}\itshape #1\end{quote}}
+\AtBeginDocument{\DeclareRobustCommand{\%}{\char37\relax}}
+
+\title{Formulación metodológica final de la tesis EduFEM\\
+\large Eje tecnológico «caja negra $\to$ análisis no trazable ni verificable»:\\
+evidencia por diseño, desarrollo, verificación y validación del artefacto}
+\author{Documento de trabajo para el autor}
+\date{21 de septiembre de 2026}
+
+\begin{document}
+\maketitle
+
+\section*{La decisión, en una página}
+
+\textbf{El diagnóstico de las versiones escritas.} La v1 tenía la evidencia donde debe estar —en el artefacto—, pero su problema («¿cómo debe construirse un software\dots?») no seguía el molde causa--efecto del tribunal, y su hipótesis condicional hacía depender la exactitud del motor de la transparencia de la interfaz. La v4 adoptó el molde, pero llevó la variable efecto al estudiante («bajo criterio para interpretar la respuesta»): desde ese momento el problema, el objetivo general, la hipótesis y la última línea del Cap.~3 quedaron obligados a declarar que su efecto estaba «pendiente de medición». La auditoría de la v4 lo marcó como el problema de mayor impacto y dejó escrita la salida: reformular esos enunciados «como propiedad del artefacto».
+
+\textbf{La formulación final hace eso de raíz y cambia una sola pieza.} Conserva la causa de la v4 y baja la variable efecto del estudiante al análisis:
+
+\begin{center}
+\fbox{\parbox{0.92\textwidth}{\centering
+\textbf{Causa (\vi):} el uso del software de análisis estructural como caja negra\\[2pt]
+$\downarrow$\\[2pt]
+\textbf{Efecto (\vd):} la baja \emph{trazabilidad} y \emph{verificabilidad} del análisis por el MEF\\[2pt]
+$\downarrow$\\[2pt]
+\textbf{Solución (interviniente, un «sistema»):} EduFEM,\\ software de canal de cálculo abierto, con memoria de cálculo y motor verificado y validado}}
+\end{center}
+
+\textbf{La cadena queda lineal, sin eslabón pendiente:}
+\begin{enumerate}
+\item \emph{Situación problemática}: el MEF se enseña como un procedimiento, pero el software con que se ejecuta lo oculta, y los recursos educativos existentes no lo exponen completo para la elasticidad plana (Tabla~1.1 de la tesis).
+\item \emph{Causa}: la forma en que el software expone el procedimiento de cálculo: como caja negra.
+\item \emph{Efecto}: el análisis no puede seguirse hasta sus datos ni comprobarse contra un patrón independiente.
+\item \emph{Problema}: ¿de qué manera la caja negra afecta la trazabilidad y verificabilidad del análisis?
+\item \emph{Solución tentativa}: EduFEM, un sistema que abre el canal de cálculo.
+\item \emph{Hipótesis}: bajo el desarrollo de EduFEM, el análisis se vuelve trazable y verificable.
+\item \emph{Evidencia}: (a) trazabilidad $\to$ cobertura del canal y del contenido; (b) verificabilidad $\to$ verificación y validación numérica con criterios fijados a priori.
+\item \emph{Conclusión}: criterios cumplidos $\to$ hipótesis comprobada $\to$ problema resuelto en su alcance.
+\end{enumerate}
+
+\textbf{Por qué es la recomendable.}
+\begin{enumerate}
+\item \textbf{La hipótesis afirma exactamente lo que la evidencia mide.} Ninguna cláusula queda «para después»; la tesis no le debe nada a nadie.
+\item \textbf{Encaja sin forzar en el molde del tribunal.} Los dos ejemplos resueltos del material docente —las losas de Miranda y el software de estabilidad de Barrios— miden magnitudes técnicas y validan por comparación con referencias; ninguno usa sujetos (sección~\ref{sec:material}).
+\item \textbf{Usa todo lo que ya está escrito.} Sobre la v4 se trabaja por sustitución, no por reescritura: la causa, la escalera de objetivos, el Cap.~1, el software, toda la V\&V y la tabla 18/18 se conservan (sección~\ref{sec:cambios}).
+\item \textbf{Tiene método con nombre y literatura de primer nivel.} La ciencia del diseño (Hevner, Peffers, Wieringa) es lo que separa una investigación de un diseño rutinario; es la respuesta a «esto es un proyecto de grado» (sección~\ref{sec:tesis}).
+\item \textbf{Desarma de raíz las preguntas críticas de la auditoría}: «¿a cuántos estudiantes midió?», «¿de dónde sale el bajo criterio?», «¿cómo mide en un programa una capacidad del estudiante?», «¿en qué asignatura?», «¿y si la prueba de campo refuta la hipótesis?». Ninguna tiene ya de dónde agarrarse.
+\end{enumerate}
+
+\section{Lo que el material docente permite}
+\label{sec:material}
+
+Se leyeron los ocho PDF de \texttt{tesis/Material docente/}. La respuesta a «si me lo permite» es que sí, y en varios puntos lo respalda de forma expresa. El número de lámina es el de la página del PDF.
+
+{\small
+\begin{longtable}{L{3.6cm}L{6.4cm}L{5.7cm}}
+\toprule
+\textbf{Fuente (lámina)} & \textbf{Qué dice} & \textbf{Cómo lo usa la formulación} \\
+\midrule
+\endhead
+Reglamento de Graduación, Art.~6 (Taller~1, lám.~3) & La tesis es un trabajo de investigación que cumple la metodología científica «a objeto de conocer y dar respuesta a un problema de ingeniería, planteando alternativas aplicables o proponiendo soluciones prácticas y/o teóricas». & EduFEM es la solución práctica a un problema de ingeniería. El artículo no pide sujetos, encuestas ni experimento físico. \\
+Art.~8 y 9 (Taller~1, lám.~3) & «Proposición, demostración y conclusión»; «la formulación de la propuesta deberá ser original y verificable». & Original: la Tabla~1.1 muestra que ningún antecedente reúne esos atributos. Verificable: criterios a priori y guiones que cualquiera reejecuta. \\
+Art.~57 y 61; índice del proyecto de grado (Taller~1, lám.~5 y 21) & El proyecto de grado es «diseño de objeto de uso social», exige «convenio interinstitucional entre la Universidad y la Empresa» y su índice es marco normativo, caracterización técnica del área de proyecto, memorias de diseño y presupuesto. & Nada de eso describe a EduFEM: no hay empresa, área de proyecto ni presupuesto de obra. Hay problema, hipótesis, modelo y contraste. \\
+Índice de la tesis (Taller~1, lám.~20) & Cap.~1 Marco teórico; Cap.~2 Diseño e implementación del modelo a desarrollar; Cap.~3 Presentación de resultados y análisis. & Es el índice actual; no se toca. \\
+Tipos de investigación (Taller~1, lám.~12) & Exploratorias, descriptivas, explicativas y \textbf{propositivas} («propuesta de acción»). & La tesis es propositiva; coincide con García-Córdoba (p.~91). \\
+Problemas prácticos (Taller~1, lám.~15) & «Llevan al establecimiento de demostraciones verificando la solución encontrada a una interrogante, mediante el experimento físico \emph{o la aplicación práctica de la solución hallada}. También se encarga de demostrar en forma racional alguna hipótesis». & La demostración es la aplicación de la solución a los casos de estudio y su contraste con referencias. \\
+Modelo de investigación (Taller~4, lám.~4) & Cuatro modelos: desarrollo teórico, modelación teórica, modelación experimental y \textbf{modelación de simulación teórica}. & Es el modelo de la tesis: simulación numérica contrastada con referencias. \\
+Modelo científico (Taller~4, lám.~8) & «Modelo: es un sistema metodológico definido como un procedimiento para testar una hipótesis»; entre los tratamientos «debe figurar uno de control, que sirva de comparación». & El control son las soluciones de referencia (analítica, valor de Cook, SAP2000) y, para la exposición, el software de caja negra de la Tabla~1.1. \\
+Estructura del modelo (Taller~4, lám.~12--13) & Cinco bloques: conceptualización y alcance; factores y variables; procedimiento y toma de observaciones; validación de las observaciones; contraste de hipótesis. Va en el Cap.~2, con población y muestra. & La §2.1 ya sigue los cinco bloques. Población: problemas de elasticidad plana; muestra dirigida de casos canónicos. \\
+\textbf{Ejemplo~2} (Taller~5, lám.~15--20) & Investigación teórica: «se desarrolla un software para su aplicación en casos de estudio, que valide la confiabilidad de los resultados obtenidos»; cuatro casos contra autores publicados, con «valor de aproximación» de $+0{,}8\,\%$, $-0{,}15\,\%$ y $-3{,}8\,\%$. & Es el precedente exacto, puesto por un miembro del tribunal: software + casos publicados + porcentaje de aproximación. Sin sujetos. \\
+Defensa (Taller~6, lám.~10 y 17) & El modelo se describe según las \vi{} y los «instrumentos y modelos de análisis para predecir» las \vd; las conclusiones incorporan «criterios de cumplimiento o no de la hipótesis» e «indicadores» de que el problema «ha sido resuelto (parcial o total)». & Tabla criterio--umbral--cifra--veredicto en la §3.8 (sección~\ref{sec:criterios}). \\
+Problema (Miranda, lám.~3--4 y 8--10) & Siete pasos: interrogante; \vi{} causa y \vd{} efecto; relación lógica; delimitación institucional, espacial y temporal; verificable en fuentes. Ejemplo: un mal diseño de losas $\to$ el elevado costo de una losa. & \textbf{Las dos variables del ejemplo son técnicas} y el costo se calcula, no se encuesta. «La ciudad de Potosí» delimita; no es la unidad de análisis. Aquí ocurre lo mismo con la Carrera. \\
+Hipótesis (Miranda, lám.~12--16) & Tres variables; tiempo futuro; afirmativa; solución tentativa; se aplica bajo «técnica, método, sistema»; el flujograma pregunta «¿se puede comprobar?». & EduFEM es el \emph{sistema}. Se puede comprobar, y entera. \\
+Objetivo general y escalera (Miranda, lám.~2, 7, 10, 13--15) & Cuatro partes (el \emph{qué} va a la \vi, el \emph{para qué} a la \vd); escalera diagnosticar--fundamentar--experimentar--calcular--validar; el OE5 del ejemplo valida «a través de una comparación de costos de obras»; «Tesis de grado -- Caso~I: sin diagnóstico»; Caso~II: cuatro OE en tres capítulos; la tríada. & Validar es comparar contra referencias. El diagnóstico de campo no es obligatorio en una tesis de grado: aquí el diagnóstico es documental y recae sobre el software, no sobre personas. \\
+\bottomrule
+\end{longtable}}
+
+\textbf{Conclusión de la lectura.} Ninguna lámina exige sujetos humanos ni prueba de campo. Lo que el material exige es una relación causa--efecto entre dos variables, una solución tentativa comprobable, un modelo descrito en el Cap.~2 y un contraste con indicadores. La formulación final cumple las cuatro exigencias con variables que se miden sobre el software.
+
+\section{La formulación final, pieza por pieza}
+\label{sec:formulacion}
+
+Los textos en cursiva están redactados para pegarse en la tesis. \molde{En azul, la parte del molde de la guía que cada frase llena.}
+
+\subsection{Situación problemática}
+
+\pegar{El Método de los Elementos Finitos se enseña como un procedimiento —funciones de forma, Jacobiano, matriz de deformación, cuadratura, ensamblaje, solución y recuperación de tensiones—, pero el software con que ese procedimiento se ejecuta lo oculta: el usuario define geometría, material y cargas y recibe resultados, sin acceso al cálculo intermedio [Suárez, p.~246; Pérez-Santiago, p.~1160]. Los recursos educativos revisados no cierran esa brecha para la elasticidad plana: ninguno reúne la exposición del canal de cálculo completo sobre el modelo del usuario, una memoria de cálculo reproducible a mano y una verificación y validación publicada con la herramienta (Tabla~1.1). La contradicción es técnica y está en el medio de cálculo: un análisis cuyos resultados no pueden seguirse hasta sus datos ni comprobarse contra un patrón independiente.}
+
+La exigencia de que el egresado sepa «planificar, verificar y validar» sus análisis (Pérez-Santiago, pp.~1159 y 1171) se conserva, pero cambia de lugar: deja de ser la variable y pasa a ser la \textbf{pertinencia} del problema (Justificación). Es lo que hace importante que el análisis sea verificable; no es lo que la tesis mide.
+
+\subsection{Problema científico}
+
+\pegar{¿De qué manera el uso del software de análisis estructural como caja negra podrá afectar en la baja trazabilidad y verificabilidad del análisis por el Método de los Elementos Finitos en elasticidad plana, en la Carrera de Ingeniería Civil de la Universidad Autónoma Tomás Frías, en la gestión 2026?}
+
+\molde{Molde: «¿De qué manera [un mal \vi] podrá afectar en [la baja \vd] en [institución, lugar] en la gestión [año]?»} Respecto de la v4 solo cambia la frase del efecto.
+
+\begin{itemize}
+\item \textbf{\vi{} (causa, conocida)}: la forma en que el software expone el procedimiento de cálculo, con dos niveles: \emph{caja negra} (datos y resultados) y \emph{canal abierto} (cada etapa con sus magnitudes intermedias).
+\item \textbf{\vd{} (efecto, por conocer)}: la trazabilidad y la verificabilidad del análisis, definidas operativamente:
+  \begin{itemize}
+  \item \emph{Trazabilidad}: propiedad por la cual cada resultado puede seguirse hacia atrás, etapa por etapa, hasta los datos del modelo, con todas las magnitudes intermedias a la vista.
+  \item \emph{Verificabilidad}: propiedad por la cual cada magnitud, intermedia o final, puede comprobarse contra un patrón independiente —cálculo manual, solución analítica, otro programa— y esa comprobación da conforme dentro de una tolerancia fijada a priori.
+  \end{itemize}
+\item \textbf{Relación lógica}: si el procedimiento está oculto, el resultado solo puede aceptarse; no puede seguirse ni comprobarse.
+\item \textbf{Delimitación}: la que la tesis ya tiene (disciplinar, institucional, espacial y temporal). La Carrera es el contexto de aplicación, como «la ciudad de Potosí» en el ejemplo de las losas.
+\item \textbf{Verificable en fuentes} (paso~7): Suárez (p.~246), Pérez-Santiago (p.~1160) y la Tabla~1.1. El problema ya no presupone un déficit de los estudiantes de la UATF que nadie midió.
+\end{itemize}
+
+Las dos palabras no son jerga pedagógica, y conviene decirlo en la defensa: son la razón de ser de la \emph{memoria de cálculo} en la práctica profesional. Un cálculo estructural se entrega con su memoria porque un revisor debe poder seguirlo y comprobarlo. El software comercial entrega resultados sin la memoria de su procedimiento interno; EduFEM entrega el análisis con ella.
+
+\subsection{Objeto de estudio y campo de acción}
+
+\pegar{El objeto de estudio es el análisis de medios continuos en elasticidad lineal plana por el Método de los Elementos Finitos: el canal de cálculo que va del mapeo isoparamétrico a la recuperación de tensiones con elementos cuadriláteros Q4 y Q9. El campo de acción, la parte de la situación problemática que el trabajo mejora, son los medios de cálculo con que ese análisis se enseña en la Carrera: el software educativo que expone el canal y la memoria de cálculo que lo documenta sobre el modelo del usuario.}
+
+Es el objeto técnico de la v1. De él salen los fundamentos del Cap.~1, que es lo que la guía pide (Miranda, lám.~5), y guarda con el campo «la común naturaleza» que exige la lámina~11. Sigue el ejemplo del catedrático: objeto, las losas de hormigón armado; campo, el análisis de costos en esas losas. El objeto «proceso de enseñanza-aprendizaje» de la v4 se abandona: la tesis nunca lo estudió.
+
+\subsection{Objetivo general}
+
+\pegar{Desarrollar EduFEM, un software educativo de elementos finitos de canal de cálculo abierto para problemas bidimensionales de elasticidad lineal (tensión y deformación plana) con elementos cuadriláteros isoparamétricos Q4 y Q9, mediante su diseño e implementación en el lenguaje de programación Python y su verificación y validación frente a soluciones analíticas, casos de referencia y un software comercial, para que el análisis por el Método de los Elementos Finitos resulte trazable y verificable paso a paso en la enseñanza de la Carrera de Ingeniería Civil de la Universidad Autónoma Tomás Frías.}
+
+\molde{Verbo: desarrollar. ¿Qué cosa? ($\to$ \vi): el software de canal abierto, que reemplaza a la caja negra. ¿Cómo?: diseño, implementación en Python, verificación y validación. ¿Para qué? ($\to$ \vd): análisis trazable y verificable.}
+
+\textbf{El título aprobado no cambia}: «Desarrollo de software educativo de elementos finitos para el análisis estructural empleando el lenguaje de programación Python» es un título tecnológico (verbo, qué, cómo) que nunca prometió medir aprendizaje. La formulación final es la que mejor le corresponde.
+
+\subsection{Objetivos específicos}
+
+\molde{Escalera de Miranda: diagnosticar, fundamentar, experimentar (elaborar), calcular, validar.}
+
+\begin{enumerate}
+\item \textbf{Diagnosticar}, a partir de los antecedentes y del estado del arte del software para la enseñanza del MEF, los atributos de trazabilidad y verificabilidad que los recursos disponibles no ofrecen, para fijar los requisitos de la herramienta. \molde{Cap.~1, §1.1 y Tabla~1.1.}
+\item \textbf{Fundamentar} teóricamente el MEF para la elasticidad lineal plana con elementos Q4 y Q9 —formulación variacional, mapeo isoparamétrico, integración numérica, ensamblaje, recuperación de tensiones, calidad de malla, fenómenos numéricos y criterios de verificación y validación— y los principios que orientan la exposición del procedimiento, como base común del motor, de los módulos y de la memoria de cálculo. \molde{Cap.~1.}
+\item \textbf{Desarrollar} el motor de cálculo, la interfaz organizada en pre-proceso, proceso y post-proceso sobre un único lienzo, los módulos que exponen cada etapa del canal sobre el modelo real y la memoria de cálculo automática con interoperabilidad de datos, para que cada resultado pueda seguirse hasta sus datos. \molde{Cap.~2.}
+\item \textbf{Verificar y validar} el motor mediante el método de soluciones manufacturadas y casos de referencia clásicos (viga de Timoshenko, membrana de Cook), contrastando contra soluciones analíticas y un software comercial (SAP2000), para establecer la verificabilidad del análisis con criterios fijados a priori. \molde{Cap.~3, §3.2--3.5.}
+\item \textbf{Validar la propuesta} contrastando la cobertura del canal de cálculo y del contenido que la literatura especializada exige, junto con los resultados de la verificación, contra los criterios de aceptación, para establecer si el análisis resulta trazable y verificable. \molde{Cap.~3, §3.6--3.8.}
+\end{enumerate}
+
+El diagnóstico es documental y recae sobre el software, no sobre personas: es coherente con la \vd{} y con la lámina «Tesis de grado -- Caso~I: sin diagnóstico» de la propia guía. El OE5 replica el del ejemplo de Miranda («validar la propuesta a través de una comparación\dots»).
+
+\subsection{Hipótesis}
+
+\pegar{Bajo el desarrollo de EduFEM —un software educativo de canal de cálculo abierto, con memoria de cálculo automática y motor verificado y validado— se permitirá mejorar la forma en que el software expone el procedimiento de cálculo, de caja negra a canal abierto, elevando la trazabilidad y la verificabilidad del análisis por el Método de los Elementos Finitos en elasticidad plana en la Carrera de Ingeniería Civil de la Universidad Autónoma Tomás Frías.}
+
+\molde{Molde: «Bajo la aplicación de [interviniente] permitirá mejorar [\vi] disminuyendo [\vd] en [lugar]». Interviniente = EduFEM (un «sistema»); \vi{} = forma de exponer el procedimiento; \vd{} = trazabilidad y verificabilidad.}
+
+Se comprueba con dos cláusulas, una por dimensión de la \vd, con criterios fijados a priori en la §2.1.6:
+\begin{itemize}
+\item[(a)] \textbf{Trazabilidad.} Cada una de las siete etapas elementales y de ensamblaje tiene módulo interactivo; las nueve etapas tienen desarrollo con sustitución numérica en la memoria; la solución y la recuperación de tensiones se exponen en el post-proceso; las tres fases operan sobre un mismo lienzo; cada ítem del universo de contenido (quince destrezas y tres conceptos) tiene instrumento; y los módulos y la memoria usan las mismas funciones del motor que la verificación ejercita.
+\item[(b)] \textbf{Verificabilidad.} Tasas de convergencia del desplazamiento dentro de $\pm0{,}5$ de las teóricas en las cuatro configuraciones del MMS; en la viga de Timoshenko, flecha dentro del $3\,\%$ y $\sigma_x$ dentro del $1\,\%$ frente a la solución analítica y frente a SAP2000, con equilibrio global de residuo menor que $10^{-8}$; en la membrana de Cook, Q9 con $N=8$ dentro del $1{,}5\,\%$ y flecha del Q4 menor que la del Q9 a igual malla (firma del bloqueo por cortante); y la memoria del ejemplo canónico reproducible a mano (Anexo~G).
+\end{itemize}
+
+\textbf{Es refutable}: una etapa sin exposición, un ítem sin instrumento, una tasa fuera de margen, un error sobre el umbral o una memoria que no cierre con el cálculo manual la refutan.
+
+\textbf{No es circular}, y esta es la respuesta a «si abre la caja, obviamente se ve»: abrir el canal no garantiza que lo expuesto esté completo ni que sea correcto. La propia tesis lo demuestra: la matriz de extrapolación del Q4 estuvo mal, tres estudios de convergencia del desplazamiento no lo delataron, y lo delató la inspección de la memoria de cálculo, cuyas tensiones nodales no cerraban con las de los puntos de Gauss (§3.7.1). La cláusula (b) pudo fallar, falló una vez, y el defecto se encontró \emph{gracias a} la trazabilidad de la cláusula (a). En un software de caja negra ese error habría sido invisible para el usuario. Es la mejor anécdota de la defensa: muestra la relación causa--efecto funcionando.
+
+\textbf{Respaldo de la figura de hipótesis}: en la investigación tecnológica la hipótesis es «la solución tentativa a un problema concreto», su criterio de veracidad es la efectividad, y se aprueba o no «en la misma práctica de la investigación tecnológica» (García-Córdoba, p.~85). En la ciencia del diseño, un artefacto es completo y eficaz cuando satisface los requisitos del problema que debía resolver (Hevner, p.~85), y un tratamiento se valida mostrando que satisface sus requisitos (Wieringa, p.~59).
+
+\textbf{Preguntas de investigación}, una por cláusula:
+\begin{itemize}
+\item \textbf{PI-1} (trazabilidad). ¿Qué organización de la interfaz, de los módulos y de la memoria de cálculo permite seguir cada resultado del análisis hasta sus datos, etapa por etapa, sobre el modelo del usuario, y cubre el contenido que la literatura especializada exige?
+\item \textbf{PI-2} (verificabilidad). ¿Reproduce el motor, dentro de tolerancias fijadas a priori, las soluciones analíticas, los casos de referencia y los resultados de un software comercial, así como los fenómenos numéricos que la teoría predice?
+\end{itemize}
+
+La cláusula (c) de la v4 no se pierde: su tabla 18/18 pasa a ser un indicador de la trazabilidad, con el nombre que le corresponde —\emph{cobertura de contenido}, una verificación de requisitos— y no «validez de contenido», término psicométrico que invita a preguntar por el panel de expertos. La matriz de los cuatro principios pasa a la §2.2.1 como fundamentación de las decisiones de diseño.
+
+\subsection{Tipo de investigación, método y modelo}
+
+\begin{itemize}
+\item \textbf{Tipo}: investigación \emph{tecnológica}, de carácter \emph{propositivo} (García-Córdoba, p.~91; Taller~1, lám.~12); enfoque \emph{cuantitativo} (Hernández-Sampieri, p.~6); nivel \emph{descriptivo y comparativo}. Una precisión que el respaldo de citas ya había detectado: García-Córdoba \emph{contrasta} la investigación tecnológica con la aplicada (pp.~90--92), de modo que «aplicada de tipo tecnológico» no puede atribuírsele. Conviene escribir «investigación tecnológica» con su cita y, si se quiere conservar la palabra, «de finalidad aplicada» sin cita.
+\item \textbf{Método}: \emph{ciencia del diseño}. El conocimiento sobre el problema y su solución se obtiene construyendo el artefacto y evaluándolo con rigor (Hevner, pp.~75--77); el proceso es el de seis actividades de Peffers (pp.~52--56), con entrada centrada en el problema; y la evaluación es \emph{validación de laboratorio} (Wieringa, pp.~30--31, 59 y 63--64). La sección~\ref{sec:dsm} lo desarrolla.
+\item \textbf{Modelo de investigación} (Taller~4): modelación de simulación teórica, descrita en la §2.1 con los cinco bloques de la lámina~12.
+\end{itemize}
+
+\subsection{Variables e indicadores}
+
+{\small
+\begin{longtable}{L{3.2cm}L{2.5cm}L{6.0cm}L{4.0cm}}
+\toprule
+\textbf{Variable} & \textbf{Dimensión} & \textbf{Indicador} & \textbf{Instrumento} \\
+\midrule
+\endhead
+Independiente: forma de exponer el procedimiento de cálculo & Transparencia; interactividad; documentación & Magnitudes intermedias visibles por etapa; operación sobre el modelo del usuario en las tres fases; memoria con sustitución numérica. Niveles: caja negra / canal abierto & Matriz de atributos de la Tabla~1.1 (nivel de referencia); inventario de módulos de EduFEM \\
+Dependiente: trazabilidad y verificabilidad del análisis & Trazabilidad & Etapas con módulo ($n/7$) y con desarrollo en la memoria ($n/9$); solución y tensiones en el post-proceso; fases sobre un mismo lienzo; ítems del universo de contenido con instrumento ($n/18$); coincidencia entre lo expuesto y lo calculado por el motor & Inventario de módulos; memoria del ejemplo canónico; tabla de cobertura de contenido; pruebas de consistencia interna \\
+ & Verificabilidad & Tasa de convergencia observada frente a la teórica; error relativo en flecha y en $\sigma_x$ frente a la solución analítica y a SAP2000; residuo de equilibrio; error en Cook y firma del bloqueo; reproducción manual de la memoria & Guiones de V\&V; modelo de SAP2000 (Anexo~E); Anexo~G \\
+Interviniente: EduFEM & Versión evaluada & Software distribuido con el documento & Instalador y repositorio \\
+\midrule
+Factores, controlados y observados del experimento numérico & \multicolumn{3}{L{12.7cm}}{Sin cambios respecto de la v4: tipo de elemento y densidad de malla (factores); tipo de análisis y orden de cuadratura (controlados); tiempos y memoria (observados, sin criterio).} \\
+\bottomrule
+\end{longtable}}
+
+Se elimina la fila «criterio logrado (no medido en esta etapa)» de la v4: era una variable declarada y no medida, la confesión que el tribunal lee primero.
+
+\subsection{Población, muestra y unidad de análisis}
+
+\begin{itemize}
+\item \textbf{Unidad de análisis}: el canal de cálculo del software —cada etapa—, ejercitado sobre los casos de estudio. No hay personas en la unidad de análisis.
+\item \textbf{Población}: el universo de problemas de elasticidad lineal plana resolubles con elementos Q4 y Q9. \textbf{Muestra}: dirigida, por valor probatorio (Hernández-Sampieri, p.~215; Oberkampf y Roy): el MMS en cuatro configuraciones con cinco mallas, la viga de Timoshenko, la membrana de Cook y el ejemplo canónico. Es el segundo párrafo de la §2.1.4 de la v4, tal como está.
+\item \textbf{Universo de contenido}: las nueve etapas del canal y los dieciocho ítems de Pérez-Santiago y Campos, recorridos de forma exhaustiva.
+\item Se borra el primer párrafo de la §2.1.4 de la v4 (población = estudiantes, muestra diferida) y, con él, el \texttt{\% DATO PENDIENTE} de la asignatura.
+\end{itemize}
+
+\subsection{Matriz de consistencia}
+
+{\small
+\begin{longtable}{L{3.3cm}L{1.3cm}L{3.3cm}L{4.4cm}L{3.2cm}}
+\toprule
+\textbf{Objetivo específico} & \textbf{PI} & \textbf{Variable / indicador} & \textbf{Método (familia de Hevner)} & \textbf{Evidencia} \\
+\midrule
+\endhead
+1. Diagnosticar & PI-1, PI-2 & Atributos ausentes $\to$ requisitos & Revisión del estado del arte; análisis comparativo & §1.1; Tabla~1.1 \\
+2. Fundamentar & PI-1, PI-2 & Canal de cálculo; criterios de V\&V & Revisión de la literatura & Cap.~1 \\
+3. Desarrollar & PI-1 & \vi{} en su nivel «canal abierto» & Desarrollo iterativo con pruebas de regresión & §2.2 \\
+4. Verificar y validar & PI-2 & \vd: verificabilidad & Simulación (MMS); pruebas funcionales contra referencias; análisis dinámico (tiempos) & §3.2--3.5; Anexos~D y~E \\
+5. Validar la propuesta & PI-1, PI-2 & \vd: trazabilidad; contraste global & Análisis estático (inventario de cobertura); tabla de cobertura de contenido; escenario (ejemplo canónico) & §3.6--3.8; Anexo~G \\
+\bottomrule
+\end{longtable}}
+
+\subsection{Criterios de aceptación y veredicto}
+\label{sec:criterios}
+
+Es la tabla que la auditoría pidió para la §3.8 (hallazgo TRZ-07) y la que la lámina~17 del Taller~6 describe. Las cifras son las que la v4 reporta.
+
+{\small
+\begin{longtable}{L{6.9cm}L{2.6cm}L{3.9cm}L{1.9cm}}
+\toprule
+\textbf{Criterio} & \textbf{Umbral a priori} & \textbf{Medido} & \textbf{Veredicto} \\
+\midrule
+\endhead
+\multicolumn{4}{l}{\emph{(a) Trazabilidad}} \\
+Etapas con módulo interactivo & 7/7 & 7/7 & cumple \\
+Etapas con desarrollo numérico en la memoria & 9/9 & 9/9 & cumple \\
+Solución y tensiones en el post-proceso (crudo y suavizado) & sí & sí & cumple \\
+Fases sobre un mismo lienzo & 3/3 & 3/3 & cumple \\
+Ítems del universo de contenido con instrumento & 18/18 & 18/18 & cumple \\
+\midrule
+\multicolumn{4}{l}{\emph{(b) Verificabilidad}} \\
+Tasas del desplazamiento, MMS (4 configuraciones) & teórica $\pm0{,}5$ & base: Q4 2,00 y 1,00; Q9 3,00 y 2,00; las otras tres, dentro del margen & cumple \\
+Flecha central, Timoshenko frente a la analítica & $<3\,\%$ & $0{,}26\,\%$ & cumple \\
+$\sigma_x$ en tres puntos frente a la analítica & $<1\,\%$ & máx.\ $0{,}04\,\%$ & cumple \\
+$\sigma_x$ frente a SAP2000 & $<1\,\%$ & máx.\ $0{,}21\,\%$ & cumple \\
+Equilibrio global (residuo relativo) & $<10^{-8}$ & cifra de la §3.4 & cumple \\
+Cook, Q9 con $N=8$ & dentro del $1{,}5\,\%$ & $-0{,}14\,\%$ & cumple \\
+Firma del bloqueo: flecha Q4 $<$ Q9 a igual malla & sí & $22{,}08<23{,}93$ ($N=8$) & cumple \\
+Memoria del ejemplo canónico reproducible a mano & coincide & Anexo~G & cumple \\
+\bottomrule
+\end{longtable}}
+
+\section{El método: la ciencia del diseño dentro del índice de tres capítulos}
+\label{sec:dsm}
+
+Las tres fuentes de \texttt{Bib.~DSM} sí son necesarias, con economía: se citan en tres lugares (Metodología de la Introducción, §2.1.1 y §3.8 o Conclusiones) y son lo que le da nombre y autoridad a lo que la tesis ya hizo. Las citas en español de esta sección son traducción propia; el pasaje literal en inglés, con su página impresa, está en el Anexo.
+
+\subsection{El proceso (Peffers y otros, 2007, pp.~52--56)}
+
+{\small
+\begin{longtable}{L{4.1cm}L{6.6cm}L{3.0cm}L{1.6cm}}
+\toprule
+\textbf{Actividad} & \textbf{En EduFEM} & \textbf{Dónde} & \textbf{OE} \\
+\midrule
+\endhead
+1. Identificar el problema y motivar & Caja negra $\to$ análisis no trazable ni verificable; pertinencia para la formación & Introducción; §1.1 & --- \\
+2. Definir los objetivos de la solución & Requisitos: canal completo expuesto, memoria reproducible, exactitud con tolerancias a priori, contenido exigido por los expertos, libre y en español & §1.1 (Tabla~1.1); §2.1.6 & OE1 \\
+Base de conocimiento (rigor) & MEF en elasticidad plana, V\&V, principios que orientan la exposición & Cap.~1 & OE2 \\
+3. Diseñar y desarrollar & Motor, interfaz, módulos y memoria & §2.2 & OE3 \\
+4. Demostrar & Resolver instancias del problema: ejemplo canónico paso a paso; MMS, Timoshenko, Cook & §3.1--3.5; Anexo~G & OE4 \\
+5. Evaluar & Comparar lo observado con los objetivos de la actividad~2: criterios a priori y veredicto por cláusula & §3.6--3.8 & OE4, OE5 \\
+6. Comunicar & Tesis, repositorio público, instalador, defensa & documento & --- \\
+\bottomrule
+\end{longtable}}
+
+Peffers admite expresamente que la demostración se haga por «experimentación, simulación, estudio de caso, prueba u otra actividad apropiada» (p.~55) y que la evaluación compare la funcionalidad del artefacto con los objetivos de la solución, con medidas cuantitativas de desempeño o simulaciones, y con «cualquier evidencia empírica o prueba lógica apropiada» (p.~56).
+
+\subsection{Los métodos de evaluación (Hevner y otros, 2004, Tabla~2, p.~86)}
+
+{\small
+\begin{longtable}{L{2.6cm}L{4.6cm}L{8.5cm}}
+\toprule
+\textbf{Familia} & \textbf{Método} & \textbf{En EduFEM} \\
+\midrule
+\endhead
+Analítica & Análisis estático; de arquitectura; dinámico & Inventario de cobertura del canal y del contenido; mismas funciones del motor en módulos y memoria; tiempos de ensamblaje y de solución \\
+Experimental & Simulación («ejecutar el artefacto con datos artificiales») & Método de soluciones manufacturadas: cuatro configuraciones, cinco mallas, Q4 y Q9 \\
+Pruebas & Funcional (caja negra); estructural (caja blanca) & Timoshenko, Cook y SAP2000; batería de regresión y de consistencia interna (§3.3) \\
+Descriptiva & Argumento informado; escenarios & Principios de la §1.2 $\to$ decisiones de diseño; ejemplo canónico resuelto a mano \\
+Observacional & Estudio de caso; estudio de campo & No se usa \\
+\bottomrule
+\end{longtable}}
+
+La tesis emplea cuatro de las cinco familias. La quinta no falta: Hevner exige que el método de evaluación se corresponda con el artefacto y con las métricas elegidas (p.~86), y las métricas de esta hipótesis —cobertura y exactitud— son analíticas, experimentales y de prueba. Las observacionales miden otra cosa: el uso del artefacto en una organización.
+
+\subsection{Por qué la evaluación es de laboratorio (Wieringa, 2014)}
+
+\begin{itemize}
+\item Los proyectos de investigación en ciencia del diseño «no ejecutan el ciclo de ingeniería completo, sino que se restringen al ciclo de diseño»: investigación del problema, diseño del tratamiento y validación del tratamiento. La transferencia a la práctica puede hacerse al terminar el proyecto, pero «no es parte del proyecto de investigación» (p.~30).
+\item \emph{Validar} es justificar que el artefacto contribuiría a las metas de los interesados si se implementara, y se hace antes de implementar; \emph{evaluar} es investigar el artefacto ya aplicado en el campo. Son metas de investigación distintas que requieren enfoques distintos; la validación «es experimental y usualmente se hace en el laboratorio», con modelado, simulación y pruebas (p.~31).
+\item Esos métodos se llaman \emph{experimentos de mecanismo de caso único}: se aplican estímulos a un prototipo y se explica la respuesta por los mecanismos internos del objeto (p.~64). Investigan el efecto de una variable independiente X sobre una dependiente Y —su ejemplo es la exactitud— en un objeto de arquitectura conocida (p.~247). Es, literalmente, lo que hace la V\&V de la tesis: X es el tipo de elemento y la densidad de malla; Y, la exactitud; y la respuesta se explica por el mecanismo (orden de interpolación, bloqueo por cortante). \textbf{Hay una relación causa--efecto experimental sin un solo sujeto humano}, avalada por la fuente.
+\item El vínculo entre las propiedades del artefacto y la meta formativa es un \emph{argumento de contribución}: (requisitos del artefacto) $\times$ (supuestos del contexto) contribuyen a (meta del interesado); es una predicción falible, no una variable medida (pp.~52--53). En la tesis ese argumento vive en la Justificación y en la §1.2, sostenido por la literatura.
+\end{itemize}
+
+\section{Por qué es una tesis y no un proyecto de grado}
+\label{sec:tesis}
+
+\begin{enumerate}
+\item \textbf{Por el Reglamento.} La tesis da respuesta a un problema de ingeniería proponiendo soluciones prácticas o teóricas (Art.~6) con una propuesta original y verificable (Art.~9). El proyecto de grado es diseño de un objeto de uso social, con convenio entre la Universidad y una empresa (Art.~57 y 61), y su índice es normativa, área de proyecto, memorias de diseño y presupuesto. EduFEM no tiene nada de lo segundo y tiene todo lo primero: problema científico, hipótesis, modelo de investigación y contraste. Si alguien lee «programación y diseño de objeto de uso social» (Art.~57) como desarrollo de software, la respuesta es el Art.~61 —no hay empresa ni convenio— y el índice que el Taller~1 asigna a esa modalidad, que no tiene dónde alojar una hipótesis y su contraste. \emph{Pendiente del autor (H-1): conseguir el Reglamento y citar los artículos de la fuente, no de la lámina.}
+\item \textbf{Por la diferencia entre diseño rutinario e investigación.} Diseño rutinario es aplicar conocimiento existente a un problema conocido; investigación en diseño es resolver un problema no resuelto, o resolverlo mejor, con «una contribución claramente identificada a la base de conocimiento» (Hevner, p.~81). Las contribuciones de la tesis son tres: \emph{el artefacto} (la Tabla~1.1 muestra que ningún antecedente reúne canal completo sobre el modelo del usuario, memoria reproducible y V\&V publicada, libre y en español); \emph{conocimiento de diseño} (el motor legible que sirve de oráculo al motor por lotes, los módulos sobre el lienzo real, la memoria generada con las mismas funciones que el motor); y \emph{conocimiento de evaluación} (una batería de V\&V reproducible y la lección de la matriz de extrapolación: qué no puede detectar una batería basada solo en desplazamientos).
+\item \textbf{Por el precedente del propio tribunal.} El Ejemplo~2 del Taller~5 presenta como investigación un software desarrollado para validar, en casos de estudio publicados, la confiabilidad de sus resultados. Es la misma figura.
+\item \textbf{Por la instanciación.} En la ciencia del diseño la instanciación demuestra la factibilidad y permite evaluar en concreto la aptitud del artefacto para su propósito (Hevner, pp.~79 y 84). Un proyecto entrega un producto; una tesis entrega, además, la evidencia de que el producto cumple una hipótesis y el conocimiento que queda para el siguiente.
+\end{enumerate}
+
+\section{La prueba de campo: no nombrarla}
+\label{sec:campo}
+
+\textbf{Recomendación: no nombrarla} como etapa pendiente, deuda o diseño futuro, en ninguna parte del documento. No se trata de callar algo: es la consecuencia de haber puesto la variable donde está la evidencia.
+
+\begin{itemize}
+\item Con la \vd{} en el análisis, la prueba de campo no es un eslabón de la cadena: ningún objetivo, cláusula o variable depende de ella. Nombrarla como pendiente le dice al tribunal que el autor cree que la tesis está incompleta, y lo invita a preguntar por lo que falta. La v4 la nombra en quince líneas de cinco archivos; hay que retirarlas todas.
+\item La literatura del método respalda la frontera (Wieringa, pp.~30--31): la evaluación en el campo es otra meta de investigación, posterior a la transferencia. Y el estudio del efecto sobre las personas pertenece al otro paradigma, el de las ciencias del comportamiento, «complementario pero distinto» (Hevner, p.~76).
+\item La honestidad se conserva con \textbf{una oración afirmativa de alcance} en la Introducción, que dice qué evalúa la tesis sin presentar como carencia lo que nunca fue su objeto:
+\pegar{Este trabajo evalúa el artefacto: su diseño, la exposición de su canal de cálculo y la exactitud de sus resultados. Sus variables se miden sobre el software y sobre los casos de estudio.}
+\item En las Recomendaciones puede quedar \textbf{una sola línea}, como variable no contemplada que profundiza el estudio del problema (Taller~6, lám.~17), sin diseño, sin protocolo y sin la palabra «pendiente»:
+\pegar{Una línea de investigación distinta, de carácter educativo, podrá estudiar el uso de la herramienta en el aula.}
+Si se prefiere, también esa línea puede omitirse; la formulación no la necesita.
+\end{itemize}
+
+\section{La defensa: preguntas difíciles y respuesta corta}
+
+\begin{enumerate}
+\item \textbf{«¿A cuántos estudiantes midió?»} A ninguno, porque ninguna de mis variables es una capacidad del estudiante. Mi variable dependiente es la trazabilidad y verificabilidad del análisis, que es una propiedad del medio de cálculo y se mide sobre el software. Mi hipótesis afirma lo que mi evidencia mide.
+\item \textbf{«Si es software educativo, ¿dónde está la validación educativa?»} «Educativo» califica el propósito y el diseño del artefacto —expone el procedimiento, en español, con memoria de cálculo—, no promete una medición de aprendizaje. La tesis prueba las dos propiedades que lo hacen apto para enseñar: que el procedimiento puede seguirse completo y que lo que muestra es correcto. Su pertinencia se fundamenta en la literatura; es la justificación, no la variable.
+\item \textbf{«Esto es un proyecto de grado.»} Los cuatro argumentos de la sección~\ref{sec:tesis}, empezando por el Reglamento y cerrando con el Ejemplo~2 del Taller~5.
+\item \textbf{«Su hipótesis es obvia: si abre la caja, se ve.»} Abrir el código no es abrir el canal. La hipótesis puede fallar de cuatro maneras y falló una vez: la matriz de extrapolación del Q4. La encontró la memoria de cálculo, no las normas de error.
+\item \textbf{«¿Por qué no hizo una prueba de campo?»} Porque mis métricas son cobertura y exactitud, y el método de evaluación debe corresponder a las métricas (Hevner, p.~86). La investigación en ciencia del diseño se restringe al ciclo de diseño y valida en laboratorio (Wieringa, pp.~30--31). Medir aprendizaje es otra investigación, de otro paradigma.
+\item \textbf{«¿Cuál es su población y su muestra?»} La población son los problemas de elasticidad plana resolubles con Q4 y Q9; la muestra es dirigida, de casos canónicos con solución conocida, igual que los cuatro casos publicados del Ejemplo~2 del Taller~5. La Carrera delimita el contexto, como «la ciudad de Potosí» en el ejemplo de las losas.
+\item \textbf{«¿Dónde está su grupo de control?»} El Taller~4 pide un control «que sirva de comparación»: son la solución analítica, el valor de referencia de Cook y el modelo de SAP2000; para la exposición, el software de caja negra de la Tabla~1.1. El motor es determinista: no hay réplicas, hay reproducibilidad exacta y convergencia bajo refinamiento.
+\item \textbf{«El 18/18 lo marcó usted mismo.»} Sí, y está declarado: es una verificación de requisitos, no un juicio de expertos. Lo que no es mío es el universo —lo fijó un consenso publicado de 67 expertos— ni la regla: una celda se marca solo si la función existe en el software distribuido y el documento la evidencia. Cualquiera puede rehacerla con el instalador.
+\item \textbf{«¿Qué impide usar EduFEM como otra caja negra?»} Nada obliga a mirar. Pero la propiedad que mido es del medio: en el software comercial el procedimiento no puede verse aunque se quiera; en EduFEM está en el módulo y en la memoria. La trazabilidad es una capacidad que el medio ofrece o no ofrece.
+\item \textbf{«García-Córdoba dice que el criterio de veracidad es la efectividad en la práctica. ¿Cuál práctica?»} La misma página lo dice: las hipótesis tecnológicas se aprueban o no «en la misma práctica de la investigación tecnológica» (p.~85), que es la de construir la solución y probarla. Efectividad es cumplir los requisitos con evidencia.
+\item \textbf{«¿Qué conocimiento nuevo aporta?»} Conocimiento operativo: un artefacto que no existía, las decisiones de diseño que lo hacen trazable, y una evidencia de verificación y validación que cualquiera puede reejecutar, incluida la lección sobre el límite de la propia batería.
+\end{enumerate}
+
+\textbf{Apertura de treinta segundos.} «Mi tesis parte de un hecho verificable: el software con que se calcula por elementos finitos es una caja negra, y por eso el análisis no puede seguirse ni comprobarse paso a paso. Propuse como solución un sistema, EduFEM, que abre ese canal de cálculo. Mi hipótesis es que con él el análisis se vuelve trazable y verificable, y la comprobé con criterios fijados de antemano: las siete etapas del canal tienen módulo, las nueve están en la memoria de cálculo, el contenido que exigen los expertos está cubierto, y los resultados coinciden con la solución analítica, con los casos de referencia y con SAP2000, con errores menores al uno por ciento en la tensión y al tres por ciento en la flecha. Es investigación tecnológica con el método de la ciencia del diseño: el conocimiento se obtiene construyendo el artefacto y evaluándolo con rigor.»
+
+\section{Mapa de cambios sobre la v4}
+\label{sec:cambios}
+
+La versión final se construye sobre \texttt{capitulos\_v4/}; de la v1 se recupera el párrafo del objeto de estudio. El Cap.~1 técnico, la §2.2, las §3.1--3.5, los anexos y las figuras no se tocan.
+
+{\small
+\begin{longtable}{L{4.6cm}L{11.1cm}}
+\toprule
+\textbf{Archivo} & \textbf{Qué cambia} \\
+\midrule
+\endhead
+\texttt{00\_resumen} & Frase de la \vd; retirar la mención a la prueba de campo; «validez de contenido» $\to$ «cobertura de contenido». \\
+\texttt{01\_introduccion} & Segundo párrafo del problema: la consecuencia pasa de pedagógica a técnica, y Pérez-Santiago va a la pertinencia. Problema (solo el efecto). Objeto (texto de la v1) y campo. Objetivo general. OE1, OE4 y OE5. Párrafo de la hipótesis entero (desaparecen «por etapas», «en esta etapa» y las dos oraciones finales). Dos PI. Metodología: entra la ciencia del diseño y sale «el nivel explicativo corresponde a la prueba de campo». Limitaciones: sale la oración de la prueba de campo y entra la de alcance. Estructura del documento: dos retoques. \\
+\texttt{02\_marco\_teorico} & §1.1: el cierre enuncia los requisitos de trazabilidad y verificabilidad. §1.2: se conserva; revisar que ningún efecto reportado por la literatura se traslade a EduFEM en indicativo (hallazgo CAL-05). \\
+\texttt{02b\_diseno\_metodologico} & §2.1.1: párrafo de la ciencia del diseño y tabla del proceso; sale la última oración. §2.1.2: \vd{} y Tabla~2.1 (sale la fila «criterio logrado»). §2.1.3: problema, hipótesis y matriz. §2.1.4: sale el párrafo de la población de estudiantes y el dato pendiente. §2.1.5: la tabla de especificaciones se presenta como cobertura de contenido. §2.1.6: dos cláusulas; sale la oración final. \\
+\texttt{04\_resultados} & §3.1: la oración que reparte las variables. §3.6.2 y §3.7.2: «validez de contenido y coherencia» $\to$ «cobertura de contenido»; la matriz de principios pasa a la §2.2.1. §3.8: dos cláusulas, tabla criterio--umbral--cifra--veredicto y párrafo final nuevo (sale «con su efecto pendiente de medición»). \\
+\texttt{05\_conclusiones} & Una conclusión por OE con la \vd{} nueva; veredicto de la hipótesis sin salvedades; Limitaciones sin «validez de contenido no es efectividad»; Recomendaciones sin el diseño de la prueba de campo (a lo sumo, la línea de la sección~\ref{sec:campo}). \\
+\texttt{referencias.bib} & Tres entradas nuevas (anexo), cada una citada al menos dos veces; ejemplares copiados a \texttt{tesis/bibliografia/} con la convención de nombres; respaldo de citas regenerado. \\
+\texttt{guion\_v2.json} (presentación y video) &Láminas de problema, objeto y campo, objetivos, hipótesis, variables, matriz, §3.6, conclusiones y recomendaciones; narración del video. \\
+\bottomrule
+\end{longtable}}
+
+\textbf{Lo que la formulación no arregla.} Los hallazgos numéricos y de redacción de la auditoría siguen en pie porque no dependen del eje: «0,56\,\% en desplazamientos» en el Resumen, la razón Q4/Q9 de Cook, la procedencia de los umbrales, la cota de la tensión recuperada, la partición del canal en nueve etapas con su cita, y la regla de marcado de la tabla 18/18.
+
+\section{Riesgos que quedan}
+
+\begin{itemize}
+\item \textbf{La tabla 18/18 sigue siendo un cotejo del autor.} Con el nombre nuevo deja de presentarse como lo que no es, pero conviene escribir la regla de marcado y conservar la salvedad que la fuente declara de sí misma (p.~1171).
+\item \textbf{Un miembro del tribunal puede preferir el eje pedagógico.} La respuesta es la sección~\ref{sec:material}: el material no lo exige, y una hipótesis que la tesis no puede comprobar es peor que una que comprueba entera. Conviene acordar la formulación con el tutor antes de reescribir.
+\item \textbf{El Reglamento está citado desde una lámina.} Conseguir el texto.
+\item \textbf{Las tres fuentes nuevas son de sistemas de información.} Es una objeción débil: el método trata de artefactos de software, EduFEM lo es, y Wieringa cubre la ingeniería de software de forma expresa. Hevner y Peffers son artículos de revista (nivel~1 en la jerarquía del Taller~1).
+\end{itemize}
+
+\appendix
+\section*{Anexo. Las tres fuentes: datos y pasajes con página}
+
+\textbf{Entradas propuestas} (los datos salen de los ejemplares de \texttt{Bib.~DSM}; los DOI de Peffers y de Wieringa están impresos; el de Hevner no figura en el ejemplar y no se incluye):
+
+{\small
+\begin{verbatim}
+@article{hevner2004design,
+  author  = {Hevner, Alan R. and March, Salvatore T. and Park, Jinsoo and Ram, Sudha},
+  title   = {Design Science in Information Systems Research},
+  journal = {MIS Quarterly}, year = {2004}, volume = {28}, number = {1},
+  pages   = {75--105}}
+
+@article{peffers2007dsrm,
+  author  = {Peffers, Ken and Tuunanen, Tuure and Rothenberger, Marcus A.
+             and Chatterjee, Samir},
+  title   = {A Design Science Research Methodology for Information Systems Research},
+  journal = {Journal of Management Information Systems}, year = {2007}, volume = {24},
+  number  = {3}, pages = {45--77}, doi = {10.2753/MIS0742-1222240302}}
+
+@book{wieringa2014design,
+  author    = {Wieringa, Roel J.},
+  title     = {Design Science Methodology for Information Systems
+               and Software Engineering},
+  publisher = {Springer}, location = {Berlin, Heidelberg}, year = {2014},
+  isbn      = {978-3-662-43838-1}, doi = {10.1007/978-3-662-43839-8}}
+\end{verbatim}}
+
+El fascículo de Peffers es «Winter 2007--8» con copyright 2008; se cita como 2007, que es el uso general. Verificar el año contra el registro de la revista al cargar la entrada.
+
+{\small
+\begin{longtable}{L{2.6cm}L{1.3cm}L{11.8cm}}
+\toprule
+\textbf{Fuente} & \textbf{Página} & \textbf{Pasaje (literal)} \\
+\midrule
+\endhead
+Hevner 2004 & 76 & «two complementary but distinct paradigms, behavioral science and design science» \\
+ & 79 & «Instantiations show that constructs, models, or methods can be implemented in a working system. They demonstrate feasibility, enabling concrete assessment of an artifact's suitability to its intended purpose.» \\
+ & 81 & «The key differentiator between routine design and design research is the clear identification of a contribution to the archival knowledge base of foundations and methodologies.» \\
+ & 83 & Tabla~1, directriz~3: «The utility, quality, and efficacy of a design artifact must be rigorously demonstrated via well-executed evaluation methods.» \\
+ & 85 & «IT artifacts can be evaluated in terms of functionality, completeness, consistency, accuracy, performance, reliability, usability, fit with the organization, and other relevant quality attributes.» / «A design artifact is complete and effective when it satisfies the requirements and constraints of the problem it was meant to solve.» \\
+ & 86 & Tabla~2 (métodos de evaluación) y «The selection of evaluation methods must be matched appropriately with the designed artifact and the selected evaluation metrics.» \\
+\midrule
+Peffers 2007 & 55 & «Activity 4: Demonstration. Demonstrate the use of the artifact to solve one or more instances of the problem. This could involve its use in experimentation, simulation, case study, proof, or other appropriate activity.» \\
+ & 56 & «Activity 5: Evaluation. [\dots] It could include items such as a comparison of the artifact's functionality with the solution objectives from activity 2, objective quantitative performance measures [\dots] or simulations. [\dots] Conceptually, such evaluation could include any appropriate empirical evidence or logical proof.» \\
+\midrule
+Wieringa 2014 & 16 & Tabla~2.1, plantilla del problema de diseño: «Improve <a problem context> by <(re)designing an artifact> that satisfies <some requirements> in order to <help stakeholders achieve some goals>.» \\
+ & 30 & «Design science research projects do not perform the entire engineering cycle but are restricted to the design cycle. Transferring new technology to the market may be done after the research project is finished but is not part of the research project.» \\
+ & 31 & «The goal of validation is to predict how an artifact will interact with its context, without actually observing an implemented artifact in a real-world context. Validation research is experimental and is usually done in the laboratory. [\dots] Frequently used research methods are modeling, simulation, and testing, methods that are called "single-case mechanism experiments" in this book.» \\
+ & 52--53 & «(Artifact Requirements) $\times$ (Context Assumptions) contribute to (Stakeholder Goal).» / «A contribution argument is a prediction [\dots] The contribution argument is fallible.» \\
+ & 59 & «If the requirements for the treatment are specified and justified, then we can we [\emph{sic}] validate a treatment by showing that it satisfies its requirements.» \\
+ & 64 & «you build a prototype of a program, build a model of its intended context, and feed its test scenarios to observe its responses. The responses, good or bad, are explained in terms of the mechanisms internal to the program or to the environment.» \\
+ & 247 & «A single-case mechanism experiment is a test of a mechanism in a single object of study with a known architecture. [\dots] They investigate the effect of a difference of an independent variable X [\dots] on a dependent variable Y (e.g., accuracy).» \\
+\bottomrule
+\end{longtable}}
+
+García-Córdoba (pp.~83, 85 y 90--92) y Hernández-Sampieri (pp.~6 y 215) ya están en el respaldo de citas de la tesis con su pasaje literal.
+
+\end{document}

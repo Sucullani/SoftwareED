@@ -2005,5 +2005,151 @@
    }
   ],
   "sin_respaldo": ""
+ },
+ {
+  "clave": "hevner2004design",
+  "id": {
+   "archivo": "Hevner et al 2004 - Design Science in Information Systems Research.pdf",
+   "clave_bib": "hevner2004design",
+   "autores_reales": "Alan R. Hevner, Salvatore T. March, Jinsoo Park, Sudha Ram",
+   "titulo_real": "Design Science in Information Systems Research",
+   "edicion_real": "",
+   "editorial_real": "MIS Quarterly (Management Information Systems Research Center, University of Minnesota) — vol. 28, n.o 1, pp. 75-105",
+   "ciudad_real": "",
+   "anio_real": "2004",
+   "isbn_real": "",
+   "veredicto": "COINCIDE",
+   "gravedad": "ninguna",
+   "campos_que_discrepan": "",
+   "notas": "Ejemplar con capa de texto. La cabecera de cada pagina imprime «MIS Quarterly Vol. 28 No. 1, pp. 75-105/March 2004». Folio impreso = pagina del PDF + 74 (verificado: la Tabla 1 esta en PDF 9 = impresa 83, y la Tabla 2 en PDF 12 = impresa 86). El ejemplar NO imprime DOI; por eso el .bib no lo consigna.",
+   "nombre_archivo_propuesto": "Hevner et al 2004 - Design Science in Information Systems Research.pdf"
+  },
+  "respaldos": [
+   {
+    "afirmacion_tesis": "Introduccion (Metodologia) y 02b §2.1.1: el metodo es el de la ciencia del diseno, en la que el conocimiento sobre un problema y su solucion se obtiene construyendo el artefacto y evaluandolo con rigor. \\autocite[p.~75]{hevner2004design}",
+    "pagina_impresa": "75",
+    "pagina_pdf": "1",
+    "pasaje_textual": "In the design-science paradigm, knowledge and understanding of a problem domain and its solution are achieved in the building and application of the designed arti-",
+    "respalda": "SI",
+    "comentario": "Pasaje copiado literalmente del ejemplar; folio impreso verificado en la propia pagina."
+   },
+   {
+    "afirmacion_tesis": "02b §2.1.1 y Conclusiones (Aportes): lo que distingue una investigacion en ciencia del diseno de un diseno rutinario es que deja una contribucion identificable a la base de conocimiento. \\autocite[p.~81]{hevner2004design}",
+    "pagina_impresa": "81",
+    "pagina_pdf": "7",
+    "pasaje_textual": "The key differentiator between rou- tine design and design research is the clear iden- tification of a contribution to the archival knowl- edge base of foundations and methodologies.",
+    "respalda": "SI",
+    "comentario": "Pasaje copiado literalmente del ejemplar; folio impreso verificado en la propia pagina."
+   },
+   {
+    "afirmacion_tesis": "02b §2.1.1: la evaluacion emplea cuatro de las cinco familias de metodos que la ciencia del diseno reconoce, y el metodo debe elegirse segun el artefacto y las metricas. \\autocite[p.~86]{hevner2004design}",
+    "pagina_impresa": "86",
+    "pagina_pdf": "12",
+    "pasaje_textual": "Table 2. Design Evaluation Methods 1. Observational Case Study: Study artifact in depth in business environment Field Study: Monitor use of artifact in multiple projects 2. Analytical Static Analysis: Examine structure of artifact for static qualities (e.g., complexity) Architecture Analysis: Study fit of artifact into technical IS architecture Optimization: Demonstrate inherent optimal properties of artifact or provide optimality bounds on artifact behavior Dynamic Analysis: Study artifact in use for dynamic qualities (e.g., performance) 3. Experimental Controlled Experiment: Study artifact in controlled environment for qualities (e.g., usability) Simulation – Execute artifact with artificial data 4. Testing Functional (Black Box) Testing: Execute artifact interfaces to discover failures and identify defects Structural (White Box) Testing: Perform coverage testing of some metric (e.g., execution paths) in the artifact implementation 5. Descriptive Informed Argument: Use information from the knowledge base (e.g., relevant research) to build a convincing argument for the artifact’s utility Scenarios: Construct detailed scenarios around the artifact to demonstrate its utility",
+    "respalda": "SI",
+    "comentario": "Pasaje copiado literalmente del ejemplar; folio impreso verificado en la propia pagina."
+   },
+   {
+    "afirmacion_tesis": "02b §2.1.1: el metodo de evaluacion debe corresponderse con el artefacto disenado y con las metricas de evaluacion elegidas. \\autocite[p.~86]{hevner2004design}",
+    "pagina_impresa": "86",
+    "pagina_pdf": "12",
+    "pasaje_textual": "The selection of evaluation methods must be matched appro- priately with the designed artifact and the selected evaluation metrics.",
+    "respalda": "SI",
+    "comentario": "Pasaje copiado literalmente del ejemplar; folio impreso verificado en la propia pagina."
+   }
+  ],
+  "sin_respaldo": ""
+ },
+ {
+  "clave": "peffers2007dsrm",
+  "id": {
+   "archivo": "Peffers et al 2007 - A Design Science Research Methodology.pdf",
+   "clave_bib": "peffers2007dsrm",
+   "autores_reales": "Ken Peffers, Tuure Tuunanen, Marcus A. Rothenberger, Samir Chatterjee",
+   "titulo_real": "A Design Science Research Methodology for Information Systems Research",
+   "edicion_real": "",
+   "editorial_real": "M.E. Sharpe — Journal of Management Information Systems, vol. 24, n.o 3, pp. 45-77",
+   "ciudad_real": "",
+   "anio_real": "2007 (fasciculo «Winter 2007-8»; copyright 2008)",
+   "isbn_real": "",
+   "veredicto": "COINCIDE",
+   "gravedad": "ninguna",
+   "campos_que_discrepan": "El pie de la primera pagina imprime «Winter 2007-8» y «(c) 2008 M.E. Sharpe, Inc.». Se cita por el ano del fasciculo, 2007, que es el uso general y el que emplea el DOI impreso (10.2753/MIS0742-1222240302).",
+   "notas": "Ejemplar con capa de texto. Folio impreso = pagina del PDF + 44 (verificado: PDF 1 = impresa 45; PDF 12 = impresa 56, cuya cabecera imprime «56 PEFFERS, TUUNANEN, ROTHENBERGER, AND CHATTERJEE»).",
+   "nombre_archivo_propuesto": "Peffers et al 2007 - A Design Science Research Methodology.pdf"
+  },
+  "respaldos": [
+   {
+    "afirmacion_tesis": "Introduccion (Metodologia) y 02b §2.1.1 (Tabla 2.2): el trabajo sigue el proceso de seis actividades de la ciencia del diseno; la actividad 4, demostrar, admite experimentacion, simulacion, estudio de caso o prueba. \\autocite[pp.~52-56]{peffers2007dsrm}",
+    "pagina_impresa": "55",
+    "pagina_pdf": "11",
+    "pasaje_textual": "Activity 4: Demonstration. Demonstrate the use of the artifact to solve one or more instances of the problem. This could involve its use in experimentation, simulation, case study, proof, or other appropriate activity.",
+    "respalda": "SI",
+    "comentario": "Pasaje copiado literalmente del ejemplar; folio impreso verificado en la propia pagina."
+   },
+   {
+    "afirmacion_tesis": "02b §2.1.1: la actividad 5, evaluar, compara la funcionalidad observada con los objetivos de la solucion y admite cualquier evidencia empirica o prueba logica apropiada. \\autocite[pp.~52-56]{peffers2007dsrm}",
+    "pagina_impresa": "56",
+    "pagina_pdf": "12",
+    "pasaje_textual": "Activity 5: Evaluation. Observe and measure how well the artifact supports a solution to the problem. This activity involves comparing the objectives of a solution to actual observed results from use of the artifact in the demonstration. It requires knowledge of relevant metrics and analysis techniques.",
+    "respalda": "SI",
+    "comentario": "Pasaje copiado literalmente del ejemplar; folio impreso verificado en la propia pagina."
+   },
+   {
+    "afirmacion_tesis": "02b §2.1.1: la evaluacion puede incluir cualquier evidencia empirica o prueba logica apropiada. \\autocite[pp.~52-56]{peffers2007dsrm}",
+    "pagina_impresa": "56",
+    "pagina_pdf": "12",
+    "pasaje_textual": "Conceptually, such evaluation could include any appropriate empirical evidence or logical proof.",
+    "respalda": "SI",
+    "comentario": "Pasaje copiado literalmente del ejemplar; folio impreso verificado en la propia pagina."
+   }
+  ],
+  "sin_respaldo": ""
+ },
+ {
+  "clave": "wieringa2014design",
+  "id": {
+   "archivo": "Wieringa 2014 - Design Science Methodology.pdf",
+   "clave_bib": "wieringa2014design",
+   "autores_reales": "Roel J. Wieringa",
+   "titulo_real": "Design Science Methodology for Information Systems and Software Engineering",
+   "edicion_real": "Primera edicion",
+   "editorial_real": "Springer-Verlag Berlin Heidelberg",
+   "ciudad_real": "Heidelberg (portada: «Springer Heidelberg New York Dordrecht London»)",
+   "anio_real": "2014",
+   "isbn_real": "978-3-662-43838-1 (impreso); 978-3-662-43839-8 (electronico)",
+   "veredicto": "COINCIDE",
+   "gravedad": "ninguna",
+   "campos_que_discrepan": "",
+   "notas": "Ejemplar con capa de texto. El desfase entre pagina del PDF y folio impreso NO es constante (14 en la p. 16, 12 en la 31, 11 en la 53, y -1 a partir del cap. 18): cada folio se leyo en su propia pagina. DOI e ISBN impresos en la pagina de creditos.",
+   "nombre_archivo_propuesto": "Wieringa 2014 - Design Science Methodology.pdf"
+  },
+  "respaldos": [
+   {
+    "afirmacion_tesis": "02b §2.1.1: los proyectos de investigacion en ciencia del diseno se restringen al ciclo de diseno; la transferencia a la practica no es parte del proyecto de investigacion. \\autocite[p.~30]{wieringa2014design}",
+    "pagina_impresa": "30",
+    "pagina_pdf": "42",
+    "pasaje_textual": "Design science research projects do not perform the entire engineering cycle but are restricted to the design cycle.2 Transferring new technology to the market may be done after the research project is ﬁnished but is not part of the research project.",
+    "respalda": "SI",
+    "comentario": "Pasaje copiado literalmente del ejemplar; folio impreso verificado en la propia pagina."
+   },
+   {
+    "afirmacion_tesis": "02b §2.1.1: validar es justificar, antes de la implementacion, que el artefacto cumple sus requisitos; la validacion es experimental y se hace en el laboratorio, con modelado, simulacion y pruebas. \\autocite[p.~31]{wieringa2014design}",
+    "pagina_impresa": "31",
+    "pagina_pdf": "43",
+    "pasaje_textual": "The goal of validation is to predict how an artifact will interact with its context, without actually observing an implemented artifact in a real-world context. Validation research is experimental and is usually done in the laboratory. In validation research, we expose an artifact prototype to various scenarios presented by a model of the context, to see how it responds. Frequently used research methods are modeling, simulation, and testing, methods that are called “single-case mechanism experiments” in this book",
+    "respalda": "SI",
+    "comentario": "Pasaje copiado literalmente del ejemplar; folio impreso verificado en la propia pagina."
+   },
+   {
+    "afirmacion_tesis": "02b §2.1.1: esas pruebas son experimentos de causa y efecto sobre un objeto de arquitectura conocida, que investigan el efecto de una variable independiente sobre una dependiente, como la exactitud. \\autocite[p.~247]{wieringa2014design}",
+    "pagina_impresa": "247",
+    "pagina_pdf": "246",
+    "pasaje_textual": "A single-case mechanism experiment is a test of a mechanism in a single object of study with a known architecture. The research goal is to describe and explain cause-effect behavior of the object of study. This can be used in implementation evaluation and problem investigation, where we do real-world research. It can also be used in validation research, where we test validation models. In this chapter we restrict ourselves to validation research, and in the checklist and examples the object of study is a validation model. Single-case mechanism experiments are at the same time single-case causal experiments (Chap. 14, Abductive Inference Design). They investigate the effect of a difference of an independent variable X (e.g., angle of incidence) on a dependent variable Y (e.g., accuracy). But not all causal experiments are mechanism experi-",
+    "respalda": "SI",
+    "comentario": "Pasaje copiado literalmente del ejemplar; folio impreso verificado en la propia pagina."
+   }
+  ],
+  "sin_respaldo": ""
  }
 ]

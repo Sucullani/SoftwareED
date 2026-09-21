@@ -1,6 +1,6 @@
 # Estado del trabajo
 
-**Última actualización**: 2026-09-20
+**Última actualización**: 2026-09-21
 
 > **Nota de sincronización (2026-09-16)**: **no queda nada sin commitear**. Todo lo que más
 > abajo dice «sin commit» —del 2026-09-09 al 2026-09-16: rediseño de la capa visual, Memoria
@@ -24,6 +24,7 @@ tesis** (`tesis/`, 130 páginas, compila limpio).
 
 | Tema | Dónde | Estado |
 |---|---|---|
+| **Formulación metodológica final (eje tecnológico, sin prueba de campo)** | `tesis/alternativas/formulacion_final.pdf` (16 p.) | **Propuesta el 2026-09-21**, a pedido del autor: conserva la causa de la v4 (caja negra) y baja la variable efecto del estudiante al análisis —**baja trazabilidad y verificabilidad del análisis por el MEF**—, con lo que la hipótesis afirma solo lo que la evidencia mide y la prueba de campo deja de ser un eslabón. Método: ciencia del diseño (Hevner, Peffers, Wieringa, en `tesis/bibliografia/Bib. DSM/`). Trae el respaldo lámina por lámina del material docente, la tabla criterio–umbral–cifra–veredicto, once preguntas de defensa y el **mapa de cambios sobre `capitulos_v4/`**. **Sin commit; no se tocó la tesis.** Espera la decisión del autor. Detalle: [2026-09-21_formulacion-final-eje-tecnologico.md](2026-09-21_formulacion-final-eje-tecnologico.md) |
 | **Presentación y video v2** | `tesis/presentacion/guion_v2.json`, `Defensa_EduFEM_v2.pptx/.pdf`, `video/*_v2.*` | **Construidos el 2026-09-19** para la tesis v4: 40 láminas (13 cambian, la 31 es nueva: validez de contenido) y video de 34:16 con la misma voz. La v1 (39 láminas, 30:54) no se tocó. **Sin commit.** Falta que el autor mire el video (ritmo, pronunciación) y ensaye los tiempos. Cómo regenerar: `tesis/presentacion/README.md` |
 | **Auditoría de redacción de la tesis v4** | `tesis/auditoria_v4/` (`AUDITORIA-REDACCION.md`, `PLAN-CORRECCION.pdf`, `anexos/`, `datos/`) | **Hecha el 2026-09-20** sobre `main_v4.pdf`, sin editar la tesis: 19 agentes (9 lectores de unidad + 10 barredores transversales), consolidación por eje y verificación independiente de cada crítico o alto. Quedan 225 hallazgos (4 críticos, 27 altos, 177 medios, 17 bajos) y 36 preguntas de defensa. Lo que pesa en la defensa son ~14 h: salvedad canónica pegada al objetivo general, al problema, al OE5 y a la primera conclusión; tabla criterio–umbral–cifra–veredicto en 2.1.6 y 3.8; «0,56 % en desplazamientos» en el Resumen y la razón Q4/Q9 de Cook, que sí depende de la referencia; la validez de contenido declarada como cotejo del autor. **Las correcciones las aplica el autor** con el plan en la mano; los ID (CAL-01, TRZ-07…) son estables |
 | **Tesis v4, alternativa 3** | `tesis/main_v4.tex`, `tesis/capitulos_v4/` | **Construida el 2026-09-19** sobre la v1 con la alternativa 3 confirmada por el autor («caja negra → bajo criterio para interpretar la respuesta estructural», molde de Miranda, 5 OE, 3 PI, tabla de especificaciones contra Pérez-Santiago, matriz de 4 principios, 3 refs nuevas con ejemplar y respaldo). Compila limpia: 167 hojas, 0 indefinidas, 0 desbordes. Respaldo de citas y resaltados regenerados. **Sin commit.** Espera revisión del autor y su decisión de reemplazar `capitulos/`. Detalle: [2026-09-19_tesis-v4-alternativa-3.md](2026-09-19_tesis-v4-alternativa-3.md) |
@@ -34,6 +35,19 @@ tesis** (`tesis/`, 130 páginas, compila limpio).
 | Distribución del `.exe` | `installer/` | Vía principal decidida: instalador Inno Setup por usuario, sin admin. Sin firma de código (decisión tomada). Empaquetado **onedir** desde el 2026-09-10 (arranque 3 s en vez de 12; el entregable sigue siendo un solo archivo) |
 
 ## Decisiones abiertas (esperan al autor)
+
+- **Adoptar o no la formulación final de eje tecnológico (2026-09-21)** — el autor pidió una
+  formulación sin prueba de campo y que no pueda leerse como proyecto de grado. Está en
+  `tesis/alternativas/formulacion_final.pdf`: causa = uso del software como caja negra;
+  efecto = baja trazabilidad y verificabilidad del análisis por el MEF; interviniente =
+  EduFEM; dos cláusulas (trazabilidad, verificabilidad), dos PI, los cinco OE de la v4 con
+  OE1, OE4 y OE5 reescritos; objeto de estudio técnico (el de la v1); la tabla 18/18 pasa a
+  llamarse «cobertura de contenido». **Reemplaza, si se adopta, a las dos decisiones que
+  siguen** (eje pedagógico y v3 frente a v1). **Qué decide el autor**: si la adopta —conviene
+  acordarla con el tutor— y entonces pedir la versión final construida sobre `capitulos_v4/`
+  con el mapa de la sección 7 del PDF. Lo que un agente **no** puede hacer: conseguir el
+  Reglamento de Graduación (H-1), que aquí se cita desde las láminas del Taller 1. Detalle:
+  [2026-09-21_formulacion-final-eje-tecnologico.md](2026-09-21_formulacion-final-eje-tecnologico.md).
 
 - **Elegir el eje pedagógico definitivo y aplicarlo sobre la v1 (2026-09-18, tarde)** — el autor
   encontró la v3 demasiado pesada y pidió alternativas pedagógicas lineales con los moldes de
