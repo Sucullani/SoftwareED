@@ -40,6 +40,27 @@ tesis** (versión vigente `tesis/main_final3.tex`, 189 páginas, compila limpio 
 
 ## Decisiones abiertas (esperan al autor)
 
+- **Auditoría general de final3 (2026-09-25)**:
+  [`tesis/auditoria_final/AUDITORIA-GENERAL-FINAL3.md`](../../tesis/auditoria_final/AUDITORIA-GENERAL-FINAL3.md).
+  **Veredicto**: defendible; solo H1 es una afirmación falsa (el MMS y la deformación plana,
+  la decisión de abajo). No se tocó la tesis ni el código. Trae un banco de unas 60 preguntas
+  del tribunal con respuesta y página. **Hallazgos nuevos, todos verificados**:
+  - H2: la flecha de Timoshenko medida respecto del nodo de apoyo **crece** al refinar
+    (0,18/0,26/0,35/0,44 %), por la singularidad del apoyo puntual (Flamant); respecto de la
+    sección extrema es −0,03 % en toda malla.
+  - H3: τxy en B converge O(h²) (11,9 → 2,89 → 0,72 → 0,18 %).
+  - H4: los umbrales de σx < 1 % y del equilibrio entraron a `tests/vv_timoshenko.py` el 16-09,
+    con los resultados conocidos desde junio; conviene matizar «fijados de antemano».
+  - H5: faltan en «Versión evaluada» el hash `ec5876e` (PyMuPDF) y `9232819` (σx de SAP2000).
+  - H6: más rótulos en inglés que los dos declarados, y el 23,95 de Cook en el menú de la
+    interfaz.
+  - H7: el PDF de XeLaTeX codifica 427 «;» como U+037E; se arregla con
+    `\XeTeXgenerateactualtext=1` (probado).
+  - H8: **bug del software**, el deshacer no revierte la edición de un vértice en la tabla de
+    Elementos (`Element.to_dict` devuelve la lista viva).
+  - H9: la p. 2 atribuye a Pérez-Santiago, p. 1160, algo que no dice; la p. 1164 respalda
+    excluir FEM3.
+
 - **El MMS no verifica `λ` ni `D33` (2026-09-23)** — la `u_M` de `tests/vv_mms.py`
   (`sin πx sin πy`, `cos πx cos πy`) tiene `tr(ε) = 0` y `γxy = 0` en todo punto, así que
   `b = π²(D11 − D12)(…)`: el término fuente es el mismo en tensión y en deformación plana, y la
@@ -62,6 +83,13 @@ tesis** (versión vigente `tesis/main_final3.tex`, 189 páginas, compila limpio 
   `capitulos_final3/`, donde siguen las mismas frases. La implementación de la auditoría dejó
   para este momento los tres hallazgos que las reescriben (H-097, H-100, H-197), para no
   escribirlas dos veces.
+  - *Ampliación (auditoría general, 25-09):* en `capitulos_final3/` hay dos frases más, además
+    de las cuatro de arriba: `05_conclusiones.tex:49` («verificada por soluciones manufacturadas
+    en ambos estados») y `02b_diseno_metodologico.tex:149` («…ambos estados planos»). Lista
+    completa con páginas en H1 de `AUDITORIA-GENERAL-FINAL3.md`.
+  - Otra ampliación: un error en el `D33` **solo de la rama de deformación plana** no lo
+    detecta ninguna prueba de la batería. Cook es de tensión plana y
+    `test_vv_extensions` [8/8] no ve D33.
 
 - **Material de defensa desactualizado por el retiro de PyMuPDF (2026-09-25)** — el software
   ya no lleva PyMuPDF (ver *Hecho recientemente*), pero el autor pidió **no** tocar todavía el
