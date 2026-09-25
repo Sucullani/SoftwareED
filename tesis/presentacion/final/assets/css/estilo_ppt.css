@@ -1,0 +1,227 @@
+/* =====================================================================
+   estilo_ppt.css — versión 2 de la defensa, con el aspecto de la plantilla
+   PowerPoint de las versiones anteriores (tesis/presentacion/build_deck.py):
+   láminas blancas, título azul marino en Calibri con un acento naranja
+   debajo, rótulo del bloque con barra naranja, puntos de avance arriba a la
+   derecha y pie con la fuente de la tesis y el número de lámina. Separadores
+   y cierre en azul marino, carátula partida.
+
+   Todo cuelga de :root[data-estilo="ppt"]: cargado junto a la versión 1 no
+   cambia nada. Mismo motor, mismas láminas, mismos datos que la versión 1.
+   ===================================================================== */
+
+/* ---------- Paleta y tipografía (las de build_deck.py) ---------- */
+:root[data-estilo="ppt"],
+:root[data-estilo="ppt"][data-tema="claro"],
+:root[data-estilo="ppt"][data-tema="oscuro"] {
+  --fuente: 'Calibri', 'Carlito', 'Segoe UI', sans-serif;
+  --mono: 'Consolas', 'Cascadia Mono', monospace;
+  --t-titulo: 60px;
+  --radio: 12px;
+  --radio-s: 8px;
+
+  --navy: #1b2a4a;
+  --navy-hondo: #0e182e;
+  --navy-suave: #2c3e63;
+  --pizarra: #3e5a86;
+  --sobre-oscuro: #c7d2e8;
+
+  --fondo-ventana: #1b1f27;
+  --fondo: #ffffff;
+  --fondo-2: #f6f8fc;
+  --superficie: #ffffff;
+  --superficie-2: #f6f8fc;
+  --superficie-3: #eaf0fa;
+  --linea: #dce3ee;
+  --linea-2: #c3cddc;
+  --texto: #1f2937;
+  --texto-2: #3f4a5a;
+  --texto-3: #5b6575;
+  --acento: #e8741a;
+  --acento-2: #c9620f;
+  --acento-suave: #fdf1e2;
+  --primario: #1f77b4;
+  --primario-suave: #e8f1fa;
+  --q4: #1f77b4;
+  --q9: #ff7f0e;
+  --ok: #2e8b57;
+  --ok-suave: #e4f3ea;
+  --mal: #c0392b;
+  --mal-suave: #fbe9e7;
+  --aviso: #b7791f;
+  --violeta: #6f42c1;
+  --cian: #0e7c9b;
+  --lienzo: #ffffff;
+  --malla: #2e7d32;
+  --nodo: #0e7db8;
+  --apoyo: #e07b00;
+  --carga: #d9342b;
+  --ejeX: #d64b2a;
+  --ejeY: #8a3fc7;
+  --sombra: 0 10px 28px rgba(27, 42, 74, 0.16);
+  --sombra-s: 0 2px 8px rgba(27, 42, 74, 0.08);
+  color-scheme: light;
+}
+:root[data-estilo="ppt"] body { font-kerning: none; font-variant-ligatures: none; font-feature-settings: normal; }
+
+/* ---------- Lámina, cabecera y pie ---------- */
+:root[data-estilo="ppt"] .lamina { padding: 44px 89px 118px; background: var(--fondo); }
+:root[data-estilo="ppt"] .cabecera { margin-bottom: 30px; }
+:root[data-estilo="ppt"] .rotulo { gap: 12px; font-size: 20px; font-weight: 700; letter-spacing: 0.12em; color: var(--acento); }
+:root[data-estilo="ppt"] .rotulo .barra-rot { display: inline-block; width: 5px; height: 24px; border-radius: 1px; background: var(--acento); }
+:root[data-estilo="ppt"] .rotulo .num { min-width: 0; height: auto; padding: 0; border-radius: 0; background: none; color: var(--acento); letter-spacing: 0.08em; }
+:root[data-estilo="ppt"] .rotulo .fuente-sec { display: none; }
+:root[data-estilo="ppt"] h1.titulo,
+:root[data-estilo="ppt"] h2.titulo { margin-top: 20px; font-size: var(--t-titulo); font-weight: 700; letter-spacing: 0; line-height: 1.06; color: var(--navy); }
+:root[data-estilo="ppt"] .titulo .suave { color: var(--pizarra); font-weight: 700; }
+:root[data-estilo="ppt"] .regla-titulo { width: 116px; height: 6px; margin-top: 14px; border-radius: 1px; background: var(--acento); }
+:root[data-estilo="ppt"] .subtitulo { color: var(--texto-3); font-style: italic; }
+
+/* puntos de avance: un punto por bloque del Taller 6, con clic */
+:root[data-estilo="ppt"] .puntos-ppt { position: absolute; right: 0; top: 4px; display: flex; gap: 12px; align-items: center; }
+:root[data-estilo="ppt"] .puntos-ppt button {
+  width: 16px; height: 16px; padding: 0; border: 0; border-radius: 50%;
+  background: var(--linea); cursor: pointer;
+}
+:root[data-estilo="ppt"] .puntos-ppt button.hecho { background: var(--navy); }
+:root[data-estilo="ppt"] .puntos-ppt button.actual { width: 22px; height: 22px; background: var(--acento); }
+:root[data-estilo="ppt"] .puntos-ppt button:hover { outline: 3px solid var(--acento-suave); }
+
+/* pie de cada lámina: marca, fuente en la tesis y número */
+:root[data-estilo="ppt"] .pie-lamina {
+  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+  left: 89px; right: 89px; bottom: 14px; height: 58px;
+  border-top: 1px solid var(--linea);
+  font: 400 20px/1 var(--fuente); letter-spacing: 0; color: var(--texto-3);
+}
+:root[data-estilo="ppt"] .pie-lamina .cen { text-align: center; }
+:root[data-estilo="ppt"] .pie-lamina .der { text-align: right; font-weight: 700; color: var(--navy); }
+:root[data-estilo="ppt"] .lamina[data-sin-pie] .pie-lamina { display: none; }
+
+/* cromo global: solo los controles, discretos, abajo a la derecha */
+:root[data-estilo="ppt"] #pie { left: auto; right: 0; bottom: 0; height: auto; padding: 14px 14px 12px 40px; gap: 8px; opacity: 0; transition: opacity 0.25s; pointer-events: auto; background: linear-gradient(90deg, transparent, rgba(255,255,255,.96) 30%); }
+:root[data-estilo="ppt"] #pie:hover { opacity: 1; }
+:root[data-estilo="ppt"] #pie .hilo,
+:root[data-estilo="ppt"] #pie .progreso,
+:root[data-estilo="ppt"] #pie .contador,
+:root[data-estilo="ppt"] #pie .marca { display: none; }
+:root[data-estilo="ppt"] #pie .nav button { width: 44px; height: 40px; border-radius: 8px; border-color: var(--linea-2); background: #fff; color: var(--navy); font: 700 20px/1 var(--fuente); }
+:root[data-estilo="ppt"] #volver { position: absolute; top: 30px; right: 330px; z-index: 60; }
+:root[data-estilo="ppt"] #volver button { height: 42px; border-radius: 8px; background: var(--acento); color: #fff; font: 700 21px/1 var(--fuente); box-shadow: var(--sombra-s); }
+
+/* ---------- Texto ---------- */
+:root[data-estilo="ppt"] .lead { color: var(--texto); }
+:root[data-estilo="ppt"] ul.vinetas > li::before { left: 8px; top: 0.52em; width: 14px; height: 14px; border-radius: 3px; transform: none; box-shadow: none; background: var(--acento); }
+:root[data-estilo="ppt"] ul.vinetas.chicas > li::before,
+:root[data-estilo="ppt"] .mini-v > li::before { width: 11px !important; height: 11px !important; top: 0.55em !important; }
+:root[data-estilo="ppt"] mark { background: linear-gradient(transparent 58%, var(--acento-suave) 58%); }
+
+/* ---------- Tarjetas, fichas, remates ---------- */
+:root[data-estilo="ppt"] .tarjeta { background: var(--superficie-2); border: 1px solid var(--linea); border-radius: var(--radio); box-shadow: none; }
+:root[data-estilo="ppt"] .tarjeta.acentuada { border-color: #f3c9a3; }
+:root[data-estilo="ppt"] .tarjeta.primaria { border-color: #b8d3ea; }
+:root[data-estilo="ppt"] .tarjeta.exito { border-color: #b7dcc6; }
+:root[data-estilo="ppt"] .tarjeta .etq { letter-spacing: 0.1em; color: var(--texto-3); }
+:root[data-estilo="ppt"] .tarjeta h3 { color: var(--navy); letter-spacing: 0; }
+:root[data-estilo="ppt"] .tarjeta p { color: var(--texto-2); }
+:root[data-estilo="ppt"] .ficha { background: var(--superficie-3); border-color: var(--linea); color: var(--texto-2); }
+:root[data-estilo="ppt"] .ficha.acento { background: var(--acento-suave); color: var(--acento-2); }
+:root[data-estilo="ppt"] .ficha.ok { color: var(--ok); }
+:root[data-estilo="ppt"] .insignia-ok { font-weight: 700; letter-spacing: 0; }
+:root[data-estilo="ppt"] .insignia-ok::before { color: #fff; }
+:root[data-estilo="ppt"] .remate {
+  left: 89px; right: 89px; border-radius: 0 var(--radio-s) var(--radio-s) 0;
+  background: var(--superficie-3); border-left: 8px solid var(--acento);
+  color: var(--navy); font-weight: 700; font-size: 34px;
+}
+:root[data-estilo="ppt"] .remate .ico { color: var(--acento); }
+:root[data-estilo="ppt"] .kpi .valor { font-weight: 700; letter-spacing: 0; color: var(--navy); }
+:root[data-estilo="ppt"] .kpi.acento .valor { color: var(--acento); }
+:root[data-estilo="ppt"] .kpi.ok .valor { color: var(--ok); }
+:root[data-estilo="ppt"] .explica { background: var(--primario-suave); }
+
+/* ---------- Tablas (encabezado como las tablas de build_deck.py) ---------- */
+:root[data-estilo="ppt"] table.tabla th { background: var(--superficie-3); color: var(--navy); border-bottom: 3px solid var(--acento); letter-spacing: 0; }
+:root[data-estilo="ppt"] table.tabla tbody tr:nth-child(even) td { background: var(--superficie-2); }
+:root[data-estilo="ppt"] table.tabla tr.destacada td { background: var(--acento-suave); }
+:root[data-estilo="ppt"] table.matriz th { color: var(--navy); }
+:root[data-estilo="ppt"] table.matriz th.edufem { color: var(--acento); }
+
+/* ---------- Botones dentro de las láminas ---------- */
+:root[data-estilo="ppt"] .boton { border-radius: 8px; font: 700 25px/1 var(--fuente); }
+:root[data-estilo="ppt"] .boton.acento,
+:root[data-estilo="ppt"] .segmentado.naranja button.sel { color: #fff; }
+:root[data-estilo="ppt"] .segmentado { border-radius: 8px; }
+:root[data-estilo="ppt"] .segmentado button { font: 700 22px/1 var(--fuente); }
+
+/* ---------- Números sobre naranja: blancos, como en PowerPoint ---------- */
+:root[data-estilo="ppt"] .escalon .num,
+:root[data-estilo="ppt"] .req .n,
+:root[data-estilo="ppt"] .hot,
+:root[data-estilo="ppt"] .leyenda-hot .n,
+:root[data-estilo="ppt"] .hito b,
+:root[data-estilo="ppt"] .traza-barra .tb.actual { color: #fff; }
+:root[data-estilo="ppt"] .escalon .num { box-shadow: 0 0 0 6px #fff; }
+:root[data-estilo="ppt"] .escalon { background: #fff; border-color: var(--linea); box-shadow: var(--sombra-s); border-radius: var(--radio); }
+:root[data-estilo="ppt"] .escalon .verbo { color: var(--navy); letter-spacing: 0; }
+:root[data-estilo="ppt"] .escalon.hecho { border-color: #9fd0b3; }
+
+/* ---------- Carátula partida ---------- */
+:root[data-estilo="ppt"] .portada { background: #fff; }
+:root[data-estilo="ppt"] .portada .port-izq { left: 110px; top: 92px; width: 980px; bottom: 80px; }
+:root[data-estilo="ppt"] .portada .escudo { width: 112px; filter: none; }
+:root[data-estilo="ppt"] .portada .inst .u { font-size: 34px; font-weight: 700; letter-spacing: 0; color: var(--navy); }
+:root[data-estilo="ppt"] .portada .inst .f { font-size: 25px; color: var(--texto-3); }
+:root[data-estilo="ppt"] .portada .tipo {
+  margin-top: 64px; padding: 0 0 20px; border-radius: 0; background: none;
+  border-bottom: 6px solid var(--acento); color: var(--acento); font-size: 23px; letter-spacing: 0.12em;
+}
+:root[data-estilo="ppt"] .portada .titulo-port { margin-top: 34px; font-size: 58px; font-weight: 700; letter-spacing: 0; line-height: 1.12; color: var(--navy); }
+:root[data-estilo="ppt"] .portada .autor { margin-top: 40px; padding-top: 30px; border-top: 1px solid var(--linea); font-size: 38px; color: var(--navy); }
+:root[data-estilo="ppt"] .portada .autor .etq { color: var(--texto-3); letter-spacing: 0.12em; }
+:root[data-estilo="ppt"] .portada .lugar { color: var(--texto-3); }
+:root[data-estilo="ppt"] .portada .port-der { background: var(--navy); border-left: 8px solid var(--acento); }
+:root[data-estilo="ppt"] .portada .port-der .etq-campo { color: #9aa8c4; }
+:root[data-estilo="ppt"] .portada .port-der .marca-port .nom { font-weight: 700; letter-spacing: 0; }
+:root[data-estilo="ppt"] .portada .port-der .marca-port .nom b { color: var(--acento); }
+:root[data-estilo="ppt"] .portada .port-der .marca-port .lema { color: var(--sobre-oscuro); }
+
+/* ---------- Separadores y cierre: azul marino ---------- */
+:root[data-estilo="ppt"] .lamina.separador,
+:root[data-estilo="ppt"] .lamina.cierre {
+  background: var(--navy-hondo);
+  --texto: #ffffff; --texto-2: #c7d2e8; --texto-3: #9aa8c4;
+  --linea: rgba(199, 210, 232, 0.18); --linea-2: rgba(199, 210, 232, 0.32);
+  --superficie: #1b2a4a; --superficie-2: #22335a; --superficie-3: #2c3e63;
+  color: var(--texto);
+}
+:root[data-estilo="ppt"] .separador .contenido-sep { left: 150px; right: 150px; top: 300px; display: grid; grid-template-columns: 340px 1fr; }
+:root[data-estilo="ppt"] .separador .numero {
+  grid-row: 1 / span 2; align-self: center; font-size: 210px; font-weight: 700; letter-spacing: 0; line-height: 1;
+  color: var(--acento); -webkit-text-stroke: 0;
+}
+:root[data-estilo="ppt"] .separador .nombre { margin: 0; padding: 12px 0 0 56px; border-left: 6px solid var(--acento); font-size: 88px; font-weight: 700; letter-spacing: 0; line-height: 1.05; }
+:root[data-estilo="ppt"] .separador .desc { margin: 0; padding: 26px 0 12px 56px; border-left: 6px solid var(--acento); font-size: 38px; color: var(--sobre-oscuro); }
+:root[data-estilo="ppt"] .separador .cadena { left: 150px; right: 150px; bottom: 96px; gap: 18px; }
+:root[data-estilo="ppt"] .separador .cadena > * {
+  border-radius: 10px; border: 1px solid rgba(199, 210, 232, 0.28); background: var(--navy-suave);
+  color: var(--sobre-oscuro); font: 400 22px/1.2 var(--fuente); box-shadow: none;
+}
+:root[data-estilo="ppt"] .separador .cadena > .hecho { background: #22335a; color: #e6ecf7; }
+:root[data-estilo="ppt"] .separador .cadena > .actual { background: var(--acento); border-color: transparent; color: #fff; font-weight: 700; box-shadow: none; }
+:root[data-estilo="ppt"] .cierre .gracias { font-weight: 700; letter-spacing: 0; left: 130px; }
+:root[data-estilo="ppt"] .cierre .ideas .ficha { background: var(--navy-suave); border: 1px solid rgba(199, 210, 232, 0.28); color: #fff; }
+:root[data-estilo="ppt"] .cierre .ideas .ficha.acento { background: var(--acento); color: #fff; border-color: transparent; }
+:root[data-estilo="ppt"] .cierre .qr .t { color: var(--sobre-oscuro); }
+
+/* ---------- Detalles por lámina ---------- */
+:root[data-estilo="ppt"] .enunciado { background: var(--superficie-2); border-color: var(--linea); }
+:root[data-estilo="ppt"] .enunciado.marcar .vi { color: var(--acento-2); }
+:root[data-estilo="ppt"] .principio > div.nombre { color: var(--navy); }
+:root[data-estilo="ppt"] .etapa .n,
+:root[data-estilo="ppt"] .ciclo .act .n { font-weight: 700; }
+:root[data-estilo="ppt"] .var-chip.acento { color: var(--acento-2); }
+:root[data-estilo="ppt"] .req .t { color: var(--navy); }
+:root[data-estilo="ppt"] .lim-item b { color: var(--navy); }
+:root[data-estilo="ppt"] .figura { box-shadow: var(--sombra-s); }
+:root[data-estilo="ppt"] .tarjeta .kpi .etq { letter-spacing: 0; text-transform: none; }

@@ -1,0 +1,15 @@
+{
+  "name": "edufem-defensa-herramientas",
+  "private": true,
+  "description": "Herramientas de construccion de la presentacion interactiva de la defensa (captura del video y PDF). No hacen falta para proyectar.",
+  "type": "module",
+  "dependencies": {
+    "@fontsource/inter": "5.3.0",
+    "katex": "0.18.7",
+    "puppeteer-core": "25.11.0",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "@fontsource/carlito": "^5.3.0"
+  }
+}

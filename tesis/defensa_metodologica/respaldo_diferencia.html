@@ -1,0 +1,1121 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Experimental o tecnológica</title>
+<meta name="description" content="Láminas de respaldo para la defensa de EduFEM: por qué es una tesis tecnológica y no experimental, con cada argumento anclado a su fuente y página.">
+<!-- Inter: primero la copia local de la presentación (sirve sin internet); si falta, Google Fonts; si tampoco, Segoe UI. -->
+<link rel="stylesheet" href="../presentacion/final/assets/terceros/inter.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<script>
+/* Tema inicial. Suelto (archivo local): oscuro, como la presentación de la defensa.
+   Dentro de un marco (vista de artefacto): el que decida el visor o el sistema.
+   Si el usuario ya eligió con la tecla T, se respeta su elección. */
+(function () {
+  var r = document.documentElement, t = null, enMarco = true;
+  try { enMarco = window.self !== window.top; } catch (e) { enMarco = true; }
+  try { t = localStorage.getItem('edufem-respaldo-tema'); } catch (e) { t = null; }
+  if (t === 'dark' || t === 'light') r.setAttribute('data-theme', t);
+  else if (!enMarco && !r.hasAttribute('data-theme')) r.setAttribute('data-theme', 'dark');
+  if (/[?&]captura=1/.test(location.search)) r.classList.add('captura');
+})();
+</script>
+<style>
+/* =====================================================================
+   Respaldo metodológico de la defensa de EduFEM.
+   Lienzo 1920 × 1080 escalado a la ventana, igual que la presentación
+   (tesis/presentacion/final): mismos tokens de color y la misma tipografía.
+   Tamaños: títulos ≥ 28 pt (56 px) según el Taller 6; el texto auxiliar
+   (fuentes, notas) va más chico, como en la presentación principal.
+   ===================================================================== */
+:root {
+  --fuente: 'Inter', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  /* Tema claro (salas con mucha luz) */
+  --fondo-ventana: #d9e0ec;
+  --fondo: #f6f8fc;
+  --superficie: #ffffff;
+  --superficie-2: #f0f4fa;
+  --superficie-3: #e3eaf5;
+  --linea: rgba(20, 40, 80, 0.12);
+  --linea-2: rgba(20, 40, 80, 0.24);
+  --texto: #0d1a33;
+  --texto-2: #34466a;
+  --texto-3: #5f6f8b;
+  --acento: #d85e14;
+  --acento-suave: rgba(224, 100, 26, 0.10);
+  --primario: #1d5fd8;
+  --primario-suave: rgba(29, 95, 216, 0.09);
+  --cie: #7a4fd6;
+  --cie-suave: rgba(122, 79, 214, 0.10);
+  --ok: #0c8a5c;
+  --ok-suave: rgba(12, 148, 99, 0.11);
+  --mal: #c93434;
+  --mal-suave: rgba(210, 60, 60, 0.09);
+  --q4: #1d5fd8;
+  --q9: #e0641a;
+  --sombra: 0 24px 60px rgba(30, 50, 90, 0.18);
+  --sombra-s: 0 8px 24px rgba(30, 50, 90, 0.14);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --fondo-ventana: #05080f;
+    --fondo: #0b1222;
+    --superficie: #121d33;
+    --superficie-2: #182641;
+    --superficie-3: #20304f;
+    --linea: rgba(148, 170, 210, 0.16);
+    --linea-2: rgba(148, 170, 210, 0.30);
+    --texto: #eef3fc;
+    --texto-2: #b7c5dd;
+    --texto-3: #8b9bb8;
+    --acento: #ff8a3d;
+    --acento-suave: rgba(255, 138, 61, 0.14);
+    --primario: #5b9bff;
+    --primario-suave: rgba(91, 155, 255, 0.14);
+    --cie: #b794ff;
+    --cie-suave: rgba(183, 148, 255, 0.14);
+    --ok: #34d399;
+    --ok-suave: rgba(52, 211, 153, 0.14);
+    --mal: #f87171;
+    --mal-suave: rgba(248, 113, 113, 0.14);
+    --q4: #4a8af0;
+    --q9: #e0702a;
+    --sombra: 0 30px 80px rgba(0, 0, 0, 0.45);
+    --sombra-s: 0 10px 30px rgba(0, 0, 0, 0.35);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --fondo-ventana: #05080f;
+  --fondo: #0b1222;
+  --superficie: #121d33;
+  --superficie-2: #182641;
+  --superficie-3: #20304f;
+  --linea: rgba(148, 170, 210, 0.16);
+  --linea-2: rgba(148, 170, 210, 0.30);
+  --texto: #eef3fc;
+  --texto-2: #b7c5dd;
+  --texto-3: #8b9bb8;
+  --acento: #ff8a3d;
+  --acento-suave: rgba(255, 138, 61, 0.14);
+  --primario: #5b9bff;
+  --primario-suave: rgba(91, 155, 255, 0.14);
+  --cie: #b794ff;
+  --cie-suave: rgba(183, 148, 255, 0.14);
+  --ok: #34d399;
+  --ok-suave: rgba(52, 211, 153, 0.14);
+  --mal: #f87171;
+  --mal-suave: rgba(248, 113, 113, 0.14);
+  --q4: #4a8af0;
+  --q9: #e0702a;
+  --sombra: 0 30px 80px rgba(0, 0, 0, 0.45);
+  --sombra-s: 0 10px 30px rgba(0, 0, 0, 0.35);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--fondo-ventana);
+  color: var(--texto);
+  font-family: var(--fuente);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+#marco { position: fixed; inset: 0; overflow: hidden; }
+#escenario {
+  position: absolute; left: 0; top: 0;
+  width: 1920px; height: 1080px;
+  transform-origin: 0 0;
+  overflow: hidden;
+  background: var(--fondo);
+  box-shadow: 0 0 0 1px var(--linea);
+}
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+button { font-family: inherit; }
+:focus-visible { outline: 3px solid var(--primario); outline-offset: 3px; }
+
+/* ---------- Lámina ---------- */
+.lam {
+  position: absolute; inset: 0;
+  display: none;
+  padding: 54px 92px 108px;
+  background:
+    radial-gradient(1400px 900px at 90% -12%, var(--primario-suave), transparent 60%),
+    radial-gradient(1000px 700px at -10% 112%, var(--acento-suave), transparent 55%),
+    var(--fondo);
+}
+.lam.activa { display: block; animation: entrar .45s ease both; }
+@keyframes entrar { from { opacity: 0; transform: translateX(var(--dx, 24px)); } to { opacity: 1; transform: none; } }
+
+.cab { margin-bottom: 22px; }
+.rotulo {
+  display: flex; align-items: center; gap: 16px;
+  font-size: 24px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--acento);
+}
+.rotulo .num {
+  display: inline-grid; place-items: center;
+  min-width: 48px; height: 36px; padding: 0 10px; border-radius: 10px;
+  background: var(--acento-suave); letter-spacing: .02em;
+}
+.titulo {
+  margin: 12px 0 0;
+  font-size: 60px; font-weight: 700; letter-spacing: -.021em; line-height: 1.08;
+  text-wrap: balance; max-width: 1736px;
+}
+.titulo .suave { color: var(--texto-2); font-weight: 600; }
+
+/* Lo que aparece por pasos reserva su lugar desde el principio: nada salta. */
+.lam [data-paso] {
+  opacity: 0; transform: translateY(16px); visibility: hidden;
+  transition: opacity .45s ease, transform .45s ease, visibility 0s linear .45s;
+}
+.lam [data-paso].vis {
+  opacity: 1; transform: none; visibility: visible;
+  transition: opacity .55s ease, transform .55s cubic-bezier(.2, .7, .2, 1), visibility 0s;
+  transition-delay: calc(var(--k, 0) * 90ms);
+}
+.fte { font-size: 21px; color: var(--texto-3); line-height: 1.3; }
+.fte b { color: var(--texto-2); font-weight: 600; }
+
+/* ---------- Lámina 1: la diferencia ---------- */
+.fila-int { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 20px; }
+.interruptor {
+  position: relative; display: inline-flex; gap: 6px; padding: 6px;
+  border-radius: 20px; background: var(--superficie); border: 1px solid var(--linea-2);
+}
+.interruptor .pildora {
+  position: absolute; top: 6px; bottom: 6px; left: 6px;
+  width: var(--w1, 50%); border-radius: 14px;
+  background: var(--cie-suave); box-shadow: inset 0 0 0 2px var(--cie);
+  transition: transform .6s cubic-bezier(.3, .7, .2, 1), width .6s cubic-bezier(.3, .7, .2, 1), background .6s, box-shadow .6s;
+}
+.interruptor.tec .pildora {
+  transform: translateX(var(--x2, 100%)); width: var(--w2, 50%);
+  background: var(--acento-suave); box-shadow: inset 0 0 0 2px var(--acento);
+}
+.op {
+  position: relative; z-index: 1;
+  display: inline-flex; align-items: center; gap: 14px;
+  height: 64px; padding: 0 28px; border: 0; border-radius: 14px;
+  background: none; color: var(--texto-3); font-size: 29px; font-weight: 600; cursor: pointer;
+  transition: color .4s;
+}
+.op[aria-pressed="true"] { color: var(--texto); }
+.op .p { width: 16px; height: 16px; border-radius: 50%; flex: none; }
+.op .p.cie { background: var(--cie); }
+.op .p.tec { background: var(--acento); }
+.pista { font-size: 22px; color: var(--texto-3); }
+
+.rejilla-dif { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px 24px; }
+.carta {
+  display: block; width: 100%; padding: 0; border: 0; border-radius: 20px;
+  background: none; color: inherit; font: inherit; text-align: left; cursor: pointer;
+  perspective: 1600px;
+}
+.caras {
+  display: block; position: relative; height: 184px;
+  transform-style: preserve-3d;
+  transition: transform .85s cubic-bezier(.3, .7, .2, 1);
+  transition-delay: calc(var(--i, 0) * 80ms);
+}
+.cara {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; justify-content: center; gap: 6px;
+  padding: 16px 28px; border-radius: 20px; border: 1px solid var(--linea);
+  backface-visibility: hidden; -webkit-backface-visibility: hidden;
+}
+.cara.cie { background: linear-gradient(var(--cie-suave), var(--cie-suave)), var(--superficie); }
+.cara.tec { background: linear-gradient(var(--acento-suave), var(--acento-suave)), var(--superficie); transform: rotateY(180deg); }
+.cara .etq {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 21px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+}
+.cara .etq::before { content: ""; width: 12px; height: 12px; border-radius: 50%; background: currentColor; }
+.cara.cie .etq { color: var(--cie); }
+.cara.tec .etq { color: var(--acento); }
+.cara .dato { font-size: 40px; font-weight: 700; line-height: 1.1; letter-spacing: -.012em; color: var(--texto); text-wrap: balance; }
+.cara .sub { font-size: 26px; color: var(--texto-2); line-height: 1.22; }
+.carta .fte { display: block; margin: 8px 4px 0; font-size: 20px; }
+.rejilla-dif.tec .carta:not(.girada) .caras,
+.rejilla-dif:not(.tec) .carta.girada .caras { transform: rotateY(180deg); }
+.carta:hover .cara { border-color: var(--linea-2); }
+
+.franja {
+  display: grid; grid-template-columns: 250px 1fr; gap: 10px 24px; align-items: center;
+  margin-top: 22px; padding: 16px 24px; border-radius: 18px;
+  background: var(--superficie); border: 1px solid var(--linea);
+}
+.franja .tit { font-size: 27px; font-weight: 700; line-height: 1.15; }
+.franja .tit span { display: block; font-size: 20px; font-weight: 600; color: var(--texto-3); letter-spacing: .02em; margin-top: 4px; }
+.chips { display: flex; flex-wrap: wrap; gap: 10px 12px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 8px 18px 8px 14px; border-radius: 999px;
+  background: var(--ok-suave); font-size: 25px; font-weight: 600; color: var(--texto);
+}
+.chip .v { color: var(--ok); font-weight: 800; }
+.franja .fte { grid-column: 2; }
+
+/* ---------- Lámina 2: dos procesos ---------- */
+.procesos { display: grid; grid-template-columns: 560px 1fr; gap: 64px; align-items: start; }
+.esc-tit { display: flex; align-items: baseline; gap: 16px; font-size: 30px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 18px; }
+.esc-tit small { font-size: 22px; font-weight: 600; letter-spacing: .02em; text-transform: none; color: var(--texto-3); }
+.col-cie .esc-tit { color: var(--cie); }
+.col-tec .esc-tit { color: var(--acento); }
+.escalera { display: flex; flex-direction: column-reverse; gap: 10px; }
+.peldano { display: flex; align-items: center; gap: 22px; min-height: 58px; }
+.peldano .p {
+  flex: none; display: inline-flex; align-items: center;
+  height: 56px; padding: 0 24px; border-radius: 15px;
+  font-size: 29px; font-weight: 700; color: var(--texto);
+  margin-left: calc(var(--k) * 30px);
+  transition: box-shadow .4s, background .4s, transform .4s;
+}
+.col-cie .peldano .p { background: var(--cie-suave); box-shadow: inset 0 0 0 2px var(--cie); }
+.col-tec .peldano .p { background: var(--acento-suave); box-shadow: inset 0 0 0 2px var(--acento); min-width: 330px; }
+.lam.activa .peldano .p { animation: subir .5s cubic-bezier(.2, .7, .2, 1) both; animation-delay: calc(var(--k) * 90ms + var(--base, 120ms)); }
+.col-tec { --base: 480ms; }
+@keyframes subir { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+/* La animación de entrada fija opacity y transform: el foco usa filter y scale, que no pisa. */
+.col-cie.foco .peldano .p { filter: opacity(.42); }
+.col-cie.foco .peldano.ver .p { filter: none; background: var(--cie); color: var(--fondo); scale: 1.05; }
+.peldano .map { font-size: 26px; line-height: 1.2; color: var(--texto-2); }
+.peldano .map b { color: var(--texto); font-weight: 700; }
+.nota-cie {
+  margin-top: 22px; padding: 16px 20px; border-radius: 16px;
+  background: var(--superficie); border: 1px solid var(--linea-2);
+  font-size: 25px; line-height: 1.28;
+}
+.nota-cie .fte { display: block; margin-top: 6px; }
+.cita-baja {
+  margin-top: 22px; padding: 16px 24px; border-radius: 18px;
+  background: var(--superficie); border: 1px solid var(--linea);
+  font-size: 27px; line-height: 1.3; color: var(--texto);
+}
+.cita-baja .fte { display: block; margin-top: 8px; }
+
+/* ---------- Lámina 3: el experimento ---------- */
+.exp { display: grid; grid-template-columns: 760px 1fr; gap: 44px; align-items: start; }
+.defin { margin: 0 0 16px; padding: 20px 24px; border-radius: 18px; background: var(--superficie); border: 1px solid var(--linea); }
+.defin blockquote { margin: 0; font-size: 29px; line-height: 1.32; }
+.defin.menor blockquote { font-size: 27px; }
+.defin figcaption { margin-top: 8px; font-size: 21px; color: var(--texto-3); }
+.etq-sec { font-size: 21px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--acento); margin-bottom: 8px; }
+.mapa-exp { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 10px; }
+.mapa-exp li { display: grid; grid-template-columns: 180px 1fr; gap: 16px; align-items: baseline; font-size: 27px; line-height: 1.22; }
+.mapa-exp .k { font-size: 20px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--texto-3); }
+.panel-g { border-radius: 20px; background: var(--superficie); border: 1px solid var(--linea); padding: 18px 20px 14px; }
+.panel-g .enc { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 4px; }
+.panel-g .enc .t { font-size: 25px; font-weight: 700; }
+.leyenda { display: flex; gap: 26px; font-size: 22px; color: var(--texto-2); margin: 2px 0 0; }
+.leyenda span { display: inline-flex; align-items: center; gap: 10px; }
+.leyenda i { width: 26px; height: 4px; border-radius: 2px; display: inline-block; }
+.b-datos {
+  height: 42px; padding: 0 16px; border-radius: 12px; border: 1px solid var(--linea-2);
+  background: var(--superficie-2); color: var(--texto-2); font-size: 20px; font-weight: 600; cursor: pointer;
+}
+.b-datos[aria-pressed="true"] { color: var(--texto); border-color: var(--texto-3); }
+#grafica { display: block; width: 100%; height: auto; }
+#grafica text { font-family: var(--fuente); fill: var(--texto-2); }
+#grafica .rej { stroke: var(--linea); stroke-width: 1; }
+#grafica .eje { stroke: var(--linea-2); stroke-width: 1; }
+#grafica .tick { font-size: 21px; }
+#grafica .tit-eje { font-size: 21px; fill: var(--texto-3); }
+#grafica .linea { fill: none; stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: var(--len); stroke-dashoffset: var(--len); transition: stroke-dashoffset 1.3s cubic-bezier(.4, .1, .2, 1); }
+#grafica.q4on .q4 .linea, #grafica.q9on .q9 .linea { stroke-dashoffset: 0; }
+#grafica .pt { opacity: 0; transition: opacity .35s ease; }
+#grafica.q4on .q4 .pt, #grafica.q9on .q9 .pt { opacity: 1; transition-delay: calc(var(--k) * 190ms + 180ms); }
+#grafica .pt circle.m { stroke: var(--superficie); stroke-width: 2.5; }
+#grafica .hit { fill: transparent; cursor: pointer; }
+#grafica .hit:focus { outline: none; }
+#grafica .hit:focus-visible + circle.m, #grafica .pt:hover circle.m { stroke: var(--texto); }
+#grafica .etiq { opacity: 0; transition: opacity .5s ease; }
+#grafica.etiq .etiq { opacity: 1; }
+#grafica .fin-t { font-size: 26px; font-weight: 700; fill: var(--texto); }
+#grafica .fin-s { font-size: 21px; fill: var(--texto-3); }
+#grafica .anot { font-size: 22px; font-weight: 600; fill: var(--texto-2); }
+.tabla-datos { width: 100%; border-collapse: collapse; font-size: 22px; font-variant-numeric: tabular-nums; margin-top: 8px; }
+.tabla-datos caption { text-align: left; font-size: 20px; color: var(--texto-3); padding-bottom: 8px; }
+.tabla-datos th, .tabla-datos td { padding: 7px 10px; border-bottom: 1px solid var(--linea); text-align: right; }
+.tabla-datos th:first-child, .tabla-datos td:first-child { text-align: left; }
+.tabla-datos thead th { color: var(--texto-3); font-weight: 600; font-size: 19px; }
+.veredicto {
+  display: flex; align-items: center; gap: 14px; margin-top: 16px;
+  padding: 14px 20px; border-radius: 16px; background: var(--ok-suave);
+  font-size: 26px; line-height: 1.25;
+}
+.veredicto .v { color: var(--ok); font-weight: 800; font-size: 30px; }
+.veredicto .fte { margin-left: auto; white-space: nowrap; }
+
+/* ---------- Lámina 4: el material de la Carrera ---------- */
+.rejilla-mat { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px 24px; }
+.tarjeta {
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 22px 26px 20px; border-radius: 20px;
+  background: var(--superficie); border: 1px solid var(--linea); min-height: 316px;
+}
+.tarjeta .etq { font-size: 21px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--acento); }
+.tarjeta .cita { font-size: 29px; line-height: 1.3; color: var(--texto); }
+.tarjeta .nota { font-size: 24px; line-height: 1.28; color: var(--texto-2); margin-top: auto; }
+.tarjeta .nota b { color: var(--ok); }
+.tarjeta .fte { font-size: 20px; }
+
+/* ---------- Lámina 5: la pregunta decide el método ---------- */
+.tabla-preg { display: grid; grid-template-columns: 1.15fr 64px 1fr 150px 1fr; align-items: stretch; column-gap: 0; row-gap: 14px; }
+.tabla-preg .th { font-size: 20px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--texto-3); padding: 0 18px 2px; }
+.tabla-preg .fila { display: contents; }
+.celda { padding: 20px 22px; font-size: 30px; line-height: 1.24; background: var(--superficie); border-top: 1px solid var(--linea); border-bottom: 1px solid var(--linea); }
+.celda:first-child { border-left: 1px solid var(--linea); border-radius: 18px 0 0 18px; }
+.celda:last-child { border-right: 1px solid var(--linea); border-radius: 0 18px 18px 0; }
+.celda.flecha { display: grid; place-items: center; color: var(--texto-3); font-size: 34px; padding: 0; }
+.celda.suj { text-align: center; font-weight: 800; }
+.celda .ch { display: block; font-size: 22px; color: var(--texto-3); margin-top: 6px; font-weight: 500; }
+.fila.esta .celda { background: linear-gradient(var(--acento-suave), var(--acento-suave)), var(--superficie); border-color: var(--acento); }
+.fila.esta .suj { color: var(--ok); }
+.fila.otra .suj { color: var(--texto-2); }
+.fila .celda { transition: opacity .45s ease, transform .45s ease, visibility 0s; }
+.fila[data-paso] { opacity: 1; transform: none; visibility: visible; }
+.fila[data-paso] .celda { opacity: 0; transform: translateY(16px); visibility: hidden; transition: opacity .45s ease, transform .45s ease, visibility 0s linear .45s; }
+.fila[data-paso].vis .celda { opacity: 1; transform: none; visibility: visible; transition: opacity .55s ease, transform .55s cubic-bezier(.2, .7, .2, 1), visibility 0s; }
+.citas-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 26px; }
+.citas-2 figure { margin: 0; padding: 20px 24px; border-radius: 18px; background: var(--superficie); border: 1px solid var(--linea); }
+.citas-2 blockquote { margin: 0; font-size: 27px; line-height: 1.3; }
+.citas-2 figcaption { margin-top: 8px; font-size: 21px; color: var(--texto-3); }
+
+/* ---------- Lámina 6: la modalidad ---------- */
+.modal { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+.mod {
+  position: relative; display: flex; flex-direction: column; gap: 14px;
+  padding: 24px 28px; border-radius: 22px; background: var(--superficie); border: 1px solid var(--linea);
+}
+.mod.si { background: linear-gradient(var(--acento-suave), var(--acento-suave)), var(--superficie); border-color: var(--acento); }
+.mod h3 { margin: 0; font-size: 36px; font-weight: 800; letter-spacing: -.01em; }
+.mod .art { font-size: 26px; line-height: 1.3; color: var(--texto); }
+.mod .art .fte { display: block; margin-top: 4px; }
+.mod .ind { display: flex; flex-direction: column; gap: 6px; font-size: 25px; color: var(--texto-2); }
+.mod .ind b { font-size: 20px; letter-spacing: .12em; text-transform: uppercase; color: var(--texto-3); }
+.mod .ed { display: flex; align-items: center; gap: 14px; padding: 12px 16px; border-radius: 14px; font-size: 26px; font-weight: 600; }
+.mod.si .ed { background: var(--ok-suave); }
+.mod.no .ed { background: var(--mal-suave); }
+.mod .ed .v { font-size: 32px; font-weight: 800; }
+.mod.si .ed .v { color: var(--ok); }
+.mod.no .ed .v { color: var(--mal); }
+.aporte {
+  display: grid; grid-template-columns: 1fr auto; gap: 16px 28px; align-items: center;
+  margin-top: 22px; padding: 18px 24px; border-radius: 18px; background: var(--superficie); border: 1px solid var(--linea);
+}
+.aporte blockquote { margin: 0; font-size: 27px; line-height: 1.3; }
+.aporte .chips { justify-content: flex-end; }
+.aporte .chip { background: var(--primario-suave); }
+.aporte .chip .v { color: var(--primario); }
+.aporte .fte { grid-column: 1 / -1; }
+
+/* ---------- Pie, guion y globo ---------- */
+.pie {
+  position: absolute; left: 92px; right: 92px; bottom: 30px; height: 48px;
+  display: flex; align-items: center; gap: 20px; z-index: 5;
+  font-size: 21px; color: var(--texto-3);
+}
+.pie .marca { font-weight: 600; letter-spacing: .02em; white-space: nowrap; }
+.pie .marca b { color: var(--texto-2); }
+.puntos { display: flex; gap: 10px; align-items: center; margin-left: auto; }
+.punto-nav { width: 14px; height: 14px; padding: 0; border: 0; border-radius: 7px; background: var(--linea-2); cursor: pointer; transition: width .3s, background .3s; }
+.punto-nav[aria-current="true"] { width: 38px; background: var(--acento); }
+.cuenta { font-variant-numeric: tabular-nums; white-space: nowrap; min-width: 220px; text-align: right; }
+.ctrl {
+  height: 44px; min-width: 44px; padding: 0 14px; border-radius: 12px;
+  border: 1px solid var(--linea-2); background: var(--superficie); color: var(--texto-2);
+  font-size: 20px; font-weight: 600; cursor: pointer;
+}
+.ctrl:hover { color: var(--texto); border-color: var(--texto-3); }
+.ctrl[aria-pressed="true"] { color: var(--texto); background: var(--superficie-3); }
+.progreso { position: absolute; left: 0; bottom: 0; height: 5px; background: var(--acento); transition: width .4s ease; z-index: 5; }
+.guion {
+  position: absolute; left: 92px; right: 92px; bottom: 96px; z-index: 6;
+  max-height: 400px; overflow: auto;
+  padding: 22px 30px 20px; border-radius: 22px;
+  background: var(--superficie); border: 1px solid var(--linea-2); box-shadow: var(--sombra);
+  font-size: 28px; line-height: 1.42; color: var(--texto);
+}
+.guion .g-cab { display: flex; justify-content: space-between; gap: 20px; font-size: 19px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--acento); margin-bottom: 8px; }
+.guion .g-cab span { color: var(--texto-3); letter-spacing: .04em; text-transform: none; font-weight: 600; }
+.guion p { margin: 0 0 10px; }
+.guion .g-tip { font-size: 21px; color: var(--texto-3); }
+.notas { display: none; }
+.globo {
+  position: absolute; z-index: 7; pointer-events: none;
+  padding: 12px 16px; border-radius: 14px; background: var(--superficie);
+  border: 1px solid var(--linea-2); box-shadow: var(--sombra-s);
+  font-size: 22px; line-height: 1.35; color: var(--texto-2); white-space: nowrap;
+}
+.globo .v { display: block; font-size: 27px; font-weight: 700; color: var(--texto); }
+.globo .k { display: inline-block; width: 22px; height: 4px; border-radius: 2px; vertical-align: middle; margin-right: 8px; }
+
+/* Movimiento reducido y modo captura: sin animaciones. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+.captura *, .captura *::before, .captura *::after { animation: none !important; transition: none !important; }
+</style>
+
+<div id="marco">
+<div id="escenario" role="region" aria-roledescription="presentación" aria-label="Respaldo metodológico de la defensa de EduFEM">
+
+<!-- ================================================================ 1. LA DIFERENCIA -->
+<section class="lam" id="diferencia" data-pasos="2" data-titulo="La diferencia" aria-label="Lámina 1: experimental o tecnológica">
+  <header class="cab">
+    <div class="rotulo"><span class="num">1</span>Respaldo metodológico · El tipo de investigación</div>
+    <h2 class="titulo">Experimental o tecnológica: <span class="suave">la misma cadena, otra pregunta</span></h2>
+  </header>
+  <div class="fila-int">
+    <div class="interruptor" id="interruptor" role="group" aria-label="Qué clase de tesis mostrar en las tarjetas">
+      <span class="pildora" aria-hidden="true"></span>
+      <button type="button" class="op" id="op-cie" aria-pressed="true"><span class="p cie" aria-hidden="true"></span>Ciencia · tesis experimental</button>
+      <button type="button" class="op" id="op-tec" aria-pressed="false"><span class="p tec" aria-hidden="true"></span>Tecnología · esta tesis</button>
+    </div>
+    <div class="pista">Clic en una tarjeta para girarla sola</div>
+  </div>
+  <div class="rejilla-dif" id="rejilla-dif" data-clase-paso="1:tec">
+    <button type="button" class="carta" style="--i:0">
+      <span class="caras">
+        <span class="cara cie"><span class="etq">Pregunta</span><span class="sr">Ciencia:</span><span class="dato">¿Por qué ocurre?</span><span class="sub">busca explicar y predecir</span></span>
+        <span class="cara tec"><span class="etq">Pregunta</span><span class="sr">Tecnología:</span><span class="dato">¿Cómo resolverlo?</span><span class="sub">busca transformar una realidad</span></span>
+      </span>
+      <span class="fte">García-Córdoba [7], p. 46</span>
+    </button>
+    <button type="button" class="carta" style="--i:1">
+      <span class="caras">
+        <span class="cara cie"><span class="etq">Hipótesis</span><span class="sr">Ciencia:</span><span class="dato">Explicación tentativa</span><span class="sub">se somete a verificación</span></span>
+        <span class="cara tec"><span class="etq">Hipótesis</span><span class="sr">Tecnología:</span><span class="dato">Solución tentativa: EduFEM</span><span class="sub">se aprueba construyéndola y probándola</span></span>
+      </span>
+      <span class="fte">García-Córdoba [7], pp. 51 y 85 · Miranda, lám. 12</span>
+    </button>
+    <button type="button" class="carta" style="--i:2">
+      <span class="caras">
+        <span class="cara cie"><span class="etq">Variables</span><span class="sr">Ciencia:</span><span class="dato">Propiedades de sujetos o materiales</span><span class="sub">medidas en muestras</span></span>
+        <span class="cara tec"><span class="etq">Variables</span><span class="sr">Tecnología:</span><span class="dato">Propiedades del análisis</span><span class="sub">trazabilidad y verificabilidad, medidas en el software</span></span>
+      </span>
+      <span class="fte">Álvarez de Zayas [8], p. 22 · Miranda, lám. 5</span>
+    </button>
+    <button type="button" class="carta" style="--i:3">
+      <span class="caras">
+        <span class="cara cie"><span class="etq">Unidad de análisis</span><span class="sr">Ciencia:</span><span class="dato">Personas o probetas</span><span class="sub">muestra aleatoria para generalizar</span></span>
+        <span class="cara tec"><span class="etq">Unidad de análisis</span><span class="sr">Tecnología:</span><span class="dato">El software y sus casos</span><span class="sub">muestra dirigida por valor probatorio</span></span>
+      </span>
+      <span class="fte">Hernández-Sampieri [24], pp. 196 y 215</span>
+    </button>
+    <button type="button" class="carta" style="--i:4">
+      <span class="caras">
+        <span class="cara cie"><span class="etq">Contraste</span><span class="sr">Ciencia:</span><span class="dato">Grupo control y estadística</span><span class="sub">réplicas, ANOVA, inferencia</span></span>
+        <span class="cara tec"><span class="etq">Contraste</span><span class="sr">Tecnología:</span><span class="dato">Referencias exactas y criterios a priori</span><span class="sub">analítica, Cook y SAP2000</span></span>
+      </span>
+      <span class="fte">Wieringa [25], pp. 47-48 y 247 · Taller 4, lám. 8</span>
+    </button>
+    <button type="button" class="carta" style="--i:5">
+      <span class="caras">
+        <span class="cara cie"><span class="etq">Aporte</span><span class="sr">Ciencia:</span><span class="dato">Una explicación</span><span class="sub">su fin es la verdad</span></span>
+        <span class="cara tec"><span class="etq">Aporte</span><span class="sr">Tecnología:</span><span class="dato">Un artefacto verificado</span><span class="sub">su fin es la utilidad</span></span>
+      </span>
+      <span class="fte">Hevner [11], pp. 80-81</span>
+    </button>
+  </div>
+  <div class="franja" data-paso="2">
+    <div class="tit">Lo que no cambia<span>el molde del tribunal</span></div>
+    <div class="chips">
+      <span class="chip"><span class="v" aria-hidden="true">✓</span>Problema: causa → efecto</span>
+      <span class="chip"><span class="v" aria-hidden="true">✓</span>Hipótesis con tres variables</span>
+      <span class="chip"><span class="v" aria-hidden="true">✓</span>Objetivos en escalera</span>
+      <span class="chip"><span class="v" aria-hidden="true">✓</span>Modelo en el Capítulo 2</span>
+      <span class="chip"><span class="v" aria-hidden="true">✓</span>Contraste con indicadores</span>
+    </div>
+    <div class="fte">Miranda: problema, lám. 3; hipótesis, lám. 13; objetivos, lám. 7 · Taller 4, lám. 12-13 · Taller 6, lám. 17</div>
+  </div>
+  <div class="notas">
+    <p>«Ingeniero, las dos clases de tesis recorren la misma cadena que pide el Seminario: un problema con causa y efecto, una hipótesis con tres variables, objetivos en escalera, un modelo descrito en el Capítulo 2 y un contraste con indicadores. Lo que cambia es la pregunta.</p>
+    <p>La tesis experimental pregunta por qué ocurre algo, y su hipótesis es una explicación que se verifica sobre sujetos o probetas. La tesis tecnológica pregunta cómo resolver un problema, y su hipótesis es la solución —en mi caso, EduFEM—, que se aprueba construyéndola y probándola. Así lo distingue García-Córdoba, referencia 7 de mi tesis, en las páginas 46 y 85. Por eso mi variable dependiente es una propiedad del análisis y la mido en el software.»</p>
+    <p class="g-tip">Pasos: 1) tarjetas en «ciencia»; 2) giran a «tecnología»; 3) aparece «lo que no cambia». El interruptor gira todas; un clic en una tarjeta gira solo esa.</p>
+  </div>
+</section>
+
+<!-- ================================================================ 2. DOS PROCESOS -->
+<section class="lam" id="procesos" data-pasos="3" data-titulo="Dos procesos" aria-label="Lámina 2: dos procesos">
+  <header class="cab">
+    <div class="rotulo"><span class="num">2</span>Respaldo metodológico · El proceso</div>
+    <h2 class="titulo">Dos procesos: <span class="suave">la ciencia explica, la tecnología transforma</span></h2>
+  </header>
+  <div class="procesos">
+    <div class="col-cie" id="col-cie" data-clase-paso="1:foco">
+      <div class="esc-tit">Ciencia <small>tesis experimental</small></div>
+      <div class="escalera">
+        <div class="peldano" style="--k:0"><span class="p">Observar</span></div>
+        <div class="peldano" style="--k:1"><span class="p">Conocer</span></div>
+        <div class="peldano ver" style="--k:2"><span class="p">Verificar</span></div>
+        <div class="peldano" style="--k:3"><span class="p">Explicar</span></div>
+        <div class="peldano" style="--k:4"><span class="p">Predecir</span></div>
+      </div>
+      <div class="nota-cie" data-paso="1">El experimento con repeticiones vive en <b>verificar</b>: «el proceder experimental es lo ideal, a partir de probar repetidamente se acepta si lo dicho del objeto es cierto o no».<span class="fte">García-Córdoba [7], p. 48</span></div>
+    </div>
+    <div class="col-tec">
+      <div class="esc-tit">Tecnología <small>esta tesis</small></div>
+      <div class="escalera">
+        <div class="peldano" style="--k:0"><span class="p">Determinar el problema</span><span class="map" data-paso="2" style="--k:0"><b>Caja negra</b> → análisis no trazable ni verificable · Tabla 1.1 · OE1</span></div>
+        <div class="peldano" style="--k:1"><span class="p">Documentar</span><span class="map" data-paso="2" style="--k:1"><b>Marco teórico del MEF</b> · Capítulo 1 · OE2</span></div>
+        <div class="peldano" style="--k:2"><span class="p">Diseñar</span><span class="map" data-paso="2" style="--k:2"><b>Requisitos y arquitectura</b> · §2.2</span></div>
+        <div class="peldano" style="--k:3"><span class="p">Implementar</span><span class="map" data-paso="2" style="--k:3"><b>Motor, 8 módulos y memoria</b> · Capítulo 2 · OE3</span></div>
+        <div class="peldano" style="--k:4"><span class="p">Evaluar</span><span class="map" data-paso="2" style="--k:4"><b>«Determinar errores o desviaciones»</b> [7, p. 51] · V&amp;V · OE4-OE5</span></div>
+        <div class="peldano" style="--k:5"><span class="p">Comunicar</span><span class="map" data-paso="2" style="--k:5"><b>Tesis, repositorio e instalador</b></span></div>
+      </div>
+    </div>
+  </div>
+  <div class="cita-baja" data-paso="3">«En el proceder tecnológico la hipótesis es un diseño de carácter operativo […] lo prioritario no es lograr la comprensión o explicación de la situación, importa más el control y modificación del estado de las cosas.»<span class="fte">García-Córdoba [7], p. 51; figura 1.5, p. 52 · las mismas seis actividades: Peffers [12], pp. 52-56 (Tabla 2.1 de la tesis)</span></div>
+  <div class="notas">
+    <p>«García-Córdoba pone los dos procesos lado a lado en su figura 1.5, página 52. La ciencia sube de observar a predecir, y el experimento con repeticiones vive en su paso de verificar: “el proceder experimental es lo ideal”, página 48.</p>
+    <p>La tecnología sube de determinar el problema a comunicar, y su paso de evaluar consiste en “determinar errores o desviaciones”, página 51: eso es mi verificación y validación. Mi tesis recorre esa segunda escalera capítulo por capítulo, y son las mismas seis actividades de Peffers, referencia 12, que ordenan la Tabla 2.1 de mi tesis.»</p>
+    <p class="g-tip">Pasos: 1) las dos escaleras; 2) se resalta «verificar» en la ciencia; 3) cada peldaño tecnológico se mapea a la tesis; 4) cita de la hipótesis tecnológica.</p>
+  </div>
+</section>
+
+<!-- ================================================================ 3. EL EXPERIMENTO -->
+<section class="lam" id="experimento" data-pasos="2" data-titulo="Sí hay experimento" aria-label="Lámina 3: sí hay experimento">
+  <header class="cab">
+    <div class="rotulo"><span class="num">3</span>Respaldo metodológico · El experimento</div>
+    <h2 class="titulo">Sí hay experimento: <span class="suave">sobre el análisis, no sobre personas</span></h2>
+  </header>
+  <div class="exp">
+    <div>
+      <figure class="defin">
+        <div class="etq-sec">Qué es un experimento</div>
+        <blockquote>«El experimento es el método empírico de estudio de un objeto, en el cual el investigador crea las condiciones necesarias […], reproduce el objeto de estudio en condiciones controladas [y] modifica las condiciones […] de forma planificada.»</blockquote>
+        <figcaption>Álvarez de Zayas [8], pp. 47-48</figcaption>
+      </figure>
+      <figure class="defin menor">
+        <blockquote>«Es posible realizar experimentos con seres humanos, otros seres vivos y ciertos objetos.»</blockquote>
+        <figcaption>Hernández-Sampieri y Mendoza [24], p. 152</figcaption>
+      </figure>
+      <ul class="mapa-exp" data-paso="1">
+        <li><span class="k">Condiciones</span><span>solución exacta construida a propósito</span></li>
+        <li><span class="k">Se manipula</span><span>elemento Q4 / Q9 y malla N = 2 → 32</span></li>
+        <li><span class="k">Se mide</span><span>error del desplazamiento (norma L²)</span></li>
+        <li><span class="k">Se controla</span><span>tipo de análisis, material y cuadratura</span></li>
+        <li><span class="k">Se predice</span><span>tasa 2 (Q4) y 3 (Q9) ± 0,5, antes de correr</span></li>
+      </ul>
+    </div>
+    <div>
+      <div class="panel-g">
+        <div class="enc">
+          <div class="t">Error frente a la malla · soluciones manufacturadas</div>
+          <button type="button" class="b-datos" id="b-datos" aria-pressed="false" aria-controls="tabla-mms">Ver datos</button>
+        </div>
+        <div class="leyenda" aria-hidden="true"><span><i style="background:var(--q4)"></i>Q4 · bilineal, p = 1</span><span><i style="background:var(--q9)"></i>Q9 · bicuadrático, p = 2</span></div>
+        <svg id="grafica" viewBox="0 0 880 560" role="img" aria-labelledby="g-tit g-desc">
+          <title id="g-tit">Convergencia del error del desplazamiento, Q4 y Q9</title>
+          <desc id="g-desc">Escala doble logarítmica. Al duplicar el número de elementos por lado, el error del Q4 cae con tasa 2,00 y el del Q9 con tasa 3,00, como predice la teoría.</desc>
+        </svg>
+        <table class="tabla-datos" id="tabla-mms" hidden>
+          <caption>Tabla 3.1 de la tesis (p. 76): norma L² del error del desplazamiento, configuración base.</caption>
+          <thead><tr><th>N</th><th>GDL Q4</th><th>Error Q4</th><th>Tasa Q4</th><th>GDL Q9</th><th>Error Q9</th><th>Tasa Q9</th></tr></thead>
+          <tbody id="tabla-cuerpo"></tbody>
+        </table>
+      </div>
+      <div class="veredicto" data-paso="2"><span class="v" aria-hidden="true">✓</span><span>Observado: 2,00 y 3,00 en las cuatro configuraciones. <b>Se cumple.</b></span><span class="fte">Tabla 3.10, p. 99</span></div>
+    </div>
+  </div>
+  <div class="notas">
+    <p>«Mi tesis sí tiene experimento. Álvarez de Zayas, referencia 8, páginas 47 y 48, lo define como el método en que el investigador crea las condiciones, reproduce el objeto en condiciones controladas y las modifica de forma planificada. Eso hago: construyo una solución exacta, manipulo el tipo de elemento y la malla, y mido el error. Hernández-Sampieri, página 152, admite experimentos “con ciertos objetos”.</p>
+    <p>La predicción estaba escrita antes de correr: tasa 2 para el Q4 y 3 para el Q9, con medio orden de margen. Resultado: 2,00 y 3,00, en tensión y en deformación plana, en malla regular y distorsionada. Lo que no tengo es un experimento con personas, porque ninguna de mis variables es una propiedad de personas.»</p>
+    <p class="g-tip">Pasos: 1) se dibuja el Q4; 2) el Q9 y el mapa del experimento; 3) tasas y veredicto. Pase el puntero por un punto para ver su valor, o use «Ver datos».</p>
+  </div>
+</section>
+
+<!-- ================================================================ 4. EL MATERIAL DE LA CARRERA -->
+<section class="lam" id="material" data-pasos="2" data-titulo="El material de la Carrera" aria-label="Lámina 4: el material de la Carrera">
+  <header class="cab">
+    <div class="rotulo"><span class="num">4</span>Respaldo metodológico · El material del Seminario de Grado</div>
+    <h2 class="titulo">El propio material de la Carrera <span class="suave">admite esta tesis</span></h2>
+  </header>
+  <div class="rejilla-mat">
+    <article class="tarjeta">
+      <div class="etq">Reglamento · Art. 6</div>
+      <div class="cita">La tesis responde a un problema «planteando alternativas aplicables o proponiendo soluciones prácticas y/o teóricas».</div>
+      <div class="nota">No exige sujetos ni experimento físico.</div>
+      <div class="fte">Taller 1, lám. 3 · Reglamento General del S.U.B., en el Manual de Procesos UATF (2022), p. 93</div>
+    </article>
+    <article class="tarjeta">
+      <div class="etq">Taller 4 · lám. 4</div>
+      <div class="cita">Cuatro modelos de investigación: desarrollo teórico, modelación teórica, modelación experimental y «modelación de simulación teórica».</div>
+      <div class="nota">La modelación experimental es <b>uno de cuatro</b>.</div>
+      <div class="fte">Barrios, Seminario de Grado II</div>
+    </article>
+    <article class="tarjeta" data-paso="1">
+      <div class="etq">Taller 5 · Ejemplo 2</div>
+      <div class="cita">«Se desarrolla un software para su aplicación en casos de estudio, que valide la confiabilidad de los resultados obtenidos».</div>
+      <div class="nota">Contra autores publicados: +0,8 %, −0,15 % y −3,8 %. EduFEM: <b>0,04 %</b>.</div>
+      <div class="fte">Taller 5, lám. 15 y 18-20</div>
+    </article>
+    <article class="tarjeta" data-paso="1" style="--k:1">
+      <div class="etq">Taller 1 · lám. 15</div>
+      <div class="cita">La solución se demuestra «mediante el experimento físico o la aplicación práctica de la solución hallada».</div>
+      <div class="nota">La vía de esta tesis es la <b>aplicación práctica</b>.</div>
+      <div class="fte">Cita de Ortiz Uribe, Diccionario de Metodología</div>
+    </article>
+    <article class="tarjeta" data-paso="2">
+      <div class="etq">Taller 1 · lám. 9</div>
+      <div class="cita">En Seminario de Grado II el estudiante desarrolla su propuesta «experimental o teórico para sustentar una aplicación específica».</div>
+      <div class="nota">Rediseño curricular de la Carrera, p. 333.</div>
+      <div class="fte">Política de graduación citada por el Taller 1</div>
+    </article>
+    <article class="tarjeta" data-paso="2" style="--k:1">
+      <div class="etq">Miranda · hipótesis, lám. 12</div>
+      <div class="cita">La hipótesis es una «solución tentativa» y se aplica «bajo tres mecanismos de trabajo investigativo»: técnica, método, sistema.</div>
+      <div class="nota"><b>EduFEM es el sistema.</b></div>
+      <div class="fte">Planteamiento del problema científico – hipótesis</div>
+    </article>
+  </div>
+  <div class="notas">
+    <p>«Esto no lo traigo de afuera: está en el material del Seminario de Grado. El Artículo 6 del Reglamento define la tesis como respuesta a un problema “proponiendo soluciones prácticas y/o teóricas”, y el Reglamento General del Sistema de la Universidad Boliviana, que el Manual de Procesos de la UATF transcribe en su página 93, dice lo mismo.</p>
+    <p>El Taller 4 reconoce cuatro modelos de investigación y uno es la modelación de simulación teórica, que es el mío. Y el Ejemplo 2 del Taller 5 es un software validado contra casos publicados, con aproximaciones de +0,8, −0,15 y −3,8 %: es la misma figura que mi tesis, y mis diferencias son menores.»</p>
+    <p class="g-tip">Pasos: dos tarjetas por vez. El Manual de Procesos (2022) no está en la bibliografía de la tesis: es documento institucional; citarlo de viva voz.</p>
+  </div>
+</section>
+
+<!-- ================================================================ 5. LA PREGUNTA DECIDE EL MÉTODO -->
+<section class="lam" id="pregunta" data-pasos="2" data-titulo="La pregunta decide el método" aria-label="Lámina 5: la pregunta decide el método">
+  <header class="cab">
+    <div class="rotulo"><span class="num">5</span>Respaldo metodológico · Por qué no con estudiantes</div>
+    <h2 class="titulo">La pregunta decide el método</h2>
+  </header>
+  <div class="tabla-preg" role="table" aria-label="Pregunta de conocimiento y método que la responde">
+    <div class="fila" role="row">
+      <div class="th" role="columnheader">Pregunta de conocimiento</div><div class="th" role="columnheader"><span class="sr">hacia</span></div><div class="th" role="columnheader">Método que la responde</div><div class="th" role="columnheader">¿Sujetos?</div><div class="th" role="columnheader">En esta tesis</div>
+    </div>
+    <div class="fila esta" role="row">
+      <div class="celda" role="cell">¿El análisis es trazable y el motor es exacto?<span class="ch">PI-1 y PI-2</span></div>
+      <div class="celda flecha" role="cell" aria-hidden="true">→</div>
+      <div class="celda" role="cell">Pruebas y simulación, en laboratorio<span class="ch">experimento de mecanismo, caso único</span></div>
+      <div class="celda suj" role="cell">No</div>
+      <div class="celda" role="cell">Capítulo 3<span class="ch">7/7 · 9/9 · 18/18<br>tasas 2,00 y 3,00 · 0,04 %</span></div>
+    </div>
+    <div class="fila otra" role="row" data-paso="1">
+      <div class="celda" role="cell">¿Los estudiantes aprenden más con EduFEM?<span class="ch">otra variable dependiente</span></div>
+      <div class="celda flecha" role="cell" aria-hidden="true">→</div>
+      <div class="celda" role="cell">Muestras con grupo control, en el aula<span class="ch">experimento estadístico de diferencias</span></div>
+      <div class="celda suj" role="cell">Sí</div>
+      <div class="celda" role="cell">Otra investigación<span class="ch">de carácter educativo (Recomendaciones)</span></div>
+    </div>
+  </div>
+  <div class="fte" style="margin-top:12px">Wieringa [25]: la pregunta fija el instrumento, Tabla 1.1, p. 5 · validación en laboratorio, pp. 30-31 · experimentos con muestras, pp. 47-48 y 65</div>
+  <div class="citas-2" data-paso="2">
+    <figure>
+      <blockquote>«No consideramos que un tipo de investigación —y los consecuentes diseños— sea mejor que otro (experimental frente a no experimental) […] depende de tu planteamiento del problema, el alcance del estudio y las hipótesis formuladas.»</blockquote>
+      <figcaption>Hernández-Sampieri y Mendoza [24], p. 151 · libro recomendado en el Taller 1, lám. 23</figcaption>
+    </figure>
+    <figure>
+      <blockquote>«La selección de los métodos de evaluación debe corresponderse con el artefacto diseñado y con las métricas de evaluación elegidas.»</blockquote>
+      <figcaption>Hevner y otros [11], p. 86 (traducción propia) · mis métricas son cobertura y exactitud</figcaption>
+    </figure>
+  </div>
+  <div class="notas">
+    <p>«La pregunta decide el método. Wieringa, referencia 25, lo muestra en su Tabla 1.1, página 5: si se pregunta si una estimación es suficientemente exacta, se responde con una simulación; si se pregunta si un método es útil para las personas, hace falta una prueba con sujetos. Mis dos preguntas de investigación son de la primera clase.</p>
+    <p>Hernández-Sampieri, página 151 —el libro que el propio Taller 1 recomienda—, dice que el diseño experimental no es mejor que el no experimental y que la elección depende del planteamiento del problema. Medir el aprendizaje sería otra investigación, de carácter educativo, y la dejo recomendada.»</p>
+    <p class="g-tip">Si insiste: Álvarez de Zayas [8], p. 12, advierte que el experimento con grupo control y testigo «deja mucho que desear en las Ciencias Sociales».</p>
+  </div>
+</section>
+
+<!-- ================================================================ 6. LA MODALIDAD -->
+<section class="lam" id="modalidad" data-pasos="2" data-titulo="Tesis, no proyecto de grado" aria-label="Lámina 6: tesis, no proyecto de grado">
+  <header class="cab">
+    <div class="rotulo"><span class="num">6</span>Respaldo metodológico · La modalidad</div>
+    <h2 class="titulo">Tesis, <span class="suave">no proyecto de grado</span></h2>
+  </header>
+  <div class="modal">
+    <article class="mod si">
+      <h3>Tesis</h3>
+      <div class="art">Da «respuesta a un problema de ingeniería» con una propuesta «original y verificable».<span class="fte">Reglamento de Graduación, Art. 6 y 9 · Taller 1, lám. 3</span></div>
+      <div class="ind"><b>Índice (Taller 1, lám. 20)</b>Marco teórico · Diseño e implementación del modelo a desarrollar · Resultados y análisis</div>
+      <div class="ed" data-paso="1"><span class="v" aria-hidden="true">✓</span>EduFEM: problema, hipótesis, modelo y contraste, en ese índice</div>
+    </article>
+    <article class="mod no">
+      <h3>Proyecto de grado</h3>
+      <div class="art">«Programación y diseño de objeto de uso social», con «convenio interinstitucional, entre la Universidad y la Empresa».<span class="fte">Reglamento de Graduación, Art. 57 y 61 · Taller 1, lám. 5</span></div>
+      <div class="ind"><b>Índice (Taller 1, lám. 21)</b>Marco normativo · Caracterización técnica del área de proyecto · Memorias de diseño y presupuesto</div>
+      <div class="ed" data-paso="1" style="--k:1"><span class="v" aria-hidden="true">✗</span>EduFEM: sin empresa, sin área de proyecto, sin presupuesto</div>
+    </article>
+  </div>
+  <div class="aporte" data-paso="2">
+    <blockquote>«Lo que distingue el diseño rutinario de la investigación en diseño es la identificación clara de una contribución a la base de conocimiento.»</blockquote>
+    <div class="chips">
+      <span class="chip"><span class="v" aria-hidden="true">1</span>El software verificado</span>
+      <span class="chip"><span class="v" aria-hidden="true">2</span>Conocimiento de diseño</span>
+      <span class="chip"><span class="v" aria-hidden="true">3</span>Conocimiento de evaluación</span>
+    </div>
+    <div class="fte">Hevner y otros [11], p. 81 (traducción propia) · los tres aportes: Conclusiones, p. 106</div>
+  </div>
+  <div class="notas">
+    <p>«Por el Reglamento, el proyecto de grado es programación y diseño de un objeto de uso social con convenio entre la Universidad y una empresa, y su índice es marco normativo, área de proyecto, memorias de diseño y presupuesto. Mi trabajo no tiene nada de eso; tiene lo que pide la tesis: un problema, una hipótesis, un modelo y su contraste, con el índice de tres capítulos del Taller 1.</p>
+    <p>Y por el método: Hevner, página 81, dice que lo que separa la investigación del diseño rutinario es dejar una contribución identificable al conocimiento. Mi tesis deja tres: el software verificado, las decisiones de diseño que lo hacen trazable y una batería de verificación reproducible, con la lección del defecto de extrapolación.»</p>
+    <p class="g-tip">Si pregunta por «programación» (Art. 57): el Art. 61 exige el convenio con la empresa donde se ejecuta el proyecto; aquí no lo hay, y el perfil se aprobó como tesis.</p>
+  </div>
+</section>
+
+<!-- ================================================================ PIE, GUION, GLOBO -->
+<aside class="guion" id="guion" hidden aria-label="Guion de la lámina">
+  <div class="g-cab">Guion · lo que conviene decir <span>N oculta · T tema · F pantalla completa · ← → pasos</span></div>
+  <div id="guion-texto"></div>
+</aside>
+<div class="globo" id="globo" hidden></div>
+<footer class="pie">
+  <div class="marca"><b>EduFEM</b> · respaldo metodológico para la defensa</div>
+  <div class="puntos" id="puntos" role="group" aria-label="Láminas"></div>
+  <div class="cuenta" id="cuenta" aria-live="polite"></div>
+  <button type="button" class="ctrl" id="b-ant" aria-label="Paso anterior">←</button>
+  <button type="button" class="ctrl" id="b-sig" aria-label="Paso siguiente">→</button>
+  <button type="button" class="ctrl" id="b-guion" aria-pressed="false">Guion</button>
+  <button type="button" class="ctrl" id="b-tema" aria-label="Cambiar tema">Tema</button>
+  <button type="button" class="ctrl" id="b-pantalla" aria-label="Pantalla completa">⛶</button>
+</footer>
+<div class="progreso" id="progreso"></div>
+
+</div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+  var marco = $('#marco'), esc = $('#escenario');
+  var lams = $$('.lam');
+  var estado = { i: 0, paso: 0, escala: 1 };
+  var CLAVE_TEMA = 'edufem-respaldo-tema';
+  var ganchos = {}, salidas = {};
+
+  /* ---------------------------------------------------------------- escala */
+  function ajustar() {
+    var W = marco.clientWidth, H = marco.clientHeight;
+    var g = W < 900 ? 16 : 0;
+    var s = Math.max(0.05, Math.min((W - 2 * g) / 1920, (H - 2 * g) / 1080));
+    estado.escala = s;
+    esc.style.transform = 'translate(' + ((W - 1920 * s) / 2) + 'px,' + ((H - 1080 * s) / 2) + 'px) scale(' + s + ')';
+  }
+
+  /* ---------------------------------------------------------------- pasos */
+  function pasosDe(L) { return Number(L.getAttribute('data-pasos') || 0); }
+  function aplicarPaso(L, p) {
+    $$('[data-paso]', L).forEach(function (e) { e.classList.toggle('vis', p >= Number(e.getAttribute('data-paso'))); });
+    $$('[data-clase-paso]', L).forEach(function (e) {
+      e.getAttribute('data-clase-paso').split(';').forEach(function (par) {
+        var kc = par.split(':');
+        e.classList.toggle(kc[1].trim(), p >= Number(kc[0]));
+      });
+    });
+    if (ganchos[L.id]) ganchos[L.id](p, L);
+  }
+  function mostrar(n, p, dir) {
+    n = Math.max(0, Math.min(lams.length - 1, n));
+    var antes = lams[estado.i];
+    if (n !== estado.i || !antes.classList.contains('activa')) {
+      lams.forEach(function (L) { L.classList.remove('activa'); });
+      if (salidas[antes.id]) salidas[antes.id](antes);
+      $$('.girada', antes).forEach(function (c) { c.classList.remove('girada'); });
+    }
+    var L = lams[n];
+    L.style.setProperty('--dx', dir < 0 ? '-24px' : '24px');
+    estado.i = n;
+    estado.paso = Math.max(0, Math.min(pasosDe(L), p || 0));
+    L.classList.add('activa');
+    aplicarPaso(L, estado.paso);
+    actualizarPie();
+    actualizarGuion();
+    ocultarGlobo();
+    try { history.replaceState(null, '', '#' + L.id); } catch (e) { /* sin historial en este marco */ }
+  }
+  function siguiente() {
+    var L = lams[estado.i];
+    if (estado.paso < pasosDe(L)) { estado.paso++; aplicarPaso(L, estado.paso); actualizarPie(); }
+    else if (estado.i < lams.length - 1) mostrar(estado.i + 1, 0, 1);
+  }
+  function anterior() {
+    var L = lams[estado.i];
+    if (estado.paso > 0) { estado.paso--; aplicarPaso(L, estado.paso); actualizarPie(); }
+    else if (estado.i > 0) mostrar(estado.i - 1, pasosDe(lams[estado.i - 1]), -1);
+  }
+
+  /* ---------------------------------------------------------------- pie */
+  function construirPie() {
+    var cont = $('#puntos');
+    lams.forEach(function (L, k) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'punto-nav';
+      b.setAttribute('aria-label', 'Lámina ' + (k + 1) + ': ' + L.getAttribute('data-titulo'));
+      b.addEventListener('click', function () { mostrar(k, 0, k >= estado.i ? 1 : -1); });
+      cont.appendChild(b);
+    });
+  }
+  function actualizarPie() {
+    $$('.punto-nav').forEach(function (b, k) { b.setAttribute('aria-current', String(k === estado.i)); });
+    var L = lams[estado.i], tot = pasosDe(L);
+    $('#cuenta').textContent = (estado.i + 1) + ' / ' + lams.length + (tot ? ' · paso ' + (estado.paso + 1) + ' de ' + (tot + 1) : '');
+    var hechos = 0, total = 0;
+    lams.forEach(function (M, k) { var t = pasosDe(M) + 1; total += t; if (k < estado.i) hechos += t; });
+    hechos += estado.paso + 1;
+    $('#progreso').style.width = (100 * hechos / total) + '%';
+  }
+
+  /* ---------------------------------------------------------------- guion */
+  var guion = $('#guion');
+  function actualizarGuion() {
+    var n = $('.notas', lams[estado.i]);
+    $('#guion-texto').innerHTML = n ? n.innerHTML : '';
+  }
+  function alternarGuion() {
+    guion.hidden = !guion.hidden;
+    $('#b-guion').setAttribute('aria-pressed', String(!guion.hidden));
+  }
+
+  /* ---------------------------------------------------------------- tema y pantalla */
+  function temaActual() {
+    var a = document.documentElement.getAttribute('data-theme');
+    if (a === 'dark' || a === 'light') return a;
+    return window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  function alternarTema() {
+    var t = temaActual() === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', t);
+    try { localStorage.setItem(CLAVE_TEMA, t); } catch (e) { /* almacenamiento no disponible */ }
+  }
+  function pantallaCompleta() {
+    var d = document;
+    try {
+      if (d.fullscreenElement) { var s = d.exitFullscreen && d.exitFullscreen(); if (s && s.catch) s.catch(function () {}); }
+      else { var r = d.documentElement.requestFullscreen && d.documentElement.requestFullscreen(); if (r && r.catch) r.catch(function () {}); }
+    } catch (e) { /* el visor no permite pantalla completa */ }
+  }
+
+  /* ---------------------------------------------------------------- lámina 1 */
+  var rejilla = $('#rejilla-dif'), interruptor = $('#interruptor');
+  function medirPildora() {
+    var a = $('#op-cie'), b = $('#op-tec');
+    if (!a.offsetWidth) return;
+    interruptor.style.setProperty('--w1', a.offsetWidth + 'px');
+    interruptor.style.setProperty('--w2', b.offsetWidth + 'px');
+    interruptor.style.setProperty('--x2', (b.offsetLeft - a.offsetLeft) + 'px');
+  }
+  function sincronizarInterruptor() {
+    var tec = rejilla.classList.contains('tec');
+    interruptor.classList.toggle('tec', tec);
+    $('#op-cie').setAttribute('aria-pressed', String(!tec));
+    $('#op-tec').setAttribute('aria-pressed', String(tec));
+  }
+  function fijarModo(tec) {
+    rejilla.classList.toggle('tec', tec);
+    $$('.girada', rejilla).forEach(function (c) { c.classList.remove('girada'); });
+    sincronizarInterruptor();
+  }
+  $('#op-cie').addEventListener('click', function () { fijarModo(false); });
+  $('#op-tec').addEventListener('click', function () { fijarModo(true); });
+  $$('.carta', rejilla).forEach(function (c) {
+    c.addEventListener('click', function () { c.classList.toggle('girada'); });
+  });
+  ganchos.diferencia = function () { medirPildora(); sincronizarInterruptor(); };
+
+  /* ---------------------------------------------------------------- lámina 3: convergencia */
+  /* Datos de la Tabla 3.1 de la tesis (p. 76): norma L2 del error del desplazamiento,
+     cuadrado unitario en tensión plana. [N, GDL, error, tasa respecto de la malla anterior] */
+  var SERIES = [
+    { id: 'q4', nombre: 'Q4', teo: 2, tasa: '2,00', anot: 'error ÷ 4 al duplicar N',
+      pts: [[2, 18, 2.559e-1, null], [4, 50, 7.240e-2, '1,82'], [8, 162, 1.866e-2, '1,96'], [16, 578, 4.699e-3, '1,99'], [32, 2178, 1.177e-3, '2,00']] },
+    { id: 'q9', nombre: 'Q9', teo: 3, tasa: '3,00', anot: 'error ÷ 8 al duplicar N',
+      pts: [[2, 50, 2.172e-2, null], [4, 162, 2.776e-3, '2,97'], [8, 578, 3.479e-4, '3,00'], [16, 2178, 4.352e-5, '3,00'], [32, 8450, 5.441e-6, '3,00']] }
+  ];
+  var NS = 'http://www.w3.org/2000/svg';
+  function nodo(tag, attrs, padre) {
+    var e = document.createElementNS(NS, tag);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (padre) padre.appendChild(e);
+    return e;
+  }
+  function potencia(padre, x, y, exp, attrs) {
+    var t = nodo('text', Object.assign({ x: x, y: y }, attrs || {}), padre);
+    t.appendChild(document.createTextNode('10'));
+    var s = nodo('tspan', { dy: -11, 'font-size': 15 }, t);
+    s.textContent = '−' + Math.abs(exp);
+    return t;
+  }
+  function cientifica(v) {
+    var e = Math.floor(Math.log10(v)), m = v / Math.pow(10, e);
+    if (m >= 9.9995) { m /= 10; e += 1; }
+    return { m: m.toFixed(3).replace('.', ','), e: e };
+  }
+  function textoCientifico(v) { var c = cientifica(v); return c.m + ' × 10^' + c.e; }
+  function construirGrafica() {
+    var svg = $('#grafica');
+    var W = 880, H = 560, izq = 118, der = 630, arr = 20, aba = 470;
+    var yMax = -0.3, yMin = -5.7;
+    var X = function (n) { return izq + (Math.log2(n) - 1) / 4 * (der - izq); };
+    var Y = function (e) { return arr + (yMax - Math.log10(e)) / (yMax - yMin) * (aba - arr); };
+    var g = nodo('g', {}, svg);
+    for (var ex = -1; ex >= -5; ex--) {
+      var y = Y(Math.pow(10, ex));
+      nodo('line', { x1: izq, x2: der, y1: y, y2: y, 'class': 'rej' }, g);
+      potencia(g, izq - 14, y + 8, ex, { 'text-anchor': 'end', 'class': 'tick' });
+    }
+    [2, 4, 8, 16, 32].forEach(function (n) {
+      var x = X(n);
+      nodo('line', { x1: x, x2: x, y1: arr, y2: aba, 'class': 'rej' }, g);
+      var t = nodo('text', { x: x, y: aba + 32, 'text-anchor': 'middle', 'class': 'tick' }, g);
+      t.textContent = String(n);
+    });
+    nodo('line', { x1: izq, x2: der, y1: aba, y2: aba, 'class': 'eje' }, g);
+    nodo('line', { x1: izq, x2: izq, y1: arr, y2: aba, 'class': 'eje' }, g);
+    var tx = nodo('text', { x: (izq + der) / 2, y: aba + 70, 'text-anchor': 'middle', 'class': 'tit-eje' }, g);
+    tx.textContent = 'Elementos por lado, N (malla N × N) →';
+    var ty = nodo('text', { x: 26, y: (arr + aba) / 2, 'text-anchor': 'middle', 'class': 'tit-eje', transform: 'rotate(-90 26 ' + ((arr + aba) / 2) + ')' }, g);
+    ty.textContent = 'Error del desplazamiento, norma L²';
+
+    SERIES.forEach(function (S) {
+      var gs = nodo('g', { 'class': 'serie ' + S.id }, svg);
+      var d = '', len = 0, prev = null;
+      S.pts.forEach(function (p, k) {
+        var x = X(p[0]), y = Y(p[2]);
+        d += (k ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1) + ' ';
+        if (prev) len += Math.hypot(x - prev[0], y - prev[1]);
+        prev = [x, y];
+      });
+      var linea = nodo('path', { d: d, 'class': 'linea', stroke: 'var(--' + S.id + ')' }, gs);
+      linea.style.setProperty('--len', Math.ceil(len + 2));
+      S.pts.forEach(function (p, k) {
+        var x = X(p[0]), y = Y(p[2]);
+        var gp = nodo('g', { 'class': 'pt' }, gs);
+        gp.style.setProperty('--k', k);
+        var c = cientifica(p[2]);
+        var etiqueta = S.nombre + ', N = ' + p[0] + ' (' + p[1] + ' GDL): error ' + c.m + ' por 10 a la ' + c.e + (p[3] ? ', tasa ' + p[3] : '');
+        var hit = nodo('circle', { cx: x, cy: y, r: 24, 'class': 'hit', tabindex: 0, role: 'img', 'aria-label': etiqueta }, gp);
+        nodo('circle', { cx: x, cy: y, r: 7, 'class': 'm', fill: 'var(--' + S.id + ')' }, gp);
+        var mostrarGlobo = function () { globoPunto(hit, S, p); };
+        hit.addEventListener('pointerenter', mostrarGlobo);
+        hit.addEventListener('focus', mostrarGlobo);
+        hit.addEventListener('pointerleave', ocultarGlobo);
+        hit.addEventListener('blur', ocultarGlobo);
+      });
+      // Etiqueta al final de la línea: la tasa medida y la teórica
+      var ult = S.pts[S.pts.length - 1];
+      var xf = X(ult[0]) + 22, yf = Y(ult[2]);
+      var ge = nodo('g', { 'class': 'etiq' }, gs);
+      nodo('line', { x1: xf, x2: xf + 22, y1: yf - 8, y2: yf - 8, stroke: 'var(--' + S.id + ')', 'stroke-width': 4, 'stroke-linecap': 'round' }, ge);
+      var t1 = nodo('text', { x: xf + 32, y: yf, 'class': 'fin-t' }, ge);
+      t1.textContent = 'tasa ' + S.tasa;
+      var t2 = nodo('text', { x: xf + 32, y: yf + 28, 'class': 'fin-s' }, ge);
+      t2.textContent = S.nombre + ' · teoría: ' + S.teo;
+      // Anotación a media línea
+      var a = S.pts[2], b = S.pts[3];
+      var xm = (X(a[0]) + X(b[0])) / 2, ym = (Y(a[2]) + Y(b[2])) / 2;
+      var an = nodo('text', { x: S.id === 'q4' ? xm + 16 : xm - 26, y: S.id === 'q4' ? ym - 30 : ym + 50, 'class': 'anot etiq', 'text-anchor': S.id === 'q4' ? 'start' : 'end' }, gs);
+      an.textContent = S.anot;
+    });
+
+    // Tabla equivalente (vista de datos)
+    var cuerpo = $('#tabla-cuerpo');
+    for (var k = 0; k < 5; k++) {
+      var tr = document.createElement('tr');
+      var a4 = SERIES[0].pts[k], a9 = SERIES[1].pts[k];
+      [String(a4[0]), String(a4[1]), textoCientifico(a4[2]).replace('^', ''), a4[3] || '—', String(a9[1]), textoCientifico(a9[2]).replace('^', ''), a9[3] || '—'].forEach(function (v, j) {
+        var td = document.createElement('td');
+        if (j === 2 || j === 5) {
+          var c = cientifica(j === 2 ? a4[2] : a9[2]);
+          td.appendChild(document.createTextNode(c.m + ' × 10'));
+          var sup = document.createElement('sup'); sup.textContent = '−' + Math.abs(c.e); td.appendChild(sup);
+        } else td.textContent = v;
+        tr.appendChild(td);
+      });
+      cuerpo.appendChild(tr);
+    }
+  }
+  var globo = $('#globo');
+  function globoPunto(hit, S, p) {
+    var c = cientifica(p[2]);
+    globo.textContent = '';
+    var v = document.createElement('span'); v.className = 'v';
+    v.appendChild(document.createTextNode(c.m + ' × 10'));
+    var sup = document.createElement('sup'); sup.textContent = '−' + Math.abs(c.e); v.appendChild(sup);
+    var k = document.createElement('span'); k.className = 'k'; k.style.background = 'var(--' + S.id + ')';
+    var linea = document.createElement('span');
+    linea.appendChild(k);
+    linea.appendChild(document.createTextNode(S.nombre + ' · N = ' + p[0] + ' · ' + p[1] + ' GDL' + (p[3] ? ' · tasa ' + p[3] : '')));
+    globo.appendChild(v);
+    globo.appendChild(linea);
+    globo.hidden = false;
+    var r = hit.getBoundingClientRect(), e = esc.getBoundingClientRect(), s = estado.escala;
+    var x = (r.left + r.width / 2 - e.left) / s, y = (r.top - e.top) / s;
+    var ancho = globo.offsetWidth;
+    globo.style.left = Math.min(1920 - ancho - 20, Math.max(20, x - ancho / 2)) + 'px';
+    globo.style.top = Math.max(20, y - globo.offsetHeight - 4) + 'px';
+  }
+  function ocultarGlobo() { globo.hidden = true; }
+  var grafica = $('#grafica');
+  ganchos.experimento = function (p) {
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        grafica.classList.toggle('q4on', p >= 0);
+        grafica.classList.toggle('q9on', p >= 1);
+        grafica.classList.toggle('etiq', p >= 2);
+      });
+    });
+  };
+  salidas.experimento = function () { grafica.classList.remove('q4on', 'q9on', 'etiq'); };
+  $('#b-datos').addEventListener('click', function () {
+    var tabla = $('#tabla-mms'), ver = tabla.hidden;
+    tabla.hidden = !ver;
+    grafica.style.display = ver ? 'none' : '';
+    this.setAttribute('aria-pressed', String(ver));
+    this.textContent = ver ? 'Ver gráfica' : 'Ver datos';
+  });
+
+  /* ---------------------------------------------------------------- teclado y botones */
+  document.addEventListener('keydown', function (ev) {
+    if (ev.altKey || ev.ctrlKey || ev.metaKey) return;
+    var t = ev.target, k = ev.key;
+    var enBoton = t && t.tagName === 'BUTTON';
+    if ((k === ' ' || k === 'Enter') && enBoton) return;
+    if (['ArrowRight', 'ArrowDown', 'PageDown', ' ', 'Enter'].indexOf(k) >= 0) { ev.preventDefault(); siguiente(); }
+    else if (['ArrowLeft', 'ArrowUp', 'PageUp', 'Backspace'].indexOf(k) >= 0) { ev.preventDefault(); anterior(); }
+    else if (k === 'Home') { ev.preventDefault(); mostrar(0, 0, -1); }
+    else if (k === 'End') { ev.preventDefault(); mostrar(lams.length - 1, pasosDe(lams[lams.length - 1]), 1); }
+    else if (k === 't' || k === 'T') alternarTema();
+    else if (k === 'n' || k === 'N') alternarGuion();
+    else if (k === 'f' || k === 'F') pantallaCompleta();
+    else if (/^[1-9]$/.test(k) && Number(k) <= lams.length) mostrar(Number(k) - 1, 0, Number(k) - 1 >= estado.i ? 1 : -1);
+  });
+  $('#b-sig').addEventListener('click', siguiente);
+  $('#b-ant').addEventListener('click', anterior);
+  $('#b-guion').addEventListener('click', alternarGuion);
+  $('#b-tema').addEventListener('click', alternarTema);
+  $('#b-pantalla').addEventListener('click', pantallaCompleta);
+  // Tras un clic con el ratón, el botón suelta el foco: la barra espaciadora vuelve a avanzar.
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('button');
+    if (b && e.detail > 0) b.blur();
+  });
+
+  /* ---------------------------------------------------------------- arranque */
+  construirPie();
+  construirGrafica();
+  ajustar();
+  window.addEventListener('resize', ajustar);
+  var ini = 0;
+  var h = (location.hash || '').replace('#', '');
+  lams.forEach(function (L, k) { if (L.id === h) ini = k; });
+  mostrar(ini, 0, 1);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { medirPildora(); });
+  // Para revisar el diseño sin pantalla (herramienta de captura).
+  window.__respaldo = {
+    total: lams.length,
+    pasos: function (i) { return pasosDe(lams[i]); },
+    ir: function (i, p) { mostrar(i, p, 1); }
+  };
+})();
+</script>

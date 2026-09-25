@@ -1,0 +1,627 @@
+% =====================================================================
+%  contexto_defensa.tex -- Documento de estudio del autor para la defensa.
+%  Tesis tecnologica (EduFEM) frente al molde experimental: contexto para
+%  memorizar, argumentos anclados a su fuente con pagina, material docente
+%  lamina por lamina, preguntas probables del tribunal.
+%  NO forma parte de la tesis. 23 de septiembre de 2026.
+%
+%  Fuentes leidas para escribirlo (todas las paginas verificadas en el PDF):
+%    - tesis/main_final.pdf y tesis/capitulos_final/ (numeracion y paginas)
+%    - tesis/Material docente/ (3 PDF de Miranda, Talleres 1, 2, 4, 5 y 6
+%      de Barrios, Manual de Procesos Academico-Administrativos UATF 2022)
+%    - tesis/bibliografia/: Garcia-Cordoba 2005 (escaneo: leido como imagen),
+%      Hernandez-Sampieri 2018, Alvarez de Zayas, Hevner 2004, Peffers 2007,
+%      Wieringa 2014, Oberkampf y Roy 2010
+%    - tesis/respaldo_citas/verificado.json, tesis/auditoria_final/
+%  Compilar: pdflatex contexto_defensa (dos veces, por el indice)
+% =====================================================================
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[spanish,es-tabla,es-noshorthands]{babel}
+\usepackage[a4paper,top=2.1cm,bottom=2.2cm,left=2.15cm,right=2.15cm,headheight=14pt]{geometry}
+\usepackage{microtype}
+\usepackage{booktabs,array,longtable,tabularx}
+\usepackage[table]{xcolor}
+\usepackage{enumitem}
+\usepackage{pifont}
+\usepackage{amsmath,amssymb}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage[most]{tcolorbox}
+\usepackage{needspace}
+\usepackage{etoolbox}
+\usepackage[hidelinks]{hyperref}
+% Un título de sección nunca queda solo al pie de la página.
+\pretocmd{\section}{\needspace{9\baselineskip}}{}{}
+\pretocmd{\subsection}{\needspace{5\baselineskip}}{}{}
+\addto\extrasspanish{\def\appendixautorefname{anexo}\def\sectionautorefname{sección}}
+
+% ---------------------------------------------------------------- colores
+\definecolor{acento}{HTML}{C8561A}
+\definecolor{primario}{HTML}{1D5FD8}
+\definecolor{cie}{HTML}{7A4FD6}
+\definecolor{ok}{HTML}{0C8A5C}
+\definecolor{mal}{HTML}{C93434}
+\definecolor{tinta}{HTML}{0D1A33}
+\definecolor{tinta2}{HTML}{34466A}
+\definecolor{tinta3}{HTML}{5F6F8B}
+\definecolor{fondo}{HTML}{F1F4FA}
+\definecolor{acentosuave}{HTML}{FCF0E7}
+\definecolor{ciesuave}{HTML}{F3EEFC}
+\definecolor{oksuave}{HTML}{E6F4EE}
+\definecolor{malsuave}{HTML}{FBECEC}
+\definecolor{primsuave}{HTML}{EAF1FC}
+
+% ---------------------------------------------------------------- estilo
+\color{tinta}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{4pt}
+\renewcommand{\arraystretch}{1.22}
+\setlist{itemsep=1.5pt,topsep=3pt,leftmargin=1.4em}
+\titleformat{\section}{\Large\bfseries\color{tinta}}{\textcolor{acento}{\thesection}}{0.6em}{}[{\color{acento}\titlerule[0.8pt]}]
+\titleformat{\subsection}{\large\bfseries\color{tinta}}{\textcolor{acento}{\thesubsection}}{0.5em}{}
+\titlespacing*{\section}{0pt}{1.3em}{0.7em}
+\titlespacing*{\subsection}{0pt}{1.0em}{0.4em}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textcolor{tinta3}{EduFEM · defensa metodológica · documento de estudio}}
+\fancyhead[R]{\small\textcolor{tinta3}{\thepage}}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\headrule}{\hbox to\headwidth{\color{tinta3!40}\leaders\hrule height \headrulewidth\hfill}}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+
+% ---------------------------------------------------------------- cajas
+\tcbset{enhanced,breakable,arc=2.5pt,boxrule=0.7pt,left=7pt,right=7pt,top=5pt,bottom=5pt,
+  fonttitle=\bfseries\small,before skip=6pt,after skip=8pt}
+\newtcolorbox{memorizar}[1][]{colback=acentosuave,colframe=acento,coltitle=white,title={#1}}
+\newtcolorbox{decir}[1][]{colback=primsuave,colframe=primario,coltitle=white,title={#1}}
+\newtcolorbox{cuidado}[1][]{colback=malsuave,colframe=mal,coltitle=white,title={#1}}
+\newtcolorbox{hallazgo}[1][]{colback=oksuave,colframe=ok,coltitle=white,title={#1}}
+\newtcolorbox{argbox}[1][]{colback=white,colframe=tinta3!55,coltitle=tinta,colbacktitle=fondo,boxrule=0.5pt,title={#1}}
+
+\newcommand{\si}{\textcolor{ok}{\ding{51}}}
+\newcommand{\no}{\textcolor{mal}{\ding{55}}}
+\newcommand{\fte}[1]{\textcolor{tinta3}{#1}}
+\newcommand{\campo}[1]{\textbf{\textcolor{tinta2}{#1}}\enspace}
+\newcommand{\dilo}{\textbf{\textcolor{primario}{Dilo así.}}\enspace}
+\newcommand{\argumento}[5]{%
+\begin{argbox}[#1]
+\campo{Fuente.}#2\par
+\campo{Pasaje.}#3\par
+\campo{En tu tesis.}#4\par
+\dilo #5
+\end{argbox}}
+
+\hypersetup{pdftitle={Defender una tesis tecnológica ante el molde experimental},pdfauthor={Documento de estudio del autor}}
+
+\begin{document}
+
+% ================================================================ PORTADA
+\begin{tcolorbox}[colback=tinta,colframe=tinta,arc=3pt,left=14pt,right=14pt,top=12pt,bottom=12pt,breakable=false]
+\color{white}
+{\small\textcolor{acento!60!white}{\textbf{EDUFEM · DOCUMENTO DE ESTUDIO PARA LA DEFENSA}}}\par\medskip
+{\LARGE\bfseries Defender una tesis tecnológica\\ ante el molde experimental\par}\medskip
+{\large Contexto para memorizar, argumentos anclados a su fuente\\ y preguntas probables del tribunal\par}\medskip
+{\small 23 de septiembre de 2026 · no forma parte de la tesis · acompaña a las láminas\\ \texttt{tesis/defensa\_metodologica/respaldo\_diferencia.html}\par}
+\end{tcolorbox}
+
+\textbf{Cómo usar este documento.}
+\begin{enumerate}[leftmargin=1.6em]
+\item \textbf{La noche anterior}: la \autoref{sec:una-pagina} (la tesis en una página) y la \autoref{sec:chuleta} (la chuleta). Eso se dice de memoria, palabra por palabra.
+\item \textbf{Para la ronda de preguntas}: la \autoref{sec:madre} (la respuesta madre), la \autoref{sec:preguntas} (preguntas probables) y la \autoref{sec:no-decir} (lo que no hay que decir).
+\item \textbf{Para respaldar cada frase}: las secciones \ref{sec:diferencia} a \ref{sec:piezas} dicen dónde está cada argumento ---en el material del Seminario de Grado o en tu propia bibliografía--- con lámina o página y cita literal.
+\end{enumerate}
+
+\textbf{Convención de fuentes.} \textbf{[n, p.~x]} es la referencia \emph{n} de la bibliografía de tu tesis (Vancouver, numerada como en \texttt{main\_final.pdf}) y su página impresa. \textbf{Tesis, p.~x} es la página impresa de \texttt{main\_final.pdf}. \textbf{Miranda, lám.~x} y \textbf{Taller~k, lám.~x} son láminas del material docente; su número coincide con la página del PDF. Las referencias de tu tesis que más vas a usar:
+
+\begin{center}\small
+\begin{tabularx}{\linewidth}{@{}rXrX@{}}
+\toprule
+{[3]} & Pérez-Santiago y Campos, 2023 (consenso de expertos) & {[12]} & Peffers y otros, 2007 (proceso de la ciencia del diseño)\\
+{[6]} & Suárez y otros, 1998 (ED-Elas2D) & {[21]} & Oberkampf y Roy, 2010 (verificación y validación)\\
+{[7]} & García-Córdoba, 2005 (investigación tecnológica) & {[24]} & Hernández-Sampieri y Mendoza, 2018\\
+{[8]} & Álvarez de Zayas (metodología, base del tribunal) & {[25]} & Wieringa, 2014 (ciencia del diseño)\\
+{[11]} & Hevner y otros, 2004 (ciencia del diseño) & & \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\fte{Cada página citada aquí se leyó en el ejemplar de \texttt{tesis/bibliografia/}: con capa de texto en Hevner, Peffers, Wieringa, Hernández-Sampieri, Álvarez de Zayas y Oberkampf; como imagen en García-Córdoba, que es un escaneo. Las citas en inglés se dan traducidas; el original, con su página, está en el \autoref{anx:ingles}.}
+
+% ================================================================ 1
+\section{La tesis en una página}\label{sec:una-pagina}
+
+\begin{memorizar}[Memorizar literal: son las frases que el tribunal va a cotejar con el documento]
+\campo{Tipo.} Investigación \textbf{tecnológica}, de carácter \textbf{propositivo} [7, p.~91]; enfoque cuantitativo [24, p.~6]; nivel descriptivo y comparativo. Método: \textbf{ciencia del diseño} [11, p.~75], con el proceso de seis actividades [12, pp.~52-56] y evaluación de laboratorio [25, pp.~30-31]. Modelo de investigación del Taller~4: \emph{modelación de simulación teórica} (modelo de simulación numérica, tesis p.~42).
+
+\campo{Situación problemática.} El software comercial de análisis opera como caja negra, y ningún recurso educativo revisado reúne la exposición del procedimiento completo, una memoria de cálculo reproducible a mano y una verificación y validación publicada (Tabla~1.1, tesis p.~16).
+
+\campo{Problema científico} (tesis p.~2). «¿De qué manera el uso del software de análisis estructural como caja negra podrá incidir en la baja trazabilidad y verificabilidad del análisis por el Método de los Elementos Finitos en elasticidad plana, en la Carrera de Ingeniería Civil de la Universidad Autónoma Tomás Frías, en la gestión 2026?»
+
+\campo{Variables.} \textbf{VI (causa)}: la forma en que el software expone el procedimiento de cálculo; dos niveles, \emph{caja negra} y \emph{procedimiento a la vista}. \textbf{VD (efecto)}: la trazabilidad y la verificabilidad del análisis. \textbf{Interviniente (solución)}: EduFEM, el «sistema» de Miranda (lám.~12).
+
+\campo{Definiciones} (tesis pp.~2-3). \emph{Trazabilidad}: cada resultado puede seguirse hacia atrás, etapa por etapa, hasta los datos del modelo. \emph{Verificabilidad}: cada magnitud puede comprobarse contra un patrón independiente ---cálculo manual, solución analítica u otro programa--- y da conforme dentro de una tolerancia fijada de antemano. Son las dos propiedades que la memoria de cálculo asegura en la práctica profesional.
+
+\campo{Objeto y campo} (tesis p.~3). Objeto: el análisis de medios continuos en elasticidad lineal plana por el MEF. Campo: los medios de cálculo con que ese análisis se enseña en la Carrera ---el software educativo y la memoria de cálculo---.
+
+\campo{Objetivo general} (tesis p.~5), con el molde de Miranda (lám.~2): \textbf{verbo}: desarrollar; \textbf{qué} ($\to$ VI): EduFEM, software educativo que expone el procedimiento de cálculo (Q4 y Q9, tensión y deformación plana); \textbf{cómo}: diseño e implementación en Python y verificación y validación frente a soluciones analíticas, casos clásicos y un software comercial; \textbf{para qué} ($\to$ VD): que el análisis por el MEF resulte trazable y verificable paso a paso en la enseñanza de la Carrera.
+
+\campo{Objetivos específicos} (tesis p.~5), en la escalera de Miranda (lám.~7: diagnosticar, fundamentar, experimentar, calcular, validar): OE1 \textbf{diagnosticar} los atributos que faltan (Cap.~1, Tabla~1.1) · OE2 \textbf{fundamentar} el MEF (Cap.~1) · OE3 \textbf{desarrollar} motor, interfaz, módulos y memoria (Cap.~2) · OE4 \textbf{verificar y validar} el motor (Cap.~3) · OE5 \textbf{validar la propuesta} contra los criterios (Cap.~3).
+
+\campo{Hipótesis} (tesis p.~6). «El desarrollo de EduFEM permitirá mejorar la forma en que el software expone el procedimiento de cálculo ---de caja negra a procedimiento a la vista---, elevando la trazabilidad y la verificabilidad del análisis por el Método de los Elementos Finitos en elasticidad plana en la Carrera de Ingeniería Civil de la Universidad Autónoma Tomás Frías.» Molde de Miranda (lám.~16): «Bajo la aplicación de [interviniente] permitirá mejorar [VI] disminuyendo [VD] en [lugar]». Dos cláusulas: \textbf{(a) trazabilidad} y \textbf{(b) verificabilidad}, con criterios fijados de antemano (Tabla~2.4, p.~51).
+
+\campo{Preguntas de investigación} (tesis p.~7). \textbf{PI-1}: ¿qué organización de la interfaz, los módulos y la memoria permite seguir cada resultado hasta sus datos y cubre el contenido que la literatura exige? \textbf{PI-2}: ¿reproduce el motor, dentro de tolerancias fijadas de antemano, las soluciones analíticas, los casos clásicos, un software comercial y los fenómenos que la teoría predice?
+
+\campo{Unidad de análisis, población y muestra} (tesis p.~47). Unidad: el procedimiento de cálculo del software. Población: los problemas de elasticidad plana resolubles con Q4 y Q9. Muestra dirigida: soluciones manufacturadas (4 configuraciones, 5 mallas), viga de Timoshenko, membrana de Cook, más el ejemplo canónico. Universo de contenido recorrido entero (censo): 9 etapas y 18 ítems del consenso.
+
+\campo{Veredicto} (Tabla~3.10, p.~99; Conclusiones, p.~105). La hipótesis queda \textbf{comprobada en sus dos cláusulas, sobre el software y los casos de estudio}.
+\end{memorizar}
+
+% ================================================================ 2
+\section{La respuesta madre}\label{sec:madre}
+
+\begin{decir}[Si el Ing.~Miranda dice: «Esto debió plantearse como una tesis experimental»]
+«Ingeniero, mi tesis sí tiene un experimento, pero su objeto es el análisis por el Método de los Elementos Finitos, no el estudiante. Por eso es una tesis tecnológica. La diferencia no está en el rigor, sino en la pregunta: la ciencia pregunta por qué ocurre algo y lo verifica para explicarlo; la tecnología pregunta cómo resolver un problema, diseña la solución ---que es su hipótesis--- y la evalúa determinando errores o desviaciones. Así lo distingue García-Córdoba, referencia~7 de mi tesis, en la figura~1.5 de la página~52 y en las páginas~51 y~85.
+
+Mi variable dependiente ---la trazabilidad y la verificabilidad del análisis--- es una propiedad del medio de cálculo, y la mido en el software con criterios fijados de antemano: 7 de 7 etapas con módulo educativo, 9 de 9 desarrolladas en la memoria de cálculo, 18 de 18 contenidos exigidos por los expertos, tasas de convergencia de 2,00 y 3,00 como predice la teoría, y 0,04\,\% de error en la tensión frente a la solución de Timoshenko.
+
+Y el propio material del Seminario lo admite: el Taller~4 reconoce cuatro modelos de investigación, uno de ellos la modelación de simulación teórica, que es el mío; y el Ejemplo~2 del Taller~5 es exactamente un software validado contra casos publicados, con porcentajes de aproximación.»
+\end{decir}
+
+\begin{decir}[Si insiste: «Pero no trabajó con estudiantes»]
+«Es cierto, y es coherente con mi problema. Hernández-Sampieri, en la página~151 ---el libro que recomienda el propio Taller~1---, dice que el diseño experimental no es mejor que el no experimental y que la elección depende del planteamiento del problema. Mi problema pregunta por una propiedad del análisis, así que la mido en el análisis. Preguntar si los estudiantes aprenden más es otra pregunta y, por tanto, otra investigación, de carácter educativo, que dejo recomendada en la página~110.»
+\end{decir}
+
+\begin{cuidado}[Tres reglas de tono]
+\begin{enumerate}[leftmargin=1.4em]
+\item \textbf{Nunca contradigas su material: muestra que lo cumples.} No digas que el molde es para tesis experimentales ni que tiene defectos; señala la lámina donde tu pieza encaja.
+\item \textbf{Cita con número y página, siempre.} Tu tesis usa Vancouver: «referencia 7, página 85». Una cita con página cierra la discusión; una opinión la abre.
+\item \textbf{Concede lo verdadero y reencuadra.} «Es cierto que no medí estudiantes, porque ninguna de mis variables es una propiedad de estudiantes.» Nunca digas «falta», «pendiente» ni «prueba de campo».
+\end{enumerate}
+\end{cuidado}
+
+% ================================================================ 3
+\section{La diferencia: tesis experimental y tesis tecnológica}\label{sec:diferencia}
+
+Las dos siguen la misma cadena lógica; cambian la pregunta y, con ella, la forma de cada pieza. García-Córdoba lo dice así: «La formulación de un problema de investigación, la elaboración de un marco teórico, el diseño de una hipótesis y la comunicación de resultados, en el campo tecnológico [\ldots] presentan ciertos rasgos distintivos» [7, p.~82, fig.~3.4].
+
+{\small
+\begin{longtable}{@{}L{2.4cm}L{4.05cm}L{4.95cm}L{3.9cm}@{}}
+\toprule
+\textbf{Aspecto} & \textbf{Tesis experimental (ciencia)} & \textbf{Tesis tecnológica (EduFEM)} & \textbf{Dónde está}\\
+\midrule\endhead
+\bottomrule\endfoot
+Fin & Explicar y predecir: «la ciencia es conocer para explicar» & Transformar una realidad: «es saber actuar y proveer soluciones» & [7, p.~46]; fig.~1.4 en [7, p.~47]\\
+Meta & La verdad & La utilidad; «verdad y utilidad son inseparables» & [11, p.~80]\\
+Proceso & Observar $\to$ conocer $\to$ verificar $\to$ explicar $\to$ predecir & Determinar el problema $\to$ documentar $\to$ diseñar $\to$ implementar $\to$ evaluar $\to$ comunicar & [7, fig.~1.5, p.~52]; [12, pp.~52-56]; Tabla~2.1 de la tesis (p.~41)\\
+Problema & Una laguna del conocimiento, elegida por el investigador & «No se escoge libremente»: sale del diagnóstico de una realidad concreta & [7, p.~83]; tesis pp.~1-2\\
+Marco teórico & Explica el fenómeno & «Información provechosa, de utilidad operativa» & [7, p.~84]\\
+Hipótesis & Explicación tentativa que se somete a verificación & «Solución tentativa a un problema concreto»; «un diseño de carácter operativo» que se aprueba «en la misma práctica» & [7, pp.~51 y 85]; Miranda, hipótesis, lám.~12\\
+Variables & Propiedades de sujetos o de materiales; la VI se manipula entre grupos & Propiedades del objeto técnico (el análisis), medidas en el software; factores del experimento numérico & [8, p.~22]; Miranda, lám.~5; Tabla~2.2 (p.~45)\\
+Unidad de análisis y población & Personas o probetas & El procedimiento de cálculo del software; los problemas de elasticidad plana & [24, pp.~196 y 198]; tesis p.~47\\
+Muestra & Probabilística, para estimar un parámetro de la población & Dirigida por valor probatorio; censo del universo de contenido & [24, pp.~196 y 215]; [21, pp.~190-191 y 208]; Taller~4, lám.~7\\
+Control & Grupo de control (no tratamiento) & Referencias de exactitud conocida; Q4 y Q9 como control mutuo; el nivel caja negra (Tabla~1.1) & Taller~4, lám.~8\\
+Réplicas & Varias unidades por tratamiento, porque hay variabilidad & Motor determinista: repetir una corrida es pseudo-réplica; la incertidumbre es de discretización & Taller~4, lám.~9 y 11; [21, pp.~309-312]\\
+Contraste & Estadística inferencial (ANOVA, Duncan) & Criterios de aceptación fijados de antemano, con lo que los refutaría & Taller~5, lám.~13; Tabla~2.4 (p.~51)\\
+Clase de experimento & Experimento estadístico de diferencias, con muestras & Experimento de mecanismo sobre un objeto de arquitectura conocida & [25, pp.~vii, 47-48, 64-65 y 247]\\
+Dónde se valida & En el campo o en el aula & En el laboratorio, antes de transferir a la práctica & [25, pp.~30-31]\\
+Aporte & Una ley o una explicación & El artefacto, conocimiento de diseño y conocimiento de evaluación & [11, pp.~81 y 87]; Conclusiones, p.~106\\
+Ejemplo en el Seminario & Taller~5, Ejemplo~1: probetas de hormigón con fibra, ANOVA y Duncan & Taller~5, Ejemplo~2: software validado contra casos publicados ($+0{,}8$\,\%, $-0{,}15$\,\%, $-3{,}8$\,\%) & Taller~5, lám.~11-20\\
+\end{longtable}}
+
+\textbf{Lo que comparten, y por eso tu tesis cumple el molde}: un problema con causa y efecto, una hipótesis de tres variables, objetivos en escalera, un modelo descrito en el Capítulo~2, un contraste con indicadores y la tríada de conclusiones y recomendaciones por capítulo. García-Córdoba lo dice de ambas: «implican un proceso intelectual, se abocan a la comprensión de relaciones causales en el mundo material, utilizando los métodos experimentales que permitan la verificación del conocimiento» [7, p.~47]. La tecnología también experimenta; experimenta para transformar, no para explicar.
+
+% ================================================================ 4
+\section{El material docente, lámina por lámina}\label{sec:material}
+
+El material del tribunal son tres presentaciones del Ing.~Julio Saúl Miranda y los Talleres~1 a~6 del Ing.~Juan Carlos Barrios (Seminario de Grado~II). \textbf{Ninguna lámina exige sujetos humanos, encuestas ni prueba de campo}; varias respaldan de forma expresa una tesis tecnológica.
+
+\begin{hallazgo}[Hallazgo nuevo: la definición de «tesis» ya tiene fuente institucional (resuelve en parte el pendiente H-1)]
+El \emph{Manual de Procesos Académico-Administrativos} de la UATF (Potosí, 2022), en su apartado 3.1.1 (p.~93 impresa, p.~97 del PDF), transcribe el \emph{Reglamento General de Tipos y Modalidades de Graduación del Sistema de la Universidad Boliviana}:
+\begin{itemize}
+\item \textbf{Tesis de grado}: «Es un trabajo de investigación, que cumple con exigencias de metodología científica, a objeto de conocer, dar soluciones y repuesta [\emph{sic}] a un problema, planteando alternativas aplicables o proponiendo soluciones prácticas y/o teóricas.»
+\item \textbf{Proyecto de grado}: «Es el trabajo de investigación, programación y diseño de objetos de uso social y que cumple con exigencias de metodología científica con profundidad similar al de una tesis.»
+\end{itemize}
+Es la misma definición que el Artículo~6 del Reglamento de la Carrera (Taller~1, lám.~3). Llévalo impreso. No está en la bibliografía de la tesis: es un documento institucional y se cita de viva voz.
+\end{hallazgo}
+
+{\small
+\begin{longtable}{@{}L{3.0cm}L{7.1cm}L{5.6cm}@{}}
+\toprule
+\textbf{Documento y lámina} & \textbf{Qué dice (literal)} & \textbf{Cómo lo usas}\\
+\midrule\endhead
+\bottomrule\endfoot
+\multicolumn{3}{@{}l}{\textbf{Miranda · «Planteamiento del problema científico – hipótesis»}}\\
+lám.~3-4 & Siete pasos: interrogante con «alto valor cognoscitivo»; dos variables, VI causa y VD efecto; relación lógica; delimitación institucional, espacial y temporal; verificación «en fuentes de información». & Tu problema cumple los siete (tesis pp.~2-3); la verificación en fuentes es Suárez [6, p.~246], Pérez-Santiago [3, p.~1160] y la Tabla~1.1.\\
+lám.~5 & «Las variables son los aspectos del objeto de estudio que serán medidos [\ldots] Unidad de análisis es el elemento básico en el cual el investigador estudia el comportamiento de la variable». & Tu objeto es técnico y tus variables también; tu unidad de análisis es el software.\\
+lám.~6 & VI: «conocido, causa»; VD: «por conocer, efecto». La dependencia «no son cualidades inherentes ni permanentes». & Causa conocida (caja negra); efecto por conocer (trazabilidad y verificabilidad).\\
+lám.~7 & Flujograma. Formulación definitiva: «relación de variables, fórmula, prueba empírica, expresarse T y E, definir población, aclarar objeto estudio». & La prueba empírica es el experimento numérico: el experimento «es el método empírico de estudio de un objeto» [8, p.~47].\\
+lám.~8-10 & Ejemplo: «¿De qué manera un mal diseño de losas de hormigón armado podrá afectar en el elevado costo de una losa alivianada en la ciudad de Potosí en la gestión 2019-2020?» & Ambas variables son técnicas, el costo se calcula (no se encuesta) y «Potosí» delimita. Igual que «la Carrera» en tu problema.\\
+lám.~12 & Hipótesis: «solución tentativa»; «Bajo tres mecanismos de trabajo investigativo se podrá aplicar una hipótesis: 1: técnica, 2: método, 3: sistema». & EduFEM es el \emph{sistema}. En tecnología la hipótesis es la solución [7, p.~85].\\
+lám.~13-14 & Tres variables; relación lógica; tiempo futuro; «encarnar una solución tentativa». Flujograma: «¿Se puede comprobar la hipótesis?». Requisitos: «ser soluciones probables - propuestas». & Tu hipótesis (p.~6) cumple los cuatro pasos y se comprueba con la Tabla~2.4 (p.~51) y la Tabla~3.10 (p.~99).\\
+lám.~16 & Molde: «Bajo la aplicación de un método de optimización de materiales de construcción permitirá mejorar el diseño de losas de hormigón armado disminuyendo el costo de una losa alivianada en la ciudad de Potosí». & Tu hipótesis sigue el molde, con «elevando» en lugar de «disminuyendo».\\
+\multicolumn{3}{@{}l}{\textbf{Miranda · «Situación problemática, objeto de estudio y campo de acción»}}\\
+lám.~3 & La situación problémica «contiene y debe expresar las contradicciones a solucionar, y a ellas se regresa con la solución o la propuesta fundamentada para, solo en ellas, convalidarla». & Tu contradicción está en el medio de cálculo; regresas a ese mismo medio para convalidar. Si estuviera en los estudiantes, habría que volver al aula; no lo está.\\
+lám.~5 & El objeto «se asocia con el área del conocimiento o de la práctica en el que se manifiesta la contradicción»; de él dependen «los fundamentos teóricos necesarios y suficientes». & Objeto técnico, y por eso el Capítulo~1 es el MEF.\\
+lám.~9-11 & Campo: «la parte de la situación problemática que resultará mejorada»; con el objeto debe tener «común naturaleza». & Los medios de cálculo con que se enseña el análisis: la misma naturaleza que el análisis.\\
+lám.~12 & Ejemplo: objeto «losas de hormigón armado»; campo «análisis de costos y presupuestos [\ldots]; optimización de costos». & El mismo patrón técnico que el tuyo.\\
+\multicolumn{3}{@{}l}{\textbf{Miranda · «Cómo se construye el objetivo general»}}\\
+lám.~2 & Cuatro partes: verbo, qué, cómo, para qué. «El porqué o qué a la V.I.; el para qué a la V.D.» & Tu objetivo general tiene las cuatro (p.~5).\\
+lám.~7 y 10 & Escalera: diagnosticar, fundamentar, \textbf{experimentar}, calcular, validar. En el ejemplo, experimentar es «Elaborar modelos estructurales de losas armadas [\ldots] para luego determinar costos»; calcular, «Diseñar y calcular [\ldots] a través de la Norma ACI»; validar, «a través de una comparación de costos de obras». & \textbf{En su propio ejemplo, experimentar es modelar y calcular, y validar es comparar.} Solo el diagnóstico (OE1) usa encuestas.\\
+lám.~13 & «Aplicación de los objetivos específicos para una tesis de grado – Caso~I: \textbf{sin diagnóstico}». & El diagnóstico de campo no es obligatorio en una tesis de grado. El tuyo es documental (OE1, Tabla~1.1).\\
+lám.~15 & La tríada: conclusión y recomendación por capítulo. & Conclusiones y recomendaciones agrupadas por capítulo (pp.~102-110).\\
+\multicolumn{3}{@{}l}{\textbf{Barrios · Taller~1, «Documento de graduación»}}\\
+lám.~3 & Art.~6: la tesis busca «conocer y dar respuesta a un problema de ingeniería, planteando alternativas aplicables o proponiendo soluciones práctica[s] y/o teóricas». Art.~9: «La formulación de la propuesta deberá ser original y verificable». & Original: Tabla~1.1. Verificable: criterios fijados de antemano y guiones que cualquiera reejecuta.\\
+lám.~5 & Art.~57: el proyecto de grado es «investigación, programación y diseño de objeto de uso social»; Art.~61: requiere «convenio interinstitucional, entre la Universidad y la Empresa». & Tu trabajo no tiene empresa, convenio ni área de proyecto.\\
+lám.~9 & En Seminario de Grado~II el estudiante desarrolla su propuesta «experimental o teórico para sustentar una aplicación específica del tema que investiga» (Rediseño curricular, p.~333). & La propia Carrera admite propuestas no experimentales.\\
+lám.~12 & Tipos: exploratorias, descriptivas, explicativas y \textbf{propositivas} («propuesta de acción»). & Tu tesis es propositiva, igual que en García-Córdoba [7, p.~91].\\
+lám.~15 & «Los problemas prácticos, llevan al establecimiento de demostraciones verificando la solución encontrada a una interrogante, mediante el experimento físico \textbf{o la aplicación práctica de la solución hallada}». & Tu demostración es la aplicación práctica de EduFEM a los casos de estudio.\\
+lám.~19 & El documento resulta «de la estructuración y desarrollo del modelo planteado» y «de los resultados obtenidos y su comprensión respecto a los criterios técnicos». & Criterios técnicos: Tabla~2.4.\\
+lám.~20-21 & Índice de tesis: marco teórico; diseño e implementación del modelo a desarrollar; resultados y análisis. Índice de proyecto: marco normativo; caracterización técnica del área de proyecto; memorias de diseño, presupuesto. & Tu índice es el de tesis.\\
+lám.~23 & Apoyo bibliográfico: Hernández-Sampieri y Mendoza, \emph{Metodología de la investigación}. & Es tu referencia~[24].\\
+lám.~25 & «Para investigaciones experimentales, asumir la norma ASTM para los fines de validación». & Condicional: se aplica a las experimentales. Tu validación es numérica, en la acepción declarada (tesis §1.13, p.~36) y según [21].\\
+\multicolumn{3}{@{}l}{\textbf{Barrios · Talleres~2, 4, 5 y 6}}\\
+T2, lám.~5 & «Si la revisión bibliográfica no produce ninguna respuesta, entonces la realización de actividades adicionales de investigación está justificada». & La Tabla~1.1 muestra que la revisión no produjo esa respuesta.\\
+T4, lám.~4 & Cuatro modelos de investigación: desarrollo teórico, modelación teórica, modelación experimental y \textbf{modelación de simulación teórica}. & La modelación experimental es una de cuatro. La tuya es la simulación.\\
+T4, lám.~5-7 & Muestra «seleccionada por procedimientos aleatorios/probabilísticos», para estimar un parámetro (media o proporción). & No estimas un parámetro poblacional: pruebas mecanismos. Por eso la muestra es dirigida [24, p.~215].\\
+T4, lám.~8 & «Modelo: es un sistema metodológico definido como un procedimiento para testar una hipótesis». Debe figurar un control «que sirva de comparación»; a veces «cada tratamiento actuaría como control del resto». & Controles: la solución analítica, el valor de Cook, SAP2000; Q4 frente a Q9.\\
+T4, lám.~9 y 11 & Precisión, «número de repeticiones adecuado», incertidumbre; «replicación y pseudo-replicación». & Un motor determinista da la misma salida: repetir es pseudo-réplica. Las réplicas legítimas son 5 mallas × 4 configuraciones × 2 elementos.\\
+T4, lám.~12-13 & Cinco bloques: conceptualización y alcance; factores y variables; procedimiento y toma de observaciones; validación de las observaciones; contraste. Va en el Cap.~2, con población y muestra. & Tu §2.1 sigue los cinco bloques (tesis pp.~40-52).\\
+T5, lám.~15-20 & Ejemplo~2, «investigación teórica»: «Se desarrolla un software para su aplicación en casos de estudio, que valide la confiabilidad de los resultados obtenidos»; aproximaciones de $+0{,}8$\,\%, $-0{,}15$\,\% y $-3{,}8$\,\%, y en la lám.~17 diferencias de hasta 11,83\,\% frente a un autor. & El precedente exacto, puesto por un miembro del tribunal. Tus diferencias son menores: 0,04\,\% y 0,21\,\%.\\
+T6, lám.~10 & El modelo se describe «de acuerdo de las variables independientes» y con los «instrumentos y modelos de análisis para predecir los resultados del comportamiento (variables dependientes)». & Tabla~2.2 (p.~45).\\
+T6, lám.~17 & Conclusiones: «Incorporar criterios de cumplimiento o no de la hipótesis»; indicadores de que el problema «ha sido resuelto (parcial o total)»; recomendaciones: «variables no contempladas». & Tabla~3.10 (p.~99); la línea educativa va como «variable no contemplada» en Recomendaciones.\\
+\end{longtable}}
+
+% ================================================================ 5
+\section{Los argumentos, con su fuente en tu bibliografía}\label{sec:argumentos}
+
+Cada argumento trae la fuente de tu bibliografía (número Vancouver y página), el pasaje literal, dónde se usa ya en tu tesis y una frase lista para decir. Los argumentos A1 a A6 vienen de García-Córdoba, que el tribunal no puede objetar porque ya está en tu tesis y habla en español.
+
+\argumento{A1. La ciencia explica; la tecnología transforma}
+{García-Córdoba [7], pp.~46-47, fig.~1.4.}
+{«La ciencia persigue la explicación y predicción, mientras que la tecnología toma la predicción para procurar la transformación controlada y exitosa de una realidad. [\ldots] La ciencia es conocer para explicar. La tecnología desea saber cómo actuar [\ldots] es saber actuar y proveer soluciones» (p.~46).}
+{[7] ya se cita en la Introducción (pp.~1-2, 6 y 8) y en la §2.1.1 (p.~40), por sus páginas 83, 85 y 91. Las páginas 46-52 son de la misma obra.}
+{«Mi tesis no busca explicar el Método de los Elementos Finitos: lo toma como teoría establecida, en el Capítulo~1, y construye con él una solución. Eso es tecnología en el sentido de García-Córdoba, página~46.»}
+
+\argumento{A2. Son dos procesos, y el experimento repetido pertenece al de la ciencia}
+{García-Córdoba [7], p.~48, pp.~49-51 y fig.~1.5 (p.~52); Peffers y otros [12], pp.~52-56.}
+{En la ciencia, el paso de verificar: «El proceder experimental es lo ideal, a partir de probar repetidamente se acepta si lo dicho del objeto es cierto o no» (p.~48). En la tecnología, el paso de evaluar: «Durante el proceso de implementación se efectúa un análisis que procure determinar errores o desviaciones» (p.~51). Fig.~1.5: ciencia = observar, conocer, verificar, explicar, predecir; tecnología = determinar el problema, documentar, diseñar, implementar, evaluar, comunicar.}
+{Tabla~2.1 (p.~41): las seis actividades de Peffers ubicadas en tu documento. Coinciden con la escalera tecnológica de García-Córdoba: dos fuentes independientes describen el mismo proceso.}
+{«En la escalera de la tecnología, evaluar es determinar errores o desviaciones: eso es mi Capítulo~3. El experimento con repeticiones es el paso de verificar de la ciencia, que busca explicar, y mi tesis no busca explicar.»}
+
+\argumento{A3. En tecnología, la hipótesis es la solución}
+{García-Córdoba [7], pp.~50-51 y 85; Miranda, hipótesis, lám.~12.}
+{«Este diseño [\ldots] constituye una hipótesis en cuanto conforma un grupo de actividades posibles a desarrollar para el logro de lo propuesto. Dado que es hipotético, tales acciones deben ponerse a prueba» (pp.~50-51). «En el proceder tecnológico la hipótesis es un diseño de carácter operativo [\ldots] lo prioritario no es lograr la comprensión o explicación de la situación, importa más el control y modificación del estado de las cosas» (p.~51). «La hipótesis en la investigación tecnológica es la solución tentativa a un problema concreto. [\ldots] No es una afirmación teórica tentativa que debe de ser sometida a verificación [\ldots] El criterio de veracidad es su efectividad en la práctica concreta [\ldots] se aprueban o no en la misma práctica de la investigación tecnológica» (p.~85).}
+{Introducción, p.~6: «se aprueba o no en la propia práctica de construir esa solución y ponerla a prueba» [7, p.~85].}
+{«Mi hipótesis no es una explicación que haya que verificar en sujetos: es la solución, EduFEM, y se aprueba construyéndola y probándola contra criterios fijados antes de medir. Miranda, en su lámina~12, también la define como solución tentativa y admite aplicarla bajo un sistema.»}
+
+\argumento{A4. Al pasar a la tecnología cambian el problema, el marco, la hipótesis y la comunicación}
+{García-Córdoba [7], p.~82 (fig.~3.4), pp.~83-85.}
+{«Investigar para transformar no busca la precisión teórica y la pulcritud conceptual, sino el conocimiento útil de la realidad. Este quehacer investigativo es instrumental en oposición al quehacer científico, cuyo objetivo es cognoscitivo» (p.~82). Problema: «posee un carácter práctico y concreto [\ldots] ¿De qué manera lograr la efectividad en los servicios [\ldots]?» (p.~83); marco teórico: «búsqueda de información provechosa, de utilidad operativa» (p.~84).}
+{Tu problema usa la forma «¿de qué manera\ldots?», que es también la de los ejemplos tecnológicos de García-Córdoba (p.~83) y la del molde de Miranda.}
+{«García-Córdoba advierte que, en la investigación tecnológica, el problema, el marco teórico, la hipótesis y la comunicación tienen rasgos propios. Por eso mis piezas se ven distintas de las de una tesis experimental, pero cumplen la misma función en el molde.»}
+
+\argumento{A5. La investigación tecnológica tiene un plano experimental: el tuyo es la verificación y validación}
+{García-Córdoba [7], pp.~94-97, fig.~3.8.}
+{«Ocuparse del proceso de la investigación tecnológica es describir un sistema complejo en el que se involucran tres componentes: el teórico, el experimental y el práctico» (p.~94). «Un tecnólogo, apoyado en lo teórico, experimenta con la realidad para determinar los métodos adecuados para modificarla» (p.~95). «Su carácter es más creativo que cognoscitivo, esto es más ingenieril y menos descriptivo, explicativo y cientificista» (p.~96). Fig.~3.8: \emph{teórico}, leer de manera experta la situación; \emph{experimental}, deducido el proceder se prueba; \emph{práctico}, lo probado se implementa.}
+{Teórico = Capítulo~1; experimental = Capítulo~3 (verificación y validación); práctico = el instalador que la Carrera recibe.}
+{«Mi tesis tiene los tres planos que García-Córdoba exige a la investigación tecnológica. Su plano experimental ---“deducido el proceder, se prueba”--- es mi verificación y validación.»}
+
+\argumento{A6. El tipo es «tecnológica, de carácter propositivo», no «aplicada de tipo tecnológico»}
+{García-Córdoba [7], pp.~90-93; Taller~1, lám.~12.}
+{«Investigación tecnológica: es la búsqueda de conocimientos de carácter operativo [\ldots] Son quehaceres de tipo propositivo en los cuales no sólo se establece cuál es la solución, sino que brinda información para llevar a cabo su implementación» (p.~91). «En contraste con la investigación aplicada, ésta parte de un diagnóstico para determinar el problema relevante» (p.~92). Y según el conocimiento que genera, la investigación incremental es aquella en que «existe un acto de creación de ingeniería que da lugar a una nueva respuesta en tanto que ésta no existe en otros ámbitos» (p.~93).}
+{Introducción, p.~8, y §2.1.1, p.~40: «Por su finalidad es \emph{propositivo}; por su naturaleza es una \emph{investigación tecnológica}» [7, p.~91].}
+{«Es investigación tecnológica, de carácter propositivo, con la cita de García-Córdoba, página~91. Si me pregunta si es aplicada: García-Córdoba distingue las dos en la página~92; la mía parte del diagnóstico de un problema concreto, que es el rasgo de la tecnológica.»}
+
+\argumento{A7. Sí hay experimento: la definición del tribunal lo cubre}
+{Álvarez de Zayas [8], pp.~47-48; Hernández-Sampieri y Mendoza [24], pp.~151-152; Wieringa [25], p.~247.}
+{«El experimento es el método empírico de estudio de un objeto, en el cual el investigador crea las condiciones necesarias o adecua las existentes, para el esclarecimiento de las propiedades y relaciones del objeto» y el investigador «reproduce el objeto de estudio en condiciones controladas» y «modifica las condiciones [\ldots] de forma planificada» [8, pp.~47-48]. «Se manipulan deliberadamente una o más variables independientes [\ldots] para analizar las consecuencias [\ldots] sobre una o más variables dependientes [\ldots] dentro de una situación de control» [24, p.~151]; «es posible realizar experimentos con seres humanos, otros seres vivos y ciertos objetos» [24, p.~152]. Wieringa: estos experimentos investigan «el efecto de una diferencia de una variable independiente X [\ldots] sobre una variable dependiente Y (por ejemplo, la exactitud)» [25, p.~247].}
+{Tabla~2.2 (p.~45): «Factores del experimento numérico» (tipo de elemento y densidad de malla), «Magnitudes medidas» y «Controlados» (tipo de análisis y cuadratura). §2.1.1 (p.~42) ya cita [25, p.~247].}
+{«Por la definición de Álvarez de Zayas, páginas~47 y~48, mi verificación es un experimento: creo las condiciones con una solución exacta, reproduzco el objeto en condiciones controladas y modifico de forma planificada el elemento y la malla. Lo que no tengo es un experimento con personas, porque ninguna de mis variables es una propiedad de personas.»}
+
+\argumento{A8. El diseño experimental no es mejor que el no experimental}
+{Hernández-Sampieri y Mendoza [24], p.~151; Hevner y otros [11], p.~86.}
+{«En términos generales, no consideramos que un tipo de investigación ---y los consecuentes diseños--- sea mejor que otro (experimental frente a no experimental). [\ldots] ambos son relevantes y necesarios [\ldots] la decisión sobre qué clase de investigación y diseño específico habrás de seleccionar o desarrollar depende de tu planteamiento del problema, el alcance del estudio y las hipótesis formuladas» [24, p.~151]. «La selección de los métodos de evaluación debe corresponderse con el artefacto diseñado y con las métricas de evaluación elegidas» [11, p.~86].}
+{[24] se cita en §2.1.1 (p.~40, por la p.~6), §2.1.2 (p.~43, por la p.~137) y §2.1.4 (p.~47, por la p.~215); [11, p.~86], en §2.1.1 (p.~41), donde la tesis dice que emplea cuatro de las cinco familias de evaluación.}
+{«Es el libro que recomienda el Taller~1 en su lámina~23: en la página~151 dice que ningún diseño es mejor que otro y que la elección depende del planteamiento del problema. Mis métricas son cobertura y exactitud, y el método tiene que corresponder a esas métricas: lo dice Hevner en la página~86.»}
+
+\argumento{A9. La pregunta decide el método: con estudiantes sería otra investigación}
+{Wieringa [25], pp.~4-5 (Tabla~1.1), 30-31, 47-48 y 65; Hevner y otros [11], p.~76; Álvarez de Zayas [8], pp.~12 y 48.}
+{En la Tabla~1.1 de Wieringa, a la pregunta «¿Es la estimación suficientemente exacta?» se responde con «una simulación», y a «¿Es el método usable y útil?», con «una prueba [\ldots] con consultores como sujetos» [25, p.~5]. Los experimentos estadísticos con muestras y grupos son costosos: «los experimentos de campo [\ldots] son extremadamente caros, porque se necesitan muchos recursos para construir muestras de tamaño suficiente» [25, p.~48]. Hevner: la ciencia del comportamiento y la ciencia del diseño son «dos paradigmas complementarios pero distintos» [11, p.~76]. Álvarez de Zayas: el experimento tradicional con «un grupo control y otro testigo, deja mucho que desear en las Ciencias Sociales» [8, p.~12].}
+{§2.1.1, p.~42 (Wieringa, pp.~30-31); Recomendaciones, p.~110: «Una línea de investigación distinta, de carácter educativo, podrá estudiar el uso de la herramienta en el aula».}
+{«Mis dos preguntas de investigación son de exactitud y de cobertura, y Wieringa, en la Tabla~1.1 de la página~5, muestra que esas preguntas se responden con simulación y pruebas. Si la pregunta fuera si los estudiantes aprenden más, harían falta sujetos: es otra pregunta y otra investigación.»}
+
+\argumento{A10. La validación de laboratorio es validación}
+{Wieringa [25], pp.~30-31 y 64; Peffers y otros [12], pp.~55-56.}
+{«Los proyectos de investigación en ciencia del diseño no ejecutan el ciclo de ingeniería completo, sino que se restringen al ciclo de diseño» [25, p.~30]. «La investigación de validación es experimental y usualmente se hace en el laboratorio [\ldots] los métodos más usados son el modelado, la simulación y las pruebas» [25, p.~31]. «Se construye un prototipo de un programa [\ldots] y se le dan escenarios de prueba para observar sus respuestas» [25, p.~64]. La demostración puede ser por «experimentación, simulación, estudio de caso, prueba» [12, p.~55] y la evaluación admite «cualquier evidencia empírica o prueba lógica apropiada» [12, p.~56].}
+{§2.1.1, p.~42: «Esa evaluación es una validación de laboratorio». §1.13, p.~36: la acepción de «validación» (contraste con referencias externas de exactitud conocida) está declarada.}
+{«Mi validación es de laboratorio, que es la que corresponde al ciclo de diseño según Wieringa, páginas~30 y~31. La evaluación en el campo es posterior a la transferencia y es otra meta de investigación.»}
+
+\argumento{A11. La población puede ser de objetos, y la muestra dirigida es legítima}
+{Hernández-Sampieri y Mendoza [24], pp.~196, 198 y 215; Oberkampf y Roy [21], pp.~190-191 y 208.}
+{Un censo incluye «a todos los casos (personas, productos, procesos, organizaciones, animales, plantas, objetos) del universo o la población» [24, p.~196]; la unidad de análisis responde a «¿sobre qué o quiénes se recolectarán los datos?» [24, p.~196]; «Una población es el conjunto de todos los casos que concuerdan con una serie de especificaciones» [24, p.~198]. Las muestras dirigidas sirven cuando se requiere «una cuidadosa y controlada elección de casos con ciertas características especificadas previamente en el planteamiento del problema» [24, p.~215]. En verificación de códigos, la capacidad de la solución exacta «de ejercitar todos los términos del modelo matemático es más importante que cualquier realismo físico» [21, p.~208].}
+{§2.1.4, p.~47: población, muestra dirigida [24, p.~215] y criterio de Oberkampf y Roy [21].}
+{«Hernández-Sampieri admite poblaciones de productos, procesos y objetos, página~196. La mía son los problemas de elasticidad plana, y la muestra es dirigida porque cada caso se eligió para ejercitar un término del modelo. El universo de contenido no es una muestra: lo recorrí entero.»}
+
+\argumento{A12. Las variables son propiedades del objeto de estudio}
+{Álvarez de Zayas [8], p.~22; Miranda, problema, lám.~5.}
+{«La variable es en principio, un concepto que determina una propiedad o cualidad del objeto que puede variar [\ldots] Rasgos que pueden ser observados [\ldots] La propiedad de poder variar, de ser mensurables de alguna forma. [\ldots] No siempre la variable está en condiciones de ser medida directamente; [\ldots] se cuantifica a través de otras cualidades o propiedades del objeto [\ldots] índices o indicadores» [8, p.~22].}
+{Introducción, pp.~2-3 (definiciones operativas); Tabla~2.2, p.~45 (dimensiones e indicadores).}
+{«Mi objeto de estudio es el análisis por el MEF, así que mis variables son propiedades del análisis. Es el mismo patrón del ejemplo del Ing.~Miranda: objeto, las losas; variable efecto, su costo.»}
+
+\argumento{A13. Crear tecnología también es investigación científica, incluso para la base del tribunal}
+{Álvarez de Zayas [8], pp.~6 y 20.}
+{«La Investigación Científica [\ldots] pretende encontrar respuesta a problemas trascendentes, mediante la construcción teórica del objeto de investigación y la introducción, innovación o creación de tecnologías. Es decir, que el objetivo del proceso de investigación científica (el para qué) es la creación de nuevos conocimientos o tecnologías» (p.~6). El análisis de las tendencias permite precisar «la hipótesis de trabajo, el aspecto novedoso, el aporte teórico o de innovación tecnológica» (p.~20).}
+{[8] se cita en la Introducción (pp.~2-3: contradicción, objeto y campo) y en §2.1.1 (p.~42: el modelo).}
+{«Álvarez de Zayas, la base metodológica de la Carrera, dice en la página~6 que el para qué de la investigación científica es crear nuevos conocimientos o tecnologías.»}
+
+\argumento{A14. Tesis y no proyecto: lo que la distingue es la contribución}
+{Hevner y otros [11], pp.~81, 83 y 87; Reglamento, Art.~6, 57 y 61; Manual de Procesos UATF (2022), p.~93.}
+{«Lo que distingue el diseño rutinario de la investigación en diseño es la identificación clara de una contribución a la base de conocimiento» [11, p.~81]. Directriz~3: la utilidad, la calidad y la eficacia del artefacto «deben demostrarse con rigor mediante métodos de evaluación bien ejecutados» [11, p.~83]. Directriz~4: contribuciones en el artefacto, el conocimiento de construcción (fundamentos) y el de evaluación (metodologías) [11, p.~87].}
+{§2.1.1, p.~40 (cita [11, p.~81]); Conclusiones, «Aportes del trabajo», p.~106.}
+{«Un proyecto entrega un producto. Mi tesis entrega el producto y además la evidencia de que cumple una hipótesis, más tres aportes: el software verificado, las decisiones de diseño que lo hacen trazable y una batería de verificación reproducible, con la lección del defecto de extrapolación.»}
+
+% ================================================================ 6
+\section{La defensa, pieza por pieza}\label{sec:piezas}
+
+{\small
+\begin{longtable}{@{}L{2.1cm}L{3.4cm}L{3.7cm}L{6.1cm}@{}}
+\toprule
+\textbf{Pieza} & \textbf{Lo que pide el molde} & \textbf{Lo que tiene tu tesis} & \textbf{Objeción probable $\to$ respuesta}\\
+\midrule\endhead
+\bottomrule\endfoot
+Situación problemática & Contradicción a resolver (Miranda, situación, lám.~3) & Software como caja negra; recursos que no exponen el procedimiento (pp.~1-2; Tabla~1.1) & «No hay dato de la UATF» $\to$ El problema es una propiedad del medio de cálculo, documentada [6, p.~246], [3, p.~1160]; la Carrera delimita (Miranda, lám.~4, paso~4), como «Potosí» en su ejemplo.\\
+Problema & Interrogante, VI y VD, relación lógica, delimitación (lám.~3-4) & «¿De qué manera\ldots podrá incidir en la baja trazabilidad y verificabilidad\ldots?» (p.~2) & «¿Por qué no “aprendizaje”?» $\to$ Las variables son aspectos del objeto (lám.~5; [8, p.~22]); mi objeto es el análisis.\\
+Objeto y campo & Común naturaleza (lám.~11) & Análisis por el MEF / medios de cálculo con que se enseña (p.~3) & «El objeto debería ser el proceso de enseñanza» $\to$ Nadie lo estudia en la tesis; su ejemplo usa objeto técnico (losas).\\
+Objetivo general & Verbo, qué (VI), cómo, para qué (VD) (lám.~2) & Desarrollar EduFEM [\ldots] para que el análisis resulte trazable y verificable (p.~5) & «¿Qué mide el para qué?» $\to$ Tabla~2.2: indicadores de la VD.\\
+Objetivos específicos & Diagnosticar, fundamentar, experimentar, calcular, validar (lám.~7) & Diagnosticar, fundamentar, desarrollar, verificar y validar, validar la propuesta (p.~5) & «¿Dónde está experimentar?» $\to$ En su ejemplo es “elaborar modelos” (lám.~10): mi OE3 construye el modelo y el OE4 lo ejercita.\\
+Hipótesis & Tres variables, futuro, solución tentativa, comprobable (lám.~12-16) & EduFEM permitirá mejorar [VI], elevando [VD] (p.~6); dos cláusulas & «Es obvia» $\to$ Puede fallar de cuatro maneras (p.~7) y falló una vez: la matriz de extrapolación del Q4 (§3.7.2, p.~96).\\
+Variables & Operacionalización (Taller~4, lám.~10) & Tabla~2.2 (p.~45): dimensiones, indicadores, instrumentos & «La VI no la manipuló» $\to$ Dos niveles de presencia o ausencia (caja negra / a la vista); en el experimento numérico sí manipulo factores.\\
+Población y muestra & Población, muestra representativa (Taller~4, lám.~5-7, 13) & Problemas de elasticidad plana; muestra dirigida; censo del contenido (p.~47) & «No es aleatoria» $\to$ No estimo un parámetro: verifico mecanismos [24, p.~215], [21, p.~208].\\
+Modelo (Cap.~2) & Cinco bloques (Taller~4, lám.~12-13) & §2.1 sigue los cinco (pp.~40-52) & «¿Y los controles?» $\to$ Referencias exactas y Q4 frente a Q9 (lám.~8).\\
+Resultados & Casos de estudio con reportes cuantitativos (Taller~6, lám.~11) & MMS, Timoshenko, Cook; cobertura (Cap.~3) & «Umbrales a su medida» $\to$ Fijados antes de medir (p.~51), con columna «lo refutaría»; lo observado queda diez a veinticuatro veces por debajo.\\
+Conclusiones & Criterios de cumplimiento e indicadores (Taller~6, lám.~17) & Una conclusión por objetivo; Tabla~3.10 (p.~99) & «¿Resolvió el problema en la Carrera?» $\to$ Alcance declarado (p.~102): se evaluó el software, no su uso en un curso.\\
+\end{longtable}}
+
+% ================================================================ 7
+\section{Preguntas probables y respuesta corta}\label{sec:preguntas}
+
+Las respuestas están en primera persona para decirlas tal cual. Las marcadas con PD-\emph{nn} tienen respuesta extendida en \texttt{tesis/auditoria\_final/PLAN-CORRECCION-FINAL.md}.
+
+\subsection{Tipo de tesis y método}
+\begin{enumerate}[label=\textbf{P\arabic*.},leftmargin=2.2em,series=preg]
+\item \textbf{«¿Dónde está el experimento?»} Es numérico: construyo una solución exacta, manipulo el tipo de elemento y la malla ($N=2$ a~$32$) y mido el error, con el tipo de análisis, el material y la cuadratura fijos. Cumple la definición de Álvarez de Zayas [8, pp.~47-48] y de Hernández-Sampieri [24, pp.~151-152]. Predije tasas de 2 y~3 y observé 2,00 y 3,00.
+\item \textbf{«Una tesis de ingeniería tiene que ser experimental.»} El Artículo~6 admite «soluciones prácticas y/o teóricas»; el Rediseño curricular, una propuesta «experimental o teórico» (Taller~1, lám.~9); el Taller~4 reconoce cuatro modelos, uno de ellos la simulación (lám.~4); y la norma ASTM se pide «para investigaciones experimentales» (Taller~1, lám.~25), lo que supone que hay otras.
+\item \textbf{«¿Qué tipo de investigación es?»} Tecnológica, de carácter propositivo [7, p.~91]; enfoque cuantitativo [24, p.~6]; nivel descriptivo y comparativo; método de la ciencia del diseño [11], [12], [25] (pp.~8 y~40).
+\item \textbf{«¿Es investigación aplicada?»} García-Córdoba distingue aplicada y tecnológica (pp.~90-92): la tecnológica parte del diagnóstico de un problema concreto. Por eso digo «tecnológica», con su cita.
+\item \textbf{«La ciencia del diseño es de sistemas de información.»} Es el nombre internacional de la investigación que construye y evalúa artefactos; el libro de Wieringa se titula \emph{Design Science Methodology for Information Systems and Software Engineering}, y EduFEM es software. Además, García-Córdoba, en español, describe el mismo proceso (fig.~1.5, p.~52).
+\item \textbf{«¿Cuál es su modelo de investigación?»} Modelación de simulación teórica (Taller~4, lám.~4): un modelo de simulación numérica, descrito en la §2.1 con los cinco bloques del Taller~4 (pp.~40-52). \emph{Cuidado}: el rótulo «modelo de simulación numérica» es tuyo; Álvarez de Zayas [8, p.~21] solo respalda la definición de modelo.
+\item \textbf{«¿Qué conocimiento nuevo aporta?»} Tres aportes (p.~106): el software verificado; tres decisiones de diseño que hacen trazable un software de elementos finitos (módulos sobre el elemento que el usuario selecciona, memoria generada con las funciones del motor, versión legible como patrón de comparación); y conocimiento de evaluación (una batería reproducible y el límite que descubrió). Es la distinción de Hevner [11, pp.~81 y 87].
+\end{enumerate}
+
+\subsection{Problema y variables}
+\begin{enumerate}[resume*=preg]
+\item \textbf{«Su problema no sale de la Carrera: ¿dónde está el diagnóstico?»} (PD-02) Es documental y recae sobre el medio de cálculo: Tabla~1.1 (p.~16), con [6, p.~246] y [3, p.~1160]. García-Córdoba exige un diagnóstico de la realidad [7, p.~83], no una encuesta; y Miranda contempla la tesis de grado «sin diagnóstico» (lám.~13). La Carrera delimita, como «Potosí» en su ejemplo.
+\item \textbf{«¿Por qué trazabilidad y verificabilidad y no aprendizaje?»} Porque las variables son aspectos del objeto de estudio (Miranda, lám.~5; [8, p.~22]) y mi objeto es el análisis. Son, además, las dos propiedades que la memoria de cálculo asegura en la práctica profesional.
+\item \textbf{«¿Cómo mide la trazabilidad?»} Contando: 7 de 7 etapas con módulo, 9 de 9 con desarrollo en la memoria, 3 de 3 fases sobre el mismo lienzo, 18 de 18 contenidos con instrumento, y el intercambio CSV y DXF sin pérdida (Tabla~2.2, p.~45).
+\item \textbf{«¿Cómo mide la verificabilidad?»} Con tasas de convergencia frente a las teóricas, errores frente a Timoshenko, diferencias frente a SAP2000, el residuo de equilibrio, el error en Cook y la firma del bloqueo por cortante, y con la memoria desarrollada y remitida a sus ecuaciones.
+\item \textbf{«Su VI no la manipuló: ¿dónde está el nivel caja negra?»} (PD-15) La VI tiene dos niveles de presencia o ausencia: la caja negra se documenta con la Tabla~1.1 y el procedimiento a la vista es EduFEM. En el experimento numérico sí manipulo factores. En el ejemplo de losas tampoco se manipula el diseño en un laboratorio: se modela y se compara.
+\item \textbf{«Tiene dos variables dependientes.»} Es una variable con dos dimensiones (Tabla~2.2), y la hipótesis tiene una cláusula por dimensión.
+\end{enumerate}
+
+\subsection{Hipótesis}
+\begin{enumerate}[resume*=preg]
+\item \textbf{«Su hipótesis es obvia: si abre la caja, se ve.»} (PD-16) Abrir no garantiza que lo expuesto esté completo ni que sea correcto (p.~7). Puede fallar de cuatro maneras, y falló una vez: la matriz de extrapolación de tensiones del Q4 estaba mal; tres estudios de convergencia no lo delataron y la memoria de cálculo sí, porque las tensiones nodales no cerraban con las de los puntos de Gauss (§3.7.2, p.~96).
+\item \textbf{«¿Dónde está la variable interviniente?»} Es EduFEM, el «sistema» de la lámina~12, y la hipótesis sigue el molde de la lámina~16.
+\item \textbf{«¿Cómo la comprueba?»} Con dos cláusulas y criterios fijados de antemano (Tabla~2.4, p.~51), y un veredicto por criterio (Tabla~3.10, p.~99).
+\item \textbf{«Dice “en la Carrera”: ¿la comprobó en la Carrera?»} La Carrera delimita el problema, no es la unidad de análisis: lo declaro en la p.~47 y en el párrafo de alcance de la p.~102. Es como «en la ciudad de Potosí» en su hipótesis de ejemplo.
+\item \textbf{«García-Córdoba dice que el criterio es la efectividad en la práctica: ¿qué práctica?»} La misma página~85 lo dice: se aprueba «en la misma práctica de la investigación tecnológica», que es construir la solución y probarla. Hevner lo precisa: un artefacto es completo y eficaz cuando satisface los requisitos del problema [11, p.~85].
+\end{enumerate}
+
+\subsection{Población, muestra y control}
+\begin{enumerate}[resume*=preg]
+\item \textbf{«¿Por qué su muestra no es aleatoria?»} Porque no estimo un parámetro de la población, como pide la lámina~7 del Taller~4 para la muestra aleatoria: verifico mecanismos. La muestra dirigida es legítima [24, p.~215] y es la práctica de la verificación de códigos [21, p.~208]. El universo de contenido es un censo [24, p.~196].
+\item \textbf{«¿Dónde está su grupo de control?»} El Taller~4 pide un control «que sirva de comparación» (lám.~8): la solución analítica, el valor de referencia de Cook (23,965, de Štembera y Füssl) y SAP2000; y Q4 y Q9 actúan uno como control del otro, como admite la misma lámina.
+\item \textbf{«¿Y las repeticiones?»} El motor es determinista: la misma entrada da la misma salida, y repetirla sería pseudo-réplica (Taller~4, lám.~11). Las réplicas legítimas son otras mallas y otras configuraciones: 5 mallas, 4 configuraciones y 2 elementos.
+\item \textbf{«¿Y la incertidumbre?»} En simulación determinista la incertidumbre es de discretización, no aleatoria: se cuantifica con las tasas de convergencia y con la extrapolación de Richardson [21, pp.~309-312]; en Cook la estimé entre 23,96 y 23,97.
+\item \textbf{«¿Por qué no hizo pretest y postest con estudiantes?»} Porque mi pregunta es de exactitud y de cobertura, y esas preguntas se responden con simulación y pruebas [25, p.~5]. Medir el aprendizaje es otra investigación, de carácter educativo (p.~110).
+\end{enumerate}
+
+\subsection{Validación y resultados}
+\begin{enumerate}[resume*=preg]
+\item \textbf{«¿Validó con ensayos? ¿Usó ASTM?»} La ASTM se pide «para investigaciones experimentales» (Taller~1, lám.~25). Mi validación es contra referencias externas de exactitud conocida, en la acepción declarada en la §1.13 (p.~36); no hice ensayos físicos y lo digo.
+\item \textbf{«Los umbrales los puso usted.»} (PD-05) Se fijaron antes de medir (p.~51), con la columna «lo refutaría». Lo observado queda entre diez y veinticuatro veces por debajo: 0,0414\,\% frente a 1\,\%, 0,2633\,\% frente a 3\,\%, 0,144\,\% frente a 1,5\,\%.
+\item \textbf{«El 18 de 18 lo marcó usted.»} (PD-06, PD-07) Sí, y lo declaro (p.~107). Lo que no es mío es el universo ---un consenso publicado de 67 expertos [3, pp.~1162-1163]--- ni la regla de marcado, escrita en la §2.1.5. De 49 ítems, 18 caen en el alcance; si se contara FEM3, sería 18 de 19.
+\item \textbf{«SAP2000 le da otra cosa: ¿cuál es el correcto?»} Ninguno es patrón del otro: son formulaciones distintas (cáscara frente a continuo de tensión plana). Por eso la llamo diferencia y no error: 0,21\,\% en $\sigma_x$. Ambos quedan cerca de la solución analítica.
+\item \textbf{«¿La memoria se reproduce a mano? ¿Lo hizo?»} (PD-01, PD-10) El criterio es que cada etapa esté desarrollada con sustitución numérica y remitida a su ecuación. En la pizarra: con $E=225\,000$ y $\nu=0{,}20$, $E/(1-\nu^2)=234\,375$; el Jacobiano del elemento E3 tiene $\det\mathbf{J}=4{,}7604$; las reacciones verticales suman 1000,00 frente a la carga aplicada.
+\end{enumerate}
+
+\subsection{Modalidad y otras}
+\begin{enumerate}[resume*=preg]
+\item \textbf{«Esto es un proyecto de grado: es programación.»} El Art.~57 habla de programación y diseño de un objeto de uso social, y el Art.~61 exige un convenio entre la Universidad y la empresa donde se ejecuta: no lo hay. Mi índice es el de tesis (Taller~1, lám.~20), y lo que la distingue es la contribución [11, p.~81]. El perfil se aprobó como tesis.
+\item \textbf{«¿Por qué no usó un programa existente?»} Ninguno de los revisados reúne los tres atributos (Tabla~1.1); el post-proceso de ED-Elas2D es «meramente descriptivo» según sus propios autores [6, p.~253], y VisualFEA es comercial y cerrado.
+\item \textbf{«Si es educativo, ¿cómo sabe que sirve para enseñar?»} (PD-09) «Educativo» califica el propósito de diseño: exponer el procedimiento además del resultado. La tesis prueba las dos propiedades que lo hacen apto: que el procedimiento puede seguirse completo y que lo que muestra es correcto. El efecto sobre el aprendizaje no se afirma.
+\item \textbf{«¿Qué recibe la Carrera?»} (PD-14) Un instalador para Windows sin licencias ni internet, el manual de instalación y de uso (Anexos A y~B) y el código fuente público; y tres prácticas propuestas en la p.~109.
+\item \textbf{«¿Bajo qué licencia?»} (PD-04) El código propio, MIT; el paquete binario incluye PyMuPDF, que es AGPL-3.0 o comercial, y la nota de la Tabla~2.5 lo advierte.
+\item \textbf{«¿Por qué Python?»} No exige licencia, reúne en un lenguaje el cálculo, la interfaz y los documentos, y permite un instalador autónomo (p.~4).
+\end{enumerate}
+
+% ================================================================ 8
+\section{Lo que no hay que decir, y cómo decirlo}\label{sec:no-decir}
+
+{\small
+\begin{longtable}{@{}L{7.4cm}L{8.6cm}@{}}
+\toprule
+\textbf{\textcolor{mal}{No digas}} & \textbf{\textcolor{ok}{Di}}\\
+\midrule\endhead
+\bottomrule\endfoot
+«EduFEM mejora el aprendizaje»; «los estudiantes comprenden mejor» & «EduFEM permite seguir y comprobar el procedimiento; el efecto sobre el aprendizaje no es objeto de esta tesis».\\
+«Mi tesis no tiene experimento» & «No tiene experimento con personas; tiene un experimento numérico sobre el análisis».\\
+«Falta la prueba de campo»; «queda pendiente» & «Medir el aprendizaje es otra investigación, de carácter educativo, que recomiendo».\\
+«Validez de contenido»; «tabla de especificaciones» & «Cobertura de contenido»; «tabla de cobertura de contenido».\\
+«Mi población son los estudiantes de la Carrera» & «La Carrera es el contexto de aplicación; la población son los problemas de elasticidad plana».\\
+«Investigación aplicada de tipo tecnológico, según García-Córdoba» & «Investigación tecnológica, de carácter propositivo» [7, p.~91].\\
+«El modelo de simulación numérica de Álvarez de Zayas» & «Un modelo, en el sentido de Álvarez de Zayas [8, p.~21], ejercitado por simulación numérica».\\
+«Error frente a SAP2000» & «Diferencia frente a SAP2000».\\
+«Validé experimentalmente» & «Validé contra referencias externas de exactitud conocida; no hice ensayos físicos».\\
+«0,56\,\% frente a SAP2000» (sin más) & «0,21\,\% en $\sigma_x$; hasta 0,56\,\% en desplazamientos».\\
+«Coincide con el cálculo manual» & «Cada etapa está desarrollada y remitida a su ecuación, de modo que puede rehacerse a mano».\\
+«Los expertos validaron EduFEM» & «El universo de contenidos lo fijó un consenso publicado; el cotejo lo hice yo con una regla declarada».\\
+«El software garantiza que no hay elementos invertidos» & «Tiene tres controles: $\det\mathbf{J}$ en los puntos de Gauss, área signada en el comprobador de salud y Jacobiano escalado en las esquinas (M0)».\\
+«El Q4 es una base incompleta» & «El Q4 es bilineal y el Q9 bicuadrático; ambos reproducen los polinomios lineales».\\
+«Omitir $\sigma_z$ subestima la tensión de von Mises» & «La altera, y puede sobreestimarla: 100 en lugar de 40 con $\sigma_x=\sigma_y=100$ y $\nu=0{,}30$».\\
+«Canal de cálculo»; «validador de salud»; «alumno» & «Procedimiento de cálculo»; «comprobador de salud»; «estudiante».\\
+«Su material es para tesis experimentales» & «Su material lo admite: lámina~4 del Taller~4, Ejemplo~2 del Taller~5».\\
+\end{longtable}}
+
+% ================================================================ 9
+\section{Cifras que hay que saber de memoria}\label{sec:cifras}
+
+{\small
+\begin{longtable}{@{}L{4.0cm}L{8.2cm}L{3.5cm}@{}}
+\toprule
+\textbf{Qué} & \textbf{Cifra} & \textbf{Dónde}\\
+\midrule\endhead
+\bottomrule\endfoot
+Versión evaluada & EduFEM 1.0.0, revisión \texttt{91e3df0} (16 de septiembre de 2026) & p.~43\\
+Procedimiento & 9 etapas; 7 con módulo (M1 a M7) más M0 de calidad de malla = 8 módulos; 3 fases sobre un lienzo & pp.~43-44; Tabla~3.6\\
+Contenido & 49 ítems del consenso (15 conceptos, 34 destrezas); 18 dentro (15 FEA y 3 FEM); 31 fuera (18 por alcance, 12 anteriores al procedimiento, 1 FEM3) & pp.~47-48; Tabla~3.7\\
+Soluciones manufacturadas & Tasas Q4: 2,00 ($L^2$) y 1,00 ($H^1$); Q9: 3,00 y 2,00; 4 configuraciones; $N=2,4,8,16,32$; tensión recuperada 1,54 (Q4) y 2,00 (Q9). Al duplicar $N$, el error se divide por 4 (Q4) y por 8 (Q9) & Tabla~3.1, p.~76\\
+Viga de Timoshenko & $\sigma_x$: 0,04\,\% frente a la analítica y 0,21\,\% frente a SAP2000; flecha: 0,26\,\% (0,2633\,\%), y 1,85\,\% frente a Euler-Bernoulli; cortante hasta 2,9\,\%; desplazamientos hasta 0,56\,\% frente a SAP2000; equilibrio $1{,}7\times10^{-13}$; malla Q9 de $56\times8$ (3842 GDL) & Tablas~3.2 y 3.3, pp.~81-82\\
+Membrana de Cook & Q9 con $N=8$: 0,144\,\% de error; Q4 22,079 < Q9 23,925 con $N=8$; referencia 23,965 (Štembera y Füssl, p.~28); Richardson propio, 23,96 a 23,97; el Q4 coincide en las cinco mallas con la fuente publicada; con 578 GDL, el error del Q9 es más de diez veces menor & Tabla~3.4, p.~85\\
+Umbrales & MMS: teórica $\pm0{,}5$; flecha $<3$\,\%; $\sigma_x<1$\,\%; equilibrio $<10^{-8}$; Cook Q9 $<1{,}5$\,\% & Tabla~2.4, p.~51\\
+Rendimiento & 33\,282 GDL en cerca de 1\,s; $\mathbf{K}$ densa 8,9\,GB frente a 13\,MB dispersa & Tabla~3.9\\
+Ejemplo canónico & 9 nodos, 4 elementos Q4; carga puntual en el nodo~7; $E=225\,000$, $\nu=0{,}20$; $\det\mathbf{J}=4{,}7604$; $\sigma_{\mathrm{VM,máx}}=864{,}70$ & Anexo~G, pp.~164-171\\
+Bibliografía & 26 referencias citadas & pp.~111-113\\
+\end{longtable}}
+
+% ================================================================ 10
+\section{Flancos abiertos y respuesta honesta}\label{sec:flancos}
+
+Son los puntos débiles que siguen en el documento al 22 de septiembre. Ninguno cambia un veredicto; todos pueden salir en la defensa.
+
+\begin{enumerate}[leftmargin=1.6em]
+\item \textbf{FEA30 acredita la extrapolación de Richardson como instrumento del software} (Tabla~3.7, p.~91), pero no está en el código. Respuesta: «Tiene razón en esa mitad de la celda: la extrapolación la hice yo, como digo en la p.~39. El software aporta las secuencias de malla y la diferencia entre mallas sucesivas, que es la regla de parada». \emph{Arreglo de cinco minutos}: mover «y extrapolación de Richardson» a la columna de evidencia.
+\item \textbf{El Anexo G sugiere «kN y cm»}: con $E=225\,000$ daría 2250\,GPa. Respuesta: «El ejemplo de unidades está mal elegido: con kgf y cm, $E$ es del orden de un hormigón y $\sigma_{\mathrm{VM}}=864{,}70$\,kgf/cm² es plausible; ninguna cifra cambia». \emph{Arreglo}: cambiar «kN y cm, con $E$ en kN/cm²» por «kgf y cm, con $E$ en kgf/cm²» (p.~164).
+\item \textbf{La Nomenclatura dice «PI-1 a PI-3»} y la tesis tiene dos preguntas. \emph{Arreglo}: una celda (\texttt{00b\_nomenclatura.tex}, línea~156).
+\item \textbf{FEM3 se excluyó porque el software no lo expone}. Respuesta: «Es un desarrollo teórico, no una etapa del cálculo; contado dentro, la cobertura sería de 18 de 19».
+\item \textbf{El cotejo manual del ejemplo canónico no está escrito}. Respuesta: el criterio es el desarrollo remitido a su ecuación; demuéstralo en la pizarra (P28).
+\item \textbf{El modelo de SAP2000 no declara por escrito elementos, versión ni apoyos}. Llévalo abierto. Respuesta (PD-03): apoyo fijo con dos GDL restringidos, apoyo móvil con el vertical; carga uniforme como carga superficial convertida a fuerzas nodales equivalentes; prueba de que entró bien: las reacciones equilibran la carga con residuo $1{,}7\times10^{-13}$.
+\item \textbf{La deformación plana solo se verifica con soluciones manufacturadas}, y la carga linealmente variable no interviene en ningún caso. Está declarado en Limitaciones (p.~108) y hay recomendación (p.~110). Entre los dos estados cambia solo la matriz $\mathbf{D}$, y está verificada.
+\item \textbf{La licencia}: el código es MIT y el binario lleva PyMuPDF (AGPL-3.0 o comercial). Declarado en la nota de la Tabla~2.5; la decisión final es tuya.
+\item \textbf{El Reglamento de la Carrera sigue citado desde el Taller~1}. Ahora hay fuente institucional para las definiciones: el Manual de Procesos de la UATF (2022), p.~93 (\autoref{sec:material}). Llévalo impreso.
+\end{enumerate}
+
+% ================================================================ 11
+\clearpage
+\section{Chuleta final}\label{sec:chuleta}
+
+\begin{memorizar}[La cadena, en siete líneas]
+\begin{enumerate}[leftmargin=1.5em,itemsep=0pt]
+\item \textbf{Situación}: el software de análisis es una caja negra (Tabla~1.1).
+\item \textbf{Causa (VI)}: la forma en que el software expone el procedimiento de cálculo.
+\item \textbf{Efecto (VD)}: baja trazabilidad y verificabilidad del análisis, propiedad del medio de cálculo.
+\item \textbf{Solución (interviniente)}: EduFEM, el «sistema».
+\item \textbf{Hipótesis}: con EduFEM el análisis se vuelve trazable (a) y verificable (b).
+\item \textbf{Evidencia}: 7/7, 9/9, 3/3, 18/18; tasas 2,00 y 3,00; $\sigma_x$ 0,04\,\% y 0,21\,\%; flecha 0,26\,\%; Cook 0,144\,\%.
+\item \textbf{Veredicto}: comprobada en sus dos cláusulas, sobre el software y los casos de estudio.
+\end{enumerate}
+\end{memorizar}
+
+\begin{decir}[Ocho anclas: si te piden «¿dónde lo dice?»]
+\small
+\begin{tabular}{@{}L{6.6cm}L{8.6cm}@{}}
+Ciencia explica, tecnología transforma & García-Córdoba [7], p.~46 y fig.~1.5, p.~52\\
+En tecnología la hipótesis es la solución & [7], pp.~51 y~85 · Miranda, hipótesis, lám.~12\\
+La tecnología tiene plano experimental & [7], pp.~94-97, fig.~3.8\\
+Qué es un experimento (sí lo hay) & Álvarez de Zayas [8], pp.~47-48 · Hernández-Sampieri [24], p.~152\\
+Experimental no es mejor & Hernández-Sampieri [24], p.~151 (recomendado en Taller~1, lám.~23)\\
+La pregunta decide el método & Wieringa [25], Tabla~1.1, p.~5; validación de laboratorio, pp.~30-31\\
+Cuatro modelos; simulación & Taller~4, lám.~4\\
+Precedente: software validado & Taller~5, Ejemplo~2, lám.~15-20\\
+\end{tabular}
+\end{decir}
+
+\begin{memorizar}[Tres frases para cerrar cualquier respuesta]
+\begin{enumerate}[leftmargin=1.5em,itemsep=2pt]
+\item «Mi hipótesis afirma exactamente lo que mi evidencia mide.»
+\item «La trazabilidad no es una tautología: gracias a ella encontré un defecto que las normas de error no veían.»
+\item «Es una tesis tecnológica: el conocimiento se obtiene construyendo el artefacto y evaluándolo con rigor» [11, p.~75].
+\end{enumerate}
+\end{memorizar}
+
+\begin{cuidado}[Palabras prohibidas en la defensa]
+prueba de campo · pendiente · validez de contenido · tabla de especificaciones · canal de cálculo · validador de salud · alumno · «mejora el aprendizaje» · «aplicada de tipo tecnológico» · «error» frente a SAP2000
+\end{cuidado}
+
+% ================================================================ ANEXOS
+\appendix
+\section{Pasajes en su idioma original}\label{anx:ingles}
+
+Para leerlos tal cual si el tribunal pide el original. Página impresa del ejemplar.
+
+{\small
+\begin{longtable}{@{}L{2.4cm}L{1.2cm}L{12.2cm}@{}}
+\toprule
+\textbf{Fuente} & \textbf{Página} & \textbf{Pasaje}\\
+\midrule\endhead
+\bottomrule\endfoot
+Hevner [11] & 75 & “In the design-science paradigm, knowledge and understanding of a problem domain and its solution are achieved in the building and application of the designed artifact.”\\
+ & 76 & “[\ldots] two complementary but distinct paradigms, behavioral science and design science. The behavioral-science paradigm has its roots in natural science research methods. [\ldots] The design-science paradigm has its roots in engineering and the sciences of the artificial [\ldots]. It is fundamentally a problem-solving paradigm.”\\
+ & 80 & “The goal of behavioral-science research is truth. The goal of design-science research is utility. As argued above, our position is that truth and utility are inseparable.”\\
+ & 81 & “The key differentiator between routine design and design research is the clear identification of a contribution to the archival knowledge base of foundations and methodologies.”\\
+ & 83 & Guideline 3: “The utility, quality, and efficacy of a design artifact must be rigorously demonstrated via well-executed evaluation methods.”\\
+ & 86 & “The selection of evaluation methods must be matched appropriately with the designed artifact and the selected evaluation metrics.”\\
+ & 87 & Guideline 4: “Effective design-science research must provide clear contributions in the areas of the design artifact, design construction knowledge (i.e., foundations), and/or design evaluation knowledge (i.e., methodologies).”\\
+\midrule
+Peffers [12] & 55 & “Activity 4: Demonstration. Demonstrate the use of the artifact to solve one or more instances of the problem. This could involve its use in experimentation, simulation, case study, proof, or other appropriate activity.”\\
+ & 56 & “Activity 5: Evaluation. Observe and measure how well the artifact supports a solution to the problem. [\ldots] Conceptually, such evaluation could include any appropriate empirical evidence or logical proof.”\\
+\midrule
+Wieringa [25] & v & “In design science, we iterate over two activities: designing an artifact that improves something for stakeholders and empirically investigating the performance of an artifact in a context.”\\
+ & 5 & Table 1.1: “Is the DOA estimation accurate enough?” $\to$ “Design a simulation of plane wave arrival at a moving antenna”; “Is the method usable and useful for cloud service providers?” $\to$ “Design a usability and usefulness test with consultants as subjects”.\\
+ & 30 & “Design science research projects do not perform the entire engineering cycle but are restricted to the design cycle. Transferring new technology to the market may be done after the research project is finished but is not part of the research project.”\\
+ & 31 & “Validation research is experimental and is usually done in the laboratory. [\ldots] Frequently used research methods are modeling, simulation, and testing, methods that are called ‘single-case mechanism experiments’ in this book.”\\
+ & 48 & “[\ldots] field experiments in software engineering and information systems are extremely expensive [\ldots], because many resources are needed to build samples of sufficient size.”\\
+ & 64 & “[\ldots] you build a prototype of a program, build a model of its intended context, and feed its test scenarios to observe its responses. The responses, good or bad, are explained in terms of the mechanisms internal to the program or to the environment.”\\
+ & 247 & “A single-case mechanism experiment is a test of a mechanism in a single object of study with a known architecture. [\ldots] They investigate the effect of a difference of an independent variable X (e.g., angle of incidence) on a dependent variable Y (e.g., accuracy).”\\
+\end{longtable}}
+
+\section{Mapa de páginas de tu tesis}\label{anx:paginas}
+
+Páginas impresas de \texttt{main\_final.pdf} (187 hojas), para señalar sin buscar.
+
+{\small
+\begin{longtable}{@{}L{8.2cm}L{2.1cm}L{5.3cm}@{}}
+\toprule
+\textbf{Qué} & \textbf{Página} & \textbf{Nota}\\
+\midrule\endhead
+\bottomrule\endfoot
+Planteamiento del problema; problema científico & 1-2 & Formulación única\\
+Variables, definiciones, delimitación, objeto y campo & 2-3 & \\
+Justificación & 4 & Por qué Python\\
+Objetivo general y específicos & 5 & \\
+Hipótesis, cláusulas y refutabilidad; PI-1 y PI-2 & 6-7 & \\
+Metodología de la investigación; alcance y limitaciones & 8-10 & \\
+§1.1 Antecedentes y estado del arte; Tabla~1.1 & 12; 16 & Diagnóstico (OE1)\\
+§1.13 Verificación y validación (acepción de «validación») & 36 & \\
+§2.1.1 Tipo, método y modelo; Tabla~2.1 (seis actividades) & 40-42; 41 & Hevner, Peffers, Wieringa\\
+§2.1.2 Variables; Tabla~2.2 (operacionalización) & 43; 45 & \\
+§2.1.3 Matriz de consistencia; Tabla~2.3 & 46 & \\
+§2.1.4 Población, muestra y casos de estudio & 47 & \\
+§2.1.5 Procedimiento, instrumentos, reproducibilidad & 49 & Regla de marcado\\
+§2.1.6 Criterios de aceptación; Tabla~2.4 & 51 & Umbrales a priori\\
+§3.2 Soluciones manufacturadas; Tabla~3.1 & 74; 76 & \\
+§3.4 Timoshenko; Tablas~3.2 y 3.3 & 80; 81-82 & \\
+§3.5 Cook; Tabla~3.4 & 84; 85 & \\
+§3.6 Cobertura; Tabla~3.7 (cobertura de contenido) & 86; 91 & \\
+§3.7.2 Lección del defecto de extrapolación & 96 & La hipótesis no es circular\\
+§3.8 Contraste de la hipótesis; Tabla~3.10 (veredicto) & 99 & \\
+Conclusiones; alcance; hipótesis comprobada & 102; 105 & \\
+Aportes; Limitaciones; Recomendaciones & 106; 107; 108-110 & \\
+Referencias bibliográficas & 111 & 26 citadas\\
+Anexo E (SAP2000); Anexo G (memoria paso a paso) & 145; 164 & \\
+\end{longtable}}
+
+\end{document}

@@ -1,5 +1,16 @@
 # Presentación de defensa — EduFEM
 
+> **Versión vigente (2026-09-23): la interactiva de la tesis final**, en [`final/`](final/README.md).
+> Es una presentación HTML que se abre con doble clic (`final/Defensa_EduFEM.html` o
+> `final/Presentar_defensa.bat`), con animaciones hechas con los datos del motor, laboratorios
+> que se manejan con el mouse, vista del orador y respaldo para preguntas; su video es
+> `video/Defensa_EduFEM_final.mp4`, la misma presentación grabada con voz y subtítulos. Tiene
+> una **versión 2 estilo PowerPoint** (`final/Defensa_EduFEM_v2.html`) y esa versión convertida
+> a **PowerPoint** (`final/Defensa_EduFEM_v2.pptx`), que reemplazan como vigentes a los `.pptx`
+> de abajo. Todo lo
+> que sigue en este archivo describe las versiones PowerPoint v1 y v2, que siguen los ejes
+> anteriores de la tesis y quedan como archivo.
+
 | Archivo | Qué es |
 |---|---|
 | `Defensa_EduFEM.pptx` | Presentación editable (39 diapositivas, 16:9, Calibri + Cambria Math, notas del orador en todas) |
