@@ -1,0 +1,1177 @@
+% El método de las soluciones manufacturadas, paso a paso.
+% Todas las cifras vienen de datos.tex (generar_datos.py) y de
+% datos_sabotaje.tex (experimento_sabotaje.py). Compilar:
+%   pdflatex mms_paso_a_paso.tex   (dos veces, por las referencias cruzadas)
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[spanish,es-tabla,es-noshorthands]{babel}
+\usepackage[a4paper,margin=2.4cm]{geometry}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb,mathtools,bm}
+\usepackage{icomma}
+\usepackage{booktabs,array,multirow}
+\usepackage[table]{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,calc,babel}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepgfplotslibrary{groupplots}
+\usepackage{caption}
+\usepackage{float}
+\usepackage{enumitem}
+\usepackage[skins,breakable]{tcolorbox}
+\usepackage{listings}
+\usepackage{pifont}
+\usepackage[hidelinks]{hyperref}
+\hypersetup{pdftitle={El método de las soluciones manufacturadas, paso a paso},
+            pdfauthor={EduFEM}, pdfsubject={Verificación del motor de EduFEM}}
+
+% --- Paleta (referencia de la guía de visualización) ------------------------------
+\definecolor{tinta}{HTML}{0B0B0B}
+\definecolor{tintasec}{HTML}{52514E}
+\definecolor{apagado}{HTML}{898781}
+\definecolor{grilla}{HTML}{E1E0D9}
+\definecolor{ejeC}{HTML}{C3C2B7}
+\definecolor{fondo}{HTML}{F4F3EF}
+\definecolor{serieA}{HTML}{2A78D6}  % Q4
+\definecolor{serieB}{HTML}{EB6834}  % Q9
+\definecolor{bien}{HTML}{0CA30C}
+\definecolor{mal}{HTML}{D03B3B}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.55em}
+\captionsetup{font=small, labelfont=bf, margin=0.5cm}
+\setlist{itemsep=0.2em, topsep=0.3em}
+
+% --- Datos generados ----------------------------------------------------------------
+\newcommand{\dato}[1]{\ifcsname dato:#1\endcsname\csname dato:#1\endcsname\else\textbf{\textcolor{mal}{??#1}}\fi}
+\newcommand{\tabla}[1]{\csname tabla:#1\endcsname}
+\newcommand{\cmark}{\textcolor{bien}{\ding{51}}}
+\newcommand{\xmark}{\textcolor{mal}{\ding{55}}}
+\input{datos.tex}
+\input{datos_sabotaje.tex}
+
+\newcommand{\cod}[1]{\path{#1}}  % monoespaciado que puede cortarse en / y .
+\newcommand{\uM}{\bm{u}_M}
+\newcommand{\eh}{\bm{e}}
+\newcommand{\dd}{\,\mathrm{d}}
+
+% --- Cajas --------------------------------------------------------------------------
+\newtcolorbox{resultado}[1]{enhanced, breakable, colback=fondo, colframe=serieA,
+  boxrule=0pt, leftrule=2.5pt, arc=0pt, outer arc=0pt, left=9pt, right=9pt,
+  top=6pt, bottom=6pt, before upper={\textbf{#1}\par\smallskip}}
+\newtcolorbox{aviso}[1]{enhanced, breakable, colback=fondo, colframe=apagado,
+  boxrule=0pt, leftrule=2.5pt, arc=0pt, outer arc=0pt, left=9pt, right=9pt,
+  top=6pt, bottom=6pt, before upper={\textbf{#1}\par\smallskip}}
+
+% --- Gráficos -----------------------------------------------------------------------
+\pgfplotsset{
+  estilo/.style={
+    axis line style={ejeC}, tick style={ejeC},
+    every tick label/.append style={font=\footnotesize, text=tintasec},
+    label style={font=\small, text=tinta}, title style={font=\small, text=tinta},
+    grid=major, major grid style={grilla, line width=0.3pt},
+    /pgf/number format/use comma,
+  },
+  colormap={secuencial}{rgb255=(205,226,251) rgb255=(158,197,244) rgb255=(109,167,236)
+    rgb255=(57,135,229) rgb255=(37,106,191) rgb255=(24,79,149) rgb255=(13,54,107)},
+  colormap={divergente}{rgb255=(24,79,149) rgb255=(57,135,229) rgb255=(158,197,244)
+    rgb255=(240,239,236) rgb255=(241,174,168) rgb255=(215,88,83) rgb255=(137,43,42)},
+}
+
+\lstset{language=Python, basicstyle=\ttfamily\scriptsize, keywordstyle=\color{serieA}\bfseries,
+  commentstyle=\color{tintasec}\itshape, stringstyle=\color{tintasec},
+  numbers=left, numberstyle=\tiny\color{apagado}, numbersep=6pt, frame=single,
+  rulecolor=\color{grilla}, breaklines=true, columns=fullflexible, keepspaces=true,
+  showstringspaces=false, xleftmargin=1.6em, framexleftmargin=1.2em}
+
+\begin{document}
+
+% ==================================================================================
+\begin{center}
+{\LARGE\bfseries El método de las soluciones manufacturadas,\\[2pt] paso a paso}\\[8pt]
+{\large Un ejemplo completo con elementos Q4 en elasticidad plana}\\[4pt]
+{\small\color{tintasec} Verificación del motor de EduFEM \,·\, material de estudio \,·\, 23 de septiembre de 2026}
+\end{center}
+\vspace{0.4em}
+
+\begin{aviso}{Cómo leer este documento}
+\begin{itemize}[leftmargin=1.2em]
+  \item El ejemplo sigue el procedimiento de Salari y Knupp~\cite[pp.~31--35]{salari} y lo
+    aplica al caso base de la tesis: cuadrado unitario, tensión plana, $E=\dato{E}$,
+    $\nu=\dato{nu}$ y espesor $t=\dato{t}$.
+  \item La sección~\ref{sec:mano} resuelve a mano la malla más gruesa ($N=2$). Todas sus cifras
+    se pueden rehacer con una calculadora; se muestran redondeadas a seis decimales, pero las
+    operaciones se hicieron con todos los decimales, así que la última cifra de una suma puede
+    diferir en una unidad.
+  \item Las cifras las calculó \cod{generar_datos.py} con una réplica independiente del método
+    (anexo~\ref{anx:replica}) que no importa nada de EduFEM. El mismo guion comprueba que
+    coinciden con las de EduFEM: la matriz y el vector reducidos, el desplazamiento del nodo
+    libre, las normas de $N=2$ y los 20 errores de la tabla de convergencia de la tesis.
+  \item Convenciones: coma decimal; coordenadas $(x;\,y)$; grados de libertad (GDL) numerados
+    desde 1, de modo que el nodo $n$ tiene los GDL $2n-1$ (dirección $x$) y $2n$ (dirección $y$).
+    Las unidades son arbitrarias y consistentes: el método verifica un orden, no una magnitud.
+\end{itemize}
+\end{aviso}
+
+\tableofcontents
+
+% ==================================================================================
+\section{La idea del método}\label{sec:idea}
+
+\emph{Verificar} un código es comprobar que resuelve correctamente las ecuaciones que dice
+resolver; \emph{validar} es comprobar que esas ecuaciones representan bien el fenómeno real.
+Salari y Knupp adoptan la definición de Roache: un código está verificado cuando se demuestra que
+su solución discreta converge a la de las ecuaciones continuas al refinar la malla, «usualmente con
+cierto orden de exactitud»~\cite[p.~11]{salari}. Este documento trata solo de verificación.
+
+Para medir el error de un código hace falta conocer la solución exacta, y los problemas de
+elasticidad con solución analítica son pocos y muy particulares. El método de las soluciones
+manufacturadas (MMS, por su sigla en inglés) invierte el orden del trabajo:
+
+\begin{enumerate}[leftmargin=1.6em]
+  \item se elige primero la solución, $\uM(x,y)$, una función suave cualquiera;
+  \item se la sustituye en las ecuaciones de gobierno y se deduce qué datos la producen: la fuerza
+    de cuerpo $\bm b$ y los valores en el contorno;
+  \item se le entregan esos datos al código y se compara su resultado $\bm u_h$ con $\uM$.
+\end{enumerate}
+
+La solución manufacturada no necesita tener sentido físico: basta con que satisfaga las
+ecuaciones, y eso se garantiza por construcción.
+
+Lo que se compara no es el tamaño del error sino su ritmo de caída. En un método consistente, el
+error se comporta como
+\begin{equation}\label{eq:orden}
+  e(h) = C\,h^{p} + \text{términos de orden superior}
+\end{equation}
+\cite[p.~29]{salari}, donde $h$ es el tamaño de los elementos, $C$ una constante que depende del
+problema y $p$ el orden del método. La constante no dice nada sobre la corrección del código
+---para la verificación, «la magnitud real del error es irrelevante»~\cite[p.~28]{salari}---;
+el orden sí, porque la teoría lo fija de antemano y casi cualquier error de programación lo
+altera. Por eso la prueba se repite en mallas cada vez más finas y lo que se mide es la pendiente
+de $e(h)$. La figura~\ref{fig:flujo} resume los seis pasos que siguen.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[font=\small,
+  paso/.style={draw=ejeC, fill=fondo, rounded corners=2pt, text width=3.95cm,
+    minimum height=1.35cm, align=left, inner sep=5pt},
+  flecha/.style={-{Stealth[length=5pt]}, tintasec, line width=0.6pt}]
+  \node[paso] (p1) {\textbf{Paso 1} (§\ref{sec:paso1})\\ Ecuaciones del código y orden teórico $p$};
+  \node[paso, right=0.55cm of p1] (p2) {\textbf{Paso 2} (§\ref{sec:paso2})\\ Diseño de la prueba: dominio, material, restricciones};
+  \node[paso, right=0.55cm of p2] (p3) {\textbf{Paso 3} (§\ref{sec:paso3})\\ Elegir $\uM$ y deducir $\bm b$ y los valores de contorno};
+  \node[paso, below=0.75cm of p3] (p4) {\textbf{Paso 4} (§\ref{sec:mano})\\ Correr el código y medir el error $e(h)$};
+  \node[paso, left=0.55cm of p4] (p5) {\textbf{Paso 5} (§\ref{sec:paso5})\\ Refinar la malla: $h$, $h/2$, $h/4$, \dots};
+  \node[paso, left=0.55cm of p5] (p6) {\textbf{Paso 6} (§\ref{sec:paso6})\\ Comparar el orden observado con el teórico};
+  \draw[flecha] (p1) -- (p2);
+  \draw[flecha] (p2) -- (p3);
+  \draw[flecha] (p3) -- (p4);
+  \draw[flecha] (p4) -- (p5);
+  \draw[flecha] (p5) -- (p6);
+\end{tikzpicture}
+\caption{Los pasos del método, según Salari y Knupp~\cite[pp.~31--34]{salari}. Si el orden
+observado coincide con el teórico, la prueba pasa; si no, primero se revisa la propia prueba y
+después se busca el error en el código (sección~\ref{sec:resumen}).}
+\label{fig:flujo}
+\end{figure}
+
+% ==================================================================================
+\section{Paso 1. Las ecuaciones del código y su orden teórico}\label{sec:paso1}
+
+«Para empezar, hay que determinar el sistema de ecuaciones de gobierno que resuelve el
+código»~\cite[p.~31]{salari}. EduFEM resuelve elasticidad lineal plana con pequeñas deformaciones:
+
+\begin{align}
+  &\text{Equilibrio en } \Omega: &&
+  \frac{\partial \sigma_x}{\partial x} + \frac{\partial \tau_{xy}}{\partial y} + b_x = 0, \qquad
+  \frac{\partial \tau_{xy}}{\partial x} + \frac{\partial \sigma_y}{\partial y} + b_y = 0,
+  \label{eq:equilibrio}\\[4pt]
+  &\text{Cinemática:} &&
+  \varepsilon_x = \frac{\partial u}{\partial x}, \qquad
+  \varepsilon_y = \frac{\partial v}{\partial y}, \qquad
+  \gamma_{xy} = \frac{\partial u}{\partial y} + \frac{\partial v}{\partial x},
+  \label{eq:cinematica}\\[4pt]
+  &\text{Ley constitutiva:} &&
+  \begin{Bmatrix}\sigma_x\\ \sigma_y\\ \tau_{xy}\end{Bmatrix}
+  = \bm D \begin{Bmatrix}\varepsilon_x\\ \varepsilon_y\\ \gamma_{xy}\end{Bmatrix},
+  \label{eq:constitutiva}
+\end{align}
+con la matriz de tensión plana
+\begin{equation}\label{eq:Dnum}
+  \bm D = \frac{E}{1-\nu^2}\begin{bmatrix} 1 & \nu & 0\\ \nu & 1 & 0\\ 0 & 0 & \frac{1-\nu}{2}\end{bmatrix}
+  = \begin{bmatrix} \dato{D11} & \dato{D12} & 0\\ \dato{D12} & \dato{D11} & 0\\ 0 & 0 & \dato{D33}\end{bmatrix},
+\end{equation}
+más las restricciones $u=\bar u$, $v=\bar v$ en la parte $\Gamma_u$ del contorno.
+Conviene retener dos combinaciones de $\bm D$ que reaparecen en la sección~\ref{sec:limites}:
+$D_{11}-D_{12} = E/(1+\nu) = 2\mu = \dato{DdifD}$ y $D_{33} = \mu = \dato{D33}$, donde $\mu$ es el
+módulo de corte.
+
+El método de elementos finitos (MEF) aproxima el desplazamiento dentro de cada elemento como
+$\bm u_h = \sum_i N_i\,\bm u_i$, con funciones de forma $N_i$ y valores nodales $\bm u_i$, y convierte
+las ecuaciones en el sistema lineal
+\begin{equation}\label{eq:sistema}
+  \bm K\,\bm u = \bm F, \qquad
+  \bm K = \sum_e \int_{\Omega_e} \bm B^{\mathsf T}\bm D\,\bm B\; t \dd A, \qquad
+  \bm F = \sum_e \int_{\Omega_e} \bm N^{\mathsf T}\bm b\; t \dd A,
+\end{equation}
+donde $\bm B$ contiene las derivadas de las funciones de forma ($\bm\varepsilon = \bm B\,\bm u_e$).
+EduFEM evalúa esas integrales con cuadratura de Gauss de $2\times2$ puntos en el Q4 y de $3\times3$
+en el Q9, los órdenes que integran exactamente la rigidez de los elementos sin
+distorsionar~\cite[pp.~221--222]{hughes}.
+
+El segundo dato del paso~1 es el orden teórico. Si las funciones de forma contienen polinomios
+completos de grado $k$ y la solución es suave, el error en la norma que involucra $m$ derivadas
+decrece como $h^{k+1-m}$~\cite[pp.~189--190]{hughes}\cite[pp.~106--107]{strang}. Con $m=0$ se
+obtiene la norma $L^2$ del desplazamiento, y con $m=1$ la seminorma $H^1$, que mide el error de las
+derivadas, es decir, de las deformaciones:
+
+\begin{table}[H]
+\centering\small
+\caption{Órdenes teóricos de convergencia.}\label{tab:ordenes}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+Elemento & Grado completo $k$ & Norma $L^2$ ($h^{k+1}$) & Seminorma $H^1$ ($h^{k}$)\\
+\midrule
+Q4 (bilineal, 4 nodos)      & 1 & 2 & 1\\
+Q9 (bicuadrático, 9 nodos)  & 2 & 3 & 2\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+En términos prácticos: al dividir $h$ por dos, el error $L^2$ del Q4 debe dividirse por
+$2^2=4$ y el del Q9 por $2^3=8$.
+
+% ==================================================================================
+\section{Paso 2. El diseño de la prueba}\label{sec:paso2}
+
+Salari y Knupp llaman \emph{prueba de cobertura} a cada combinación de opciones del código que se
+decide ejercitar~\cite[p.~31]{salari}. El guion \cod{tests/vv_mms.py} de EduFEM corre cuatro: el
+cuadrado unitario y un cuadrilátero distorsionado, cada uno en tensión plana y en deformación plana.
+Este documento desarrolla la configuración base:
+
+\begin{itemize}[leftmargin=1.2em]
+  \item \textbf{Dominio}: el cuadrado $\Omega=[0,1]^2$, con mallas estructuradas de $N\times N$
+    elementos cuadrados de lado $h = 1/N$.
+  \item \textbf{Material}: $E=\dato{E}$, $\nu=\dato{nu}$, $t=\dato{t}$, en tensión plana. Son
+    valores elegidos para que todas las cifras sean de orden uno.
+  \item \textbf{Restricciones}: desplazamiento prescrito en \emph{todo} el contorno. Es la
+    recomendación de Salari y Knupp para la primera prueba: si los valores del contorno salen de la
+    solución exacta, el error en el contorno es nulo y el que quede proviene solo de las ecuaciones
+    del interior~\cite[p.~32]{salari}.
+  \item \textbf{Cargas}: solo la fuerza de cuerpo $\bm b$; ni cargas nodales ni superficiales.
+  \item \textbf{Elementos}: Q4, que la sección~\ref{sec:mano} resuelve a mano, y Q9, que aparece en
+    el refinamiento.
+\end{itemize}
+
+% ==================================================================================
+\section{Paso 3. La solución manufacturada}\label{sec:paso3}
+
+\subsection{La elección}
+
+La solución manufacturada de la tesis, programada en \cod{tests/vv_mms.py}, es
+\begin{equation}\label{eq:uM}
+  u_M(x,y) = \sin\pi x\,\sin\pi y, \qquad v_M(x,y) = \cos\pi x\,\cos\pi y .
+\end{equation}
+La figura~\ref{fig:campos} muestra las dos componentes. Salari y Knupp proponen cuatro pautas para
+construir una solución manufacturada~\cite[p.~23]{salari}; tres se cumplen a la vista:
+
+\begin{itemize}[leftmargin=1.2em]
+  \item \textbf{Funciones analíticas suaves.} Senos y cosenos se evalúan exactamente en cualquier
+    punto, y la suavidad garantiza que el orden teórico sea alcanzable.
+  \item \textbf{Suficientes derivadas no triviales.} Si $\uM$ fuera lineal, el Q4 la reproduciría
+    exactamente (es la prueba de la parcela), el error sería nulo en todas las mallas y no habría
+    orden que medir. Una función trigonométrica no pertenece a ningún espacio polinómico, así que
+    siempre deja un error de discretización que decrece con $h$.
+  \item \textbf{Derivadas acotadas por una constante pequeña.} Las derivadas de $\uM$ no superan
+    $\pi^2$ en valor absoluto, así que la solución no varía bruscamente dentro de un elemento.
+\end{itemize}
+
+Además, $v_M$ vale $\pm1$ en las esquinas, de modo que la prueba ejercita restricciones
+\emph{no homogéneas} (desplazamientos prescritos distintos de cero). La pauta restante pide que la
+solución sea «lo bastante general como para ejercitar cada término de la ecuación de
+gobierno»~\cite[p.~23]{salari}; se revisa en la sección~\ref{sec:limites}, porque esta elección no
+la cumple del todo.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+\begin{groupplot}[group style={group size=2 by 1, horizontal sep=3.1cm},
+  width=0.40\textwidth, height=0.40\textwidth, view={0}{90}, estilo, grid=none,
+  xmin=0, xmax=1, ymin=0, ymax=1, xtick={0,0.5,1}, ytick={0,0.5,1},
+  xlabel={$x$}, ylabel={$y$}, axis on top, enlargelimits=false, colorbar,
+  colorbar style={width=0.22cm, axis line style={draw=none}, ytick style={draw=none},
+    yticklabel style={font=\footnotesize, text=tintasec, /pgf/number format/use comma}}]
+\nextgroupplot[title={$u_M=\sin\pi x\,\sin\pi y$}, colormap name=secuencial,
+  point meta min=0, point meta max=1, colorbar style={ytick={0,0.5,1}}]
+\addplot3[surf, shader=interp, samples=41, samples y=41, domain=0:1, y domain=0:1]
+  {sin(180*x)*sin(180*y)};
+\draw[tintasec, line width=0.4pt, opacity=0.7]
+  (axis cs:0.5,0,1) -- (axis cs:0.5,1,1) (axis cs:0,0.5,1) -- (axis cs:1,0.5,1);
+\nextgroupplot[title={$v_M=\cos\pi x\,\cos\pi y$}, colormap name=divergente,
+  point meta min=-1, point meta max=1, colorbar style={ytick={-1,0,1}}]
+\addplot3[surf, shader=interp, samples=41, samples y=41, domain=0:1, y domain=0:1]
+  {cos(180*x)*cos(180*y)};
+\draw[tintasec, line width=0.4pt, opacity=0.7]
+  (axis cs:0.5,0,1) -- (axis cs:0.5,1,1) (axis cs:0,0.5,1) -- (axis cs:1,0.5,1);
+\end{groupplot}
+\end{tikzpicture}
+\caption{Las dos componentes de la solución manufacturada. $u_M$ se anula en todo el contorno y
+alcanza su máximo, 1, en el centro; $v_M$ vale $+1$ en las esquinas $(0;0)$ y $(1;1)$, $-1$ en
+$(1;0)$ y $(0;1)$, y se anula en el centro. Las líneas finas marcan la malla $N=2$ de la
+sección~\ref{sec:mano}.}
+\label{fig:campos}
+\end{figure}
+
+\subsection{Derivadas}
+
+\begin{table}[H]
+\centering\small
+\caption{Derivadas de la solución manufacturada.}\label{tab:derivadas}
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{@{}lll@{}}
+\toprule
+ & Componente $u_M=\sin\pi x\sin\pi y$ & Componente $v_M=\cos\pi x\cos\pi y$\\
+\midrule
+$\partial/\partial x$             & $\pi\cos\pi x\,\sin\pi y$     & $-\pi\sin\pi x\,\cos\pi y$\\
+$\partial/\partial y$             & $\pi\sin\pi x\,\cos\pi y$     & $-\pi\cos\pi x\,\sin\pi y$\\
+$\partial^2/\partial x^2$         & $-\pi^2\sin\pi x\,\sin\pi y$  & $-\pi^2\cos\pi x\,\cos\pi y$\\
+$\partial^2/\partial y^2$         & $-\pi^2\sin\pi x\,\sin\pi y$  & $-\pi^2\cos\pi x\,\cos\pi y$\\
+$\partial^2/\partial x\partial y$ & $\pi^2\cos\pi x\,\cos\pi y$   & $\pi^2\sin\pi x\,\sin\pi y$\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Deformaciones}
+
+Con la cinemática~\eqref{eq:cinematica} y las primeras derivadas de la tabla~\ref{tab:derivadas}:
+\begin{equation}\label{eq:deformaciones}
+\begin{gathered}
+  \varepsilon_x = \pi\cos\pi x\,\sin\pi y, \qquad
+  \varepsilon_y = -\pi\cos\pi x\,\sin\pi y,\\
+  \gamma_{xy} = \pi\sin\pi x\,\cos\pi y - \pi\sin\pi x\,\cos\pi y = 0 .
+\end{gathered}
+\end{equation}
+Aparecen dos hechos que serán importantes en la sección~\ref{sec:limites}: $\varepsilon_x +
+\varepsilon_y = 0$ en todo punto (el material no cambia de área) y $\gamma_{xy} = 0$ en todo punto
+(no hay distorsión angular en los ejes $x$, $y$).
+
+\subsection{Tensiones}
+
+Con la ley constitutiva~\eqref{eq:constitutiva}, y como $\varepsilon_y = -\varepsilon_x$:
+\begin{equation}\label{eq:tensiones}
+\begin{aligned}
+  \sigma_x &= D_{11}\varepsilon_x + D_{12}\varepsilon_y = (D_{11}-D_{12})\,\varepsilon_x
+            = 2\mu\,\pi\cos\pi x\,\sin\pi y = \dato{dosmupi}\,\cos\pi x\,\sin\pi y,\\
+  \sigma_y &= D_{12}\varepsilon_x + D_{11}\varepsilon_y = -(D_{11}-D_{12})\,\varepsilon_x = -\sigma_x,\\
+  \tau_{xy} &= D_{33}\,\gamma_{xy} = 0 .
+\end{aligned}
+\end{equation}
+
+\subsection{La fuerza de cuerpo}
+
+El equilibrio~\eqref{eq:equilibrio} dice qué fuerza de cuerpo hace falta para que esas tensiones
+estén en equilibrio: $b_x = -(\partial\sigma_x/\partial x + \partial\tau_{xy}/\partial y)$ y
+$b_y = -(\partial\tau_{xy}/\partial x + \partial\sigma_y/\partial y)$. Derivando~\eqref{eq:tensiones}:
+\begin{align*}
+  \frac{\partial\sigma_x}{\partial x} &= 2\mu\pi\,(-\pi\sin\pi x\,\sin\pi y) = -2\mu\pi^2\sin\pi x\,\sin\pi y
+  &&\Rightarrow\quad b_x = 2\mu\pi^2\sin\pi x\,\sin\pi y,\\
+  \frac{\partial\sigma_y}{\partial y} &= -2\mu\pi\,(\pi\cos\pi x\,\cos\pi y) = -2\mu\pi^2\cos\pi x\,\cos\pi y
+  &&\Rightarrow\quad b_y = 2\mu\pi^2\cos\pi x\,\cos\pi y .
+\end{align*}
+El resultado es notablemente simple: la fuerza de cuerpo es proporcional a la propia solución,
+\begin{equation}\label{eq:b}
+  \bm b(x,y) = 2\mu\pi^2\,\uM(x,y) = \dato{K2}\,\bigl(\sin\pi x\,\sin\pi y;\ \cos\pi x\,\cos\pi y\bigr).
+\end{equation}
+Por ejemplo, en $(0,25;\,0,25)$ se tiene $u_M=v_M=\tfrac12$ y $\bm b = (\dato{bmuestra};\,\dato{bmuestra})$.
+
+\begin{aviso}{Otra forma de llegar: la que programa EduFEM}
+El guion \cod{tests/vv_mms.py} (función \cod{make_body_force_fn}) usa las ecuaciones de Navier, que
+resultan de sustituir la cinemática y la ley constitutiva en el equilibrio:
+\[
+  b_x = -\Bigl[(\lambda+2\mu)\,u_{,xx} + \mu\,u_{,yy} + (\lambda+\mu)\,v_{,xy}\Bigr],\qquad
+  b_y = -\Bigl[(\lambda+\mu)\,u_{,xy} + \mu\,v_{,xx} + (\lambda+2\mu)\,v_{,yy}\Bigr],
+\]
+con $\lambda = E\nu/(1-\nu^2) = \dato{lam}$ en tensión plana. Al sustituir las segundas derivadas de
+la tabla~\ref{tab:derivadas} en $b_x$:
+\[
+  b_x = \pi^2\sin\pi x\,\sin\pi y\,\bigl[(\lambda+2\mu) + \mu - (\lambda+\mu)\bigr] = 2\mu\pi^2\sin\pi x\,\sin\pi y .
+\]
+El resultado es el mismo de~\eqref{eq:b}, y \emph{$\lambda$ se cancela}. Lo mismo ocurre con $b_y$.
+\end{aviso}
+
+\subsection{Los valores del contorno}
+
+En un contorno con restricciones, los valores prescritos salen de evaluar la solución manufacturada
+en los nodos correspondientes~\cite[p.~26]{salari}. En los cuatro lados del cuadrado:
+\[
+  \begin{array}{lll}
+    y=0: & \bar u = 0, & \bar v = \cos\pi x,\\
+    y=1: & \bar u = 0, & \bar v = -\cos\pi x,
+  \end{array}\qquad
+  \begin{array}{lll}
+    x=0: & \bar u = 0, & \bar v = \cos\pi y,\\
+    x=1: & \bar u = 0, & \bar v = -\cos\pi y.
+  \end{array}
+\]
+
+\begin{resultado}{Resultado del paso 3: los únicos datos que recibe el código}
+La fuerza de cuerpo $\bm b(x,y)$ de~\eqref{eq:b} y los valores $\bar u$, $\bar v$ en los nodos del
+contorno. El código no conoce $\uM$: si la reproduce, es porque resolvió bien las ecuaciones.
+\end{resultado}
+
+% ==================================================================================
+\section{Paso 4. La prueba a mano con la malla más gruesa}\label{sec:mano}
+
+Con $N=2$ la malla tiene 9 nodos, y 8 de ellos están en el contorno con valores conocidos. Solo
+queda libre el nodo central, así que el sistema por resolver es de $2\times2$. Esta sección hace a
+mano todo lo que hace el código: rigidez, ensamblaje, fuerzas, restricciones, solución y medida
+del error.
+
+\subsection{Malla, numeración y valores prescritos}
+
+\begin{figure}[H]
+\centering
+\begin{minipage}[b]{0.47\textwidth}\centering
+\begin{tikzpicture}[x=5cm, y=5cm, font=\small]
+  \foreach \cx/\cy/\e in {0.25/0.25/1, 0.75/0.25/2, 0.25/0.75/3, 0.75/0.75/4}
+    \node[text=apagado] at (\cx,\cy) {$e_{\e}$};
+  \draw[tintasec, line width=0.7pt] (0,0) rectangle (1,1);
+  \draw[tintasec, line width=0.45pt] (0.5,0) -- (0.5,1) (0,0.5) -- (1,0.5);
+  \foreach \x/\y in {0/0, 0.5/0, 1/0, 0/0.5, 1/0.5, 0/1, 0.5/1, 1/1}
+    \fill[tinta] (\x,\y) circle (2.3pt);
+  \filldraw[fill=white, draw=serieA, line width=1.3pt] (0.5,0.5) circle (3.3pt);
+  \foreach \n/\x/\y/\anc in {1/0/0/south west, 2/0.5/0/south west, 3/1/0/south east,
+      4/0/0.5/south west, 5/0.5/0.5/south west, 6/1/0.5/south east,
+      7/0/1/north west, 8/0.5/1/north west, 9/1/1/north east}
+    \node[anchor=\anc, font=\footnotesize, text=tinta, inner sep=3.5pt] at (\x,\y) {\n};
+  \foreach \x/\l in {0/0, 0.5/{0,5}, 1/1}
+    \node[below=4pt, font=\footnotesize, text=tintasec] at (\x,0) {\l};
+  \foreach \y/\l in {0.5/{0,5}, 1/1}
+    \node[left=4pt, font=\footnotesize, text=tintasec] at (0,\y) {\l};
+  \node[font=\footnotesize, text=tintasec] at (0.5,-0.17) {$x$};
+  \node[font=\footnotesize, text=tintasec] at (-0.2,0.5) {$y$};
+\end{tikzpicture}\\[2pt]
+{\footnotesize (a) Malla $N=2$: \tikz\fill[tinta] (0,0) circle (2.3pt); nodo del contorno,
+\tikz\filldraw[fill=white, draw=serieA, line width=1.1pt] (0,0) circle (2.8pt); nodo libre.}
+\end{minipage}\hfill
+\begin{minipage}[b]{0.5\textwidth}\centering
+\begin{tikzpicture}[x=2cm, y=2cm, font=\small]
+  \draw[tintasec, line width=0.7pt] (-1,-1) rectangle (1,1);
+  \draw[apagado, -{Stealth[length=4pt]}] (-1.3,0) -- (1.35,0) node[right, text=tintasec] {$\xi$};
+  \draw[apagado, -{Stealth[length=4pt]}] (0,-1.3) -- (0,1.35) node[above, text=tintasec] {$\eta$};
+  \foreach \a/\i in {-0.774597/0, 0/1, 0.774597/2}
+    \foreach \b/\j in {-0.774597/1, 0/2, 0.774597/3}
+      {\pgfmathtruncatemacro{\k}{3*\i+\j}
+       \ifnum\i=0 \def\anc{north east}\else\def\anc{north west}\fi
+       \filldraw[fill=white, draw=apagado, line width=0.6pt] (\a,\b) circle (2.3pt);
+       \node[anchor=\anc, font=\scriptsize, text=apagado, inner sep=1.2pt] at (\a,\b) {$p_{\k}$};}
+  \foreach \a/\b/\g in {-0.57735/-0.57735/1, 0.57735/-0.57735/2, 0.57735/0.57735/3, -0.57735/0.57735/4}
+    {\fill[tinta] (\a,\b) circle (1.9pt);
+     \node[anchor=west, font=\scriptsize, text=tinta, inner sep=2.5pt] at (\a,\b) {$g_{\g}$};}
+  \foreach \x/\y/\l/\anc in {-1/-1/{1 (nodo 1)}/north east, 1/-1/{2 (nodo 2)}/north west,
+      -1/1/{4 (nodo 4)}/south east}
+    {\fill[tinta] (\x,\y) circle (2.3pt);
+     \node[anchor=\anc, font=\footnotesize, inner sep=2pt] at (\x,\y) {\l};}
+  \filldraw[fill=white, draw=serieA, line width=1.3pt] (1,1) circle (3.3pt);
+  \node[anchor=south west, font=\footnotesize, inner sep=2pt] at (1,1) {3 (nodo 5)};
+\end{tikzpicture}\\[2pt]
+{\footnotesize (b) Elemento $e_1$ en coordenadas naturales: nodos locales (globales),
+\tikz\fill[tinta] (0,0) circle (1.9pt); Gauss $2\times2$ para $\bm K$ y $\bm F$,
+\tikz\filldraw[fill=white, draw=apagado, line width=0.6pt] (0,0) circle (2.3pt); Gauss $3\times3$
+para el error.}
+\end{minipage}
+\caption{La malla del ejemplo y el elemento $e_1$ con sus puntos de integración.}
+\label{fig:malla}
+\end{figure}
+
+La figura~\ref{fig:malla} muestra la malla. Los nodos se numeran fila por fila desde la esquina
+inferior izquierda, como en EduFEM, y cada elemento enumera sus nodos en sentido antihorario desde
+su esquina inferior izquierda: $e_1=(1,2,5,4)$, $e_2=(2,3,6,5)$, $e_3=(4,5,8,7)$ y $e_4=(5,6,9,8)$.
+Los GDL libres son el 9 y el 10 ($u_5$ y $v_5$); los otros 16 están restringidos. La
+tabla~\ref{tab:nodos} da los valores prescritos, que salen de evaluar~\eqref{eq:uM} en cada nodo.
+
+\begin{table}[H]
+\centering\small
+\caption{Nodos de la malla $N=2$ y valores prescritos $\bar u = u_M$, $\bar v = v_M$.}\label{tab:nodos}
+\begin{tabular}{@{}cccccc@{}}
+\toprule
+Nodo & $x$ & $y$ & Tipo & $\bar u$ & $\bar v$\\
+\midrule
+\tabla{nodos}
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Funciones de forma, jacobiano y matriz \texorpdfstring{$\bm B$}{B}}
+
+Las funciones de forma del Q4 en las coordenadas naturales $\xi,\eta\in[-1,1]$ son
+\begin{equation}\label{eq:formas}
+  N_1 = \tfrac14(1-\xi)(1-\eta),\quad N_2 = \tfrac14(1+\xi)(1-\eta),\quad
+  N_3 = \tfrac14(1+\xi)(1+\eta),\quad N_4 = \tfrac14(1-\xi)(1+\eta).
+\end{equation}
+En el elemento $e_1$, el mapeo $x=\sum N_i x_i$, $y=\sum N_i y_i$ se reduce a $x = 0,25\,(1+\xi)$ e
+$y = 0,25\,(1+\eta)$, de modo que
+\[
+  \bm J = \begin{bmatrix}\partial x/\partial\xi & \partial y/\partial\xi\\
+                         \partial x/\partial\eta & \partial y/\partial\eta\end{bmatrix}
+        = \begin{bmatrix}\dato{J11} & 0\\ 0 & \dato{J11}\end{bmatrix},\qquad
+  \det\bm J = \dato{detJ},\qquad
+  \frac{\partial N_i}{\partial x} = \dato{Jinv}\,\frac{\partial N_i}{\partial \xi},\quad
+  \frac{\partial N_i}{\partial y} = \dato{Jinv}\,\frac{\partial N_i}{\partial \eta}.
+\]
+Los otros tres elementos son traslaciones de $e_1$ y tienen el mismo jacobiano. La matriz $\bm B$
+($3\times8$) ordena esas derivadas de modo que $\bm\varepsilon = \bm B\,\bm u_e$, con
+$\bm u_e = (u_1,v_1,u_2,v_2,u_3,v_3,u_4,v_4)$:
+\[
+  \bm B = \begin{bmatrix}
+    N_{1,x} & 0 & N_{2,x} & 0 & N_{3,x} & 0 & N_{4,x} & 0\\
+    0 & N_{1,y} & 0 & N_{2,y} & 0 & N_{3,y} & 0 & N_{4,y}\\
+    N_{1,y} & N_{1,x} & N_{2,y} & N_{2,x} & N_{3,y} & N_{3,x} & N_{4,y} & N_{4,x}
+  \end{bmatrix}.
+\]
+Los cuatro puntos de Gauss $2\times2$ están en $\xi,\eta=\pm1/\sqrt3=\pm\dato{gdos}$, con peso $w=1$;
+se numeran $g_1,\dots,g_4$ en sentido antihorario desde $(-,-)$ (figura~\ref{fig:malla}b). En
+$g_1=(-\dato{gdos};\,-\dato{gdos})$, por ejemplo:
+
+\begin{table}[H]
+\centering\small
+\caption{Matriz $\bm B$ del elemento $e_1$ en el punto $g_1$.}\label{tab:B}
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{@{}*{8}{r}@{}}
+\toprule
+$u_1$ & $v_1$ & $u_2$ & $v_2$ & $u_3$ & $v_3$ & $u_4$ & $v_4$\\
+\midrule
+\tabla{B}
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{La rigidez del elemento}
+
+La rigidez de cada elemento es la integral de~\eqref{eq:sistema} evaluada con los cuatro puntos de
+Gauss:
+\begin{equation}\label{eq:ke}
+  \bm k_e = \sum_{g=1}^{4} \bm B_g^{\mathsf T}\,\bm D\,\bm B_g\;\det\bm J\;w_g\;t .
+\end{equation}
+La tabla~\ref{tab:ke} muestra el resultado. Los cuatro elementos tienen la misma $\bm k_e$
+(tienen igual forma y orientación). En un cuadrado, además, $\bm k_e$ no depende del lado $a$:
+$\bm B$ es proporcional a $1/a$ y $\det\bm J$ a $a^2$, y los dos factores se compensan.
+
+\begin{table}[H]
+\centering\small
+\caption{Matriz de rigidez $\bm k_e$ de cada elemento (idéntica en los cuatro).}\label{tab:ke}
+\setlength{\tabcolsep}{4.2pt}
+\begin{tabular}{@{}c*{8}{r}@{}}
+\toprule
+ & $u_1$ & $v_1$ & $u_2$ & $v_2$ & $u_3$ & $v_3$ & $u_4$ & $v_4$\\
+\midrule
+\tabla{ke}
+\bottomrule
+\end{tabular}
+\end{table}
+
+Tres comprobaciones que se pueden hacer a mano:
+\begin{itemize}[leftmargin=1.2em]
+  \item $\bm k_e$ es simétrica.
+  \item En cada fila, la suma de las columnas $u$ y la suma de las columnas $v$ son nulas: una
+    traslación rígida no genera fuerzas. En la primera fila:
+    $\dato{ck1}+(\dato{ck3})+(\dato{ck5})+\dato{ck7} = 0$.
+  \item Cada entrada es uno de estos ocho valores multiplicado por $E\,t/(1-\nu^2) = \dato{c}$:
+    \par\smallskip
+    {\small\renewcommand{\arraystretch}{1.35}
+    \begin{tabular}{@{}l*{8}{c}@{}}
+      \toprule
+      & $k_1$ & $k_2$ & $k_3$ & $k_4$ & $k_5$ & $k_6$ & $k_7$ & $k_8$\\
+      \midrule
+      Fórmula & $\tfrac12-\tfrac\nu6$ & $\tfrac18+\tfrac\nu8$ & $-\tfrac14-\tfrac{\nu}{12}$ &
+        $-\tfrac18+\tfrac{3\nu}8$ & $-\tfrac14+\tfrac{\nu}{12}$ & $-\tfrac18-\tfrac\nu8$ &
+        $\tfrac\nu6$ & $\tfrac18-\tfrac{3\nu}8$\\
+      $\nu=\dato{nu}$ & $\dato{k1}$ & $\dato{k2}$ & $\dato{k3}$ & $\dato{k4}$ & $\dato{k5}$ &
+        $\dato{k6}$ & $\dato{k7}$ & $\dato{k8}$\\
+      \bottomrule
+    \end{tabular}}
+    \par\smallskip
+    La diagonal, por ejemplo, vale $\dato{c}\times\dato{k1} = \dato{ck1}$.
+\end{itemize}
+
+\subsection{Las ecuaciones del nodo libre}
+
+Solo interesan las filas de $\bm K$ que corresponden a los GDL libres, la 9 y la 10. El nodo 5
+pertenece a los cuatro elementos, con un número local distinto en cada uno (3 en $e_1$, 4 en $e_2$,
+2 en $e_3$ y 1 en $e_4$), y su bloque diagonal $\bm K_{55}$ ($2\times2$) es la suma de los cuatro
+bloques diagonales correspondientes:
+
+\begin{table}[H]
+\centering\small
+\caption{Ensamblaje del bloque diagonal $\bm K_{55}$.}\label{tab:Kdiag}
+\begin{tabular}{@{}ccrrr@{}}
+\toprule
+Elemento & Nodo local & $K_{xx}$ & $K_{xy}=K_{yx}$ & $K_{yy}$\\
+\midrule
+\tabla{Kdiag}
+\bottomrule
+\end{tabular}
+\end{table}
+
+Los términos cruzados $\pm\dato{ck2}$ tienen signos alternados y se cancelan, así que
+$\bm K_{55} = \dato{Kcc}\,\bm I$. Las filas 9 y 10 contienen también los bloques $\bm K_{5j}$ que
+acoplan el nodo 5 con cada nodo del contorno. La tabla~\ref{tab:vecinos} los reúne junto con los
+valores prescritos de cada nodo, que se usarán en la sección~\ref{sec:restricciones}.
+
+\begin{table}[H]
+\centering\small
+\caption{Bloques de acoplamiento $\bm K_{5j}$ entre el nodo libre y los nodos del contorno, valores
+prescritos y producto $\bm K_{5j}\,\bar{\bm u}_j$. Todos los bloques son simétricos.}\label{tab:vecinos}
+\setlength{\tabcolsep}{4.5pt}
+\begin{tabular}{@{}clrrrrrrr@{}}
+\toprule
+ & & \multicolumn{3}{c}{Bloque $\bm K_{5j}$} & \multicolumn{2}{c}{Prescritos} & \multicolumn{2}{c}{$\bm K_{5j}\,\bar{\bm u}_j$}\\
+\cmidrule(lr){3-5}\cmidrule(lr){6-7}\cmidrule(l){8-9}
+Nodo $j$ & Elementos & $K_{xx}$ & $K_{xy}$ & $K_{yy}$ & $\bar u_j$ & $\bar v_j$ & fila 9 & fila 10\\
+\midrule
+\tabla{vecinos}
+\bottomrule
+\end{tabular}
+\end{table}
+
+Comprobación: la fila completa del nodo 5 suma cero, porque una traslación rígida de toda la
+malla no genera fuerzas. En la dirección $x$:
+$\dato{Kcc} + 4(\dato{ck5}) + 2(\dato{Kvecx}) + 2(\dato{Kvecy}) = 0$.
+
+\subsection{Las fuerzas nodales de la fuerza de cuerpo}
+
+Cada elemento aporta el vector $\bm f_e = \sum_g \bm N(\xi_g,\eta_g)^{\mathsf T}\,\bm b(x_g,y_g)\,
+\det\bm J\,w_g\,t$, y del vector ensamblado solo importan las componentes del nodo libre. En $e_1$,
+el nodo 5 es el nodo local 3, cuya función de forma es $N_3 = \tfrac14(1+\xi)(1+\eta)$. Los puntos
+de Gauss caen en $x,y\in\{\dato{gA};\ \dato{gB}\}$ $(=0,25\mp0,25/\sqrt3)$, y $N_3$ vale
+$\dato{Ncerca}$ en el punto más cercano al nodo 5 ($g_3$), $\dato{Nmixto}$ en los dos intermedios y
+$\dato{Nlejos}$ en el más lejano ($g_1$):
+
+\begin{table}[H]
+\centering\small
+\caption{Aporte del elemento $e_1$ a las fuerzas del nodo 5 ($\det\bm J = \dato{detJ}$, $w_g=1$).}\label{tab:fuerzae1}
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{@{}c*{7}{r}@{}}
+\toprule
+Punto & $x$ & $y$ & $N_3$ & $b_x$ & $b_y$ & $N_3 b_x \det\bm J\,w$ & $N_3 b_y\det\bm J\,w$\\
+\midrule
+\tabla{fuerzae1}
+\bottomrule
+\end{tabular}
+\end{table}
+
+Para rehacer la componente $x$ con calculadora, conviene sacar factor común $2\mu\pi^2\det\bm J$:
+con $\sin(\pi\cdot\dato{gA}) = \dato{sA}$ y $\sin(\pi\cdot\dato{gB}) = \dato{sB}$,
+\begin{align*}
+  \sum_g N_3\,\sin\pi x_g\,\sin\pi y_g
+  &= \dato{Ncerca}\cdot\dato{sB}^2 + 2\cdot\dato{Nmixto}\cdot\dato{sB}\cdot\dato{sA}\\
+  &\quad + \dato{Nlejos}\cdot\dato{sA}^2 = \dato{sumaNss},\\
+  f_x^{(e_1)} &= \dato{K2}\times\dato{sumaNss}\times\dato{detJ} = \dato{fe1x}.
+\end{align*}
+Los cuatro elementos aportan lo mismo en $x$ por simetría. En $y$, en cambio, los aportes se
+cancelan de a pares, porque $\cos\pi x$ cambia de signo en $x=0,5$ y $\cos\pi y$ en $y=0,5$:
+
+\begin{table}[H]
+\centering\small
+\caption{Aporte de cada elemento a las fuerzas del nodo 5.}\label{tab:fuerzas}
+\begin{tabular}{@{}ccrr@{}}
+\toprule
+Elemento & Nodo local & Fila 9 ($x$) & Fila 10 ($y$)\\
+\midrule
+\tabla{fuerzas}
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Las restricciones no homogéneas}\label{sec:restricciones}
+
+Si se separan los GDL libres ($f$) de los restringidos ($r$), el sistema~\eqref{eq:sistema} queda
+\[
+  \begin{bmatrix}\bm K_{ff} & \bm K_{fr}\\ \bm K_{rf} & \bm K_{rr}\end{bmatrix}
+  \begin{Bmatrix}\bm u_f\\ \bm u_r\end{Bmatrix}
+  = \begin{Bmatrix}\bm F_f\\ \bm F_r + \bm R_r\end{Bmatrix},
+\]
+donde $\bm R_r$ son las reacciones, desconocidas. La primera fila contiene solo incógnitas en
+$\bm u_f$, porque $\bm u_r$ es conocido; al pasar el término conocido a la derecha:
+\begin{equation}\label{eq:reducido}
+  \bm K_{ff}\,\bm u_f = \bm F_f - \bm K_{fr}\,\bm u_r .
+\end{equation}
+Esta es la \emph{sustitución estática} que hace el solucionador de EduFEM (función
+\cod{apply_boundary_conditions} de \cod{fem/solver.py}). En el ejemplo,
+\[
+  \bm K_{ff} = \bm K_{55},\qquad
+  \bm F_f = \begin{Bmatrix}F_9\\ F_{10}\end{Bmatrix} = \begin{Bmatrix}\dato{F9}\\ \dato{F10}\end{Bmatrix},\qquad
+  \bm K_{fr}\,\bm u_r = \sum_j \bm K_{5j}\,\bar{\bm u}_j = \begin{Bmatrix}\dato{Kfrx}\\ \dato{Kfry}\end{Bmatrix},
+\]
+donde el último vector es la fila de sumas de la tabla~\ref{tab:vecinos}. En la fila 9 solo aportan
+las esquinas: su término cruzado $\pm\dato{nesq}$, multiplicado por $\bar v_j=\pm1$, da siempre
+$-\dato{nesq}$. Entonces
+\[
+  \bm F_f - \bm K_{fr}\,\bm u_r = \begin{Bmatrix}\dato{F9} - (\dato{Kfrx})\\ \dato{F10} - \dato{Kfry}\end{Bmatrix}
+  = \begin{Bmatrix}\dato{Fredx}\\ \dato{Fredy}\end{Bmatrix}.
+\]
+Más de un tercio del lado derecho proviene de los desplazamientos prescritos: así se ejercitan las
+restricciones no homogéneas.
+
+\subsection{La solución y el error en el nodo}
+
+\[
+  \begin{bmatrix}\dato{Kcc} & 0\\ 0 & \dato{Kcc}\end{bmatrix}
+  \begin{Bmatrix}u_5\\ v_5\end{Bmatrix} = \begin{Bmatrix}\dato{Fredx}\\ \dato{Fredy}\end{Bmatrix}
+  \quad\Longrightarrow\quad
+  u_5 = \frac{\dato{Fredx}}{\dato{Kcc}} = \dato{u5},\qquad v_5 = 0 .
+\]
+La solución exacta en el nodo es $\uM(0,5;\,0,5) = (1;\,0)$. El error nodal es
+$u_5 - 1 = \dato{erru5}$, es decir, del $\dato{erru5pct}$\,\%, y $v_5$ es exacto.
+
+Una última comprobación, de equilibrio global: las reacciones $\bm R = \bm K\bm u - \bm F$ en los GDL
+restringidos deben equilibrar la fuerza de cuerpo total. La suma de las fuerzas nodales es
+$\sum F_x = \dato{sumaFx}$ y $\sum F_y = \dato{sumaFy}$, y la de las reacciones es
+$\sum R_x = \dato{sumaRx}$ y $\sum R_y = \dato{sumaRy}$.
+
+\subsection{El error en todo el dominio}\label{sec:normas}
+
+Un error nodal pequeño no significa que la solución sea buena en todas partes. Por eso el método
+mide el error integrado sobre todo el dominio, con dos normas:
+\begin{equation}\label{eq:normas}
+  \|\eh\|_{L^2} = \Bigl(\int_\Omega \bigl[(u_h-u_M)^2 + (v_h-v_M)^2\bigr]\dd A\Bigr)^{1/2},\qquad
+  |\eh|_{H^1} = \Bigl(\int_\Omega \sum_{c,j}\Bigl(\frac{\partial (u_h-u_M)_c}{\partial x_j}\Bigr)^2\dd A\Bigr)^{1/2},
+\end{equation}
+donde la suma recorre las cuatro derivadas ($\partial u/\partial x$, $\partial u/\partial y$,
+$\partial v/\partial x$ y $\partial v/\partial y$). La primera mide el error del desplazamiento, y
+la segunda el de sus derivadas, que son las que determinan deformaciones y tensiones.
+
+Las integrales se evalúan con un punto de Gauss más por dirección que la rigidez: $3\times3$ en el
+Q4. Una cuadratura ajustada a la rigidez muestrea el campo justo en los puntos donde el error de
+discretización tiende a anularse, y subestimaría el error (en EduFEM:
+\cod{fem/error_norms.py}). Los puntos $3\times3$ están en $\xi,\eta\in\{-\sqrt{0,6};\,0;\,
+\sqrt{0,6}\}$, con pesos $\tfrac59$, $\tfrac89$ y $\tfrac59$ (tabla~\ref{tab:puntos}).
+
+Dentro de $e_1$ la solución de elementos finitos es muy sencilla: de sus cuatro nodos (1, 2, 5, 4),
+solo el 5 tiene $u\neq0$ y solo el 1 tiene $v\neq0$ ($\bar v_1 = 1$; $v_5=0$). Por lo tanto
+\[
+  u_h = u_5\,N_3 = \dato{u5}\cdot\tfrac14(1+\xi)(1+\eta), \qquad v_h = N_1 = \tfrac14(1-\xi)(1-\eta).
+\]
+
+\begin{table}[H]
+\centering\small
+\caption{Puntos de Gauss $3\times3$ en el elemento $e_1$ ($w$: peso; $w\det\bm J$: área que representa cada punto).}\label{tab:puntos}
+\begin{tabular}{@{}c*{6}{r}@{}}
+\toprule
+Punto & $\xi$ & $\eta$ & $w$ & $w\det\bm J$ & $x$ & $y$\\
+\midrule
+\tabla{puntostres}
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering\small
+\caption{Norma $L^2$: aporte de cada punto de $e_1$. La última columna es $[(u_h-u_M)^2+(v_h-v_M)^2]\,w\det\bm J$.}\label{tab:L2}
+\begin{tabular}{@{}c*{6}{r}@{}}
+\toprule
+Punto & $u_h$ & $u_M$ & $v_h$ & $v_M$ & $(u_h-u_M)^2+(v_h-v_M)^2$ & Aporte\\
+\midrule
+\tabla{L2e1}
+\bottomrule
+\end{tabular}
+\end{table}
+
+Por ejemplo, en el centro del elemento ($p_5$: $\xi=\eta=0$, $x=y=\dato{cx}$): $u_h =
+\dato{u5}\cdot\tfrac14 = \dato{uhc}$ frente a $u_M = \dato{uMc}$, y $v_h = \tfrac14 = \dato{vhc}$ frente a
+$v_M = \dato{vMc}$; la suma de cuadrados es $\dato{d2c}$ y, multiplicada por $w\det\bm J =
+\tfrac{64}{81}\cdot\dato{detJ} = \dato{dAc}$, aporta $\dato{cL2c}$.
+
+Para la seminorma $H^1$ se derivan los campos anteriores ($\partial/\partial x = 4\,\partial/\partial\xi$):
+\[
+  \frac{\partial u_h}{\partial x} = u_5\,(1+\eta),\quad
+  \frac{\partial u_h}{\partial y} = u_5\,(1+\xi),\quad
+  \frac{\partial v_h}{\partial x} = -(1-\eta),\quad
+  \frac{\partial v_h}{\partial y} = -(1-\xi),
+\]
+y se comparan con las derivadas exactas de la tabla~\ref{tab:derivadas}. En $p_5$, con las
+filas $(\partial/\partial x,\ \partial/\partial y)$ de $u$ y de $v$:
+\[
+  \nabla\bm u_h = \begin{bmatrix}\dato{gux} & \dato{guy}\\ \dato{gvx} & \dato{gvy}\end{bmatrix},\qquad
+  \nabla\uM = \begin{bmatrix}\pi/2 & \pi/2\\ -\pi/2 & -\pi/2\end{bmatrix}
+            = \begin{bmatrix}\dato{eux} & \dato{euy}\\ \dato{evx} & \dato{evy}\end{bmatrix}.
+\]
+Las diferencias son $\dato{dux}$ (dos veces) y $\dato{dvx}$ (dos veces), la suma de sus cuadrados
+es $\dato{e2c}$ y el aporte es $\dato{e2c}\times\dato{dAc} = \dato{cH1c}$.
+
+\begin{table}[H]
+\centering\small
+\caption{Seminorma $H^1$: aporte de cada punto de $e_1$. $|\nabla\eh|^2$ es la suma de los cuadrados de las cuatro diferencias entre el gradiente calculado y el exacto.}\label{tab:H1}
+\begin{tabular}{@{}c*{6}{r}@{}}
+\toprule
+Punto & $\partial u_h/\partial x$ & $\partial u_h/\partial y$ & $\partial v_h/\partial x$ & $\partial v_h/\partial y$ & $|\nabla\eh|^2$ & Aporte\\
+\midrule
+\tabla{H1e1}
+\bottomrule
+\end{tabular}
+\end{table}
+
+Los otros tres elementos son imágenes especulares de $e_1$ y aportan exactamente lo mismo
+(tabla~\ref{tab:elementos}).
+
+\begin{table}[H]
+\centering\small
+\caption{Integrales por elemento: cuadrado del error $L^2$, cuadrado del error $H^1$ y cuadrado de la norma de $\uM$.}\label{tab:elementos}
+\begin{tabular}{@{}crrr@{}}
+\toprule
+Elemento & $\int (\bm u_h-\uM)^2\dd A$ & $\int |\nabla\eh|^2\dd A$ & $\int \uM^2\dd A$\\
+\midrule
+\tabla{erroreselem}
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{resultado}{Resultado del paso 4 con $N=2$}
+Con las sumas de la tabla~\ref{tab:elementos}:
+\begin{gather*}
+  \|\eh\|_{L^2} = \sqrt{\dato{totL2}} = \dato{L2}, \qquad
+  |\eh|_{H^1} = \sqrt{\dato{totH1}} = \dato{H1},\\
+  \frac{\|\eh\|_{L^2}}{\|\uM\|_{L^2}} = \frac{\dato{L2}}{\dato{normaEx}} = \dato{L2rel}\ \text{\%}.
+\end{gather*}
+El desplazamiento en el nodo es casi exacto ($\dato{erru5pct}$\,\% de error), pero el campo tiene un
+error del $\dato{L2rel}$\,\%: entre nodos, el Q4 interpola con rectas una función senoidal, y con
+cuatro elementos esa aproximación es tosca. Estos dos números son el primer punto de las curvas de
+convergencia de la sección~\ref{sec:paso6}.
+\end{resultado}
+
+% ==================================================================================
+\section{Paso 5. El refinamiento de la malla}\label{sec:paso5}
+
+El paso 4 se repite con $N = 4$, 8, 16 y 32. A mano ya no es viable (con $N=32$ el Q4 tiene
+2178~GDL), pero el procedimiento es idéntico: la réplica del anexo~\ref{anx:replica} ejecuta en un
+bucle exactamente las operaciones de la sección~\ref{sec:mano}. Se agrega el Q9, cuyas funciones de
+forma son bicuadráticas (nueve nodos por elemento), con rigidez integrada con Gauss $3\times3$ y
+error con $4\times4$.
+
+\begin{table}[H]
+\centering\small
+\caption{Errores de la solución de elementos finitos al refinar la malla ($h=1/N$).}\label{tab:refinamiento}
+\setlength{\tabcolsep}{4.5pt}
+\begin{tabular}{@{}cc rcc rcc@{}}
+\toprule
+ & & \multicolumn{3}{c}{Q4} & \multicolumn{3}{c}{Q9}\\
+\cmidrule(lr){3-5}\cmidrule(l){6-8}
+$N$ & $h$ & GDL & $\|\eh\|_{L^2}$ & $|\eh|_{H^1}$ & GDL & $\|\eh\|_{L^2}$ & $|\eh|_{H^1}$\\
+\midrule
+\tabla{refinamiento}
+\bottomrule
+\end{tabular}
+\end{table}
+
+Estas cifras coinciden hasta la séptima cifra significativa con las de EduFEM
+(\cod{docs/vyv/datos/mms_q4.csv} y \cod{mms_q9.csv}); la tabla del MMS de la tesis muestra las
+mismas con cuatro cifras.
+
+% ==================================================================================
+\section{Paso 6. El orden observado frente al teórico}\label{sec:paso6}
+
+Si $e(h) = C\,h^p$, al pasar de una malla de tamaño $h$ a otra de tamaño $h/r$ el cociente de errores
+es $e(h)/e(h/r) = r^p$, y el orden observado se despeja como~\cite[ec.~25, p.~30]{salari}
+\begin{equation}\label{eq:tasa}
+  p_{\text{obs}} = \frac{\ln\bigl(e_{\text{gruesa}}/e_{\text{fina}}\bigr)}{\ln r}
+  \;\overset{r=2}{=}\; \log_2\frac{e_N}{e_{2N}} .
+\end{equation}
+Por ejemplo, para el Q4 en norma $L^2$ entre $N=16$ y $N=32$:
+\[
+  \frac{e_{16}}{e_{32}} = \frac{\dato{eL2dieciseis}}{\dato{eL2treintaydos}} = \dato{cocienteL2},
+  \qquad p_{\text{obs}} = \log_2\dato{cocienteL2} = \frac{\ln\dato{cocienteL2}}{\ln 2} = \dato{tasaL2}.
+\]
+
+\begin{table}[H]
+\centering\small
+\caption{Cociente de errores entre mallas sucesivas y orden observado~\eqref{eq:tasa}.}\label{tab:tasas}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}l rr rr rr rr@{}}
+\toprule
+ & \multicolumn{2}{c}{Q4, $L^2$} & \multicolumn{2}{c}{Q4, $H^1$} & \multicolumn{2}{c}{Q9, $L^2$} & \multicolumn{2}{c}{Q9, $H^1$}\\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}\cmidrule(l){8-9}
+Mallas & cociente & orden & cociente & orden & cociente & orden & cociente & orden\\
+\midrule
+\tabla{tasas}
+\midrule
+Teórico & $4$ & $2$ & $2$ & $1$ & $8$ & $3$ & $4$ & $2$\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+\begin{groupplot}[group style={group size=2 by 1, horizontal sep=1.7cm},
+  width=0.47\textwidth, height=0.44\textwidth, estilo, xmode=log, ymode=log,
+  xmin=0.024, xmax=0.9,
+  xtick={0.03125,0.0625,0.125,0.25,0.5},
+  xticklabels={$\frac{1}{32}$,$\frac{1}{16}$,$\frac18$,$\frac14$,$\frac12$},
+  xlabel={tamaño de los elementos $h$},
+  legend style={draw=none, fill=white, fill opacity=0.85, text opacity=1, font=\footnotesize, text=tintasec},
+  legend cell align=left]
+\nextgroupplot[ylabel={$\|\eh\|_{L^2}$}, title={Desplazamiento (norma $L^2$)}, legend pos=south east]
+\addplot[serieA, line width=1.1pt, mark=*, mark size=2.2pt, mark options={draw=white, line width=0.5pt, fill=serieA}]
+  table[x=h, y=L2q4] {convergencia.dat};
+\addlegendentry{Q4}
+\addplot[serieB, line width=1.1pt, mark=square*, mark size=2.1pt, mark options={draw=white, line width=0.5pt, fill=serieB}]
+  table[x=h, y=L2q9] {convergencia.dat};
+\addlegendentry{Q9}
+\addplot[apagado, densely dashed, line width=0.6pt, forget plot] table[x=h, y=L2q4] {pendientes.dat}
+  node[pos=0.55, sloped, below, font=\scriptsize, text=tintasec] {pendiente 2};
+\addplot[apagado, densely dashed, line width=0.6pt, forget plot] table[x=h, y=L2q9] {pendientes.dat}
+  node[pos=0.55, sloped, below, font=\scriptsize, text=tintasec] {pendiente 3};
+\node[right, font=\footnotesize, text=tintasec] at (axis cs:0.52,2.559362e-01) {Q4};
+\node[right, font=\footnotesize, text=tintasec] at (axis cs:0.52,2.171756e-02) {Q9};
+\nextgroupplot[ylabel={$|\eh|_{H^1}$}, title={Deformaciones (seminorma $H^1$)}, legend pos=south east]
+\addplot[serieA, line width=1.1pt, mark=*, mark size=2.2pt, mark options={draw=white, line width=0.5pt, fill=serieA}]
+  table[x=h, y=H1q4] {convergencia.dat};
+\addlegendentry{Q4}
+\addplot[serieB, line width=1.1pt, mark=square*, mark size=2.1pt, mark options={draw=white, line width=0.5pt, fill=serieB}]
+  table[x=h, y=H1q9] {convergencia.dat};
+\addlegendentry{Q9}
+\addplot[apagado, densely dashed, line width=0.6pt, forget plot] table[x=h, y=H1q4] {pendientes.dat}
+  node[pos=0.55, sloped, below, font=\scriptsize, text=tintasec] {pendiente 1};
+\addplot[apagado, densely dashed, line width=0.6pt, forget plot] table[x=h, y=H1q9] {pendientes.dat}
+  node[pos=0.55, sloped, below, font=\scriptsize, text=tintasec] {pendiente 2};
+\node[right, font=\footnotesize, text=tintasec] at (axis cs:0.52,1.495650) {Q4};
+\node[right, font=\footnotesize, text=tintasec] at (axis cs:0.52,2.911437e-01) {Q9};
+\end{groupplot}
+\end{tikzpicture}
+\caption{Convergencia en escala logarítmica. En estos ejes, $e = C\,h^p$ es una recta de pendiente
+$p$; las rectas discontinuas marcan las pendientes teóricas, desplazadas hacia abajo para no tapar
+los datos.}
+\label{fig:convergencia}
+\end{figure}
+
+Lectura de los resultados (tabla~\ref{tab:tasas} y figura~\ref{fig:convergencia}):
+
+\begin{itemize}[leftmargin=1.2em]
+  \item Los órdenes observados tienden a 2 y 1 en el Q4 y a 3 y 2 en el Q9, los valores teóricos de
+    la tabla~\ref{tab:ordenes}. Duplicar $N$ divide el error $L^2$ del Q4 por 4 y el del Q9 por 8.
+  \item En las mallas gruesas el orden todavía no se estabiliza (entre $N=2$ y $N=4$, el Q4 da
+    $\dato{tasaPrimeraQcuatro}$ en $L^2$): allí los términos de orden superior de~\eqref{eq:orden}
+    todavía pesan. Por eso el criterio se aplica al par más fino. Tampoco hay que esperar recuperar
+    el orden teórico con más de dos o tres cifras significativas~\cite[p.~30]{salari}.
+  \item El criterio de la tesis es $|p_{\text{obs}} - p_{\text{teórico}}| < 0,5$ entre $N=16$ y
+    $N=32$. Ese margen separa el orden esperado del inmediato inferior, que es lo que típicamente
+    produce un error de programación.
+\end{itemize}
+
+\begin{table}[H]
+\centering\small
+\caption{Veredicto de la prueba (par de mallas $N=16\to32$).}\label{tab:veredicto}
+\begin{tabular}{@{}llccc@{}}
+\toprule
+Elemento & Norma & Orden observado & Orden teórico & $|p_{\text{obs}}-p|<0,5$\\
+\midrule
+Q4 & $L^2$ & $\dato{tasaQcuatroLdos}$ & 2 & \cmark\ pasa\\
+Q4 & $H^1$ & $\dato{tasaQcuatroHuno}$ & 1 & \cmark\ pasa\\
+Q9 & $L^2$ & $\dato{tasaQnueveLdos}$ & 3 & \cmark\ pasa\\
+Q9 & $H^1$ & $\dato{tasaQnueveHuno}$ & 2 & \cmark\ pasa\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+EduFEM mide además el error $L^2$ del campo de tensiones \emph{recuperado} $\bm\sigma^*$ (tensiones
+en los puntos de Gauss, extrapoladas a los nodos y promediadas), que es el que muestra el
+post-proceso. Salari y Knupp advierten que el orden de las magnitudes derivadas puede ser menor que
+el de la solución~\cite[p.~29]{salari}. Como la teoría no fija un orden para esa cadena de
+recuperación, la tesis usa una cota empírica mínima (1,4 en Q4 y 1,9 en Q9); los órdenes observados
+son 1,54 y 2,00 (\cod{docs/vyv/datos/mms_resumen.csv}).
+
+% ==================================================================================
+\section{Qué verificó la prueba y qué no}\label{sec:limites}
+
+Una prueba superada verifica las partes del código que la solución manufacturada ejercita, y
+ninguna otra. Por eso la segunda pauta de Salari y Knupp pide una solución «lo bastante general como
+para ejercitar cada término de la ecuación de gobierno»~\cite[p.~23]{salari}. Para comprobarlo con
+la ley constitutiva, basta con repetir el cálculo de la sección~\ref{sec:paso3} con una matriz
+genérica de la misma forma:
+\[
+  \bm D = \begin{bmatrix} D_{11} & D_{12} & 0\\ D_{12} & D_{11} & 0\\ 0 & 0 & D_{33}\end{bmatrix}.
+\]
+Con las deformaciones~\eqref{eq:deformaciones} ($\varepsilon_y = -\varepsilon_x$ y $\gamma_{xy}=0$)
+se obtiene $\sigma_x = (D_{11}-D_{12})\,\varepsilon_x$, $\sigma_y = -\sigma_x$ y $\tau_{xy} =
+D_{33}\cdot 0 = 0$, de modo que
+\begin{equation}\label{eq:bgenerica}
+  \bm b = \pi^2\,(D_{11}-D_{12})\,\bigl(\sin\pi x\,\sin\pi y;\ \cos\pi x\,\cos\pi y\bigr).
+\end{equation}
+Solo aparece la diferencia $D_{11}-D_{12}=2\mu$. El coeficiente de corte $D_{33}$ y la parte
+$\lambda$ común a $D_{11}$ y $D_{12}$ desaparecen: no influyen ni en $\bm b$ ni en $\uM$.
+
+\textbf{Consecuencia.} Si el código tuviera un error en $D_{33}$ o en $\lambda$, el problema que
+resolvería en realidad (con la misma $\bm b$ y los mismos valores de contorno) seguiría teniendo a
+$\uM$ como solución exacta, porque las ecuaciones se cumplen con cualquier $D_{33}$ y cualquier
+$\lambda$, y la solución es única. El MEF convergería a $\uM$ con los órdenes teóricos y la prueba
+pasaría. Hay una segunda consecuencia: las matrices de tensión plana y de deformación plana tienen
+el mismo $\mu$ y difieren solo en $\lambda$ ($\dato{lam}$ frente a $\dato{lamDP}$ con estos datos),
+así que esta solución no distingue un estado plano del otro. En particular, el término fuente es el
+mismo en ambos.
+
+La tabla~\ref{tab:sabotajeA} lo comprueba sobre el propio EduFEM: se introdujeron a propósito
+errores en \cod{fem/constitutive.py} y se corrieron las cuatro configuraciones del MMS de la tesis
+con su criterio (\cod{experimento_sabotaje.py}).
+
+\begin{table}[H]
+\centering\small
+\caption{Errores introducidos en la matriz $\bm D$ de EduFEM y resultado del MMS de la tesis. Órdenes
+observados entre $N=16$ y $N=32$ (rango en las cuatro configuraciones).}\label{tab:sabotajeA}
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+ & \multicolumn{2}{c}{Q4} & \multicolumn{2}{c}{Q9} & \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}
+Error introducido & $L^2$ & $H^1$ & $L^2$ & $H^1$ & Pasan\\
+\midrule
+\tabla{sabotajeA}
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{itemize}[leftmargin=1.2em]
+  \item Si la rama de deformación plana devolviera la matriz de tensión plana, las ocho pruebas
+    pasarían: las configuraciones de deformación plana darían exactamente las cifras de las de
+    tensión plana. Ese error sí lo detecta otro test del repositorio,
+    \cod{tests/test_vv_extensions.py} (prueba 8 de 8, von Mises en deformación plana), con un
+    error del $\dato{vmsa}$\,\%.
+  \item Si $D_{33}$ estuviera duplicado ---la confusión clásica entre la deformación angular
+    $\gamma_{xy}$ y la componente tensorial $\varepsilon_{xy}=\gamma_{xy}/2$---, también pasarían
+    las ocho. Lo detecta la membrana de Cook: con Q9 de $16\times16$, $u_y = \dato{cooksb}$ frente a
+    $\dato{cookorig}$ sin el error.
+  \item El control confirma que la prueba funciona para lo que sí ejercita: si cambia $D_{11}-D_{12}$,
+    el código converge a otra solución, el error deja de bajar y el orden observado cae a cero.
+\end{itemize}
+
+Salari y Knupp describen el mismo fenómeno en uno de sus ejemplos: una malla curvilínea ortogonal
+«no fue una buena elección, porque los términos cruzados de la métrica son nulos y, si tuvieran
+errores, no aparecerían en la prueba de convergencia»~\cite[p.~69]{salari}.
+
+\subsection*{Cómo elegir una solución que ejercite todos los términos}
+
+La solución sirve si $D_{11}$, $D_{12}$ y $D_{33}$ entran en $\bm b$ de forma independiente. Una
+opción es conservar $u_M$ y cambiar la frecuencia de $v_M$ en $y$:
+\[
+  u_M = \sin\pi x\,\sin\pi y, \qquad v_M = \cos\pi x\,\cos 2\pi y .
+\]
+Con la matriz genérica, el mismo cálculo de la sección~\ref{sec:paso3} da
+\begin{equation}\label{eq:balternativa}
+\begin{aligned}
+  b_x &= \pi^2\bigl[(D_{11}+D_{33})\,\sin\pi x\,\sin\pi y - 2\,(D_{12}+D_{33})\,\sin\pi x\,\sin 2\pi y\bigr],\\
+  b_y &= \pi^2\bigl[(4D_{11}+D_{33})\,\cos\pi x\,\cos 2\pi y - (D_{12}+D_{33})\,\cos\pi x\,\cos\pi y\bigr].
+\end{aligned}
+\end{equation}
+Aparecen tres combinaciones: $D_{11}+D_{33}$, $D_{12}+D_{33}$ y $4D_{11}+D_{33}$. Son linealmente
+independientes (el determinante de sus coeficientes vale $-3$), así que cualquier error en uno de
+los tres coeficientes cambia $\bm b$. La frecuencia distinta en $y$ es necesaria: con la misma
+frecuencia en $x$ y en $y$ se cumple $\partial^2 v/\partial x^2 = \partial^2 v/\partial y^2$, y
+$D_{33}$ solo aparece sumado a $D_{11}$ o a $D_{12}$. La tabla~\ref{tab:sabotajeB} repite el
+experimento con esta solución, en tensión plana (TP) y en deformación plana (DP).
+
+\begin{table}[H]
+\centering\small
+\caption{Los mismos errores con la solución alternativa: orden observado $L^2$ / $H^1$ y veredicto.}\label{tab:sabotajeB}
+\setlength{\tabcolsep}{4.5pt}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+Error introducido & TP, Q4 & TP, Q9 & DP, Q4 & DP, Q9\\
+\midrule
+\tabla{sabotajeB}
+\bottomrule
+\end{tabular}
+\end{table}
+
+Con la solución alternativa, el código original pasa las cuatro pruebas. Con la matriz de
+deformación plana cambiada por la de tensión plana fallan las dos de deformación plana (las de
+tensión plana pasan, como corresponde, porque ahí no hay error), y con $D_{33}$ duplicado fallan
+las cuatro.
+
+\begin{aviso}{Qué significa para la tesis}
+La matriz $\bm D$ de EduFEM es correcta: coincide con la fórmula~\eqref{eq:Dnum} y la
+cubren otros tests. Lo que cambia es qué verifica el MMS tal como está programado: el ensamblaje,
+la fuerza de cuerpo, las restricciones no homogéneas, el mapeo de elementos distorsionados y la
+combinación $2\mu$ de la matriz $\bm D$, pero no $\lambda$ ni $D_{33}$. Por lo tanto, sus
+configuraciones de deformación plana no verifican por sí solas la matriz de deformación plana.
+\end{aviso}
+
+% ==================================================================================
+\section{Resumen del procedimiento}\label{sec:resumen}
+
+Para repetir el método con otra solución, otro elemento u otro código:
+
+\begin{enumerate}[leftmargin=1.6em]
+  \item Escribir las ecuaciones que resuelve el código y su orden teórico ($p+1$ en $L^2$ y $p$ en
+    $H^1$ para funciones de forma de grado completo $p$).
+  \item Diseñar la prueba: dominio, material, elemento y tipo de restricción. Conviene empezar con
+    restricciones en todo el contorno.
+  \item Elegir $\uM$: suave, que no pertenezca al espacio de los elementos, con valores no nulos en
+    el contorno y que ejercite todos los términos. Esto último se comprueba sustituyendo una matriz
+    $\bm D$ genérica y viendo que cada coeficiente sobrevive en $\bm b$.
+  \item Deducir $\bm b = -\nabla\cdot\bm\sigma(\uM)$ y los valores de contorno, entregarlos al código
+    y obtener $\bm u_h$.
+  \item Calcular $\|\eh\|_{L^2}$ y $|\eh|_{H^1}$ con una cuadratura de un orden más que la rigidez.
+  \item Refinar la malla ($N$, $2N$, $4N$, \dots) y calcular $p_{\text{obs}} = \log_2(e_N/e_{2N})$.
+  \item Comparar con el orden teórico en el par más fino: la prueba pasa si
+    $|p_{\text{obs}} - p| < 0,5$.
+  \item Si no pasa, revisar primero la prueba (la deducción de $\bm b$, los valores de contorno, el
+    cálculo de las normas y si las mallas ya están en el rango asintótico) y solo después buscar el
+    error en el código~\cite[pp.~33--35]{salari}.
+\end{enumerate}
+
+% ==================================================================================
+\appendix
+\section{Correspondencia con el código de EduFEM}\label{anx:codigo}
+
+\begin{table}[H]
+\centering\small
+\caption{Dónde hace EduFEM cada paso del ejemplo.}\label{tab:codigo}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.34\textwidth}>{\raggedright\arraybackslash}p{0.60\textwidth}@{}}
+\toprule
+Paso & Archivo y función\\
+\midrule
+Solución manufacturada y su gradiente & \cod{tests/vv_mms.py}: \cod{u_M}, \cod{grad_u_M}\\
+Fuerza de cuerpo~\eqref{eq:b} & \cod{tests/vv_mms.py}: \cod{make_body_force_fn}\\
+Malla $N\times N$ & \cod{models/mesh_utils.py}: \cod{generate_structured_quad_mesh}\\
+Nodos del contorno & \cod{tests/vv_mms.py}: \cod{boundary_nodes_topological}\\
+Restricciones no homogéneas & \cod{models/project.py}: \cod{ProjectModel.set_boundary_condition}, con \texttt{ux} y \texttt{uy} no nulos\\
+Rigidez~\eqref{eq:ke} y ensamblaje & \cod{fem/batch.py}: \cod{stiffness_batch}, \cod{assemble_sparse}; versión legible en \cod{fem/stiffness.py}\\
+Fuerzas de la fuerza de cuerpo & \cod{fem/assembly.py}: \cod{_body_force_at_gauss_points}; \cod{fem/batch.py}: \cod{body_force_batch}\\
+Sustitución estática~\eqref{eq:reducido} & \cod{fem/solver.py}: \cod{apply_boundary_conditions}\\
+Normas~\eqref{eq:normas} & \cod{fem/error_norms.py}: \cod{compute_error_norms}\\
+Tensiones recuperadas $\bm\sigma^*$ & \cod{fem/error_norms.py}: \cod{compute_stress_recovery_error}\\
+Orden observado y criterio & \cod{tests/vv_mms.py}: \cod{compute_rates}, \cod{main}\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{La réplica independiente}\label{anx:replica}
+
+El guion \cod{mms_independiente.py}, en la misma carpeta que este documento, repite el paso 4 y el
+refinamiento sin importar nada de EduFEM. Usa solo NumPy y SciPy, recorre los elementos uno por
+uno y está escrito para leerse. Se ejecuta con \texttt{python mms\_independiente.py} (unos 20~s) e
+imprime el desplazamiento del nodo central para $N=2$ y la tabla~\ref{tab:refinamiento} con sus
+órdenes. Internamente numera los nodos de cada elemento por filas (producto tensorial de dos
+bases de Lagrange 1D), no en sentido antihorario como la sección~\ref{sec:mano}; el resultado no
+depende de esa numeración.
+
+Los otros dos guiones de la carpeta regeneran el documento. \cod{generar_datos.py} calcula todas
+las cifras (escribe \cod{datos.tex}, \cod{convergencia.dat} y \cod{pendientes.dat}) y las contrasta
+con EduFEM. \cod{experimento_sabotaje.py} corre los experimentos de la sección~\ref{sec:limites}
+(escribe \cod{datos_sabotaje.tex}, unos 3~minutos).
+
+\lstinputlisting{mms_independiente.py}
+
+% ==================================================================================
+\begin{thebibliography}{9}\small
+\bibitem{salari} Salari K, Knupp P. Code verification by the method of manufactured solutions.
+  Albuquerque (NM): Sandia National Laboratories; 2000. Informe n.º SAND2000-1444.
+\bibitem{hughes} Hughes TJR. The finite element method: linear static and dynamic finite element
+  analysis. Englewood Cliffs (NJ): Prentice-Hall; 1987.
+\bibitem{strang} Strang G, Fix GJ. An analysis of the finite element method. Englewood Cliffs (NJ):
+  Prentice-Hall; 1973.
+\end{thebibliography}
+
+\end{document}

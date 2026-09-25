@@ -60,6 +60,10 @@ El gate que toda sesión debe pasar antes de pushear es `python -m tests.run_gat
 - [teoria/calidad_malla/](teoria/calidad_malla/) — las tres piezas sobre métricas de calidad
   de elementos cuadriláteros (teoría, normalización, ejemplo resuelto). Sustentan
   `fem/mesh_quality.py` y el módulo educativo M0.
+- [teoria/solucionador/](teoria/solucionador/) — cómo resuelve EduFEM `K u = F` sin invertir
+  `K`: formatos COO/CSR/CSC, factorización LU, llenado, mínimo grado sobre `Kᵀ + K` y SuperLU,
+  con ejemplos a mano y cifras medidas con el propio motor. Sustenta `fem/solver.py`,
+  `fem/batch.assemble_sparse` y `SOLVER_PERMC_SPEC`.
 
 ## Verificación y validación — [vyv/](vyv/)
 
