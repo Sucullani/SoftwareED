@@ -20,9 +20,10 @@ Soluciones analiticas (Timoshenko & Goodier, ec. 24 sec. 21):
     delta_max  = (5/24)(q l^4 / EI) [1 + (12 c^2 / 5 l^2)(4/5 + nu/2)]
 
 Puntos de comparacion (PDF):
-    A: (0, 0.6)       sigma_x_anal = 127.854 kg/cm^2,  sigma_x_SAP = 127.851
-    B: (-4.5, -0.3)   sigma_x_anal = -37.326,           sigma_x_SAP = -37.264
-    C: (-3.5, -0.2)   sigma_x_anal = -31.799,           sigma_x_SAP = -31.785
+    A: (0, 0.6)       sigma_x_anal = 127.854 kg/cm^2,  sigma_x_SAP = 127.851385
+    B: (-4.5, -0.3)   sigma_x_anal = -37.326,           sigma_x_SAP = -37.263965
+    C: (-3.5, -0.2)   sigma_x_anal = -31.799,           sigma_x_SAP = -31.785218
+    (sigma_x_SAP con los seis decimales que muestran las capturas del PDF)
 
 Unidades internas: SI (Pa, m, N/m). Conversion solo al reportar:
     1 kgf/cm^2 = 98066.5 Pa
@@ -117,11 +118,11 @@ def delta_max_analitico():
 # ─── Datos SAP2000 (extraidos del PDF) ──────────────────────────────────────
 
 SAP_DATA = {
-    "A": {"x": 0.0,  "y": 0.6,  "sigma_x_kgcm2": 127.851, "sigma_y_kgcm2": -0.079029,
+    "A": {"x": 0.0,  "y": 0.6,  "sigma_x_kgcm2": 127.851385, "sigma_y_kgcm2": -0.079029,
           "tau_xy_kgcm2": 0.0,        "u_cm":  0.0,     "v_cm": 2.0231},
-    "B": {"x": -4.5, "y": -0.3, "sigma_x_kgcm2": -37.264, "sigma_y_kgcm2": -1.018163,
+    "B": {"x": -4.5, "y": -0.3, "sigma_x_kgcm2": -37.263965, "sigma_y_kgcm2": -1.018163,
           "tau_xy_kgcm2": -5.281799,  "u_cm":  0.1133,  "v_cm": 1.0926},
-    "C": {"x": -3.5, "y": -0.2, "sigma_x_kgcm2": -31.785, "sigma_y_kgcm2": -0.905408,
+    "C": {"x": -3.5, "y": -0.2, "sigma_x_kgcm2": -31.785218, "sigma_y_kgcm2": -0.905408,
           "tau_xy_kgcm2": -4.877354,  "u_cm":  0.0624,  "v_cm": 1.4453},
 }
 

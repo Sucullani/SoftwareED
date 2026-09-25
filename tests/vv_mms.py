@@ -267,7 +267,7 @@ def plot_convergence(results_q4, results_q9, out_path, kind, title):
         ax.loglog(h_ref, c_q9 * h_ref ** 2, "--", color="#fd7e14", alpha=0.45,
                   label=r"O($h^2$)")
         ax.set_ylabel(r"$|u_h - u_M|_{H^1}$")
-    ax.set_xlabel("h (tamaño caracteristico)")
+    ax.set_xlabel("h (tamaño característico)")
     ax.set_title(title)
     ax.grid(True, which="both", linestyle=":", alpha=0.5)
     ax.legend()
