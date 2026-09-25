@@ -47,6 +47,16 @@ duplicados de `vendor/texlive` y no da accesos directos, asociación ni desinsta
 - **El `.exe` lleva datos de versión** (`version=` en el `EXE` del spec, generado en
   `build/edufem_version_info.txt` a partir de `APP_VERSION`). Sin ese recurso Windows lo
   muestra sin Descripción ni Empresa en Propiedades y los filtros de reputación lo castigan.
+- **PyMuPDF no entra al paquete** (`excludes` del spec, 2026-09-25): es AGPL-3.0 y dejaba el
+  instalador entero sujeto a esa licencia, contra el MIT de EduFEM. Los PDF se abren con el
+  visor del sistema. Sigue instalado en el `.venv` para dos guiones de `tesis/respaldo_citas/`,
+  por eso la exclusión: `build_all.ps1` frena el build si aparece en `_internal\` y
+  `test_distribucion` vigila el spec, `requirements.txt` y los imports del programa.
+- **Avisos de licencia de terceros**: `tools/licencias_terceros.py` →
+  `installer/dist_extra/LICENCIAS-TERCEROS.txt`, que el `.iss` instala en `{app}` (las
+  licencias BSD/MIT piden el aviso en la copia binaria, y PyInstaller no copia los
+  `dist-info`). `build_all.ps1` lo regenera después de PyInstaller leyendo `build/build/*.toc`,
+  así lista lo que de verdad entró; el archivo se versiona y su diff muestra qué cambió.
 
 ## Versión: una sola fuente
 

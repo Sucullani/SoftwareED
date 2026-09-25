@@ -18,7 +18,7 @@ from .latex_image import (
     render_matrix_image, render_expression_image, fit_matrix_widget,
 )
 from .theory_builder import TheoryDoc
-from .theory_viewer import TheoryViewer
+from .theory_viewer import open_theory_pdf
 from .formula_value_blocks import FormulaValueBlocksToggle
 from .iso_inverse import iso_inverse_map, natural_to_physical, element_coords
 from . import gauss_glyph
@@ -31,7 +31,7 @@ __all__ = [
     "render_expression_image",
     "fit_matrix_widget",
     "TheoryDoc",
-    "TheoryViewer",
+    "open_theory_pdf",
     "FormulaValueBlocksToggle",
     "iso_inverse_map",
     "natural_to_physical",

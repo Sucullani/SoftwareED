@@ -30,8 +30,8 @@ relativas al CWD.
 
 Incluye:
     - resources/ entera (videos, fuentes, ejemplos, iconos)
-    - hidden imports de pylatex / fitz / pylatex.utils (no detectados
-      por autodiscover de PyInstaller en algunas versiones)
+    - hidden imports de pylatex / pylatex.utils (no detectados por
+      autodiscover de PyInstaller en algunas versiones)
 
 NO mete el TeX dentro del bundle: el TeX Live recortado (vendor/texlive,
 generado por tools/build_texlive.py) va como carpeta `texlive/` HERMANA del
@@ -131,8 +131,6 @@ hiddenimports = [
     *edu_modules,
     # pylatex tiene submodulos no detectados por autodiscover.
     *collect_submodules("pylatex"),
-    # fitz / PyMuPDF
-    "fitz",
     # PIL plugins
     "PIL._tkinter_finder",
     # scipy.sparse linalg backend
@@ -175,6 +173,26 @@ a = Analysis(
         # pero basta que aparezca en el venv para sumar 3,9 MB al entregable.
         # Mismo caso para BeautifulSoup.
         "lxml", "bs4", "soupsieve",
+        # PyMuPDF es AGPL-3.0 (o licencia comercial): dentro del paquete lo
+        # dejaba entero sujeto a esa licencia, contra el MIT de EduFEM. Se
+        # retiro el 2026-09-25 (la Teoria se abre con el visor del sistema),
+        # pero sigue instalado en el venv para dos guiones de la tesis que no
+        # se distribuyen: la exclusion garantiza que no vuelva a entrar.
+        # Eran 37 MB de _internal/.
+        "fitz", "pymupdf",
+        # Mismo caso que lxml: importaciones opcionales de las dependencias
+        # que PyInstaller arrastra solo porque estan instaladas en el venv
+        # (las pidieron manim, moderngl-window, edge-tts y reportlab, que usan
+        # las herramientas de videos y de la presentacion). EduFEM no usa
+        # ninguna, y certifi (MPL-2.0) era la unica licencia no permisiva
+        # que quedaba en el paquete tras retirar PyMuPDF:
+        #   pyglet              <- sympy.plotting.PygletPlot (import perezoso)
+        #   certifi             <- matplotlib._get_ssl_context (URLs; try/except)
+        #   charset_normalizer  <- numpy.f2py (generador de interfaces Fortran)
+        #   pathops             <- fontTools.ttLib.removeOverlaps (3,8 MB)
+        #   win32pdh/pywintypes <- numpy.testing (solo en tests)
+        "pyglet", "certifi", "charset_normalizer", "pathops",
+        "win32pdh", "pywintypes",
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,

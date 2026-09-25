@@ -543,7 +543,7 @@ def cap_validador_salud(app):
 def _grab_new_top_any(app, construct_fn, name, settle=18):
     """Como _grab_new_toplevel pero detecta el Toplevel nuevo por
     winfo_class()=='Toplevel' (robusto a subclases: Surface3DViewer,
-    TheoryViewer, diálogos que heredan de Toplevel). Captura y destruye."""
+    diálogos que heredan de Toplevel). Captura y destruye."""
     before = set(str(w) for w in app.root.winfo_children())
     try:
         construct_fn()
@@ -681,11 +681,9 @@ def cap_vista3d(app):
                       "fig_vista3d.png", settle=28)
 
 
-def cap_theory_hub(app):
-    """Ayuda ▸ Teoría del MEF: documento teórico unificado (TheoryViewer)."""
-    from gui.dialogs.theory_hub_dialog import open_theory_hub
-    _grab_new_top_any(app, lambda: open_theory_hub(app.root),
-                      "fig_theory_hub.png", settle=24)
+# Ayuda ▸ Teoría MEF ya no tiene ventana propia que capturar: desde el
+# 2026-09-25 el PDF se abre en el visor del sistema (PyMuPDF, AGPL-3.0, se
+# retiró). La figura fig_theory_hub.png no la usa ninguna versión vigente.
 
 
 def cap_dialogo_analisis(app):
@@ -715,7 +713,6 @@ def main():
         ("timoshenko", cap_timoshenko),
         ("cook_deformed", cap_cook_deformed),
         ("vista3d", cap_vista3d),
-        ("theory", cap_theory_hub),
         ("analisis", cap_dialogo_analisis),
     ] + mod_entries
     sel = sys.argv[1:]

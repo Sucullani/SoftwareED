@@ -5,14 +5,17 @@ de fuente (`ast` / substring), igual que `test_dialogs`; lo que es logica pura
 (mapeo inverso, conversion unicode->LaTeX, formateo) se ejecuta de verdad.
 
 Cubre:
-  1. `TheoryViewer` no usa `bind_all` para la rueda (el visor NO es modal: con
-     la Teoria abierta la rueda sobre el MeshCanvas hacia zoom Y scrolleaba el
-     PDF, y el binding global sobrevivia al cierre de la ventana).
-  2. `TheoryViewer` cierra con `Escape` via `bind_dialog_keys` y se centra con
-     `center_dialog`.
-  3. Sin `pdflatex`, el visor abre el MISMO dialogo con boton de descarga que
-     la Memoria de Calculo (una sola via para la misma causa).
-  4. `TheoryViewer` no le muestra al alumno el nombre-hash del PDF cacheado.
+  1. La Teoria en PDF se abre con el visor del sistema, como la Memoria: sin
+     biblioteca de lectura de PDF (PyMuPDF, AGPL-3.0, se retiro el
+     2026-09-25) ni Toplevel propio.
+  2. El hilo que compila no toca Tk: el resultado viaja por una cola que el
+     hilo principal sondea con `after`.
+  3. Sin `pdflatex` se abre el MISMO dialogo con boton de descarga que la
+     Memoria de Calculo (una sola via para la misma causa).
+  4. El archivo que abre el visor se llama como el documento, no como el
+     hash del cache; un PDF ya compilado no se recompila; y el flujo entero
+     (doble clic, apertura, error de compilacion, pdflatex faltante) corre
+     con Tk y el visor reemplazados por dobles.
   5. `_hash_doc` no colapsa dos documentos distintos en la misma clave de
      cache cuando `dumps()` falla.
   6. `render_matrix_image` NO cachea su placeholder 1x1: cachearlo dejaba esa
@@ -55,35 +58,52 @@ def _fuente(rel):
 
 
 # ═════════════════════════════════════════════════════════════════════════
-print("\n[1] TheoryViewer: la rueda NO se ata a toda la aplicacion")
+print("\n[1] Teoria en PDF: visor del sistema, sin biblioteca de PDF")
 
 src_viewer = _fuente("education/components/theory_viewer.py")
-
-# Se busca la LLAMADA (`.bind_all(` / `.unbind_all(`), no la palabra: el
-# comentario del archivo explica justamente por que no se usa.
-check(".bind_all(" not in src_viewer and ".unbind_all(" not in src_viewer,
-      "sin bind_all/unbind_all en el visor de Teoria",
-      "el visor no es modal: bind_all escribe en el bindtag `all` de la app")
-check('self.bind("<MouseWheel>"' in src_viewer,
-      "la rueda va atada al Toplevel (cubre todos sus descendientes)")
+arbol_v = ast.parse(src_viewer)
+importados = set()
+for n in ast.walk(arbol_v):
+    if isinstance(n, ast.Import):
+        importados |= {a.name.split(".")[0] for a in n.names}
+    elif isinstance(n, ast.ImportFrom) and n.module:
+        importados.add(n.module.split(".")[0])
+check(not importados & {"fitz", "pymupdf", "pypdfium2"},
+      "no importa ninguna biblioteca de lectura de PDF",
+      f"importa {sorted(importados & {'fitz', 'pymupdf', 'pypdfium2'})}: "
+      "PyMuPDF es AGPL-3.0 y dejaba el instalador sujeto a esa licencia")
+check("Toplevel" not in src_viewer.split('"""', 2)[2],
+      "no arma un Toplevel propio: el PDF lo muestra el visor del sistema")
+check("os.startfile(" in src_viewer,
+      "abre el PDF con el programa asociado, como la Memoria de Calculo")
 
 
 # ═════════════════════════════════════════════════════════════════════════
-print("\n[2] TheoryViewer: Escape cierra y la ventana se centra")
+print("\n[2] El hilo que compila no toca Tk")
 
-check("bind_dialog_keys" in src_viewer and "on_escape=self.destroy" in src_viewer,
-      "Escape cierra, por el helper compartido (no un bind suelto)")
-check("center_dialog(self, parent" in src_viewer,
-      "se centra con center_dialog (regla dura 19)")
-check("on_return" not in src_viewer,
-      "NO ata Return: un visor de lectura no tiene accion primaria")
+fn_open = next(n for n in ast.walk(arbol_v)
+               if isinstance(n, ast.FunctionDef) and n.name == "open_theory_pdf")
+anidadas = {n.name: n for n in ast.walk(fn_open)
+            if isinstance(n, ast.FunctionDef) and n is not fn_open}
+llamadas_tk = sorted({
+    n.func.attr for n in ast.walk(anidadas["worker"])
+    if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+    and n.func.attr in ("after", "after_idle", "configure", "config",
+                        "showerror", "showwarning", "update")
+})
+check(not llamadas_tk,
+      "el worker no llama a Tk (Misc.after desde otro hilo no es seguro)",
+      f"llama a {llamadas_tk}")
+check(any(isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+          and n.func.attr == "after" for n in ast.walk(anidadas["sondear"])),
+      "el hilo principal sondea la cola con after")
 
 
 # ═════════════════════════════════════════════════════════════════════════
 print("\n[3] Falta pdflatex: una sola via, la de la Memoria")
 
 check("show_pdflatex_missing_dialog" in src_viewer,
-      "el visor abre el dialogo con boton de descarga",
+      "la Teoria abre el dialogo con boton de descarga",
       "antes escribia su propio texto en un label del encabezado")
 
 src_pdflatex = _fuente("gui/dialogs/pdflatex_missing_dialog.py")
@@ -97,20 +117,153 @@ check(not labels_fijos,
       "ningun label del dialogo dice 'Memoria de Calculo' fijo",
       f"lineas: {labels_fijos}")
 
-arbol_v = ast.parse(src_viewer)
-metodos = {n.name for n in ast.walk(arbol_v) if isinstance(n, ast.FunctionDef)}
-check("_show_missing_latex" in metodos,
-      "el camino de pdflatex faltante vive en su propio metodo")
+funciones = {n.name for n in ast.walk(arbol_v) if isinstance(n, ast.FunctionDef)}
+check("_show_missing_latex" in funciones,
+      "el camino de pdflatex faltante vive en su propia funcion")
 
 
 # ═════════════════════════════════════════════════════════════════════════
-print("\n[4] TheoryViewer: la barra de estado no muestra el hash del cache")
+print("\n[4] El PDF lleva el nombre del documento y el flujo corre entero")
 
-check('f"Teoría — {pdf_path.name}"' not in src_viewer,
-      "no se muestra el nombre-hash del PDF cacheado",
-      "el alumno leia algo como `Teoría — a3f2b9c1d4e5f607.pdf`")
-check("página" in src_viewer and "Escape para cerrar" in src_viewer,
-      "el estado dice cuantas paginas hay y como cerrar")
+import tempfile                                                   # noqa: E402
+import time                                                       # noqa: E402
+from pathlib import Path                                          # noqa: E402
+
+import education.components.theory_viewer as tv                   # noqa: E402
+import gui.dialogs.pdflatex_missing_dialog as dlg_pdflatex        # noqa: E402
+from education.components.theory_builder import TheoryDoc         # noqa: E402
+
+ruta = tv.pdf_path_for("a3f2b9c1d4e5f607", "Teoría MEF — EduFEM")
+check(ruta.name == "Teoría MEF — EduFEM.pdf"
+      and ruta.parent.name == "a3f2b9c1d4e5f607",
+      "el visor muestra el nombre del documento; el hash queda en la carpeta",
+      f"ruta = {ruta}")
+check(tv.pdf_path_for("k", 'a<b>:c"d/e\\f|g?h*. ').name == "abcdefgh.pdf"
+      and tv.pdf_path_for("k", "").name == "Teoría.pdf",
+      "el nombre se limpia de lo que Windows no admite en un archivo")
+
+
+class _ParentFalso:
+    """Raiz Tk doble: guarda los `after` en vez de programarlos."""
+
+    def __init__(self):
+        self.pendientes = []
+
+    def after(self, _ms, fn):
+        self.pendientes.append(fn)
+
+
+class _MessageboxFalso:
+    def __init__(self):
+        self.llamadas = []
+
+    def showwarning(self, *a, **k):
+        self.llamadas.append("showwarning")
+
+    def showerror(self, *a, **k):
+        self.llamadas.append("showerror")
+
+
+def _esperar(parent, segundos=10.0):
+    """Corre los `after` pendientes hasta que el sondeo deje de reprogramarse."""
+    limite = time.monotonic() + segundos
+    while parent.pendientes and time.monotonic() < limite:
+        fn = parent.pendientes.pop(0)
+        fn()
+        if parent.pendientes:
+            time.sleep(0.02)
+
+
+compilaciones = []
+modo = {"compile": "ok"}
+
+
+def _compile_falso(self, filepath_no_ext, **_kw):
+    compilaciones.append(filepath_no_ext)
+    if modo["compile"] == "sin_latex":
+        raise FileNotFoundError("pdflatex no encontrado (doble)")
+    if modo["compile"] == "error":
+        e = RuntimeError("pdflatex termino con codigo 1 (doble)")
+        e.log_tail = "\n! Undefined control sequence.\nl.12 \\foo"
+        raise e
+    if modo["compile"] == "ok":
+        # Como compile_document: crea la carpeta de destino si no existe.
+        destino = Path(filepath_no_ext + ".pdf")
+        destino.parent.mkdir(parents=True, exist_ok=True)
+        destino.write_bytes(b"%PDF-1.7 doble\n")
+
+
+abiertos, mensajes = [], []
+mb_falso = _MessageboxFalso()
+dialogos_latex = []
+originales = (tv.USER_CONFIG_DIR, TheoryDoc.compile_to, tv._abrir_con_visor,
+              tv.messagebox, dlg_pdflatex.show_pdflatex_missing_dialog)
+with tempfile.TemporaryDirectory() as tmp:
+    try:
+        tv.USER_CONFIG_DIR = tmp
+        TheoryDoc.compile_to = _compile_falso
+        tv._abrir_con_visor = abiertos.append
+        tv.messagebox = mb_falso
+        dlg_pdflatex.show_pdflatex_missing_dialog = (
+            lambda parent, documento="": dialogos_latex.append(documento))
+
+        # Cache: la segunda vez no se compila.
+        p1 = tv.build_theory_pdf("Prueba — EduFEM")
+        p2 = tv.build_theory_pdf("Prueba — EduFEM")
+        check(p1 == p2 and p1.exists() and len(compilaciones) == 1,
+              "un PDF ya compilado se reutiliza sin llamar otra vez a pdflatex",
+              f"{len(compilaciones)} compilaciones")
+        modo["compile"] = "no_genera"
+        try:
+            tv.build_theory_pdf("Otra prueba")
+            check(False, "un PDF que no se genero eleva un error")
+        except FileNotFoundError:
+            check(False, "un PDF que no se genero NO se confunde con "
+                  "pdflatex faltante", "elevo FileNotFoundError")
+        except RuntimeError:
+            check(True, "un PDF que no se genero NO se confunde con "
+                  "pdflatex faltante")
+
+        # Flujo completo: doble clic -> una sola compilacion -> se abre.
+        modo["compile"] = "ok"
+        compilaciones.clear()
+        parent = _ParentFalso()
+        tv.open_theory_pdf(parent, "Flujo", documento="la Teoría MEF",
+                           on_status=mensajes.append)
+        tv.open_theory_pdf(parent, "Flujo", documento="la Teoría MEF",
+                           on_status=mensajes.append)
+        _esperar(parent)
+        check(len(compilaciones) == 1 and len(abiertos) == 1
+              and abiertos[0].name == "Flujo.pdf",
+              "doble clic: una sola compilacion y un solo PDF abierto",
+              f"{len(compilaciones)} compilaciones, abiertos = {abiertos}")
+        check(any("se está preparando" in m for m in mensajes)
+              and mensajes[-1] == "La Teoría MEF se abrió en el visor de PDF.",
+              "la barra de estado acompana la espera y el final",
+              f"mensajes = {mensajes}")
+        check("Flujo" not in tv._EN_CURSO,
+              "al terminar, el documento se puede volver a pedir")
+
+        # Error de compilacion: un showerror con la causa, no un silencio.
+        modo["compile"] = "error"
+        parent = _ParentFalso()
+        tv.open_theory_pdf(parent, "Con error", on_status=mensajes.append)
+        _esperar(parent)
+        check(mb_falso.llamadas == ["showerror"],
+              "un fallo de pdflatex se muestra con su causa",
+              f"llamadas = {mb_falso.llamadas}")
+
+        # Sin pdflatex: el dialogo de la Memoria, con el documento pedido.
+        modo["compile"] = "sin_latex"
+        parent = _ParentFalso()
+        tv.open_theory_pdf(parent, "Sin LaTeX", documento="la Teoría MEF")
+        _esperar(parent)
+        check(dialogos_latex == ["la Teoría MEF"],
+              "sin pdflatex se abre el dialogo con boton de descarga",
+              f"dialogos = {dialogos_latex}")
+    finally:
+        (tv.USER_CONFIG_DIR, TheoryDoc.compile_to, tv._abrir_con_visor,
+         tv.messagebox, dlg_pdflatex.show_pdflatex_missing_dialog) = originales
 
 
 # ═════════════════════════════════════════════════════════════════════════

@@ -42,9 +42,13 @@ Canon completo: **[docs/convenciones/memoria-calculo.md](../../docs/convenciones
   la hoja**, invisible, por el ruido de redondeo que
   `fem.symbolic_integrand.podar_ruido` ahora elimina.
 - **Compilación solo vía `latex_runtime.compile_document`** (`TheoryDoc.compile_to` y
-  `TheoryViewer` ya pasan por ahí): resuelve el TeX Live embebido antes que el PATH, compila en
+  `theory_viewer.build_theory_pdf` ya pasan por ahí): resuelve el TeX Live embebido antes que el PATH, compila en
   un temporal con ruta ASCII sin ventana de consola y mueve el PDF al destino. No volver a
   llamar `Document.generate_pdf` de pylatex ni a `latexmk`.
+- **Sin biblioteca de lectura de PDF**: la Teoría (`theory_viewer.open_theory_pdf`) y la
+  Memoria se abren con el visor del sistema. PyMuPDF es AGPL-3.0 y `build.spec` lo excluye; no
+  volver a un visor propio. El hilo que compila la Teoría no toca Tk: cola + `after` desde el
+  hilo principal.
 - **Las figuras de la Memoria se referencian por nombre relativo** (`_save_figure` devuelve
   `nombre.png` y se compila en ese mismo `workdir`): ninguna ruta absoluta entra al `.tex`.
 - `pdflatex` sigue sin fallback: si no hay ni bundle ni PATH, `memoria_calculo.compile` eleva

@@ -42,7 +42,8 @@ alumno que abre el programa por primera vez. En concreto, y por orden de priorid
 - **No es un generador de features.** No se inventan capacidades nuevas que la tesis no
   reclama. Versatilidad significa que lo que ya existe se pueda usar mejor.
 - **No agrega dependencias.** El stack está cerrado: `tkinter` + `ttkbootstrap` (tema
-  `darkly`), NumPy/SciPy, matplotlib, Pillow, pylatex, ezdxf, PyMuPDF. **Cero librerías
+  `darkly`), NumPy/SciPy, matplotlib, Pillow, pylatex, ezdxf (PyMuPDF salió el 2026-09-25 por
+  su licencia AGPL-3.0: los PDF se abren con el visor del sistema; no reintroducirlo). **Cero librerías
   nuevas**, cero `pip install`, cero `requirements.txt` tocado. Si algo parece necesitar una
   librería, se resuelve con lo que hay o se anota en el BACKLOG como propuesta.
 - **No es una auditoría.** Auditar sin tocar ya lo hace `/schedule`

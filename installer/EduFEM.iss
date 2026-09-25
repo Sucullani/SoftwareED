@@ -185,6 +185,10 @@ Source: "..\dist\EduFEM\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdir
 Source: "..\resources\icons\{#MyAppDocIcon}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "dist_extra\LEEME.txt"; DestDir: "{app}"; DestName: "LEEME.txt"; Flags: ignoreversion
 Source: "..\LICENSE"; DestDir: "{app}"; DestName: "LICENCIA.txt"; Flags: ignoreversion
+; Avisos de licencia de las bibliotecas que van dentro del paquete: sus
+; licencias BSD/MIT piden que acompanen a la copia binaria, y PyInstaller no
+; copia los dist-info. Lo genera tools\licencias_terceros.py (build_all.ps1).
+Source: "dist_extra\LICENCIAS-TERCEROS.txt"; DestDir: "{app}"; Flags: ignoreversion
 #ifndef NOTEX
   #if !FileExists(AddBackslash(SourcePath) + "..\vendor\texlive\bin\windows\pdflatex.exe")
     #error Falta vendor\texlive (TeX Live recortado). Correr: python tools\build_texlive.py  (o compilar con /DNOTEX)

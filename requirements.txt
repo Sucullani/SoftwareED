@@ -4,9 +4,12 @@ sympy>=1.12
 matplotlib>=3.7.0,<4.0
 ttkbootstrap>=1.10.0,<2
 pylatex>=1.4.2,<2
-PyMuPDF>=1.24.0,<2
 Pillow>=10.0.0,<14
 ezdxf>=1.0,<2
+#
+# Sin biblioteca de lectura de PDF: la Memoria de Cálculo y la Teoría se abren
+# con el visor de PDF del sistema. PyMuPDF se retiró el 2026-09-25 porque es
+# AGPL-3.0 y viajaba dentro del instalador (ver build.spec, `excludes`).
 #
 # Binario externo, no instalable por pip: pdflatex. Lo necesitan la Memoria de
 # Cálculo en PDF y los documentos de teoría (pylatex -> pdflatex).

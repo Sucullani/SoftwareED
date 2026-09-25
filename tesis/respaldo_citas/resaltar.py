@@ -8,6 +8,10 @@ nota amarilla en la esquina.
 Lo que no se puede marcar se INFORMA al final. La version anterior de este script
 saltaba en silencio las fuentes cuyo archivo no encontraba y los respaldos sin
 pagina, y por eso Alvarez y Oberkampf quedaron sin resaltar sin que nadie lo notara.
+
+Requiere PyMuPDF (`pip install pymupdf`), que NO es dependencia de EduFEM: se
+retiro del programa el 2026-09-25 por su licencia AGPL-3.0, que obliga al
+distribuirlo. Este guion es una herramienta local de la tesis y no se distribuye.
 """
 import json, os, io, sys, re, unicodedata, fitz
 

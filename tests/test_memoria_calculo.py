@@ -1188,15 +1188,15 @@ def test_maqueta_sin_desbordes_ni_hojas_flojas() -> bool:
 
     Cubre ademas **Q9 + directo**, la unica de las cuatro combinaciones que
     no se compilaba nunca y la que mas `matrix_blocks` emite.
+
+    Todo se lee de lo que deja pdflatex, sin biblioteca de PDF (PyMuPDF, que
+    es AGPL-3.0, se retiro del proyecto el 2026-09-25): las hojas, de la
+    linea `Output written on ... (N pages` del `.log`; y las apaisadas, del
+    `.tex` compilado, que es el unico lugar de donde pueden salir.
     """
     print("test_maqueta_sin_desbordes_ni_hojas_flojas ...")
     if not _has_pdflatex():
         print("  SKIP: pdflatex no encontrado en PATH")
-        return True
-    try:
-        import fitz  # noqa: F401
-    except ImportError:
-        print("  SKIP: PyMuPDF no disponible")
         return True
     import re as _re
     import shutil
@@ -1246,13 +1246,17 @@ def test_maqueta_sin_desbordes_ni_hojas_flojas() -> bool:
                 print(f"  FAIL: {nombre}: {len(over)} Overfull hbox "
                       f"(el peor, {peor:.1f} pt fuera de la hoja)")
                 ok = False
-            import fitz as _fitz
-            doc = _fitz.open(base + ".pdf")
-            paginas = doc.page_count
-            apaisadas = sum(1 for pg in doc if pg.rect.width > pg.rect.height)
-            doc.close()
-            if apaisadas:
-                print(f"  FAIL: {nombre}: {apaisadas} hojas apaisadas")
+            m = _re.search(r"Output written on .*?\((\d+) pages?", texto,
+                           _re.DOTALL)
+            if not m:
+                print(f"  FAIL: {nombre}: el .log no dice cuantas hojas salieron")
+                ok = False
+                continue
+            paginas = int(m.group(1))
+            tex = Path(base + ".tex").read_text(encoding="utf-8",
+                                                errors="replace")
+            if "landscape" in tex or _re.search(r"/Rotate\s*(90|270)", tex):
+                print(f"  FAIL: {nombre}: el .tex compilado tiene hojas apaisadas")
                 ok = False
             if paginas > tope:
                 print(f"  FAIL: {nombre}: {paginas} hojas (tope {tope})")

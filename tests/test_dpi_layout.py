@@ -80,7 +80,6 @@ VENTANAS = [
     ("gui/dialogs/health_report_dialog.py", 780, 620),
     ("gui/dialogs/dxf_import_dialog.py", 760, 500),
     ("gui/dialogs/memoria_style_dialog.py", 460, 210),
-    ("education/components/theory_viewer.py", 900, 820),
     ("education/mod05_stiffness.py", 900, 700),
     ("gui/postprocessing/surface_3d_viewer.py", 900, 700),
 ]

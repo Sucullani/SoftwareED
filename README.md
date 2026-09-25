@@ -43,7 +43,8 @@ python -m venv .venv
 ```
 
 Requiere **Python 3.11+**. Dependencias: NumPy, SciPy, SymPy, matplotlib, ttkbootstrap,
-pylatex, PyMuPDF, Pillow, ezdxf. Para la memoria en PDF: `python tools/build_texlive.py`
+pylatex, Pillow, ezdxf. Ninguna lee PDF: la memoria y la teoría se abren con el visor de PDF
+del sistema. Para la memoria en PDF: `python tools/build_texlive.py`
 genera `vendor/texlive` (TeX Live recortado, una sola vez); si no está, se usa el `pdflatex`
 del PATH (MiKTeX o TeX Live).
 

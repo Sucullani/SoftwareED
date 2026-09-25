@@ -9,6 +9,8 @@
 #    2) Iconos e imagenes    tools\make_icon.py            -> resources\icons\*.ico
 #                            tools\make_installer_images.py -> installer\assets\*.bmp
 #    3) Ejecutable           PyInstaller (onedir)          -> dist\EduFEM\
+#                            + control de lo que entro y avisos de licencia
+#                            tools\licencias_terceros.py   -> installer\dist_extra\LICENCIAS-TERCEROS.txt
 #    4) Instalador           Inno Setup                    -> EduFEM-Setup.exe
 #
 #  Uso:
@@ -93,6 +95,21 @@ for ($i = 1; $i -le $intentos; $i++) {
     Start-Sleep -Seconds 20
 }
 
+# PyMuPDF no puede volver al paquete: es AGPL-3.0 y dejaria el instalador
+# entero sujeto a esa licencia. build.spec lo excluye (sigue en el venv para
+# dos guiones de la tesis); esto frena el build si alguien quita la exclusion.
+$internal = Join-Path $distApp "_internal"
+foreach ($prohibido in @("pymupdf", "fitz")) {
+    if (Test-Path (Join-Path $internal $prohibido)) {
+        throw "El paquete trae '$prohibido' (PyMuPDF, AGPL-3.0): revisar los excludes de build.spec"
+    }
+}
+
+# Avisos de licencia de lo que efectivamente entro: el guion lee la lista que
+# PyInstaller acaba de dejar en build\build\*.toc.
+& $venv (Join-Path $root "tools\licencias_terceros.py")
+if ($LASTEXITCODE -ne 0) { throw "licencias_terceros.py fallo" }
+
 # ── 4. Instalador ───────────────────────────────────────────────────────────
 Paso 4 "Instalador con Inno Setup"
 if (-not (Test-Path $iscc)) {
@@ -119,6 +136,7 @@ if ($Portable) {
     Copy-Item (Join-Path $root "installer\dist_extra\Iniciar_EduFEM.bat") (Join-Path $portable "Iniciar EduFEM.bat") -Force
     Copy-Item (Join-Path $root "installer\dist_extra\Crear_acceso_directo_EduFEM.bat") (Join-Path $portable "Crear acceso directo EduFEM.bat") -Force
     Copy-Item (Join-Path $root "LICENSE") (Join-Path $portable "LICENCIA.txt") -Force
+    Copy-Item (Join-Path $root "installer\dist_extra\LICENCIAS-TERCEROS.txt") (Join-Path $portable "LICENCIAS-TERCEROS.txt") -Force
 }
 
 # ── Resumen ─────────────────────────────────────────────────────────────────

@@ -112,6 +112,12 @@ carpeta "texlive", junto al programa: no hay que instalar
 MiKTeX, no hace falta internet y no aparece ningún diálogo
 pidiendo instalar paquetes.
 
+Los dos documentos se abren con el visor de PDF de Windows
+(Microsoft Edge, salvo que hayas elegido otro), en una ventana
+aparte que puede quedar abierta mientras trabajás. La Teoría
+MEF tarda unos segundos la primera vez, mientras se compila;
+después se abre al instante.
+
 Si esa carpeta faltara, EduFEM usa el pdflatex que encuentre
 instalado en la PC; y si tampoco lo hay, muestra un aviso con un
 botón de descarga. La solución más simple en ese caso es volver
@@ -153,6 +159,10 @@ con PyInstaller.)
 - La Memoria PDF falla y el programa está instalado en una
   carpeta con tildes o espacios: reinstalá en
   C:\ProgramData\EduFEM (ver la sección 3).
+- Se pide la Teoría MEF o la Memoria y no se abre nada:
+  Windows no tiene un programa asociado a los archivos PDF. El
+  aviso indica dónde quedó el archivo; se abre con cualquier
+  visor de PDF.
 - La ventana se ve cortada o los botones no entran: es un
   problema de escala de pantalla; probá bajar el zoom en
   Configuración de Windows -> Pantalla -> Escala.
@@ -178,8 +188,15 @@ guardado.
 11. CÓDIGO FUENTE Y LICENCIA
 ------------------------------------------------------------
 EduFEM es software libre y de código abierto, bajo licencia MIT
-(el texto completo está en LICENCIA.txt, junto al programa). El
-código fuente, las novedades y la forma de reportar problemas
+(el texto completo está en LICENCIA.txt, junto al programa).
+
+Los componentes de terceros que trae el instalador (el
+intérprete de Python, sus bibliotecas y el motor LaTeX)
+conservan sus propias licencias, todas libres y compatibles con
+esa redistribución. Sus avisos están en LICENCIAS-TERCEROS.txt,
+también junto al programa.
+
+El código fuente, las novedades y la forma de reportar problemas
 están en:
 
     https://github.com/Sucullani/SoftwareED

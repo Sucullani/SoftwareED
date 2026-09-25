@@ -1416,10 +1416,12 @@ class MainWindow:
         Reemplaza al botón '?' que cada módulo educativo tenía en su
         header. La teoría es transversal a los módulos y vive en un
         único documento navegable accesible desde cualquier parte del
-        flujo, no solo cuando un módulo está abierto.
+        flujo, no solo cuando un módulo está abierto. Se abre en el visor de
+        PDF del sistema, como la Memoria: la barra de estado acompaña los
+        segundos que tarda pdflatex la primera vez.
         """
         from gui.dialogs.theory_hub_dialog import open_theory_hub
-        open_theory_hub(self.root)
+        open_theory_hub(self.root, on_status=self.set_status)
 
     # ═════════════════════════════════════════════════════════════════════
     # HANDLERS — VISTA / ANALISIS

@@ -5,6 +5,10 @@ El desfase NO es constante dentro de un mismo ejemplar (en este libro salta de +
 a +24), asi que no se calcula: se lee. Cada pagina aporta varios numeros candidatos
 (encabezado, pie, numero de capitulo) y se elige el que concuerda con sus vecinas,
 que es lo unico que distingue el folio real del numero de capitulo.
+
+Requiere PyMuPDF (`pip install pymupdf`), que NO es dependencia de EduFEM: se
+retiro del programa el 2026-09-25 por su licencia AGPL-3.0, que obliga al
+distribuirlo. Este guion es una herramienta local de la tesis y no se distribuye.
 """
 import io, sys, re, collections, fitz
 

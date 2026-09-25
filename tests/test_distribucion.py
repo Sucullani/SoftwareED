@@ -24,6 +24,12 @@ Que cubre:
     programa.
   - El `.iss` esta guardado en UTF-8 con BOM (sin el, Inno lo lee como ANSI
     y los acentos de los mensajes salen rotos).
+  - PyMuPDF (AGPL-3.0) no vuelve: ningun modulo del programa lo importa,
+    `requirements.txt` no lo pide y `build.spec` lo excluye aunque siga
+    instalado en el entorno (lo usan guiones de la tesis que no se
+    distribuyen).
+  - Los avisos de licencia de terceros viajan con el instalador y nombran
+    cada dependencia de `requirements.txt`.
 
 Corre sin pantalla: `python -m tests.test_distribucion`.
 """
@@ -38,6 +44,7 @@ if hasattr(sys.stdout, "reconfigure"):
 import inspect
 import os
 import re
+import subprocess
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
@@ -303,6 +310,94 @@ def test_ninguna_linea_del_iss_empieza_con_corchete_indentado():
     print("[OK] ninguna linea indentada del .iss empieza con '['")
 
 
+def _dependencias_declaradas() -> list[str]:
+    """Nombres de los paquetes que pide `requirements.txt` (sin versiones)."""
+    nombres = []
+    for linea in (RAIZ / "requirements.txt").read_text(encoding="utf-8").splitlines():
+        linea = linea.split("#", 1)[0].strip()
+        if linea and not linea.startswith("-"):
+            nombres.append(re.split(r"[<>=!~\[; ]", linea, maxsplit=1)[0])
+    return nombres
+
+
+def _bloque_del_spec(nombre: str) -> str:
+    """Texto de la lista `nombre=[...]` o `nombre = [...]` de build.spec."""
+    spec = (RAIZ / "build.spec").read_text(encoding="utf-8")
+    m = re.search(rf"\b{nombre}\s*=\s*\[(.*?)\n\s*\]", spec, re.DOTALL)
+    assert m, f"build.spec ya no tiene la lista {nombre}"
+    return m.group(1)
+
+
+def test_pymupdf_no_vuelve_al_programa_ni_al_paquete():
+    """PyMuPDF se distribuye bajo AGPL-3.0 (o licencia comercial): dentro
+    del instalador dejaba todo el paquete sujeto a esa licencia, contra el
+    MIT de EduFEM. Se retiro el 2026-09-25 y la Teoria se abre con el visor
+    del sistema. Sigue instalado en el entorno de desarrollo (lo usan dos
+    guiones de `tesis/respaldo_citas/`), asi que el guard no puede ser
+    'no esta instalado': es que nada del programa lo importa y que el spec
+    lo excluye."""
+    pedidas = {n.lower() for n in _dependencias_declaradas()}
+    assert not pedidas & {"pymupdf", "fitz"}, "requirements.txt volvio a pedir PyMuPDF"
+
+    excluidos = _bloque_del_spec("excludes")
+    ocultos = _bloque_del_spec("hiddenimports")
+    for nombre in ("fitz", "pymupdf"):
+        assert f'"{nombre}"' in excluidos, f"build.spec no excluye {nombre}"
+        assert f'"{nombre}"' not in ocultos, f"build.spec vuelve a sembrar {nombre}"
+
+    # Todos los modulos del programa, con PyMuPDF bloqueado. En otro proceso,
+    # para no ensuciar sys.modules de este.
+    script = (
+        "import sys\n"
+        "sys.modules['fitz'] = None\n"
+        "sys.modules['pymupdf'] = None\n"
+        "import importlib\n"
+        "from tests.run_gates import _listar_modulos\n"
+        "fallos = []\n"
+        "for m in _listar_modulos():\n"
+        "    try:\n"
+        "        importlib.import_module(m)\n"
+        "    except ImportError as e:\n"
+        "        if 'fitz' in str(e) or 'pymupdf' in str(e):\n"
+        "            fallos.append(m)\n"
+        "print('FALLOS=' + ','.join(fallos))\n"
+    )
+    proc = subprocess.run([sys.executable, "-c", script], cwd=str(RAIZ),
+                          capture_output=True, text=True, timeout=300)
+    salida = proc.stdout + proc.stderr
+    assert "FALLOS=" in salida, f"no se pudo importar el programa:\n{salida[-1500:]}"
+    fallos = salida.split("FALLOS=", 1)[1].splitlines()[0].strip()
+    assert not fallos, f"estos modulos todavia importan PyMuPDF: {fallos}"
+    print("[OK] PyMuPDF fuera: ningun modulo lo importa, requirements no lo pide "
+          "y build.spec lo excluye")
+
+
+def test_los_avisos_de_terceros_viajan_con_el_instalador():
+    """Las licencias BSD y MIT de las bibliotecas que van dentro del paquete
+    piden reproducir su aviso en la redistribucion binaria, y PyInstaller no
+    copia los `dist-info` (en `_internal/` solo quedaba el de NumPy).
+    `tools/licencias_terceros.py` los junta en un archivo que instala el
+    `.iss`."""
+    avisos = RAIZ / "installer" / "dist_extra" / "LICENCIAS-TERCEROS.txt"
+    assert avisos.exists(), (
+        "falta installer/dist_extra/LICENCIAS-TERCEROS.txt: correr "
+        "python tools/licencias_terceros.py"
+    )
+    assert re.search(r'^Source:\s*"dist_extra\\LICENCIAS-TERCEROS\.txt";\s*DestDir:\s*"\{app\}"',
+                     _texto_iss(), re.MULTILINE), (
+        "el .iss no instala LICENCIAS-TERCEROS.txt en {app}"
+    )
+    texto = avisos.read_text(encoding="utf-8").lower()
+    faltan = [n for n in _dependencias_declaradas() if n.lower() not in texto]
+    assert not faltan, (
+        f"los avisos no nombran {faltan}: regenerarlos con "
+        "python tools/licencias_terceros.py"
+    )
+    assert "pymupdf" not in texto, "los avisos todavia nombran a PyMuPDF"
+    print("[OK] los avisos de terceros viajan con el instalador y cubren "
+          "requirements.txt")
+
+
 if __name__ == "__main__":
     print("=" * 62)
     print("  TEST: contrato de distribucion (instalador y arranque)")
@@ -321,6 +416,8 @@ if __name__ == "__main__":
     test_el_icono_de_los_proyectos_existe()
     test_el_iss_esta_en_utf8_con_bom()
     test_ninguna_linea_del_iss_empieza_con_corchete_indentado()
+    test_pymupdf_no_vuelve_al_programa_ni_al_paquete()
+    test_los_avisos_de_terceros_viajan_con_el_instalador()
     print("=" * 62)
-    print("  TODOS LOS TESTS PASARON [14/14]")
+    print("  TODOS LOS TESTS PASARON [16/16]")
     print("=" * 62)

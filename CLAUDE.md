@@ -67,8 +67,11 @@ distribución). PyInstaller en modo **onedir** produce `dist/EduFEM/` (lanzador 
 que el instalador copia entero a `{app}`. **No volver a onefile**: medido el 2026-09-10, el
 autoextraíble arrancaba en 11-15 s *cada vez* —re-extrae ~190 MB a `%TEMP%` en cada arranque—
 contra 3 s de onedir, y dejaba 189 MB de basura en `%TEMP%` por cada cierre anormal. Bundlea
-`resources/`, los datos de matplotlib y los hidden imports (pylatex, fitz, ezdxf,
-scipy.sparse, TkAgg y `education/mod*.py` por glob). **LaTeX embebido**: el instalador lleva
+`resources/`, los datos de matplotlib y los hidden imports (pylatex, ezdxf, scipy.sparse,
+TkAgg y `education/mod*.py` por glob), y **excluye PyMuPDF** (`fitz`/`pymupdf`): es AGPL-3.0 y
+dejaba el instalador sujeto a esa licencia. La Teoría y la Memoria se abren con el visor de PDF
+del sistema; `installer/dist_extra/LICENCIAS-TERCEROS.txt` (lo genera
+`tools/licencias_terceros.py`) lleva los avisos de lo que viaja en el paquete. **LaTeX embebido**: el instalador lleva
 un TeX Live recortado (`vendor/texlive`, generado por `tools/build_texlive.py`) como carpeta
 `texlive/` hermana del `.exe`; `education/components/latex_runtime.py` lo resuelve antes que
 el `pdflatex` del PATH, así la Memoria PDF y la Teoría compilan sin MiKTeX, sin internet y sin

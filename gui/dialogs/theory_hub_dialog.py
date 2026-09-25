@@ -14,24 +14,29 @@ ni hace referencia a archivos del software: es teoría general que sirve
 para cualquier análisis MEF 2D con elementos Q4 / Q9.
 
 API:
-    open_theory_hub(parent) — abre un TheoryViewer flotante con el doc
-    agregado. No es modal; el usuario puede consultarlo mientras opera
-    el resto del software.
+    open_theory_hub(parent, on_status=None) — compila el doc agregado y lo
+    abre en el visor de PDF del sistema, como la Memoria de Cálculo. Es una
+    ventana aparte: el usuario puede consultarla mientras opera el resto
+    del software.
 """
 
 from __future__ import annotations
 
-from education.components import TheoryViewer, TheoryDoc
+from typing import Callable, Optional
+
+from education.components import TheoryDoc, open_theory_pdf
 
 
-def open_theory_hub(parent) -> TheoryViewer:
+def open_theory_hub(parent,
+                    on_status: Optional[Callable[[str], None]] = None) -> None:
     """Abre el hub de teoría MEF. Llamado desde el menú Ayuda."""
-    return TheoryViewer.open(
+    open_theory_pdf(
         parent,
         title="Teoría MEF — EduFEM",
         doc_builder=_build_full_theory_document,
         subtitle="Fundamentos clásicos para análisis Q4 / Q9 plano",
         documento="la Teoría MEF",
+        on_status=on_status,
     )
 
 

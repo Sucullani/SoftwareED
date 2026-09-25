@@ -16,8 +16,8 @@ la carpeta) surte efecto sin reiniciar EduFEM.
 
 Lo comparten los **dos** PDF que compila EduFEM, porque los dos fallan por la
 misma causa: ``main_window._on_export_pdf`` (Memoria de Cálculo) y
-``education.components.theory_viewer`` (Ayuda ▸ Teoría MEF). El kwarg
-``documento`` nombra cuál de los dos se estaba pidiendo.
+``education.components.theory_viewer.open_theory_pdf`` (Ayuda ▸ Teoría MEF).
+El kwarg ``documento`` nombra cuál de los dos se estaba pidiendo.
 
 Uso:
     from gui.dialogs.pdflatex_missing_dialog import show_pdflatex_missing_dialog

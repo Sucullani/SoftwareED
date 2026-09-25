@@ -223,14 +223,14 @@ Formato: `[área Nº] descripción — evidencia — quién decide`.
   es que el motor se toca solo cuando el número que ve el alumno está mal: hoy no lo está, así
   que va acá con la evidencia en vez de cambiarse desde el área de componentes.
 
-- **[9] `TheoryViewer` llama `self.after(...)` desde el thread de compilación.** `Misc.after`
+- **[9] La Memoria llama `self.root.after(...)` desde el thread de compilación.** `Misc.after`
   registra un comando en el intérprete Tcl, y hacerlo desde un hilo que no es el del `mainloop`
   no es seguro (en el smoke sin `mainloop` levanta `RuntimeError: main thread is not in main
-  loop`). En la app real funciona porque el `mainloop` está corriendo, y es el patrón que ya
-  usaba el archivo antes de la sesión 10, así que no se cambió en una sesión que ya tocaba ese
-  flujo. Si alguna vez aparece un cuelgue al abrir *Ayuda ▸ Teoría MEF*, la vía es una `queue`
-  + un `after` de sondeo **desde el hilo principal**, que es como conviene comunicar un worker
-  con Tk. Mismo patrón en `_PDFProgressDialog` de la memoria (área 10).
+  loop`). En la app real funciona porque el `mainloop` está corriendo. **La mitad de la Teoría
+  se cerró el 2026-09-25**: al retirar PyMuPDF, `theory_viewer.open_theory_pdf` pasó a una
+  `queue` + un `after` de sondeo **desde el hilo principal** (`test_edu_components` [2] lo
+  verifica sobre el AST). Queda el mismo patrón en `_on_export_pdf` / `_PDFProgressDialog` de
+  la memoria (área 10); si alguna vez aparece un cuelgue al exportar, la vía es la misma.
 
 - **[11] `add_element` explota con `IndexError` si la librería de materiales quedó vacía.**
   `models/project.py:327` hace `material_name = list(self.materials.keys())[0]` cuando el
