@@ -1,13 +1,19 @@
 ---
 name: tesis-redactar
-description: Guia para redactar o ampliar secciones de la tesis de EduFEM en espanol academico claro y natural (LaTeX, citacion Vancouver, terminologia MEF del proyecto). Usar al escribir, expandir o reescribir contenido de cualquier capitulo en tesis/capitulos/.
+description: Guia para redactar o ampliar secciones de la tesis de EduFEM en espanol academico claro y natural (LaTeX, citacion Vancouver, terminologia MEF del proyecto). Usar al escribir, expandir o reescribir contenido de cualquier capitulo de la version vigente de la tesis (hoy tesis/capitulos_final3/).
 ---
 
 # Redactar la tesis de EduFEM
 
 Tesis MIXTA (ingenieria + software educativo) sobre **EduFEM**, una GUI educativa de
 elementos finitos 2D. Fuente en `tesis/` (LaTeX puro, clase `report`, biblatex+biber,
-estilo **Vancouver**, babel espanol). Compila con pdflatex en MiKTeX.
+estilo **Vancouver**, babel espanol). La version vigente compila con XeLaTeX en MiKTeX (Times New Roman real, texto justificado).
+
+**Version vigente**: hoy `tesis/main_final3.tex` + `tesis/capitulos_final3/`, que lleva su
+propio `preambulo.tex`, su `referencias.bib`, sus figuras rehechas y su `CRITERIOS.md` (reglas
+editoriales obligatorias: leelas antes de escribir). No se editan `capitulos_final/` (la base
+auditada) ni `archivo/`. Una mejora grande abre una version nueva (`capitulos_final4/`…) segun
+`tesis/README.md`, «Versiones». Compila con `latexmk -xelatex main_final3.tex` desde `tesis/`.
 
 ## Antes de escribir
 
@@ -57,8 +63,8 @@ No reintroducir ingles en prosa para conceptos que ya tienen traduccion canonica
 - Capitulos numerados (1,2,3): `\chapter{...}` + `\section`/`\subsection`.
 - Frontales/cierre sin numerar: `\chapter*{...}` + `\addcontentsline{toc}{chapter}{...}`
   y subsecciones con `\section*{...}`.
-- **Figuras pendientes**: usa el comando `\figpend{descripcion}` (definido en
-  `tesis/preambulo.tex`) dentro de un `figure` con `\caption` y `\label`. **Nunca**
+- **Figuras pendientes**: usa el comando `\figpend{descripcion}` (definido en el
+  `preambulo.tex` de la version vigente) dentro de un `figure` con `\caption` y `\label`. **Nunca**
   `\includegraphics` de un archivo que no existe (rompe la compilacion). Cuando exista
   la imagen real, reemplaza `\figpend{...}` por `\includegraphics[width=...]{figuras/...}`.
 - Ecuaciones: `equation`/`align`. Matrices: `bmatrix`. Simbolos: `\sigma`, `\varepsilon`,
@@ -71,8 +77,9 @@ No reintroducir ingles en prosa para conceptos que ya tienen traduccion canonica
 ## Citacion Vancouver
 
 - Citas numericas por orden de aparicion. Cita con `\autocite{clave}` o
-  `\autocite{clave1,clave2}` (ver `tesis/preambulo.tex`).
-- **Solo claves que existan** en `tesis/bibliografia/referencias.bib`. Si necesitas una
+  `\autocite{clave1,clave2}` (ver el `preambulo.tex` de la version vigente).
+- **Solo claves que existan** en el `referencias.bib` de la version vigente (hoy
+  `tesis/capitulos_final3/referencias.bib`). Si necesitas una
   fuente nueva, agregala primero (skill `tesis-bibliografia`) o deja
   `% CITA PENDIENTE: <descripcion>`. No inventes claves.
 - Cita los textos clasicos donde corresponde (Zienkiewicz, Bathe, Cook, Hughes, Reddy,

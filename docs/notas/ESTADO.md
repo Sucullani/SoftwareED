@@ -1,11 +1,13 @@
 # Estado del trabajo
 
-**Última actualización**: 2026-09-21
+**Última actualización**: 2026-09-25
 
-> **Nota de sincronización (2026-09-21)**: **no queda nada sin commitear**. La **tesis final**
-> está en `origin/main` (commits `f22d139` y `e06f884`), y con ella todo lo que más abajo decía
-> «sin commit» del 2026-09-09 en adelante. Lo que sigue pendiente es solo la **validación del
-> autor**, que un agente no puede hacer.
+> **Nota de sincronización (2026-09-25)**: la **tesis final** está en `origin/main` (commits
+> `f22d139`, `e06f884` y `ee7b5a6`). Lo hecho el 22 y el 23 de septiembre está **sin commit**:
+> la auditoría de redacción y su implementación en **final1**, la segunda iteración (**final2**, 25-09), la tercera (**final3**, 25-09: observaciones del Ing. Miranda), el paso de las versiones v1 a v4
+> a `tesis/archivo/`, la presentación interactiva, la defensa metodológica, el MMS paso a paso
+> y el **retiro de PyMuPDF** (25-09: software, instalador y tesis) (ver las filas «sin commit»
+> de abajo).
 
 > Lo primero que lee un agente al entrar. Qué está en curso, qué quedó a medias y qué
 > decisión espera al autor. Se edita; lo que deja de aplicar se borra.
@@ -16,45 +18,112 @@
 EduFEM está **funcional y empaquetado**: la GUI corre, el motor pasa su batería de tests,
 hay `.exe` (`dist/EduFEM/`, onedir) e instalador (`installer/EduFEM.iss` → `EduFEM-Setup.exe`).
 El trabajo activo no es construir features nuevas, sino **pulir** el software y **cerrar la
-tesis** (`tesis/`, 130 páginas, compila limpio).
+tesis** (versión vigente `tesis/main_final3.tex`, 189 páginas, compila limpio con XeLaTeX).
 
 ## En curso
 
 | Tema | Dónde | Estado |
 |---|---|---|
-| **TESIS FINAL (entrega)** | `tesis/main_final.tex` + `tesis/capitulos_final/` | **Terminada el 2026-09-21 y en `origin/main`.** Autocontenida: no lee de `capitulos/` ni de `capitulos_v4/`, y las versiones v1 a v4 quedan como archivo. Eje tecnológico: causa = uso del software como caja negra, efecto = **baja trazabilidad y verificabilidad del análisis** (propiedad del medio de cálculo, medible en el software). Dos cláusulas, las dos comprobadas dentro del documento: **no hay prueba de campo ni efecto diferido**. Método: ciencia del diseño (Hevner, Peffers, Wieringa). Compila limpio: 189 hojas, 0 errores, 0 desbordes, 0 referencias indefinidas. **Reglas de edición obligatorias**: `tesis/capitulos_final/CRITERIOS.md`. El mismo día se aplicaron las correcciones de la **auditoría de defensa** (`docs/auditorias/Auditoria_defensa_tesis_EduFEM.md`): alineación de problema, hipótesis y conclusión con lo que el trabajo evalúa; tres errores técnicos comprobados con contraejemplo (von Mises, Jacobiano, base del Q4); la membrana de Cook con fuente publicada y **contraste externo de las cinco mallas**; licencias y alcance del CSV; FEA18 reforzado sin bajar el 18/18. **Los preliminares quedan fuera para la predefensa** (una línea comentada en `main_final.tex`). 187 hojas. Detalle: [2026-09-21_tesis-final.md](2026-09-21_tesis-final.md) y [2026-09-21_correcciones-auditoria-defensa.md](2026-09-21_correcciones-auditoria-defensa.md) |
-| **Presentación y video v2** | `tesis/presentacion/guion_v2.json`, `Defensa_EduFEM_v2.pptx/.pdf`, `video/*_v2.*` | **Construidos el 2026-09-19** para la tesis v4: 40 láminas (13 cambian, la 31 es nueva: validez de contenido) y video de 34:16 con la misma voz. La v1 (39 láminas, 30:54) no se tocó. **Sin commit.** Falta que el autor mire el video (ritmo, pronunciación) y ensaye los tiempos. Cómo regenerar: `tesis/presentacion/README.md` |
-| **Auditoría de redacción de la tesis v4** | `tesis/auditoria_v4/` (`AUDITORIA-REDACCION.md`, `PLAN-CORRECCION.pdf`, `anexos/`, `datos/`) | **Hecha el 2026-09-20** sobre `main_v4.pdf`, sin editar la tesis: 19 agentes (9 lectores de unidad + 10 barredores transversales), consolidación por eje y verificación independiente de cada crítico o alto. Quedan 225 hallazgos (4 críticos, 27 altos, 177 medios, 17 bajos) y 36 preguntas de defensa. Lo que pesa en la defensa son ~14 h: salvedad canónica pegada al objetivo general, al problema, al OE5 y a la primera conclusión; tabla criterio–umbral–cifra–veredicto en 2.1.6 y 3.8; «0,56 % en desplazamientos» en el Resumen y la razón Q4/Q9 de Cook, que sí depende de la referencia; la validez de contenido declarada como cotejo del autor. **Las correcciones las aplica el autor** con el plan en la mano; los ID (CAL-01, TRZ-07…) son estables |
-| **Tesis v4, alternativa 3** | `tesis/main_v4.tex`, `tesis/capitulos_v4/` | **Construida el 2026-09-19** sobre la v1 con la alternativa 3 confirmada por el autor («caja negra → bajo criterio para interpretar la respuesta estructural», molde de Miranda, 5 OE, 3 PI, tabla de especificaciones contra Pérez-Santiago, matriz de 4 principios, 3 refs nuevas con ejemplar y respaldo). Compila limpia: 167 hojas, 0 indefinidas, 0 desbordes. Respaldo de citas y resaltados regenerados. **Sin commit.** Espera revisión del autor y su decisión de reemplazar `capitulos/`. Detalle: [2026-09-19_tesis-v4-alternativa-3.md](2026-09-19_tesis-v4-alternativa-3.md) |
-| Tesis v3, eje pedagógico (archivo, no se mantiene) | `tesis/main_v3.tex`, `tesis/capitulos_v3/`, `tesis/bibliografia/referencias_v3.bib` | **Construida el 2026-09-18** a pedido del autor (alternativa C: VD = comprensión del estudiante; primer ciclo de investigación basada en diseño; tabla de especificaciones + mapa de conjeturas + LORI; 7 OE y 4 PI). Compila limpia: 178 hojas, 0 indefinidas, 0 desbordes. **Sin commit.** Espera que el autor decida si reemplaza a v1/v2 y que consiga los 16 ejemplares nuevos (20 localizadores pendientes). Detalle: [2026-09-18_tesis-v3-eje-pedagogico.md](2026-09-18_tesis-v3-eje-pedagogico.md) |
+| **TESIS FINAL3 (versión vigente)** | `tesis/main_final3.tex` + `tesis/capitulos_final3/` | **Hecha el 2026-09-25, sin commit. Se compila con XeLaTeX** (`latexmk -xelatex main_final3.tex`). Aplica las **observaciones del Ing. Miranda** (tribunal), adaptadas al contenido y no al pie de la letra: problema, objetivo general e hipótesis en el molde del tribunal y sin la universidad (queda solo en la delimitación); VI = transparencia del procedimiento de cálculo, VD = trazabilidad y verificabilidad del procedimiento de cálculo; **tres objetivos específicos, uno por capítulo** (Fundamentar, Desarrollar, Verificar y validar; «Diagnosticar» fuera), que dan su título a cada capítulo; Introducción por apartados; Conclusiones en **tríada** con Figuras CR.1-CR.2 y Tabla CR.1; Figura 2.1 nueva; **Times New Roman 12 justificado**, con las fórmulas en Latin Modern. Lleva también el retiro de PyMuPDF de final2. El título de cada capítulo es su objetivo completo. 189 páginas, 0 errores, 0 desbordes, 0 referencias indefinidas, 153 etiquetas intactas más 4 nuevas. Diagnóstico para el autor: `tesis/observaciones_miranda/diagnostico_miranda.pdf`; registro: `tesis/auditoria_final/IMPLEMENTACION-FINAL3.md`; nota: [2026-09-25_observaciones-miranda-final3.md](2026-09-25_observaciones-miranda-final3.md) |
+| **TESIS FINAL2 (segunda iteración, no se edita)** | `tesis/main_final2.tex` + `tesis/capitulos_final2/` | **Hecha el 2026-09-25, sin commit.** Segunda iteración de mejora continua: se verificó lo implementado en final1 y se revisó el documento entero por diez unidades (portada a Anexo G) contra el código, las fuentes en PDF y los datos de V&V; cada hallazgo se volvió a contrastar antes de aplicarlo. 256 disposiciones (236 aplicadas, 8 para el autor, 2 descartadas; el resto ya resuelto o cubierto). 197 páginas, 0 errores, 0 desbordes, ninguna etiqueta perdida. **Cambios de fondo que el autor debe revisar** (ED-Elas2D sí expone las matrices y está en inglés; dos versiones del motor unidas por la prueba de regresión; det J negativo no detiene el cálculo; «Resolver de todos modos»; MMS fuera de la interfaz; V&V fuera del instalador; tiempos de la Tabla 3.9), decisiones pendientes y **observaciones sobre el software** (no se tocó el código): `tesis/auditoria_final/IMPLEMENTACION-FINAL2.md`. Fuera de la tesis solo tocó `tesis/figuras/generar_figuras.py` (pie de la Figura 2.2) |
+| **TESIS FINAL1 (primera iteración, no se edita)** | `tesis/main_final1.tex` + `tesis/capitulos_final1/` (con su `preambulo.tex`, `referencias.bib`, `CRITERIOS.md` y `figuras/`) | **Hecha el 2026-09-23, sin commit.** La final con la **auditoría de redacción** (`tesis/auditoria_final/`, del 22-09) implementada entera: los 299 hallazgos vivos tienen disposición (184 aplicados, 58 adaptados, 16 cubiertos, 13 decisiones del autor, 13 diferidos, 3 parciales, 7 descartados, 5 sin cambio), más 4 observaciones del crítico y 3 hallazgos nuevos verificados contra el código. 194 páginas, 0 errores, 0 desbordes, ninguna etiqueta perdida. **Registro y lo que queda en manos del autor**: `tesis/auditoria_final/IMPLEMENTACION-FINAL1.md`. Convención de versiones (final → final1 → final2…, cada una intacta): `tesis/README.md`. Tocó tres archivos fuera de la tesis: `tests/vv_timoshenko.py` (σx de SAP2000 con los seis decimales de la captura), `tests/vv_mms.py` (tilde del rótulo) y `tesis/figuras/generar_figuras.py` (rótulo de la Figura 2.2), con sus datos y figuras regenerados |
+| **TESIS FINAL (base auditada)** | `tesis/main_final.tex` + `tesis/capitulos_final/` | Se conserva **exactamente** como se auditó (commit `ee7b5a6`), como base de comparación de final1; no se edita. **Terminada el 2026-09-21 y en `origin/main`.** Autocontenida: no lee de `capitulos/` ni de `capitulos_v4/`, y las versiones v1 a v4 quedan como archivo. Eje tecnológico: causa = uso del software como caja negra, efecto = **baja trazabilidad y verificabilidad del análisis** (propiedad del medio de cálculo, medible en el software). Dos cláusulas, las dos comprobadas dentro del documento: **no hay prueba de campo ni efecto diferido**. Método: ciencia del diseño (Hevner, Peffers, Wieringa). Compila limpio: 189 hojas, 0 errores, 0 desbordes, 0 referencias indefinidas. **Reglas de edición obligatorias**: `tesis/capitulos_final/CRITERIOS.md`. El mismo día se aplicaron las correcciones de la **auditoría de defensa** (`docs/auditorias/Auditoria_defensa_tesis_EduFEM.md`): alineación de problema, hipótesis y conclusión con lo que el trabajo evalúa; tres errores técnicos comprobados con contraejemplo (von Mises, Jacobiano, base del Q4); la membrana de Cook con fuente publicada y **contraste externo de las cinco mallas**; licencias y alcance del CSV; FEA18 reforzado sin bajar el 18/18. **Los preliminares quedan fuera para la predefensa** (una línea comentada en `main_final.tex`). 187 hojas. Detalle: [2026-09-21_tesis-final.md](2026-09-21_tesis-final.md) y [2026-09-21_correcciones-auditoria-defensa.md](2026-09-21_correcciones-auditoria-defensa.md) |
+| **Defensa metodológica (tesis tecnológica frente al molde experimental)** | `tesis/defensa_metodologica/` | **Hecha el 2026-09-23, sin commit.** `contexto_defensa.pdf` (23 p., documento de estudio: la tesis en una página, respuesta madre, 14 argumentos con cita literal y página, material docente lámina por lámina, 34 preguntas) y `respaldo_diferencia.html` (6 láminas animadas de respaldo, sin internet, con guion). No toca la tesis ni `presentacion/final/`. **Hallazgo**: el *Manual de Procesos Académico-Administrativos* UATF 2022, p. 93, trae las definiciones de tesis y proyecto de grado del Reglamento General del S.U.B.: cierra en parte H-1. Detalle: [2026-09-23_defensa-metodologica.md](2026-09-23_defensa-metodologica.md) |
+| **MMS paso a paso (documento de estudio)** | `docs/vyv/mms_paso_a_paso/` | **Hecho el 2026-09-23, sin commit.** `mms_paso_a_paso.pdf` (21 p.): el MMS desde cero siguiendo los pasos de Salari y Knupp, con el caso base resuelto a mano (Q4, `N = 2`, un solo nodo libre: rigidez, ensamblaje, fuerzas, sustitución estática, normas `L²`/`H¹` punto por punto), el refinamiento y las tasas. Todas las cifras salen de `generar_datos.py`, que usa una réplica independiente (`mms_independiente.py`, sin importar EduFEM) y **aborta si no coincide con EduFEM** (hoy coincide con los 20 valores de `mms_q4/q9.csv`). La §8 documenta el límite del MMS de la decisión abierta de abajo. Cómo regenerar: `docs/vyv/README.md` |
+| **Presentación interactiva y video de la tesis final** | `tesis/presentacion/final/` (`Defensa_EduFEM.html`, `Presentar_defensa.bat`, PDF de respaldo) y `tesis/presentacion/video/Defensa_EduFEM_final.*` | **Construidos el 2026-09-23** para la tesis final. Presentación HTML propia, sin internet: 57 láminas + 6 de respaldo para preguntas, animaciones con los datos del motor (exportador en `herramientas/`), laboratorios que se manejan con el mouse (trazabilidad del nodo 7 hasta los datos, mapeo, Jacobiano, Gauss, ensamblaje, sonda y Mohr, MMS, Timoshenko, Cook, la lección de la extrapolación), botones entre láminas con «Volver», vista del orador y modo narrado. El video es la misma presentación grabada cuadro a cuadro con voz, subtítulos y capítulos. Sigue `main_final.tex` tal como está en el repositorio, no `main_final1.tex`; una auditoría de fidelidad contra `main_final.pdf` dejó 25 observaciones, todas aplicadas. Desde el mismo día hay una **versión 2 estilo PowerPoint** (`Defensa_EduFEM_v2.html`, generada desde la v1 por `herramientas/generar_v2.mjs`) y su conversión a **PowerPoint** (`Defensa_EduFEM_v2.pptx`: un clic por paso, enlaces, notas, videos; `extraer_pptx.mjs` + `construir_pptx.py`, verificada paso por paso contra la HTML). **Sin commit.** Falta que el autor mire el video, ensaye con la vista del orador y pruebe el lanzador en la sala. Detalle: [2026-09-23_presentacion-interactiva-final.md](2026-09-23_presentacion-interactiva-final.md). Las v1 y v2 (PowerPoint, ejes anteriores) quedan como archivo |
+| Versiones v1 a v4 de la tesis y auditoría de la v4 (archivo, no se mantienen) | `tesis/archivo/` (`v1_v2/`, `v3/`, `v4/` con `auditoria_v4/`) | **Movidas el 2026-09-23, sin commit**, para que en `tesis/` quede solo la línea de versiones finales. Cada carpeta conserva su fuente y su PDF compilado; qué es cada una y cómo recompilarla si hiciera falta: `tesis/archivo/README.md`. Las reemplazó la tesis final (2026-09-21). Detalle de cada una: [2026-09-18_tesis-v3-eje-pedagogico.md](2026-09-18_tesis-v3-eje-pedagogico.md), [2026-09-19_tesis-v4-alternativa-3.md](2026-09-19_tesis-v4-alternativa-3.md) |
 | Cierre de la tesis (v1/v2, eje de diseño) | `tesis/` | Compila limpio (158 hojas, APA doble espacio). La auditoría integral del 2026-09-11 está **implementada** salvo lo que el autor reservó (1.5, 1.6, 5.4), y la **auditoría por sesiones** ([AUDITORIA_TESIS.md](../auditorias/AUDITORIA_TESIS.md)) quedó **implementada el 2026-09-16**: 45 de 47 hallazgos resueltos, H-13 parcial y H-1 abierto (el Reglamento de Graduación, que solo el autor puede conseguir). En `origin/main`; el autor revisa (ver *Decisiones abiertas*). Pendiente que necesita la GUI: recapturar las Figuras 3.3, B.1 y B.6-B.13 a mayor resolución |
 | Deuda técnica de la auditoría 2026-06-10 | repo | **Cerrada el 2026-09-06** (Top-10 + medios y bajos de §1, §2, §5 y §6). Único pendiente: decidir si se cablea `TheoryDoc.margin_formula()` en la memoria — cambia el layout del PDF, así que necesita validación visual del autor |
 | Mejora continua del software | `docs/rutina/` | **Activa desde el 2026-09-08**: rutina horaria de claude.ai que trabaja directo sobre `main`, una área por sesión con rotación de 14. Qué hizo cada sesión: [../rutina/BITACORA.md](../rutina/BITACORA.md); qué falta y qué espera al autor: [../rutina/BACKLOG.md](../rutina/BACKLOG.md) |
-| Distribución del `.exe` | `installer/` | Vía principal decidida: instalador Inno Setup por usuario, sin admin. Sin firma de código (decisión tomada). Empaquetado **onedir** desde el 2026-09-10 (arranque 3 s en vez de 12; el entregable sigue siendo un solo archivo) |
+| Distribución del `.exe` | `installer/` | Vía principal decidida: instalador Inno Setup por usuario, sin admin. Sin firma de código (decisión tomada). Empaquetado **onedir** desde el 2026-09-10 (arranque 3 s en vez de 12; el entregable sigue siendo un solo archivo). Desde el 2026-09-25 **sin PyMuPDF** (AGPL-3.0) ni cinco extras que se colaban desde el `.venv`, y con los avisos de licencia de terceros (`installer/dist_extra/LICENCIAS-TERCEROS.txt`, lo genera `tools/licencias_terceros.py`): instalador de 95,6 a 78,7 MB. **Sin commit** |
 
 ## Decisiones abiertas (esperan al autor)
 
-- **Elegir la licencia con que se publica EduFEM (2026-09-21)** — la auditoría de defensa
-  detectó, y se comprobó en el entorno del proyecto, que **PyMuPDF se distribuye bajo AGPL-3.0
-  o licencia comercial**, no permisiva, y el instalador lo incluye dentro del ejecutable. La
-  tesis ya no afirma que todas las dependencias sean permisivas. **Qué decide el autor**: bajo
-  qué licencia publica EduFEM y si la declara en el repositorio. Si prefiere una licencia
-  permisiva, habría que sustituir PyMuPDF —se usa solo para mostrar los PDF de teoría dentro de
-  la herramienta— o distribuir ese visor por separado. No afecta a lo que la tesis afirma, pero
-  es una pregunta posible en la defensa.
+- **El MMS no verifica `λ` ni `D33` (2026-09-23)** — la `u_M` de `tests/vv_mms.py`
+  (`sin πx sin πy`, `cos πx cos πy`) tiene `tr(ε) = 0` y `γxy = 0` en todo punto, así que
+  `b = π²(D11 − D12)(…)`: el término fuente es el mismo en tensión y en deformación plana, y la
+  prueba no distingue los dos estados. Comprobado saboteando `fem/constitutive.py`: si la rama
+  DP devolviera la `D` de TP, o si `D33` estuviera duplicado, el MMS pasaría 8/8 (lo detectan
+  `test_vv_extensions` [8/8] y Cook, respectivamente). Reproducible con
+  `docs/vyv/mms_paso_a_paso/experimento_sabotaje.py`. **El motor está bien**; lo que sobra es
+  lo que la tesis le atribuye al MMS: `02b_diseno_metodologico.tex:136` («ejercita… las dos
+  matrices constitutivas»), `04_resultados.tex:30` (término fuente «deducido en cada caso de la
+  ley constitutiva»), `04_resultados.tex:61` («descarta errores… en la matriz constitutiva de
+  ambos estados planos») y `05_conclusiones.tex:47` («la deformación plana solo se verifica con
+  el MMS»). **Qué decide el autor**: (a) cambiar la `u_M` (probada: `v = cos πx cos 2πy`
+  conserva las tasas y detecta los dos errores) y regenerar CSV, figuras y tablas de la tesis, o
+  (b) dejar el código y corregir esas cuatro frases, citando el test [8/8] como verificación de
+  la deformación plana. La misma idea está en `04_resultados.tex:357` («descarta errores… en
+  la matriz constitutiva de ambos estados planos»). La presentación de defensa ya no repite
+  ninguna de esas afirmaciones (ver `tesis/presentacion/final/README.md`); con la opción (a)
+  hay que regenerar sus datos y rehacer el respaldo de deformación plana. Los números de línea
+  de arriba son de `capitulos_final/`; la decisión se aplica sobre la versión vigente,
+  `capitulos_final3/`, donde siguen las mismas frases. La implementación de la auditoría dejó
+  para este momento los tres hallazgos que las reescriben (H-097, H-100, H-197), para no
+  escribirlas dos veces.
+
+- **Material de defensa desactualizado por el retiro de PyMuPDF (2026-09-25)** — el software
+  ya no lleva PyMuPDF (ver *Hecho recientemente*), pero el autor pidió **no** tocar todavía el
+  material de defensa y dejar anotado qué falta: (1) `tesis/presentacion/final/Defensa_EduFEM.html`,
+  lámina de respaldo `r-licencia`: la tarjeta «Paquete binario · + AGPL-3.0 de PyMuPDF» pasa a
+  decir que el paquete es enteramente de licencias libres y permisivas, con los avisos en
+  `LICENCIAS-TERCEROS.txt`; (2) `assets/js/viz/diseno.js`, lámina de diseño: salen la ficha
+  «PyMuPDF» y la frase «PyMuPDF se distribuye bajo AGPL-3.0 (nota de la Tabla 2.5)»; (3)
+  regenerar lo que sale de esas dos: `Defensa_EduFEM_v2.html` (`generar_v2.mjs`), los dos PDF
+  de respaldo (`exportar_pdf.mjs`), el `.pptx` (`extraer_pptx.mjs` + `construir_pptx.py`) y el
+  **video** (`grabar_video.mjs` + `montar_video.py`; la narración no nombra PyMuPDF, así que la
+  voz se reutiliza); (4) `tesis/defensa_metodologica/contexto_defensa.tex`: la respuesta PD-04
+  «¿Bajo qué licencia?» (línea 447) y el ítem «La licencia» (línea 513), y recompilar su PDF.
+  Cómo se regenera cada cosa: `tesis/presentacion/final/README.md`.
+
+- **Probar el instalador sin PyMuPDF (2026-09-25)** — instalar `installer/Output/EduFEM-Setup.exe`
+  (78,7 MB, antes 95,6) y abrir *Ayuda ▸ Teoría MEF*: debe abrirse en el visor de PDF de
+  Windows —la primera vez tras unos 3 s, con «Preparando la Teoría MEF…» en la barra de
+  estado— con el nombre «Teoría MEF — EduFEM.pdf» en el título. Exportar también una Memoria.
+  Un agente verificó el arranque del `.exe` armado, la compilación real de la Teoría con el TeX
+  embebido y el flujo con dobles, pero no el visor abierto en pantalla. Detalle:
+  [2026-09-25_pymupdf-retirado.md](2026-09-25_pymupdf-retirado.md).
+
+- **Revisar final3, la versión con las observaciones del Ing. Miranda (2026-09-25)** — **Qué
+  decide el autor**:
+  - (1) leer en `main_final3.pdf` la Introducción (apartados nuevos), la Figura 2.1 y la matriz
+    de consistencia (§2.1.2-2.1.3), y las Conclusiones (tríada, Figuras CR.1-CR.2, Tabla CR.1);
+  - (2) aceptar o corregir los ajustes que se hicieron a sus sugerencias, justificados uno por
+    uno en `tesis/observaciones_miranda/diagnostico_miranda.pdf`: «escasa» y no «nula»; el molde
+    «¿De qué manera… podrá incidir…?»; «procedimiento» y no «proceso»; el «¿cómo?» del objetivo
+    general; «verificar» solo en el Cap. 3;
+  - (3) confirmar con el Reglamento (H-1) el interlineado y los márgenes, que siguen APA;
+  - (4) rehacer la presentación y el video de defensa, que siguen `main_final.tex` y no tienen la
+    formulación nueva.
 
 - **Revisar la tesis final (2026-09-21)** — el autor confirmó la formulación de eje
   tecnológico y se construyó la tesis de entrega, que ya está en `origin/main`. **Qué decide
   el autor**: (1) leer la Introducción, la §2.1 y la §3.8 y confirmar que es la tesis que
-  quiere defender; (2) para la **entrega final**, descomentar en `main_final.tex` la línea de
-  `00_preliminares` —que la predefensa lleva fuera— y personalizar ese archivo:
+  quiere defender —hoy sobre `main_final3.pdf`, la versión vigente—; (2) para la **entrega
+  final**, descomentar en `main_final3.tex` la línea de `00_preliminares` —que la predefensa
+  lleva fuera— y personalizar `capitulos_final3/00_preliminares.tex`:
   dedicatoria, agradecimientos y la decisión sobre el párrafo, hoy comentado, de
   declaración de uso de herramientas de inteligencia artificial; (3) conseguir el Reglamento de Graduación (H-1),
-  del que depende también si la carátula debe llevar tutor. **Queda pendiente de un agente**:
-  rehacer la presentación y el video, que siguen con el eje de la v4.
+  del que depende también si la carátula debe llevar tutor. La presentación y el video ya
+  siguen la tesis final (2026-09-23, `tesis/presentacion/final/`).
   **Esta decisión reemplaza a las dos que seguían abiertas sobre el eje** (elegir el eje
   pedagógico y decidir entre la v3 y la v1/v2): las cuatro versiones anteriores quedan como
   archivo y no se mantienen.
+
+- **Lo que la implementación de la auditoría dejó al autor (2026-09-23)** — ordenado en la
+  segunda sección de `tesis/auditoria_final/IMPLEMENTACION-FINAL1.md`: datos que solo él tiene
+  (de dónde salen los umbrales de 3 %, 1 % y 1,5 %; si los criterios documentales se fijaron
+  antes del cotejo; el localizador de Cook; dónde consultar la monografía de Álvarez de Zayas;
+  el anclaje del problema en la Carrera), decisiones de forma (Resumen de unas 310 palabras
+  frente al tope de 250 de APA; objetivo general en una sola oración; el 23,96 de Cook «de uso
+  extendido» sin cita; el doble listado bibliográfico del Taller 1, a consultar con el tutor) y
+  trabajo de figuras (el texto de las capturas imprime a 0,7-1,1 mm; las figuras del Anexo G
+  salen de `file_io/figure_export.py` con títulos sin tildes y punto decimal). Dos
+  observaciones del software, sin tocar: la explicación de `NEGATIVE_JACOBIAN` en
+  `gui/dialogs/health_report_dialog.py` dice que con los vértices en sentido horario «la
+  integracion da signos incorrectos», pero la rigidez usa |det J| (`fem/batch.py`) y ese
+  elemento se integra bien; y el docstring de `fem/solver.py` da 2,1x para el reordenamiento de
+  mínimo grado a 33 k GDL, donde la tesis da 2,9 (el factor depende de la carga del equipo).
 
 - **Presentación y video puestos al día (2026-09-16)** — el guion quedó sincronizado con la
   tesis posterior a la auditoría por sesiones y la capa visual se rediseñó entera (detalle en
@@ -252,6 +321,24 @@ tesis** (`tesis/`, 130 páginas, compila limpio).
   que algo "se ve bien".
 
 ## Hecho recientemente
+
+- **2026-09-25** — **PyMuPDF retirado; la Teoría MEF se abre con el visor del sistema.** Cierra
+  la decisión «Elegir la licencia con que se publica EduFEM»: PyMuPDF (AGPL-3.0 o comercial)
+  viajaba en el instalador y dejaba el paquete sujeto a esa licencia. Pillow y pylatex no pueden
+  dibujar un PDF; entre `pypdfium2` (BSD/Apache, probado en prototipo) y el visor de Windows, el
+  autor eligió el visor: cero bibliotecas nuevas, igual que la Memoria. `theory_viewer.py`
+  reescrito (caché `<hash>/<título>.pdf`, hilo que no toca Tk, doble clic, barra de estado, tres
+  fallos cubiertos; cierra la mitad de la Teoría del BACKLOG [9]); `build.spec` excluye PyMuPDF
+  y cinco extras que se colaban desde el `.venv` —entre ellos `certifi`, MPL-2.0—; avisos de
+  terceros generados desde el armado real (`tools/licencias_terceros.py` →
+  `LICENCIAS-TERCEROS.txt`, instalado en `{app}`); LEEME, `.iss`, `build_all.ps1` y el canon
+  al día. Paquete de 225,0 a 178,7 MB; instalador de 95,6 a 78,7 MB; el arranque ya no carga
+  una biblioteca de PDF (170 ms). Tesis **sobre final2**, por decisión del autor (Tabla 2.5 y
+  su nota, Anexo A y «Versión evaluada», con la V&V verificada idéntica); final3, que otra
+  sesión abrió en paralelo copiando final2 antes de esas ediciones, las lleva con la misma
+  redacción (verificado). Versión 1.0.0 sin
+  cambios. Pendiente del autor: la prueba del instalador y el material de defensa (arriba).
+  Detalle: [2026-09-25_pymupdf-retirado.md](2026-09-25_pymupdf-retirado.md).
 
 - **2026-09-16** — **Presentación de defensa y video, puestos al día y rediseñados**
   ([tesis/presentacion/](../../tesis/presentacion/)). *Contenido*: el guion se sincronizó con

@@ -1,13 +1,16 @@
 ---
 name: tesis-bibliografia
-description: Agrega y gestiona referencias de la tesis de EduFEM en biblatex/Vancouver (convencion de claves, campos obligatorios por tipo, sin DOIs/ISBNs inventados, como citar y compilar). Usar al anadir o corregir bibliografia en tesis/bibliografia/referencias.bib.
+description: Agrega y gestiona referencias de la tesis de EduFEM en biblatex/Vancouver (convencion de claves, campos obligatorios por tipo, sin DOIs/ISBNs inventados, como citar y compilar). Usar al anadir o corregir bibliografia de la version vigente de la tesis (hoy tesis/capitulos_final3/referencias.bib).
 ---
 
 # Bibliografia de la tesis (biblatex + biber, estilo Vancouver)
 
-Todas las referencias viven en `tesis/bibliografia/referencias.bib`. El estilo es
-**Vancouver**: citas numericas por orden de aparicion, lista de referencias numerada.
-El preambulo (`tesis/preambulo.tex`) ya carga biblatex con biber.
+Cada version final lleva su propia bibliografia. La de la **version vigente** vive en
+`tesis/capitulos_final3/referencias.bib`; `tesis/bibliografia/referencias.bib` es la de
+`main_final.tex` (base auditada, no se edita) y la carpeta guarda ademas los ejemplares PDF
+consultados. El estilo es **Vancouver**: citas numericas por orden de aparicion, lista de
+referencias numerada. El preambulo de la version vigente (`tesis/capitulos_final3/preambulo.tex`)
+ya carga biblatex con biber.
 
 ## Convencion de claves
 
@@ -50,8 +53,8 @@ Usa los nombres de campo de biblatex, no los alias legacy de BibTeX: `journaltit
   En Perez-Santiago la cita impresa dice solo "Comput Appl Eng Educ. 2023;31:1159-1173", pero
   la marca de agua de descarga de Wiley, en 14 de sus 15 paginas, dice "10990542, 2023, 5".
   Antes de declarar que un campo "no figura en el ejemplar", buscalo tambien en la marca de
-  agua y en los metadatos del PDF (`fitz.open(x).metadata`). Se dio por ausente una vez y era
-  falso.
+  agua y en los metadatos del PDF (`fitz.open(x).metadata`, con PyMuPDF instalado aparte: ya
+  no es dependencia de EduFEM). Se dio por ausente una vez y era falso.
 - **Cuidado con concluir ausencia por busqueda de texto.** Cinco ejemplares son escaneo puro
   sin capa de texto (Bathe, Cook, Garcia-Cordoba, Hughes, Reddy) y Suarez es hibrido: ahi
   `get_text()` devuelve cero para cualquier termino y eso no prueba nada. Verifica el numero
@@ -73,11 +76,10 @@ Usa los nombres de campo de biblatex, no los alias legacy de BibTeX: `journaltit
 Desde `tesis/`:
 
 ```
-pdflatex main
-biber main
-pdflatex main
-pdflatex main
+latexmk -xelatex main_final3.tex
 ```
+
+(latexmk corre xelatex y biber las veces necesarias; la version vigente usa la Times New Roman real del sistema, que solo XeLaTeX puede cargar.)
 
 Usa **biber**, no bibtex (biblatex moderno lo requiere). Si una cita sale como `[?]` o
 `(autor desconocido)`, falta correr biber o la clave no existe en el `.bib`.

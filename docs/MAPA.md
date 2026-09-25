@@ -38,6 +38,7 @@ SoftwareED/
 ├─ tools/               scripts de build y de generación de recursos
 │  ├─ build_all.ps1     cadena completa: TeX → iconos/imágenes → .exe → instalador
 │  ├─ build_texlive.py  genera vendor/texlive (TeX Live recortado para la Memoria/Teoría)
+│  ├─ licencias_terceros.py  genera installer/dist_extra/LICENCIAS-TERCEROS.txt (avisos de licencia)
 │  ├─ make_icon.py      genera resources/icons/edufem.ico y edufem_doc.ico (archivos .edufem)
 │  ├─ make_installer_images.py  genera installer/assets/wizard*.bmp (asistente de Inno)
 │  ├─ render_q4q9_manim/     escena Manim → cantilever_q4_q9.webp
@@ -48,7 +49,8 @@ SoftwareED/
 ├─ installer/
 │  ├─ EduFEM.iss        Inno Setup → EduFEM-Setup.exe (incluye vendor/texlive como {app}\texlive)
 │  ├─ assets/           imágenes BMP del asistente (las genera make_installer_images.py)
-│  └─ dist_extra/       LEEME.txt (lo instala el .iss) + lanzadores .bat de la carpeta portable
+│  └─ dist_extra/       LEEME.txt y LICENCIAS-TERCEROS.txt (los instala el .iss; el segundo lo
+│                       genera tools/licencias_terceros.py) + lanzadores .bat de la carpeta portable
 │
 ├─ docs/                ver §2
 └─ tesis/               fuente LaTeX de la tesis — ver tesis/README.md
@@ -82,9 +84,10 @@ Cuál es cuál, porque las cuatro primeras se parecen y solo una se entrega:
 |---|---|---|
 | `resources/**` | `config.settings.resource_path`, `gui/fonts_loader._resources_root`, `build.spec` (`datas`), `installer/EduFEM.iss` (`SetupIconFile`) | Rutas construidas en runtime y en el empaquetado |
 | `resources/icons/edufem.ico` | `tools/make_icon.py` lo **escribe** (`../resources/icons`), `main_window` lo lee, el instalador lo usa | Salida fija del generador |
-| `docs/vyv/datos/`, `docs/vyv/figuras/` | `tests/vv_mms.py`, `vv_timoshenko.py`, `vv_cook.py` **escriben** ahí; `tesis/figuras/generar_figuras.py` copia desde ahí; `tesis/capitulos/06_anexos.tex` las cita | Rutas literales en los scripts |
+| `docs/vyv/datos/`, `docs/vyv/figuras/` | `tests/vv_mms.py`, `vv_timoshenko.py`, `vv_cook.py` **escriben** ahí; `tesis/figuras/generar_figuras.py` copia desde ahí y `tesis/figuras/generar_figuras_formulacion.py` **lee** los CSV (Figuras CR.1 y CR.2 de final3, que comprueba contra la tabla de veredicto); el Anexo D de la tesis vigente (`tesis/capitulos_final3/06_anexos.tex`) las cita, y las que una versión rehace van a su propia `capitulos_finalN/figuras/` | Rutas literales en los scripts |
 | `resources/examples/ejemplo_geometria.dxf` | `tests/generate_example_dxf.py` lo escribe | Ruta literal |
-| `tools/make_icon.py`, `tools/make_installer_images.py`, `tools/build_texlive.py`, `tools/build_all.ps1` | `build_all.ps1` invoca a los `.py` por ruta relativa a `$PSScriptRoot` | Deben quedar hermanos en `tools/` |
+| `tools/make_icon.py`, `tools/make_installer_images.py`, `tools/build_texlive.py`, `tools/licencias_terceros.py`, `tools/build_all.ps1` | `build_all.ps1` invoca a los `.py` por ruta relativa a `$PSScriptRoot` | Deben quedar hermanos en `tools/` |
+| `installer/dist_extra/LICENCIAS-TERCEROS.txt` | `tools/licencias_terceros.py` lo **escribe** (leyendo `build/build/*.toc`); `installer/EduFEM.iss` lo instala en `{app}`; `tests/test_distribucion.py` exige que exista y nombre cada dependencia de `requirements.txt` | Ruta literal en los tres |
 | `vendor/texlive/` | `tools/build_texlive.py` lo **escribe**; `education/components/latex_runtime.py` (`DEV_BUNDLE_RELPATH`) lo lee en dev; `installer/EduFEM.iss` lo copia a `{app}\texlive`, que la app busca como carpeta `texlive` hermana del `.exe` | Rutas literales en los tres |
 | `installer/assets/wizard*.bmp` | `tools/make_installer_images.py` los **escribe**; `installer/EduFEM.iss` los nombra uno por uno en `WizardImageFile` / `WizardSmallImageFile` | Los nombres llevan el tamaño: agregar uno obliga a listarlo en el `.iss` |
 | `resources/icons/edufem_doc.ico` | `tools/make_icon.py` lo escribe; el `.iss` lo instala en `{app}` y el registro apunta ahí para el icono de los `.edufem` | El Explorador lee la ruta del registro: el archivo tiene que quedar instalado |
@@ -113,7 +116,7 @@ Si movés un documento citado desde un comentario del código, actualizá tambi�
 | Documento teórico LaTeX | `docs/teoria/<tema>/` | `.tex` + `.pdf` compilado |
 | Nota de trabajo / hallazgo | `docs/notas/` | Ver [notas/README.md](notas/README.md) |
 | Regla permanente del proyecto | El capítulo que corresponda de `docs/convenciones/` | Si es una prohibición, además una fila en `no-reintroducir.md` |
-| Contenido de la tesis | `tesis/capitulos/` | Ver `tesis/README.md` y las skills `tesis-*` |
+| Contenido de la tesis | `tesis/capitulos_final3/` (versión vigente; compila con `latexmk -xelatex main_final3.tex`) | Las versiones anteriores no se editan: cada mejora abre una carpeta nueva (`capitulos_final4/`…). Ver `tesis/README.md`, «Versiones», y las skills `tesis-*` |
 | Archivo temporal, log, salida intermedia | **Fuera del repo** (directorio scratch de la sesión) | Nunca en la raíz |
 
 ## 5. Comandos habituales

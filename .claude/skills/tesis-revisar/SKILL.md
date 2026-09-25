@@ -1,6 +1,6 @@
 ---
 name: tesis-revisar
-description: Revisa y pule borradores de la tesis de EduFEM (claridad, cohesion, registro academico, redundancia, muletillas de IA, consistencia de terminologia MEF y de citas Vancouver, higiene LaTeX). Usar al corregir o mejorar texto ya escrito de la tesis en tesis/.
+description: Revisa y pule borradores de la tesis de EduFEM (claridad, cohesion, registro academico, redundancia, muletillas de IA, consistencia de terminologia MEF y de citas Vancouver, higiene LaTeX). Usar al corregir o mejorar texto ya escrito de la version vigente de la tesis (hoy tesis/capitulos_final3/).
 ---
 
 # Revisar y pulir la tesis de EduFEM
@@ -8,6 +8,10 @@ description: Revisa y pule borradores de la tesis de EduFEM (claridad, cohesion,
 Revision de calidad sobre texto ya redactado. NO reescribe el sentido: mejora la forma,
 corrige errores y asegura consistencia. Aplica los arreglos en el mismo pase (editar el
 `.tex` directamente) y reporta lo hecho.
+
+Se revisa y se edita la **version vigente**: hoy `tesis/main_final3.tex` + `tesis/capitulos_final3/`,
+con su `CRITERIOS.md` como contrato editorial. `capitulos_final/` (base auditada) y `archivo/` no
+se tocan; ver `tesis/README.md`, «Versiones».
 
 ## Checklist de revision
 
@@ -29,8 +33,8 @@ corrige errores y asegura consistencia. Aplica los arreglos en el mismo pase (ed
      y descarta los hits que sean la marca EduFEM o aparezcan dentro de codigo/verbatim.
 
 4. **Citas Vancouver**
-   - Toda `\autocite{clave}` debe resolver a una entrada de
-     `tesis/bibliografia/referencias.bib`. Lista claves usadas vs definidas y marca las
+   - Toda `\autocite{clave}` debe resolver a una entrada del `referencias.bib` de la version
+     vigente (hoy `tesis/capitulos_final3/referencias.bib`). Lista claves usadas vs definidas y marca las
      huerfanas. Convierte cualquier "% CITA PENDIENTE" en cita real o en nota explicita.
    - Las citas numericas deben ir donde aporta respaldo (afirmaciones teoricas, datos
      externos), no decorar cada oracion.
@@ -46,11 +50,13 @@ corrige errores y asegura consistencia. Aplica los arreglos en el mismo pase (ed
      la viga, etc.) debe coincidir en todos los capitulos donde aparece.
    - No repetir la teoria del Cap. 1 dentro del Cap. 2; el Cap. 2 describe la
      implementacion, no reexplica el metodo.
-   - Conclusiones alineadas con los objetivos de la Introduccion (una por objetivo).
+   - Conclusiones en triada: una conclusion y una recomendacion por capitulo (uno por objetivo
+     especifico), sin la formula "Objetivo especifico N --verbo--"; las cifras van en sus visuales.
 
 7. **Verificacion de compilacion (opcional pero recomendado)**
-   - Si MiKTeX esta disponible: `pdflatex main` -> `biber main` -> `pdflatex main` x2 en
-     `tesis/`. Reporta errores/warnings (referencias rotas, citas sin resolver).
+   - Si MiKTeX esta disponible: `latexmk -xelatex main_final3.tex` en `tesis/` (latexmk corre
+     xelatex y biber las veces necesarias). Reporta errores/warnings (referencias rotas,
+     citas sin resolver, cajas desbordadas).
 
 ## Salida
 
