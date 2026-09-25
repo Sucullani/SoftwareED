@@ -1,0 +1,395 @@
+% PREAMBULO DE LA VERSION FINAL 1 (copia de tesis/preambulo.tex, 2026-09-23).
+% Cada version final lleva su preambulo, su bibliografia y sus figuras rehechas dentro de
+% capitulos_finalN/, para que corregirla no altere la version anterior.
+%
+% =====================================================================
+%  preambulo.tex  -- Paquetes y configuracion de la tesis EduFEM
+%  Cargado por las DOS versiones del documento. Clase: report (12pt, a4paper).
+%
+%    main.tex     pdflatex + biber    Latin Modern (serif)   -> main.pdf
+%    main_v2.tex  xelatex  + biber    Arial 12 pt            -> main_v2.pdf
+%
+%  Mismos capitulos, misma bibliografia, mismo formato APA: lo unico que cambia
+%  es la fuente de TEXTO. Editar un capitulo actualiza las dos versiones.
+% =====================================================================
+
+% --- Codificacion y fuente de TEXTO ---
+% main_v2.tex define \tesisFuenteArial ANTES de este \input; ese es el unico
+% interruptor de todo el mecanismo.
+%
+% Las FORMULAS no se tocan en ninguna de las dos versiones: amsmath las sigue
+% componiendo con las fuentes matematicas de LaTeX (Latin Modern Math). Es lo que
+% corresponde en una tesis de ingenieria y ademas no hay alternativa real: Arial
+% no trae alfabeto matematico, ni italica matematica, ni los simbolos de extension
+% (integral, sumatoria, \nabla, los delimitadores que crecen con la matriz).
+% Forzarla romperia las ecuaciones del marco teorico y del Anexo F.
+\ifdefined\tesisFuenteArial
+  % --- XeLaTeX: la Arial de verdad, la del sistema (C:\Windows\Fonts\arial.ttf) ---
+  % lmodern va PRIMERO y a proposito: declara las familias MATEMATICAS en Latin
+  % Modern, las mismas de main.pdf. Recien despues fontspec redefine las familias
+  % de TEXTO (rm/sf/tt), asi que las formulas salen identicas a las de la v1.
+  \usepackage{lmodern}
+  \usepackage{fontspec}
+  % Ligatures=TeX (-- , --- y las comillas de TeX) va SOLO en las familias de
+  % texto, nunca en la monoespaciada: en un listado de codigo convierte el "--"
+  % de Python en una raya y las comillas rectas en curvas.
+  \setmainfont{Arial}[Ligatures=TeX]
+  \setsansfont{Arial}[Ligatures=TeX]
+  % La monoespaciada se queda en Latin Modern Mono, la MISMA de main.pdf, y no
+  % pasa a una mono de Windows. No es cosmetica: medido sobre el Anexo C, con
+  % Consolas el codigo sale con U+2010 HYPHEN en vez del guion ASCII (y con
+  % Ligatures=TeX, ademas con U+201D en vez de la comilla recta), asi que lo que
+  % el tribunal copia del PDF ya no es Python valido. Con Latin Modern Mono el
+  % texto extraido no tiene un solo caracter espurio, igual que en la v1.
+  \setmonofont{Latin Modern Mono}
+\else
+  % --- pdflatex: la version original ---
+  \usepackage[utf8]{inputenc}      % fuente .tex en UTF-8
+  \usepackage[T1]{fontenc}
+  \usepackage{lmodern}
+\fi
+% es-noindentfirst se retiro al adoptar APA: la norma sangra la primera linea de
+% TODO parrafo, incluido el primero que sigue a un titulo.
+\usepackage[spanish,es-tabla]{babel}  % "Tabla" (no "Cuadro")
+
+% --- Parche: babel-spanish rompe los \caption con formulas bajo XeLaTeX ---
+% Sintoma exacto: "! Argument of \es@a has an extra }." al procesar un
+% \caption{... $D_{\max}$.}, que aborta la compilacion de main_v2.
+% Causa: babel-spanish redefine \max, \min, \lim e \inf para que impriman "max",
+% "min", "lim" e "inf" ACENTUADOS, que es lo correcto en espanol. Para poner ese
+% acento elige entre dos implementaciones segun el motor, y la que reserva para
+% XeLaTeX (\es@op@ac@TU, activada porque ahi existe \Umathchar) no sobrevive a la
+% expansion que hace \caption al escribir el rotulo en el archivo .lof.
+% La rama base -la que usa pdflatex, o sea la que ya produce main.pdf- si.
+% Verificado: con este \let, el texto extraido del PDF es identico al de
+% pdflatex ("max" "min" "lim" "inf" con tilde); sin el, no compila. La
+% alternativa \unaccentedoperators tambien evita el error pero deja los
+% operadores SIN acento, apartandose de main.pdf.
+\ifdefined\XeTeXversion
+  \makeatletter
+  \@ifundefined{es@op@ac@base}{}{\let\es@op@ac\es@op@ac@base}
+  \makeatother
+\fi
+\usepackage{csquotes}            % requerido por biblatex
+
+% babel-spanish redefine \% para anteponer un espacio fino, y esa version rompe en
+% modo matematico ("Incompatible glue units"). Se restablece un \% simple, valido en
+% texto y en formulas (los capitulos ya escriben el espacio fino con \, donde hace falta).
+\AtBeginDocument{\DeclareRobustCommand{\%}{\char37\relax}}
+
+% Guion bajo que admite corte de linea justo despues de el. Permite que los
+% identificadores de codigo largos (p.ej. generate_structured_quad_mesh,
+% boundary_conditions.csv) se ajusten dentro de las celdas p{} estrechas de las
+% tablas de anexos sin desbordar el margen. Es puramente aditivo: solo agrega
+% oportunidades de corte, nunca fuerza un salto.
+\AtBeginDocument{\DeclareRobustCommand{\_}{\textunderscore\allowbreak}}
+
+% =====================================================================
+%  PRESENTACION DEL DOCUMENTO: formato APA 7.a edicion
+% ---------------------------------------------------------------------
+%  Las CITAS y la lista de REFERENCIAS no son APA: siguen Vancouver
+%  (numericas, por orden de aparicion). Ver el bloque de biblatex mas
+%  abajo y tesis/normas/guia_vancouver.pdf. Lo que sigue es solo la
+%  presentacion: margenes, fuente, interlineado, sangria, titulos,
+%  rotulos de tablas y figuras y numeracion de pagina.
+%  Que se aplico y que no, y por que: docs/notas/2026-09-10_apa-presentacion.md
+% =====================================================================
+
+% --- Geometria, interlineado y parrafos (APA 7) ---
+% APA pide 2,54 cm (1 pulgada) en los cuatro lados. Se conserva A4 en vez de
+% carta: es el papel de la region y el de la caratula ya impresa.
+% headheight: fancyhdr necesita 14,5 pt para el numero de pagina a 12 pt; con el
+% valor por defecto (12 pt) avisaba en cada hoja.
+\usepackage[a4paper,margin=2.54cm,headheight=14.5pt]{geometry}
+\usepackage{setspace}
+% APA: interlineado doble en todo el documento. Medido sobre esta tesis: a doble
+% son 143 hojas y a 1,5 son 120 (el original, antes de APA, eran 131). El salto
+% es chico porque el margen de 2,54 cm ensancha la caja de texto y compensa.
+% Para pasar a 1,5, cambiar esta linea por \onehalfspacing.
+\doublespacing
+\setlength{\parskip}{0pt}        % APA: sin espacio extra antes ni despues del parrafo
+\setlength{\parindent}{1.27cm}   % APA: sangria de primera linea de 1/2 pulgada
+
+% Excepciones al doble espacio que la propia APA admite: el cuerpo de las tablas
+% y el texto dentro de figuras "puede utilizar interlineado sencillo, 1,5 o doble,
+% el que sea mas efectivo". Se agregan los listados de codigo por el mismo motivo:
+% a doble espacio un fragmento de Python se vuelve ilegible.
+% APA: "Align the text to the left margin. Leave the right margin uneven, or
+% ragged. Do not use full justification." Y sin guiones de corte automaticos.
+% Para volver a texto justificado, comentar estas tres lineas.
+\usepackage[document]{ragged2e}
+% ragged2e pone la sangria de primera linea en 0 al activar \RaggedRight; APA la
+% quiere en 1,27 cm, asi que se restituye por su propio parametro. OJO: este
+% parametro tambien entra en las celdas p{} de las tablas, donde no va; se lo
+% neutraliza mas abajo, en el parche de \@arrayparboxrestore.
+\setlength{\RaggedRightParindent}{1.27cm}
+% Bandera derecha LIBRE. ragged2e limita por defecto el estiramiento del margen
+% derecho a 2 em, y con los guiones prohibidos eso deja a TeX sin salida: no
+% puede cortar la palabra ni correrla al renglon siguiente, asi que la mete en
+% el margen. Eran 254 lineas desbordadas, la peor por 1,7 cm. Con "plus 1fil"
+% el renglon simplemente termina antes, que es la bandera derecha de verdad y
+% lo que APA pide ("leave the right margin uneven, or ragged").
+\setlength{\RaggedRightRightskip}{0pt plus 1fil}
+\hyphenpenalty=10000
+\exhyphenpenalty=10000
+
+\usepackage{etoolbox}
+\AtBeginEnvironment{tabular}{\singlespacing}
+\AtBeginEnvironment{tabularx}{\singlespacing}
+\AtBeginEnvironment{longtable}{\singlespacing}
+\AtBeginEnvironment{lstlisting}{\singlespacing}
+
+% --- Las celdas p{} NO heredan la sangria ni la prohibicion de guiones ---
+% La opcion [document] de ragged2e activa "raggedrightboxes", que reemplaza el
+% \parindent\z@ de \@arrayparboxrestore por un \RaggedRight. Como \RaggedRight
+% aplica \RaggedRightParindent, TODA celda p{} quedaba con 1,27 cm de sangria en
+% su primera linea: el encabezado y la primera linea de cada celda se corrian a
+% la derecha y las lineas siguientes quedaban al ras, que es exactamente el
+% desalineado que se veia en la Nomenclatura y en la tabla de variables.
+% Ademas, sin guiones una columna angosta no puede partir "caracteristico" ni
+% "discretizacion" y se desborda. Adentro de una tabla la norma APA no manda:
+% permite explicitamente que el cuerpo se componga como resulte mas efectivo.
+\makeatletter
+\apptocmd{\@arrayparboxrestore}{%
+  \parindent\z@
+  \hyphenpenalty=50 \exhyphenpenalty=50 % los valores por defecto de LaTeX
+}{}{\PackageError{tesis}{No se pudo parchear \string\@arrayparboxrestore}{}}
+
+% --- Los indices (contenido, figuras, tablas) van justificados ---
+% Sus renglones terminan en un relleno de puntos y el numero de pagina; con la
+% bandera derecha libre ese relleno pelea con el \rightskip y el titulo de la
+% figura se mete en el margen. No son texto corrido, asi que la alineacion de
+% APA no les aplica.
+% Y ADEMAS admiten guion de corte, por el mismo motivo que las celdas p{} de
+% mas arriba: el titulo de una figura o de una seccion no se puede reformular
+% para que entre, y aca no hay bandera derecha que absorba el sobrante -el
+% relleno de puntos ocupa hasta el numero de pagina-, asi que sin guiones la
+% unica salida que le queda a TeX es meter la palabra en el margen. Medido: con
+% Arial se salian 8 pt (2,8 mm) la entrada del capitulo 2 y una de la lista de
+% figuras. Los valores son los que LaTeX trae por defecto.
+\let\tesis@starttoc\@starttoc
+\renewcommand{\@starttoc}[1]{\begingroup\justifying
+  \hyphenpenalty=50 \exhyphenpenalty=50
+  \tesis@starttoc{#1}\endgroup}
+\makeatother
+
+% --- Matematica ---
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{bm}                  % \bm para negrita matematica (matrices)
+
+% Operador de ensamblaje del MEF: la "A grande" estandar (no el wedge logico).
+% Con \DeclareMathOperator* el subindice (el indice de elemento) se ubica debajo.
+\DeclareMathOperator*{\Ensamblaje}{\text{\Large\textsf{A}}}
+
+% --- Figuras y tablas ---
+\usepackage{graphicx}
+\graphicspath{{capitulos_final1/figuras/}{figuras/}}   % final1: las figuras rehechas tienen prioridad
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{multirow}
+\usepackage{float}
+\usepackage{caption}
+% --- Rotulos de tablas y figuras en formato APA 7 ---
+% APA: numero en negrita en su propio renglon, titulo en cursiva debajo, ambos
+% alineados a la izquierda; la nota va debajo del contenido (comando \notaapa).
+\captionsetup{labelfont=bf,        % "Figura 1.1" en negrita
+              textfont=it,         % titulo en cursiva
+              labelsep=newline,    % titulo en el renglon siguiente
+              singlelinecheck=false,
+              justification=raggedright,
+              font=normalsize}
+
+% APA coloca numero y titulo ARRIBA de la figura, no debajo. plaintop lo resuelve
+% sin tocar los 29 entornos figure de los capitulos, que traen el \caption al final.
+\floatstyle{plaintop}
+\restylefloat{figure}
+
+% Nota al pie de una tabla o figura, en el formato de APA: "Nota." en cursiva.
+% Uso: dentro del float, despues del contenido.  \notaapa{Elaboracion propia.}
+\newcommand{\notaapa}[1]{%
+  \par\vspace{0.4em}%
+  {\raggedright\footnotesize\textit{Nota.} #1\par}}
+\usepackage{pdfpages}            % embeber PDF externo (Anexo de validacion SAP2000)
+
+% --- Color, enlaces y tipografia fina ---
+\usepackage{xcolor}
+\definecolor{tesisAzul}{HTML}{0D6EFD}
+\usepackage{microtype}
+\usepackage[hidelinks]{hyperref}
+\hypersetup{
+  pdftitle={\tituloTesis},
+  pdfauthor={\autorTesis},
+  pdfsubject={Tesis de licenciatura en Ingeniería Civil, Universidad Autónoma Tomás Frías},
+  pdfkeywords={método de elementos finitos, software educativo, elementos isoparamétricos Q4/Q9, elasticidad plana, verificación y validación, memoria de cálculo},
+  bookmarksnumbered=true,
+}
+% \autoref{anexo:...} debe imprimir "Anexo X" (el rotulo de los capitulos del apendice)
+% tambien ANTES de \appendix (la Introduccion los enumera). babel-spanish restablece
+% los nombres de hyperref en cada seleccion de idioma, por eso se agrega a \extrasspanish.
+\addto\extrasspanish{\renewcommand{\appendixautorefname}{Anexo}}
+
+% --- Listados de codigo fuente (Anexo C) ---
+% El paquete listings con un mapeo `literate` para los simbolos unicode que
+% aparecen en los comentarios del codigo (xi, eta, derivadas parciales, letras
+% griegas), de modo que los fragmentos reales del proyecto se reproduzcan fieles.
+\usepackage{listings}
+\definecolor{lstKeyword}{HTML}{0D6EFD}
+\definecolor{lstComment}{HTML}{6C757D}
+\definecolor{lstString}{HTML}{198754}
+\definecolor{lstBg}{HTML}{F6F8FA}
+\lstdefinestyle{pyedufem}{
+  language=Python,
+  basicstyle=\ttfamily\footnotesize,
+  keywordstyle=\color{lstKeyword}\bfseries,
+  commentstyle=\color{lstComment}\itshape,
+  stringstyle=\color{lstString},
+  backgroundcolor=\color{lstBg},
+  numbers=left, numberstyle=\tiny\color{lstComment}, numbersep=8pt,
+  % Los numeros de linea cuelgan a la izquierda del marco: sin este margen
+  % invadian el margen APA de 2,54 cm.
+  xleftmargin=1.6em, xrightmargin=0.2em,
+  frame=single, framesep=4pt, rulecolor=\color{lstComment},
+  breaklines=true, breakatwhitespace=false, showstringspaces=false,
+  tabsize=4, columns=fullflexible, keepspaces=true,
+  extendedchars=true, inputencoding=utf8,
+  literate=%
+    {ξ}{{$\xi$}}1 {η}{{$\eta$}}1 {∂}{{$\partial$}}1 {∈}{{$\in$}}1
+    {ε}{{$\varepsilon$}}1 {γ}{{$\gamma$}}1 {σ}{{$\sigma$}}1 {τ}{{$\tau$}}1
+    {ν}{{$\nu$}}1 {λ}{{$\lambda$}}1 {μ}{{$\mu$}}1 {θ}{{$\theta$}}1 {π}{{$\pi$}}1
+    {·}{{$\cdot$}}1 {×}{{$\times$}}1 {→}{{$\rightarrow$}}1 {∇}{{$\nabla$}}1
+    {²}{{\textsuperscript{2}}}1 {³}{{\textsuperscript{3}}}1
+    {≤}{{$\leq$}}1 {≥}{{$\geq$}}1 {≈}{{$\approx$}}1 {±}{{$\pm$}}1 {√}{{$\surd$}}1
+    {—}{{---}}1 {–}{{--}}1 {°}{{$^{\circ}$}}1
+    {á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1
+    {Á}{{\'A}}1 {É}{{\'E}}1 {Í}{{\'I}}1 {Ó}{{\'O}}1 {Ú}{{\'U}}1
+    {ñ}{{\~n}}1 {Ñ}{{\~N}}1 {ü}{{\"u}}1 {¿}{{?`}}1 {¡}{{!`}}1
+}
+\lstset{style=pyedufem}
+
+% --- Encabezado: numeracion de pagina en formato APA 7 ---
+% APA (trabajo de estudiante): el encabezado lleva UNICAMENTE el numero de
+% pagina, arriba a la derecha, en todas las hojas y en la misma fuente y cuerpo
+% que el texto. Sin titulillo (running head, solo para trabajos profesionales),
+% sin nombre de capitulo y sin linea de encabezado.
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[R]{\thepage}
+\renewcommand{\headrulewidth}{0pt}
+\fancypagestyle{plain}{% las hojas de apertura de capitulo usan "plain" en report
+  \fancyhf{}
+  \fancyhead[R]{\thepage}
+  \renewcommand{\headrulewidth}{0pt}
+}
+
+% --- Jerarquia de titulos en formato APA 7 (conservando la numeracion) ---
+% APA define cinco niveles, todos en negrita y con cada palabra en mayuscula.
+% APA ademas pide no numerar los titulos; aca SI se numeran (decision del autor):
+% la tesis tiene ~50 referencias cruzadas del tipo \autoref{cap:...} y el tribunal
+% espera capitulos numerados. Lo que se adopta es la tipografia de cada nivel.
+%
+%   Nivel 1 (\chapter)       centrado, negrita
+%   Nivel 2 (\section)       izquierda, negrita
+%   Nivel 3 (\subsection)    izquierda, negrita cursiva
+%   Nivel 4 (\subsubsection) sangrado, negrita, punto final, texto en la misma linea
+%   Nivel 5 (\paragraph)     sangrado, negrita cursiva, punto final, texto seguido
+%
+% El cuerpo es el mismo del texto (APA: "utiliza el mismo tamano de fuente en
+% todo el documento, incluso en los titulos"), por eso van en \normalsize.
+\usepackage{titlesec}
+
+\titleformat{\chapter}[display]
+  {\normalfont\normalsize\bfseries\centering}
+  {\chaptertitlename\ \thechapter}{0.6\baselineskip}{}
+\titlespacing*{\chapter}{0pt}{0pt}{\baselineskip}
+
+% [block] y no la forma "hang" por defecto: con hang, un titulo largo -"1.8
+% Fenomenos numericos en elementos de bajo orden: bloqueo y modos espurios"- no
+% envuelve y se mete 0,9 cm en el margen derecho. En bloque, parte a dos
+% renglones. El \RaggedRight explicito evita que el titulo salga justificado.
+\titleformat{\section}[block]
+  {\normalfont\normalsize\bfseries\RaggedRight}{\thesection}{1em}{}
+\titlespacing*{\section}{0pt}{\baselineskip}{0pt}
+
+\titleformat{\subsection}
+  {\normalfont\normalsize\bfseries\itshape}{\thesubsection}{1em}{}
+\titlespacing*{\subsection}{0pt}{\baselineskip}{0pt}
+
+\titleformat{\subsubsection}[runin]
+  {\normalfont\normalsize\bfseries}{\thesubsubsection}{1em}{}[.]
+\titlespacing*{\subsubsection}{\parindent}{\baselineskip}{0.5em}
+
+\titleformat{\paragraph}[runin]
+  {\normalfont\normalsize\bfseries\itshape}{}{0pt}{}[.]
+\titlespacing*{\paragraph}{\parindent}{\baselineskip}{0.5em}
+
+% --- Sangria francesa de la lista de referencias (APA: 1,27 cm) ---
+% Aplica a la lista de biblatex, que es Vancouver en su contenido pero se
+% presenta con la sangria que pide APA, como el resto del documento.
+\AtBeginDocument{\setlength{\bibhang}{1.27cm}}
+
+% --- Bibliografia estilo VANCOUVER (biblatex + biber) ---
+% Numeracion por orden de aparicion (sorting=none), citas numericas compactas.
+% numeric-comp + sorting=none + el formato de nombres de abajo reproduce Vancouver/NLM.
+\usepackage[backend=biber,    % obligatorio: biber, NO bibtex
+            style=numeric-comp,  % numerico con rangos comprimidos: [2-5]
+            sorting=none,        % numeracion por orden de aparicion (Vancouver)
+            sortcites=true,      % ordena numeros dentro de una cita: [3,1] -> [1,3]
+            giveninits=true,     % nombres como iniciales
+            terseinits=true,     % iniciales pegadas y sin puntos: "Bathe KJ", "Ryu HR".
+                                 % Fija bibinitperiod, bibinitdelim Y bibinithyphendelim;
+                                 % este ultimo (por defecto ".-") es el que hacia salir
+                                 % "Bathe K.-J." en los nombres compuestos.
+            uniquename=false,
+            uniquelist=false,
+            maxbibnames=6,       % hasta 6 autores en la lista...
+            minbibnames=6,       % ...y si hay mas, corta con "et al." (Vancouver/NLM)
+            doi=true,            % mostrar DOI en articulos
+            isbn=false,
+            url=false]{biblatex}
+
+% Formato de nombres estilo Vancouver/NLM: "Salari K" (apellido + iniciales,
+% sin coma, sin puntos ni espacios entre iniciales) y sin "y"/"and" final.
+% (No hace falta redefinir "sortname": con sorting=none nunca se usa.)
+\DeclareNameAlias{default}{family-given}
+\renewcommand*{\revsdnamepunct}{}        % sin coma entre apellido e iniciales
+% (bibinitperiod y bibinitdelim los deja vacios la opcion terseinits de arriba,
+%  junto con bibinithyphendelim, que estos dos \renewcommand no alcanzaban.)
+% El ultimo autor se separa con "y" (p.ej. "Salari K y Knupp P"): es la convencion
+% de babel-spanish y la natural en un documento en espanol. El NLM ingles usa coma;
+% para forzarla habria que sobrescribir el delimitador de babel, lo que es fragil.
+
+\addbibresource{capitulos_final1/referencias.bib}   % final1: copia propia de la bibliografia
+
+% Citas multiples con localizador (\autocites[p.~a]{k1}[p.~b]{k2}): el delimitador
+% por defecto (coma) era ambiguo, "[20, pp. 21, 26, 19, pp. 219-222]". Se redeclara
+% SOLO el comando multiple \parencites (al que \autocites se mapea con autocite=inline)
+% con punto y coma, "[20, pp. 21, 26; 19, pp. 219-222]", y se deja \multicitedelim
+% en coma para que \autocite{k1,k2} siga imprimiendo "[4, 14]" como pide Vancouver.
+\DeclareMultiCiteCommand{\parencites}[\mkbibbrackets]{\parencite}{\addsemicolon\space}
+\ExecuteBibliographyOptions{autocite=inline}
+
+% --- Comando para figuras todavia inexistentes (placeholder compilable) ---
+% Uso: dentro de un entorno figure, \figpend{descripcion de la figura}.
+% Cuando exista la imagen real, reemplazar por \includegraphics{...}.
+\newcommand{\figpend}[1]{%
+  \begin{center}
+  \setlength{\fboxsep}{10pt}%
+  \fcolorbox{tesisAzul}{white}{%
+    \parbox[c][3.4cm][c]{0.82\linewidth}{\centering
+      \textbf{[Figura pendiente]}\\[4pt]\small\itshape #1}}%
+  \end{center}}
+
+% Etiqueta de "pendiente" para texto que falta completar.
+\newcommand{\pendiente}[1]{\textcolor{red}{\textbf{[PENDIENTE: #1]}}}
+
+% final1: anchos de los indices (H-219, H-339, H-257)
+% El numero de pagina se pegaba al texto en las entradas largas y el numero de figura de dos
+% digitos («B.10.») al titulo: se ensancha la caja del numero y el margen derecho de las lineas.
+\makeatletter
+\renewcommand{\@pnumwidth}{2.2em}
+\renewcommand{\@tocrmarg}{3.2em}
+\renewcommand*\l@figure{\@dottedtocline{1}{1.5em}{3.0em}}
+\renewcommand*\l@table{\@dottedtocline{1}{1.5em}{3.0em}}
+\makeatother

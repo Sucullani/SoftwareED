@@ -1,0 +1,226 @@
+\section{El software EduFEM}
+\label{sec:diseno-edufem}
+
+Definido el diseño metodológico, esta segunda parte del capítulo describe el diseño y la implementación de EduFEM, el software educativo de elementos finitos que materializa los fundamentos expuestos en el \autoref{cap:marco_teorico} y concreta el modelo de investigación. La exposición avanza desde los requisitos que motivaron las decisiones de arquitectura hasta el detalle de cada capa de la herramienta: las tecnologías empleadas, la organización por capas en torno a un modelo de proyecto mutable, el motor numérico, el pre-proceso interactivo, los módulos educativos, el post-proceso y la generación de documentación. El énfasis está puesto en \emph{cómo} se construyó cada componente, no en la teoría que lo respalda, que ya quedó establecida; y cada decisión de diseño se justifica aquí por lo que aporta a la trazabilidad o a la verificabilidad del análisis.
+
+EduFEM resuelve el problema estático lineal de la elasticidad plana —tensión plana y deformación plana— con elementos isoparamétricos cuadriláteros de cuatro y nueve nodos, bajo la hipótesis de pequeños desplazamientos. Quedan fuera el análisis dinámico, la no linealidad del material o de la geometría y el dominio tridimensional, conforme a la delimitación establecida en la Introducción (\emph{Alcance y limitaciones}).
+
+\subsection{Requisitos y decisiones de diseño}
+\label{sec:requisitos}
+
+El objetivo general enunciado en la Introducción —desarrollar un software educativo de elementos finitos que exponga el procedimiento de cálculo— se traduce, en el plano de la herramienta, en una lista de requisitos que condicionó todas las decisiones posteriores. Esa lista no la fijó el autor por conveniencia: la produce el diagnóstico del \autoref{cap:marco_teorico}, que en la \autoref{tab:comparativa} identifica los ocho atributos que ninguno de los recursos educativos revisados reúne a la vez. De ellos se derivan cinco requisitos:
+
+\begin{enumerate}
+    \item \textbf{Procedimiento de cálculo completo a la vista sobre el modelo del usuario.} Cada operación del método —mapeo isoparamétrico, matriz Jacobiana, matriz de deformación-desplazamiento, matriz constitutiva, integración numérica, ensamblaje, imposición de restricciones y recuperación de tensiones— debe poder inspeccionarse visual e interactivamente sobre la geometría que el propio usuario construyó, y no quedar oculta tras una caja negra.
+    \item \textbf{Memoria de cálculo reproducible a mano.} El análisis debe quedar documentado con sustitución numérica paso a paso, sobre los valores del modelo del usuario, en un documento que pueda rehacerse con lápiz y papel o en una hoja de cálculo.
+    \item \textbf{Exactitud verificada y validada, publicada junto con la herramienta.} Los resultados del motor deben contrastarse con soluciones exactas construidas para la verificación, con casos clásicos de la literatura y con un software comercial, dentro de tolerancias fijadas de antemano, y ese contraste debe distribuirse con la herramienta y poder repetirse.
+    \item \textbf{Cobertura del contenido que los expertos exigen.} Lo que la herramienta expone debe cubrir, dentro del alcance del trabajo, las destrezas y los conceptos del universo de contenido definido en la \autoref{sec:poblacion} a partir de un consenso publicado de expertos.
+    \item \textbf{Software libre y en español.} La herramienta debe distribuirse sin licencias comerciales y con su código fuente disponible ---el de EduFEM se publica bajo licencia MIT---, y su interfaz y su documentación deben estar íntegramente en español.
+\end{enumerate}
+
+Los dos primeros requisitos sirven a la trazabilidad del análisis y el tercero a su verificabilidad; el cuarto extiende la trazabilidad al contenido que la disciplina considera exigible, y el quinto pone una y otra al alcance de la Carrera. Es la misma lista que la \autoref{tab:dsrm} registra como objetivos de la solución y que el \autoref{cap:resultados} contrasta uno por uno; las subsecciones que siguen remiten a ella al justificar cada decisión de diseño.
+
+Dos hallazgos de la literatura sobre enseñanza del método acompañan al primer requisito y orientaron su forma. El software educativo interactivo se reporta como conducente a una mejor comprensión de los conceptos del análisis estructural \autocite[p.~168]{lee2015interactive}, y la construcción paso a paso de las herramientas de cálculo junto con el estudiante resulta eficaz \autocite[p.~1023]{bishay2020teaching}. Uno y otro se refieren a las herramientas que sus autores evaluaron, y este trabajo no traslada a EduFEM lo que allí se reporta: el primero es una evaluación cualitativa, sin grupo de control, y el segundo atribuye la mejora principalmente a que el estudiante escribe sus propias herramientas de cálculo (\autoref{sec:fundamentos-pedagogicos}). EduFEM no le pide que escriba código; de ese segundo hallazgo solo se retiene lo que puede trasladarse a un programa de uso —que el procedimiento quede a la vista etapa por etapa y pueda reproducirse a mano—, que es justamente lo que enuncian los requisitos 1 y 2. En conjunto, ambos orientaron el diseño hacia la manipulación directa antes que hacia la mera lectura de resultados.
+
+El autor adoptó tres decisiones generales para concretar estos requisitos en la herramienta. La primera es el \emph{idioma}: la totalidad de la interfaz, los mensajes del comprobador de salud y la documentación generada se redactan en español, empleando la terminología canónica de la disciplina (GDL en lugar de DOF, MEF en lugar de FEM, restricción en lugar de condición de contorno). La segunda es la \emph{primacía de lo visual}: el modelo se construye y se consulta sobre el lienzo, con sincronización inmediata entre la representación tabular y la geométrica. La tercera es la \emph{independencia tecnológica}: EduFEM se apoya exclusivamente en software libre o en código propio, sin licencias comerciales, para que pueda distribuirse y ejecutarse en cualquier equipo de un laboratorio docente. Para facilitar su adopción en el aula, la herramienta se distribuye para Windows mediante un instalador que despliega un ejecutable autocontenido —empaquetado con \texttt{PyInstaller}, que incorpora el intérprete de Python y todas las dependencias—; así, el estudiante no necesita instalar Python ni bibliotecas; el código fuente permanece público para su inspección o extensión. El procedimiento detallado de instalación se describe en el \autoref{anexo:instalacion}.
+
+La identidad visual de la herramienta sintetiza estos requisitos. El icono de EduFEM (\autoref{fig:logo-edufem}) fusiona sus dos planos: un birrete académico —que evoca su finalidad educativa— cuyo tablero es una malla de elementos finitos coloreada con la misma paleta que el post-proceso emplea para los campos de tensión. Así, la identidad gráfica y la salida del software comparten un lenguaje visual coherente.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.30\linewidth]{fig_logo_edufem}
+\caption[Icono de EduFEM.]{Icono de EduFEM. El birrete académico remite a la finalidad educativa de la herramienta, y su tablero es una malla de elementos finitos coloreada con la misma paleta de resultados con que el post-proceso presenta los campos de tensión (\autoref{sec:post-proceso}).}
+\label{fig:logo-edufem}
+\end{figure}
+
+\subsection{Tecnologías empleadas}
+\label{sec:stack}
+
+La implementación se realizó íntegramente en Python, lenguaje que combina una sintaxis accesible con un ecosistema científico maduro. La \autoref{tab:stack} resume las bibliotecas adoptadas y su función dentro del sistema. La interfaz gráfica se construyó sobre \texttt{tkinter}, la biblioteca estándar de Python para interfaces de ventana, con un tema visual profesional aportado por \texttt{ttkbootstrap} (tema oscuro \emph{darkly}). El núcleo numérico se apoya en NumPy, que provee el álgebra densa, y en SciPy, que provee las matrices dispersas y el solucionador lineal \autocite{harris2020numpy,virtanen2020scipy}; las funciones de forma y la cuadratura de Gauss las implementa el propio motor, y no una biblioteca de elementos finitos de terceros.
+
+\begin{table}[H]
+\centering
+\caption[Componentes de la plataforma de desarrollo de EduFEM.]{Componentes de la plataforma de desarrollo de EduFEM: la tecnología adoptada para cada función del sistema y el papel concreto que cumple dentro de él.}
+\label{tab:stack}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}l >{\raggedright\arraybackslash}p{4.0cm} >{\raggedright\arraybackslash}p{6.9cm}@{}}
+\toprule
+\textbf{Función} & \textbf{Tecnología} & \textbf{Rol en el sistema} \\
+\midrule
+Interfaz gráfica      & \texttt{tkinter} + \texttt{ttkbootstrap} & Ventanas, tablas y menús (tema \emph{darkly}) \\
+Cálculo numérico      & NumPy, SciPy                              & Álgebra densa y dispersa, solucionador disperso \\
+Generación de PDF     & \texttt{pylatex} + \TeX{} Live embebido    & Memoria de cálculo paso a paso \\
+Lectura de PDF        & \texttt{PyMuPDF} (\texttt{fitz})          & Presentación de los documentos de teoría dentro de la propia herramienta \\
+Importación CAD       & \texttt{ezdxf}                            & Lectura de geometría desde archivos DXF \\
+Imagen y figuras      & \texttt{Pillow}                           & Dibujo de los contornos y de las figuras de la memoria \\
+Animación educativa   & \texttt{manim}                            & Generación de los videos didácticos en WebP, prerrenderizados y distribuidos con la herramienta \\
+Distribución          & \texttt{PyInstaller} + Inno Setup         & Ejecutable autocontenido e instalador único (Windows) \\
+\bottomrule
+\end{tabular}
+{\singlespacing\notaapa{Todas las bibliotecas listadas son de código abierto, conforme al requisito de software libre, pero no todas llevan la misma licencia: la mayoría es de licencia permisiva —BSD, MIT o similares— mientras que \texttt{PyMuPDF} se distribuye bajo AGPL-3.0 o, alternativamente, bajo licencia comercial. La distinción importa porque una licencia recíproca como la AGPL condiciona los términos con que puede redistribuirse el conjunto. El código propio de EduFEM se publica bajo licencia MIT; la redistribución del paquete binario, que incorpora \texttt{PyMuPDF}, queda además sujeta a los términos de la AGPL-3.0 de esa biblioteca. \texttt{manim} es la única que no acompaña a la herramienta instalada: es una herramienta de construcción, con la que los videos se generan antes de empaquetar y se distribuyen ya renderizados.}}
+\end{table}
+
+La generación de la memoria de cálculo se delega en \texttt{pylatex}, que compone el documento \LaTeX{} compilado luego por \texttt{pdflatex}; el PDF resultante se abre con el visor del sistema, mientras que \texttt{PyMuPDF} presenta dentro de la propia herramienta los documentos de teoría que acompañan a los módulos educativos. Para que esa compilación no dependa de que el estudiante instale por su cuenta una distribución \LaTeX{}, el instalador incorpora una copia reducida de \TeX{} Live —únicamente el motor \texttt{pdflatex} y los paquetes que el documento utiliza— que EduFEM localiza junto a su propio ejecutable antes de recurrir a cualquier instalación del sistema. La importación de geometría desde formatos CAD recae en \texttt{ezdxf}, el dibujo de las figuras del PDF y de los contornos en \texttt{Pillow}, y la producción de los videos didácticos en \texttt{manim}. El autor evitó deliberadamente toda dependencia de bibliotecas multimedia pesadas: los videos se reproducen como WebP animado decodificado por \texttt{Pillow}, lo que reduce el tamaño del instalador distribuible.
+
+Estas elecciones no son indiferentes al propósito del trabajo. Escribir el motor sobre bibliotecas numéricas de propósito general, en lugar de adoptar un paquete de elementos finitos ya hecho, es lo que deja disponibles las matrices intermedias para exponerlas y documentarlas, como piden los requisitos 1 y 2. Y que todas las piezas sean libres y viajen dentro del instalador —incluido el compilador \LaTeX{}— es lo que permite que cualquiera genere la memoria de cálculo y repita las comprobaciones del \autoref{cap:resultados} con el mismo software, sin licencias, sin conexión y sin instalaciones previas, como piden los requisitos 3 y 5.
+
+\subsection{Arquitectura por capas en torno al modelo de proyecto}
+\label{sec:arquitectura}
+
+EduFEM adopta un patrón de tipo Modelo--Vista--Controlador (MVC) organizado en capas: el estado del análisis, su presentación en pantalla y la lógica que los conecta viven en piezas separadas. La pieza central es la clase \texttt{ProjectModel}. Este objeto concentra el estado completo del análisis —nodos, elementos, materiales, cargas, restricciones, configuración del problema y, tras resolver, la solución— y se comparte por referencia con todos los componentes, de modo que existe una sola copia de los datos. Cada capa de la \autoref{tab:capas} cumple una responsabilidad acotada y depende solo de las inferiores, lo que mantiene el motor de cálculo libre de cualquier acoplamiento con la interfaz. La \autoref{fig:arquitectura} ilustra el flujo entre capas.
+
+\begin{table}[H]
+\centering
+\caption[Capas de la arquitectura de EduFEM.]{Capas de la arquitectura de EduFEM: el paquete de código que materializa cada capa y la responsabilidad que tiene asignada. El motor (\texttt{fem/}) no depende de ninguna capa de interfaz, y por eso puede ejecutarse sin pantalla.}
+\label{tab:capas}
+\begin{tabular}{@{}l >{\raggedright\arraybackslash}p{12.1cm}@{}}
+\toprule
+\textbf{Capa (paquete)} & \textbf{Responsabilidad} \\
+\midrule
+\texttt{models/}    & Modelo de proyecto, entidades, comprobación de salud, deshacer/rehacer \\
+\texttt{fem/}       & Motor numérico del MEF (NumPy/SciPy puros) \\
+\texttt{gui/}       & Interfaz: pre-proceso, lienzo y post-proceso \\
+\texttt{education/} & Módulos educativos interactivos M0 a M7 \\
+\texttt{file\_io/}  & Entrada/salida: proyecto, CSV, DXF y memoria PDF \\
+\texttt{config/}    & Constantes, sistemas de unidades y paletas de color \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\linewidth]{fig_arquitectura}
+\caption[Arquitectura por capas centrada en el modelo de proyecto.]{Arquitectura por capas de EduFEM en torno al modelo de proyecto. Los seis paquetes de código rodean al objeto \texttt{ProjectModel}, que concentra el estado del análisis; cada línea indica que esa capa lee y modifica ese mismo objeto, compartido por referencia y nunca replicado. El motor (\texttt{fem/}) no importa ninguna biblioteca de interfaz.}
+\label{fig:arquitectura}
+\end{figure}
+
+Toda mutación originada por la interfaz se aplica sobre el mismo objeto \texttt{ProjectModel}, que marca su estado como modificado y como no resuelto; de ese modo los cambios se propagan sin replicar datos. La configuración global del análisis —tipo de elemento, tipo de análisis (tensión plana o deformación plana), sistema de unidades y gravedad— reside también en el modelo y se guarda junto con la geometría.
+
+Que el estado viva en un solo objeto y que el motor no dependa de la interfaz es lo que sostiene la trazabilidad del análisis. Los módulos educativos, la memoria de cálculo y los guiones de verificación leen el mismo modelo y llaman a las mismas funciones que resuelven el sistema, de manera que lo expuesto al estudiante es, por construcción, lo que el motor calculó, y no una ilustración preparada aparte.
+
+\subsection{Separación entre identidad del nodo e índice de grado de libertad}
+\label{sec:identidad-gdl}
+
+Una decisión de diseño crítica es la separación explícita entre la \emph{identidad} de un nodo y su \emph{índice} en el sistema algebraico. El identificador de nodo es una etiqueta pública: es el número que el estudiante ve en la tabla y en el lienzo, y el que aparece en los archivos exportados y en la memoria de cálculo. No cambia mientras el nodo exista y, tras borrar nodos, puede presentar huecos, por ejemplo el conjunto $\{1, 5, 50\}$. El índice, en cambio, es interno: cada nodo recibe un ordinal $i$ en el rango $0$ a $N-1$, donde $N$ es el número de nodos, y sus dos grados de libertad (GDL) ocupan las posiciones $2i$ y $2i+1$ —de $0$ a $2N-1$— en la matriz $\bm{K}$, en el vector $\bm{F}$ y en la solución $\bm{u}$. La correspondencia entre uno y otro la resuelve un \emph{mapa de índices}\footnote{En el código, ese mapa es \texttt{node\_index\_map} y las funciones auxiliares que lo consultan son \texttt{dof\_x} y \texttt{dof\_y} (\autoref{anexo:codigo}).}, que se construye bajo demanda a partir de los identificadores ordenados y se descarta al agregar, borrar o renombrar nodos, para que nunca quede desactualizado.
+
+Esta separación tiene una consecuencia directa: la matriz de rigidez se dimensiona como $2N$ y no como $2\,\max(\text{identificador})$. Calcular el índice de un GDL como $2(\text{identificador}-1)$ —patrón ingenuo que asume identificadores contiguos— produce errores de indexación cuando el usuario elimina nodos intermedios, pues los identificadores dejan de ser consecutivos mientras el sistema algebraico permanece compacto. El acceso se realiza, por eso, siempre a través del mapa de índices. Separar la numeración que ve el usuario de la numeración interna de ensamblaje es, además, lo que permite que el modelo admita identificadores arbitrarios sin penalizar el tamaño del sistema: el costo de la indirección se reduce a una consulta en el mapa, frente al desperdicio de memoria —y al riesgo de índice fuera de rango— que acarrearía dimensionar $\bm{K}$ según el identificador máximo.
+
+Esta separación es, en la práctica, una condición de esa trazabilidad. Gracias a ella, el número de nodo que el estudiante lee en la tabla, en el lienzo, en el módulo M7 y en la memoria de cálculo designa siempre al mismo nodo, aunque entre medio se hayan borrado o renumerado otros; y las filas y columnas de $\bm{K}$ que M7 resalta al ensamblar pueden seguirse en sentido inverso hasta ese nodo y hasta el elemento que las aportó. Si identidad e índice se confundieran, el número visible y la posición en el sistema podrían dejar de referirse a la misma entidad, y ningún resultado sería rastreable hasta sus datos. La \autoref{sec:consistencia-interna} ejercita la separación con identificadores no contiguos.
+
+\subsection{Motor de cálculo del MEF}
+\label{sec:motor}
+
+El paquete \texttt{fem/} concentra el motor numérico y observa una regla de pureza estricta: no importa ninguna biblioteca de interfaz gráfica, de modo que puede ejecutarse sin pantalla, por ejemplo en los guiones de verificación. El cálculo se organiza como una cadena de operaciones que van de la evaluación de las funciones de forma a la integración de la rigidez elemental por cuadratura de Gauss, según la \autoref{eq:ke-gauss}, con el espesor $t$ de cada elemento. Las aportaciones elementales se acumulan en la matriz global y el sistema reducido, una vez impuestas las restricciones, se resuelve con el solucionador disperso de SciPy. La formulación teórica detallada de cada una de estas operaciones —funciones de forma de los elementos Q4 y Q9, regla de la cadena para $\bm{B}$, expresiones de $\bm{D}$ en tensión y deformación plana, y la cuadratura de Gauss-Legendre— se desarrolló en el \autoref{cap:marco_teorico}. El \autoref{anexo:codigo} reproduce el código con que el motor evalúa las funciones de forma y ensambla la matriz global, para que cada expresión del marco teórico pueda cotejarse con las líneas que la calculan. Aquí interesa subrayar que la implementación reproduce esas expresiones con las mismas funciones que consumen los módulos educativos y la memoria de cálculo, lo que garantiza, por construcción, la coherencia numérica entre lo que la herramienta explica y lo que resuelve.
+
+Dos decisiones de implementación completan lo que el \autoref{cap:marco_teorico} deja abierto. La primera es un umbral geométrico: antes de ensamblar, el motor evalúa el determinante Jacobiano de cada elemento en sus puntos de Gauss y rechaza el que no supere el mínimo fijado en la configuración de la herramienta\footnote{La constante se llama \texttt{JACOBIAN\_MIN\_DETERMINANT} y se declara junto a las demás tolerancias numéricas, todas centralizadas en un mismo archivo de configuración.}. Ese control se completa con otros dos, porque evaluar el determinante en una muestra finita de puntos no certifica su signo en todo el elemento: el comprobador de salud verifica, por el área signada de los cuatro vértices, que la numeración sea antihoraria, y el módulo de calidad de malla evalúa el Jacobiano escalado en las esquinas, donde detecta el vértice entrante que el muestreo interior puede no ver. Entre los tres cubren la degeneración, la inversión de la numeración y la concavidad; la biyectividad del mapeo en todo el dominio del elemento no se certifica punto a punto, sino que se infiere de esos controles.
+
+La segunda es la forma de resolver el sistema, que se enuncia aquí en llano porque el \autoref{cap:resultados} vuelve sobre ella. La matriz de rigidez es casi toda ceros, porque cada nodo solo se relaciona con los nodos de sus propios elementos; se la llama por eso \emph{dispersa}, y el motor guarda únicamente sus coeficientes no nulos, cada uno con su fila y su columna, en lugar de reservar memoria para los $2N \times 2N$ valores. Resolver el sistema por \emph{factorización} consiste en descomponer esa matriz en dos matrices triangulares cuyo producto la reproduce; con ellas, los desplazamientos se obtienen por sustitución directa, primero hacia adelante y después hacia atrás, sin invertir ninguna matriz. El inconveniente de factorizar una matriz dispersa es que los factores suelen tener más coeficientes no nulos que ella —lo que se conoce como llenado—, así que antes de factorizar se reordenan las incógnitas con un criterio de mínimo grado, que elimina primero las ecuaciones con menos conexiones y evita buena parte de ese llenado. EduFEM emplea la factorización LU dispersa de la biblioteca SuperLU, a través de SciPy \autocite[p.~264]{virtanen2020scipy}, con el ordenamiento de mínimo grado calculado sobre $\bm{K}^{T}+\bm{K}$, que aprovecha la simetría estructural de la matriz\footnote{Es la opción \texttt{MMD\_AT\_PLUS\_A} de la función \texttt{splu} de \texttt{scipy.sparse.linalg}, documentada en la propia biblioteca. La alternativa genérica, que no aprovecha esa simetría, es el ordenamiento de columnas de mínimo grado aproximado (COLAMD).}; el \autoref{cap:resultados} cuantifica su efecto frente al ordenamiento genérico.
+
+Una y otra decisión sirven al mismo fin: el umbral protege la verificabilidad, porque ningún elemento degenerado en sus puntos de Gauss llega a ensamblarse, y el esquema disperso mantiene el costo del análisis dentro de lo que una computadora de aula resuelve, sin alterar en nada las matrices que los módulos educativos y la memoria de cálculo exhiben.
+
+\subsection{Pre-proceso interactivo}
+\label{sec:pre-proceso}
+
+El pre-proceso permite construir el modelo combinando una entrada tabular y una entrada gráfica, ambas operando sobre el mismo proyecto. La entrada tabular se organiza como una hoja de cinco tablas —nodos, elementos, cargas, restricciones y cargas superficiales— con edición por doble clic, copiado y pegado en texto separado por tabulaciones, el formato con que las planillas de cálculo copian y pegan sus celdas, y filas de marcador de posición para agregar registros con valores por omisión. Los encabezados muestran las unidades activas y se actualizan al cambiar el sistema de unidades.
+
+La entrada gráfica se realiza sobre un \emph{lienzo único y compartido} entre las tres fases del trabajo: pre-proceso, proceso y post-proceso superponen sus visualizaciones sobre el mismo lienzo en lugar de intercambiarlo. Sobre él se ofrece un modo de dibujo de elementos al estilo de un programa CAD: el usuario marca cuatro vértices en sentido antihorario, el lienzo cierra el cuadrilátero, ofrece anclaje (\emph{snap}) a los nodos existentes para no duplicarlos y, si la orientación resultante es horaria, la corrige automáticamente antes de confirmar el elemento. La \autoref{fig:lienzo-lod} muestra el lienzo durante esta operación.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.82\linewidth]{fig_lienzo_lod}
+\caption[Lienzo compartido con modo de dibujo y nivel de detalle por acercamiento.]{Lienzo compartido de EduFEM durante el modo de dibujo, sobre un modelo de nueve nodos y cuatro elementos Q4. Los vértices 1, 2 y 3 marcados en amarillo son los que el usuario ya fijó, y la línea punteada anticipa el cuadrilátero que se cerrará al confirmar el cuarto. Con este nivel de acercamiento se dibujan la numeración de nodos y elementos, la carga (flecha roja) y los apoyos (triángulos naranjas); al alejar la vista, el lienzo conserva solo la silueta del dominio y la selección activa.}
+\label{fig:lienzo-lod}
+\end{figure}
+
+La sincronización entre lienzo y tabla es bidireccional: seleccionar un elemento en la tabla lo resalta en el lienzo, y seleccionar entidades en el lienzo reconstruye la selección en la tabla y, cuando corresponde, propone filas tentativas para cargas o restricciones sobre las entidades elegidas. El lienzo aplica además un \emph{nivel de detalle} dependiente del acercamiento: con la malla alejada solo se dibuja la silueta del dominio y la selección activa, mientras que al acercarse aparecen los nodos intermedios, las etiquetas y la numeración. Con esta política, en mallas densas el lienzo dibuja únicamente la silueta y la selección, mientras que en los modelos pequeños habituales en clase —que rara vez exceden unas decenas de elementos— el dibujo se mantiene completo en todo momento.
+
+Las acciones del usuario son reversibles mediante un mecanismo de deshacer y rehacer basado en \emph{instantáneas}, es decir, copias completas del estado del proyecto en un instante dado: antes de cada operación se captura el estado copiándolo a una estructura de datos independiente, y al deshacer se restaura ese mismo estado sobre el objeto original, sin crear uno nuevo\footnote{Los métodos son \texttt{to\_dict} y \texttt{restore\_from\_dict} de la clase \texttt{ProjectModel}.}. Como las instantáneas no incluyen la solución, sino solo la geometría y los datos del modelo, son pequeñas, y una acción del usuario equivale siempre a una instantánea, con independencia de cuántas modificaciones internas dispare.
+
+La integridad del modelo se vigila con un comprobador de salud: una rutina que solo lee el proyecto, sin modificarlo, y reporta hallazgos clasificados en tres severidades. Los errores impiden resolver (ausencia de elementos, restricciones insuficientes para suprimir los movimientos de cuerpo rígido, nodos referenciados inexistentes o elementos degenerados); las advertencias no bloquean el cálculo (cargas sobre nodos sin elemento, materiales sin uso, Jacobiano negativo por orientación horaria); y la información reúne contadores del modelo (el catálogo completo de chequeos está en la \autoref{tab:health-checks}). Muchos hallazgos admiten corrección automática: el diálogo de salud permite aplicarla, navegar hasta la entidad afectada y consultar una explicación del problema.
+
+Los umbrales de calidad geométrica con que la memoria de cálculo y el módulo M0 clasifican los elementos son convención de la herramienta, apoyada en los mínimos que la biblioteca Verdict fija para el cuadrilátero (\autoref{sec:calidad-malla}). Hay dos juegos de cortes, y no son el mismo. El estado global con que la memoria de cálculo clasifica cada elemento —bueno, aceptable o malo— combina cuatro índices, y son los que la \autoref{tab:umbrales} enumera con su significado y sus dos cortes. El módulo M0, en cambio, endurece por prudencia el corte del Jacobiano escalado para su propio coloreado: lo eleva de $0{,}30$ a $q_{SJ} \ge 0{,}50$ —el valor que Verdict fija para el triángulo y el hexaedro— y distingue como «buenos» los elementos con $q_{SJ} \ge 0{,}80$ y compacidad $q_C \ge 0{,}50$. La razón es didáctica: en un curso introductorio conviene señalar como inadmisible un elemento que la biblioteca todavía toleraría.
+
+\begin{table}[H]
+\centering
+\caption[Índices de calidad geométrica y cortes con que EduFEM clasifica cada elemento.]{Índices de calidad geométrica y cortes con que EduFEM asigna el estado global de cada elemento. Un elemento se declara «bueno» si cumple los cuatro cortes de esa columna, «aceptable» si cumple los cuatro de la siguiente, y «malo» en cualquier otro caso.}
+\label{tab:umbrales}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{3.3cm} >{\raggedright\arraybackslash}p{6.6cm} cc@{}}
+\toprule
+\textbf{Índice} & \textbf{Qué mide} & \textbf{Bueno} & \textbf{Aceptable} \\
+\midrule
+Jacobiano escalado $q_{SJ}$ & Cuánto se aparta el elemento de tener ángulos rectos, evaluado en los puntos de Gauss; vale $1$ en un cuadrado & $\ge 0{,}70$ & $\ge 0{,}30$ \\
+Razón de Jacobianos $R_J$ & Uniformidad del mapeo dentro del elemento: cociente entre el menor y el mayor determinante Jacobiano & $\ge 0{,}50$ & $\ge 0{,}20$ \\
+Relación de aspecto $AR$ & Cuánto se alarga el elemento; vale $1$ en un cuadrado o en un rombo & $\le 3$ & $\le 5$ \\
+Estrechamiento $T_R$ & Trapecialidad: es nulo en todo paralelogramo y crece cuando las aristas opuestas dejan de ser paralelas & $\le 0{,}30$ & $\le 0{,}50$ \\
+\midrule
+Desviación de los nodos intermedios (solo Q9) & Apartamiento de los nodos de arista y central respecto de su posición ideal; sustituye al estrechamiento & $\le 0{,}10$ & $\le 0{,}25$ \\
+\bottomrule
+\end{tabular}
+{\singlespacing\notaapa{Las definiciones de los cuatro índices están en la \autoref{sec:calidad-malla}. Los cortes no son umbrales tomados de la bibliografía, sino convención de la herramienta apoyada en los mínimos de Verdict.}}
+\end{table}
+
+La geometría puede importarse también desde archivos DXF, el formato de intercambio de los programas de dibujo asistido. EduFEM convierte sus polilíneas cerradas en elementos cuadriláteros según la convención de capas que adoptó el autor, documentada en el \autoref{anexo:formatos}. La importación puede repetirse sin efectos acumulados: los nodos se funden por proximidad —una estructura auxiliar agrupa los puntos por su posición y evita comparar cada nodo con todos los demás— y los elementos se reconocen por el conjunto de identificadores de sus nodos, de manera que reimportar el mismo archivo no genera duplicados. Como en el modo de dibujo, la orientación de cada cuadrilátero se fuerza a sentido antihorario calculando el área con signo. Esa orientación es condición necesaria, pero no suficiente: en un cuadrilátero no convexo el determinante Jacobiano puede resultar negativo en algún punto de Gauss aun con los vértices bien ordenados; por eso la comprobación definitiva corre por cuenta del motor (\autoref{sec:motor}), que evalúa $\det\bm{J}$ en los puntos de Gauss y rechaza el elemento si no supera el umbral mínimo.
+
+Todo el pre-proceso sirve a una misma condición: que el modelo sobre el que después se expone el procedimiento sea válido y sea del propio usuario. El comprobador de salud impide que un dato inconsistente llegue hasta los resultados, y las dos vías de entrada, la tabla y el lienzo, permiten construir el mismo problema desde los números o desde el dibujo (requisitos 1 y 3).
+
+\subsection{Módulos educativos}
+\label{sec:educacion}
+
+El componente educativo de EduFEM consiste en ocho módulos, numerados de M0 a M7, que recorren el procedimiento de cálculo del MEF en su orden canónico. No son ocho por conveniencia de implementación: cada uno corresponde a una operación que el universo de contenido de la \autoref{sec:poblacion} identifica como exigible, a partir del consenso de expertos que esa subsección recoge, y la \autoref{sec:contenido-didactico} contrasta la cobertura una por una (requisito 4). Cada módulo se presenta como una \emph{capa superpuesta} interactiva: un panel flotante y arrastrable, acompañado de una iluminación que se dibuja directamente sobre la malla real del proyecto, sin abrir una representación auxiliar desconectada. La \autoref{tab:modulos} asocia cada módulo con la etapa del método que ilustra, y la \autoref{fig:modulo-capa} muestra el aspecto general de una de estas capas.
+
+\begin{table}[H]
+\centering
+\caption[Los ocho módulos educativos de EduFEM.]{Los ocho módulos educativos de EduFEM: el concepto que expone cada uno y la etapa del procedimiento de cálculo a la que corresponde. M0 opera en el pre-proceso sobre la malla completa; M1 a M7 siguen, dentro de la fase de proceso, el orden canónico del cálculo.}
+\label{tab:modulos}
+\begin{tabular}{@{}cll@{}}
+\toprule
+\textbf{Módulo} & \textbf{Concepto} & \textbf{Etapa del método} \\
+\midrule
+M0 & Calidad de malla        & Comprobación geométrica previa \\
+M1 & Mapeo isoparamétrico    & Funciones de forma y coordenadas naturales \\
+M2 & Jacobiano               & Distorsión local y $\det\bm{J}$ \\
+M3 & Matriz $\bm{B}$         & Relación deformación--desplazamiento \\
+M4 & Matriz constitutiva $\bm{D}$ & Comportamiento del material \\
+M5 & Rigidez $\bm{k}_e$ + Gauss & Integración numérica de la rigidez \\
+M6 & Fuerzas equivalentes    & Cargas distribuidas a fuerzas nodales \\
+M7 & Ensamblaje              & Construcción de $\bm{K}$ y $\bm{F}$ globales \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.86\linewidth]{fig_modulo_capa}
+\caption[Módulo educativo como capa interactiva sobre el lienzo.]{El módulo M3 (matriz de deformación $\bm{B}$) como capa interactiva sobre el lienzo. A la izquierda, el elemento seleccionado con sus cuatro puntos de Gauss resaltados y los ejes naturales $\xi\eta$ dibujados en el punto evaluado; a la derecha, el panel flotante con la secuencia $\partial\bm{N}_{\xi\eta} \to \bm{J}^{-1} \to \partial\bm{N}_{xy} \to \bm{B}$ evaluada en ese punto y el conmutador entre la fórmula simbólica y sus valores numéricos. Todos los módulos comparten esta disposición.}
+\label{fig:modulo-capa}
+\end{figure}
+
+El diseño de estos módulos parte de lo que Lee reporta sobre la interactividad en sus propios simuladores del MEF \autocite[pp.~158, 166]{lee2015interactive} —una evaluación cualitativa, sin grupo de control (\autoref{sec:fundamentos-pedagogicos})— y lo lleva a una filosofía minimalista que es decisión de este trabajo, y no un resultado tomado de la literatura. Cada módulo muestra lo mínimo necesario para que el concepto se lea sobre la geometría real. La selección del elemento bajo estudio se realiza con un solo clic sobre el lienzo, sin controles redundantes dentro del panel. La iluminación —resplandor sobre los puntos de Gauss, arcos de medición, coloreado por calidad— se aplica a la geometría real para preservar el contexto. La información matemática se concentra en el panel flotante, que en los módulos de las matrices $\bm{J}$, $\bm{B}$ y $\bm{D}$ alterna entre la fórmula simbólica y su evaluación numérica en el punto elegido.
+
+M0 colorea cada elemento según su calidad y permite distorsionar un vértice para ver el efecto en vivo sin alterar el modelo. M5 contrapone la integral exacta de la rigidez, que no tiene primitiva practicable en un elemento de geometría arbitraria, con su aproximación por cuadratura: es esa impracticabilidad la que obliga a la cuadratura de Gauss, y el módulo la hace visible dejando agregar o quitar puntos de Gauss y observar el crecimiento de $\bm{k}_e$. M7 resalta las filas y columnas de $\bm{K}$ que recibe cada elemento al ensamblarse. Solo una capa educativa permanece activa a la vez, y abrir un módulo cierra el anterior: la regla evita que dos representaciones compitan por el mismo lienzo y hace que, por construcción, lo resaltado sobre la malla corresponda siempre a un único análisis. El manual de uso reproduce cada uno de los ocho módulos en funcionamiento sobre el ejemplo canónico, de la \autoref{fig:mod-m0} a la \autoref{fig:mod-m7} (\autoref{sec:catalogo-modulos-edu} del \autoref{anexo:manual}).
+
+\subsection{Post-proceso}
+\label{sec:post-proceso}
+
+Resuelto el sistema, el post-proceso presenta los resultados sobre el mismo lienzo compartido. El campo de tensiones o de desplazamientos se dibuja como un contorno de color continuo: cada elemento se divide en triángulos y el color de cada punto de la pantalla se interpola a partir de los valores de los nodos, de modo que el degradado no muestra escalones dentro del elemento\footnote{Es la interpolación conocida como sombreado de Gouraud, calculada con coordenadas baricéntricas sobre cada triángulo.}. Sobre ese campo puede superponerse la malla deformada, dibujada en estilo alámbrico con un factor de escala configurable y la geometría original atenuada como referencia. La \autoref{fig:post-proceso} reúne estas vistas.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{fig_postproceso}
+\caption[Visualización de resultados en el post-proceso.]{Post-proceso de EduFEM sobre el modelo de cuatro elementos Q4. En el lienzo, el contorno continuo de la tensión de von Mises con su escala graduada, el valor nodal rotulado junto a cada nodo y las reacciones en los apoyos; a la derecha, el panel de la sonda puntual con el estado tensional del nodo consultado y su círculo de Mohr. El color da el orden de magnitud; el valor exacto se lee en el rótulo del nodo o en el panel.}
+\label{fig:post-proceso}
+\end{figure}
+
+La inspección detallada se realiza con una sonda puntual: al consultar un punto cualquiera del dominio, EduFEM lo localiza dentro de su elemento mediante un mapeo inverso y abre un panel con los valores numéricos del estado tensional —componentes cartesianas, tensiones principales y von Mises— acompañados de un círculo de Mohr animado que sitúa el punto consultado en el plano tensional. De manera complementaria, una vista tridimensional representa el campo como superficie sobre el dominio, y permite alternar entre la versión cruda, discontinua entre elementos, y la versión suavizada por promediado nodal. Todas las representaciones de campo emplean la paleta de color \emph{jet}. El autor la eligió por el reconocimiento inmediato que tiene en el ámbito de la ingeniería: es la paleta de tipo arcoíris con que se presentan habitualmente los mapas de tensiones en el software de análisis estructural. Y la eligió a sabiendas de su principal inconveniente: los mapas de tipo arcoíris no son perceptualmente uniformes —el ojo percibe fronteras nítidas donde el campo varía suavemente, sobre todo en el tránsito del cian al verde— y resultan poco accesibles para quien tiene visión cromática deficiente. Se privilegió la continuidad visual con las herramientas que el estudiante encontrará previsiblemente en la práctica profesional, supuesto que este trabajo no verifica, y el inconveniente se compensa con la escala numérica graduada junto al contorno y con la sonda puntual, que dan el valor exacto allí donde el color solo sugiere un rango. El \autoref{anexo:manual} ilustra estas vistas del post-proceso, incluida la representación tridimensional del campo (\autoref{fig:vista3d}).
+
+\subsection{Memoria de cálculo e intercambio de datos}
+\label{sec:memoria-io}
+
+EduFEM genera una memoria de cálculo en PDF que documenta el análisis paso a paso. El documento se compone con \texttt{pylatex} y se compila con \texttt{pdflatex}, y ofrece dos estilos que comparten un mismo procedimiento de generación: un estilo \emph{educativo}, que enriquece el desarrollo con infografías, tarjetas de entrada y salida por capítulo, fórmulas al margen y un glosario final, y un estilo \emph{directo}, que presenta el mismo desarrollo matricial escuetamente para quien solo necesita comprobar el cálculo. La regla que gobierna ambos es que las fórmulas, matrices y ecuaciones se emiten siempre, mientras que únicamente la prosa explicativa y las cajas didácticas quedan condicionadas al estilo educativo.
+
+El cuerpo del documento se estructura en nueve capítulos que reproducen el procedimiento de cálculo: planteo del problema, discretización, calidad de la malla, formulación elemental, ensamblaje, imposición de restricciones y solución, post-proceso, diagnóstico y validación, y resumen e interpretación. El desarrollo exhibe la secuencia de sustitución numérica completa, desde las funciones de forma evaluadas en los puntos de Gauss hasta la recuperación de tensiones y su promediado, recalculada con las mismas funciones del motor, lo que asegura por construcción su consistencia con los módulos educativos. El desarrollo íntegro de todos los elementos se emite mientras el modelo no supere dos elementos Q4 o uno Q9; por encima de ese tamaño, la memoria desarrolla el elemento de mayor energía de deformación y advierte que los demás se calculan igual. La matriz de rigidez global se imprime término a término hasta 18 GDL; por encima se muestra su patrón de entradas no nulas, y en todos los casos se reportan su número de entradas no nulas, su densidad y su ancho de banda.
+
+El intercambio de datos con otras herramientas —la interoperabilidad, en el vocabulario de la informática— se resuelve por dos vías. El proyecto se guarda en formato propio \texttt{.edufem}, un archivo de texto JSON que contiene el volcado completo del modelo y se escribe atómicamente: primero en un archivo temporal, que solo se renombra al destino final una vez volcado a disco, para que un corte durante el guardado nunca deje el archivo corrupto. Para la edición masiva, el modelo se exporta e importa como un conjunto de archivos CSV agrupados en un ZIP, uno por entidad, con encabezados que declaran las unidades y protección frente a la inyección de fórmulas en las celdas ---texto que una hoja de cálculo podría ejecutar como fórmula al abrir el archivo---. Ambos formatos contemplan la compatibilidad con versiones anteriores del proyecto, completando con valores por omisión los campos ausentes en archivos antiguos. El \autoref{anexo:formatos} documenta la estructura de los tres formatos —el proyecto \texttt{.edufem}, el paquete de archivos CSV y el DXF de importación— clave por clave y archivo por archivo.
+
+Estas dos piezas cierran el recorrido del análisis. La memoria de cálculo es lo que hace trazable y verificable el resultado fuera de la pantalla: entrega el procedimiento completo, con todas sus magnitudes intermedias, en un documento que puede rehacerse a mano, igual que la memoria con que se acompaña un cálculo estructural en la práctica profesional (requisitos 1 y 2). Los formatos de intercambio, por su parte, permiten que el modelo salga de la herramienta y vuelva a ella sin pérdida, de manera que un mismo caso pueda resolverse y comprobarse también con otro programa (requisito 3); la \autoref{sec:consistencia-interna} verifica esa ida y vuelta.

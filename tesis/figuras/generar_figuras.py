@@ -178,7 +178,7 @@ def fig_arquitectura():
         "#212529", C_TXT, fs=12)
 
     layers = [
-        (2.0, 5.6, "models/\nentidades · validación · undo", C_PRE),
+        (2.0, 5.6, "models/\nentidades · salud · deshacer", C_PRE),
         (8.0, 5.6, "fem/\nmotor MEF (NumPy/SciPy)", C_PROC),
         (1.7, 3.5, "config/\nunidades · colores", C_MUTED),
         (8.3, 3.5, "file_io/\nproyecto · CSV · DXF · PDF", "#6f42c1"),
@@ -186,7 +186,7 @@ def fig_arquitectura():
         (8.0, 1.4, "education/\nmódulos M0–M7", "#d63384"),
     ]
     for cx, cy, txt, col in layers:
-        box(cx, cy, 2.9, 1.15, txt, col, col, fs=9.5)
+        box(cx, cy, 3.2, 1.15, txt, col, col, fs=9.5)
         arr = FancyArrowPatch((cx, cy), (5, 3.5), arrowstyle="-|>",
                               mutation_scale=14, color=C_MUTED, lw=1.4,
                               zorder=1, shrinkA=42, shrinkB=46)
@@ -195,8 +195,7 @@ def fig_arquitectura():
     ax.text(5, 6.7, "Arquitectura por capas centrada en el modelo de proyecto",
             ha="center", fontsize=12.5, color=C_TXT, fontweight="bold")
     ax.text(5, 0.35,
-            "Cada capa depende solo de las inferiores; el motor (fem/) no "
-            "importa la interfaz.",
+            "El motor (fem/) no importa la interfaz.",
             ha="center", fontsize=9, color=C_MUTED, style="italic")
     _save_fig(fig, "fig_arquitectura.png")
 

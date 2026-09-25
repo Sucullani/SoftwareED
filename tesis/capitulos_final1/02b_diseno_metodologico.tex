@@ -1,0 +1,210 @@
+\chapter{Diseño e implementación del modelo a desarrollar}
+\label{cap:diseno}
+
+Este capítulo articula el modelo de investigación y su materialización en software: primero el diseño metodológico, después el software que lo concreta. La palabra \emph{modelo} tiene aquí dos acepciones distintas. En la \autoref{sec:metodologia} designa el diseño de la investigación: sus variables, sus casos de estudio y sus instrumentos. En la \autoref{sec:diseno-edufem} designa el modelo numérico de elementos finitos que EduFEM implementa. El primero antecede y encuadra al segundo.
+
+\section{Diseño metodológico}
+\label{sec:metodologia}
+
+Esta sección sigue la estructura de un modelo de investigación: la conceptualización y el alcance, la definición de las variables, el procedimiento y la toma de observaciones, la confiabilidad de esas observaciones y el contraste de la hipótesis con los resultados.
+
+\subsection{Tipo de investigación, método y modelo de simulación numérica}
+\label{sec:proceso-met}
+
+El trabajo se clasifica según cuatro criterios: finalidad, naturaleza, enfoque y nivel. Por su finalidad es \emph{propositivo}: propone una solución a un problema concreto. Por su naturaleza es una \emph{investigación tecnológica}, la que busca conocimiento de carácter operativo y no solo establece cuál es la solución, sino que brinda la información para llevarla a cabo \autocite[p.~91]{garciacordoba2005tecnologica}. Por el abordaje del problema, el enfoque es \emph{cuantitativo} \autocite[p.~6]{sampieri2018metodologia}: la exactitud del software se establece midiendo errores numéricos, tensiones, desplazamientos y tasas de convergencia, y la exposición del procedimiento se establece contando qué etapas y qué contenidos quedan a la vista. La recolección de datos combina la medición numérica sobre el motor con el inventario documentado de lo que el software expone. Por su nivel es \emph{descriptivo} y \emph{comparativo}: caracteriza el comportamiento numérico del motor y lo compara con referencias externas, contrasta el desempeño de los elementos Q4 y Q9, y sitúa el software frente a los recursos existentes.
+
+\paragraph{Método} El método es el de la \emph{ciencia del diseño}. En ella, el conocimiento sobre un problema y su solución se obtiene construyendo un producto tecnológico —el \emph{artefacto}, en la terminología del método; aquí, EduFEM— y evaluándolo con rigor \autocite[p.~75]{hevner2004design}. Lo que distingue una investigación de este tipo de un diseño rutinario es que deja una contribución identificable a la base de conocimiento, y no solo un producto \autocite[p.~81]{hevner2004design}; las contribuciones de este trabajo se enumeran en las Conclusiones. El proceso tiene seis actividades \autocite[pp.~52-56]{peffers2007dsrm}, que la \autoref{tab:dsrm} ubica en este documento.
+
+\begin{table}[htbp]
+\centering
+\caption[Las seis actividades del método de la ciencia del diseño en este trabajo.]{Las seis actividades del método de la ciencia del diseño \autocite[pp.~52-56]{peffers2007dsrm} y la base de conocimiento sobre la que se apoyan: qué es cada una en este trabajo, dónde se desarrolla y a qué objetivo específico (OE) responde. La fila «Base de conocimiento» no es una actividad del proceso, sino el fondo teórico del que las actividades 2 y 3 toman sus insumos.}
+\label{tab:dsrm}
+{\footnotesize
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{3.3cm}>{\raggedright\arraybackslash}p{6.4cm}>{\raggedright\arraybackslash}p{3.0cm}>{\raggedright\arraybackslash}p{1.2cm}@{}}
+\toprule
+\textbf{Actividad} & \textbf{En este trabajo} & \textbf{Dónde} & \textbf{OE} \\
+\midrule
+1. Identificar el problema y motivar & El software usado como caja negra deja un análisis que no puede seguirse ni comprobarse & Introducción; \autoref{sec:antecedentes} & --- \\
+2. Definir los objetivos de la solución & Requisitos: procedimiento completo a la vista, memoria reproducible a mano, exactitud dentro de tolerancias fijadas, contenido exigido por los expertos, software libre y en español & \autoref{sec:antecedentes}; \autoref{sec:requisitos}; \autoref{sec:validacion-resultados} & 1 \\
+\midrule
+Base de conocimiento & El MEF en elasticidad plana, la verificación y validación, y los principios que orientan la exposición & \autoref{cap:marco_teorico} & 2 \\
+\midrule
+3. Diseñar y desarrollar & Motor de cálculo, interfaz, módulos educativos y memoria de cálculo & \autoref{sec:diseno-edufem} & 3 \\
+4. Demostrar & Resolver instancias del problema: el ejemplo canónico paso a paso y los tres casos de estudio & \autoref{sec:mms} a \autoref{sec:cook}; \autoref{anexo:memoria} & 4 y 5 \\
+5. Evaluar & Comparar lo observado con los objetivos de la actividad 2: criterios de aceptación y veredicto por cláusula & \autoref{sec:cobertura} a \autoref{sec:validacion-hipotesis} & 4 y 5 \\
+6. Comunicar & Este documento, el repositorio público y el instalador & --- & --- \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+La evaluación emplea cuatro de las cinco familias de métodos que la ciencia del diseño reconoce \autocite[p.~86]{hevner2004design}. Es \emph{analítica} en el inventario de lo que el software expone y en la medición de tiempos. Es \emph{experimental}, por simulación con datos construidos, en el método de soluciones manufacturadas. Es de \emph{pruebas} en el contraste con la viga de Timoshenko, la membrana de Cook y SAP2000, y en la batería de regresión. Y es \emph{descriptiva} en el ejemplo canónico resuelto a mano. La quinta familia, la observacional, estudia el uso de la herramienta dentro de una organización. No corresponde a este trabajo, porque el método de evaluación debe elegirse según la herramienta evaluada y según las métricas \autocite[p.~86]{hevner2004design}, y las métricas de esta hipótesis son la cobertura y la exactitud.
+
+En la terminología de la ciencia del diseño, esa evaluación es una \emph{validación de laboratorio}, en un sentido más amplio que el que fija la \autoref{sec:verificacion-validacion} para el contraste numérico. Los proyectos de investigación en ciencia del diseño se restringen al ciclo de diseño: investigación del problema, diseño de la solución y validación de la solución \autocite[p.~30]{wieringa2014design}. Validar es justificar, antes de la transferencia a la práctica, que la herramienta cumple sus requisitos, para lo cual se lo expone a escenarios controlados y se explica su respuesta \autocite[p.~31]{wieringa2014design}. Esas pruebas son experimentos de causa y efecto sobre un objeto de arquitectura conocida: investigan el efecto de una variable independiente sobre una dependiente, como la exactitud \autocite[p.~247]{wieringa2014design}. Es lo que hace la verificación y validación numérica de este trabajo. Sus factores son el tipo de elemento y la densidad de malla; su respuesta, la exactitud; y la explicación de esa respuesta está en los mecanismos del método: el orden de interpolación y el bloqueo por cortante.
+
+\paragraph{Modelo de simulación numérica} El modelo que sostiene la verificación es un modelo de simulación numérica: una representación ideal del objeto en la que el investigador abstrae y sistematiza las relaciones que considera esenciales \autocite[p.~21]{alvarez_metodologia}, ejercitada aquí por simulación computacional y no por experimentación física. El análisis de medios continuos en elasticidad lineal plana por el MEF, que es el objeto de estudio, se ejercita resolviendo problemas de ese dominio con el motor desarrollado y contrastando sus resultados con referencias de exactitud conocida. No hay unidades experimentales, tratamientos ni aleatorización, porque el motor es determinista. La confiabilidad del modelo no descansa en réplicas, sino en la reproducibilidad exacta de cada corrida y en la convergencia de sus resultados al refinar la malla. La incertidumbre numérica se cuantifica con las tasas de convergencia y, cuando la referencia no es exacta, con la extrapolación de Richardson de la propia secuencia de mallas \autocite[pp.~309-312]{oberkampf2010vv}.
+
+\paragraph{Versión evaluada} Las dos variables del problema científico se observan sobre el procedimiento de cálculo del software, que es la unidad de análisis (\autoref{sec:poblacion}), con los instrumentos de la \autoref{sec:validacion-datos}. La versión evaluada es EduFEM~1.0.0, revisión \texttt{91e3df0} del repositorio público citado en la Introducción (16 de septiembre de 2026), con las dependencias declaradas en su archivo \texttt{requirements.txt}. Es la versión que se distribuye con este documento mediante el instalador.
+
+El trabajo combinó dos ciclos articulados. El \emph{desarrollo del software} siguió un proceso iterativo e incremental: cada componente del procedimiento de cálculo (\autoref{cap:marco_teorico}) se implementó y se sometió a una prueba de regresión antes de integrarse al conjunto. La \emph{evaluación} se realizó en dos frentes, uno por dimensión de la variable dependiente. La verificabilidad se evaluó con la verificación de código por el método de soluciones manufacturadas y con el contraste frente a dos referencias externas, la solución analítica de la viga de Timoshenko y la membrana de Cook \autocite{oberkampf2010vv,salari2000mms}. La trazabilidad se evaluó con el inventario de las etapas expuestas y con la tabla de cobertura de contenido de la \autoref{sec:validacion-datos}.
+
+\subsection{Variables e indicadores}
+\label{sec:variables-met}
+
+Operacionalizar una variable es especificar las operaciones concretas con que se la mide \autocite[p.~137]{sampieri2018metodologia}; la \autoref{tab:variables}, al final de esta subsección, lo hace para cada variable.
+
+La \emph{variable independiente} es la forma en que el software expone el procedimiento de cálculo. Tiene dos niveles: como caja negra, que solo muestra datos de entrada y resultados, o con el procedimiento a la vista. El nivel de caja negra es el de referencia y se documenta cualitativamente con la matriz de atributos de la \autoref{tab:comparativa}: para el software comercial, la tabla registra «Baja (caja negra)» en el cálculo paso a paso e «Informes de resultados, sin el desarrollo matricial» en la memoria de cálculo automática. El nivel con el procedimiento a la vista es el que EduFEM realiza. La comparación que enuncia la hipótesis es, por tanto, de presencia frente a ausencia de esos atributos y no de grado sobre una misma escala; los criterios de la \autoref{tab:criterios} miden el nivel que alcanza EduFEM.
+
+El procedimiento de cálculo se divide en nueve etapas, que desarrolla el \autoref{cap:marco_teorico}; entre paréntesis va la sección que trata cada una, y algunas comparten sección:
+\begin{enumerate}
+    \item mapeo isoparamétrico (\autoref{sec:isoparametricos});
+    \item matriz Jacobiana (\autoref{sec:jacobiano});
+    \item matriz de deformación-desplazamiento $\bm{B}$ (\autoref{sec:matriz-b});
+    \item matriz constitutiva $\bm{D}$ (\autoref{sec:elasticidad-plana});
+    \item rigidez elemental por cuadratura de Gauss (\autoref{sec:rigidez-gauss});
+    \item fuerzas nodales equivalentes (\autoref{sec:ensamblaje});
+    \item ensamblaje (\autoref{sec:ensamblaje});
+    \item imposición de restricciones y solución del sistema (\autoref{sec:resolucion-tensiones});
+    \item recuperación de tensiones (\autoref{sec:resolucion-tensiones}).
+\end{enumerate}
+
+La \emph{variable dependiente} es la trazabilidad y la verificabilidad del análisis, tal como las define la Introducción. La trazabilidad se mide contando las etapas que el software expone, las fases que comparten el lienzo y, entre los contenidos que exigen los expertos, los que tienen instrumento en el software. El recuento es la medida adecuada porque la cadena de la trazabilidad se rompe en su eslabón más débil: basta con que una etapa quede oculta para que el resultado deje de poder seguirse hasta sus datos. Por eso los indicadores cuentan lo que queda expuesto y el umbral es la exhaustividad, no una proporción. La verificabilidad se mide con los errores y las tasas de convergencia frente a las referencias, y con la reproducción manual de la memoria de cálculo. La \emph{variable interviniente} es EduFEM, la solución tentativa con que se actúa sobre la independiente.
+
+Las magnitudes del experimento numérico no son variables del problema científico, y la tabla las distingue con otro nombre. Los \emph{factores} son la definición del modelo estructural y las decisiones de discretización: el tipo de elemento (Q4 o Q9) y la densidad de malla. Las \emph{magnitudes medidas} son la respuesta calculada y su exactitud frente a las referencias. El tipo de análisis y el orden de cuadratura se mantienen \emph{controlados}. El desempeño del solucionador se registra como \emph{observado}, sin criterio de aceptación, para documentar la escalabilidad del motor.
+
+{\footnotesize
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.15}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{2.9cm}>{\raggedright\arraybackslash}p{2.5cm}>{\raggedright\arraybackslash}p{5.5cm}>{\raggedright\arraybackslash}p{2.7cm}@{}}
+\caption[Operacionalización de las variables de la investigación.]{Operacionalización de las variables de la investigación: dimensiones, indicadores con que se mide cada una e instrumento que produce el dato. Sobre la raya, las tres variables del problema científico; bajo ella, las magnitudes del experimento numérico, que no son variables del problema.}\label{tab:variables}\\
+\toprule
+\textbf{Variable} & \textbf{Dimensión} & \textbf{Indicador} & \textbf{Instrumento} \\
+\midrule
+\endfirsthead
+\caption[]{Operacionalización de las variables de la investigación (continuación).}\\
+\toprule
+\textbf{Variable} & \textbf{Dimensión} & \textbf{Indicador} & \textbf{Instrumento} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+Independiente: forma de exponer el procedimiento de cálculo & Transparencia; interactividad; documentación & Magnitudes intermedias visibles en cada etapa; operación sobre el modelo del usuario en las tres fases; memoria de cálculo con sustitución numérica. Niveles: caja negra o procedimiento a la vista & Matriz de atributos (\autoref{tab:comparativa}); inventario de módulos \\
+Dependiente: trazabilidad y verificabilidad del análisis & Trazabilidad & Etapas con módulo educativo (de las siete primeras) y con desarrollo en la memoria (de nueve); solución y tensiones expuestas en el post-proceso; fases que comparten el lienzo (de tres); ítems del universo de contenido con instrumento (de dieciocho); formatos con ida y vuelta sin pérdida & Inventario de módulos; memoria del ejemplo canónico; tabla de cobertura de contenido; pruebas de consistencia interna \\
+ & Verificabilidad & Tasa de convergencia observada frente a la teórica; error relativo de la flecha y de $\sigma_x$ frente a la solución analítica y a SAP2000; residuo de equilibrio; error en la membrana de Cook y firma del bloqueo por cortante; reproducción manual de la memoria & Guiones de verificación y validación; modelo de SAP2000 (\autoref{anexo:sap2000}); \autoref{anexo:memoria} \\
+Interviniente: EduFEM & Versión evaluada & EduFEM~1.0.0, revisión \texttt{91e3df0} & Instalador y repositorio \\
+\midrule
+Factores del experimento numérico & Definición del modelo; discretización & Dominio y malla; $E$, $\nu$, espesor $t$; cargas y restricciones; Q4 o Q9; tamaño característico $h$ (o malla de $N\times N$ elementos) y número de GDL & Guion de cada caso \\
+Magnitudes medidas & Respuesta; exactitud & $\sigma_x,\sigma_y,\tau_{xy},\sigma_{\mathrm{VM}}$; $u_x,u_y$ nodales; tasa de convergencia; normas del error del desplazamiento y de la tensión recuperada; error relativo (\%) frente a la solución analítica y a SAP2000; residuo de la suma de reacciones & Solucionador; guiones de verificación y validación \\
+Controlados & Tipo de análisis; integración & Tensión o deformación plana; orden de cuadratura & Constantes del guion de cada caso \\
+Observado: desempeño & Tiempo; memoria & Tiempos de ensamblaje y de solución; memoria de $\bm{K}$ densa y dispersa & Guion de medición de tiempos \\
+\end{longtable}}
+
+\subsection{Matriz de consistencia}
+\label{sec:matriz-consistencia}
+
+El \textbf{problema científico} es el enunciado único de la Introducción: ¿de qué manera el uso del software de análisis estructural como caja negra podrá incidir en la baja trazabilidad y verificabilidad del análisis por el Método de los Elementos Finitos en elasticidad plana, en la Carrera de Ingeniería Civil de la Universidad Autónoma Tomás Frías, en la gestión 2026? Se atiende con el \textbf{objetivo general} de desarrollar EduFEM. Se contrasta con la \textbf{hipótesis} de que ese desarrollo permitirá mejorar la forma en que el software expone el procedimiento de cálculo ---de caja negra a procedimiento a la vista---, elevando la trazabilidad y la verificabilidad del análisis, y se comprueba con las dos cláusulas que enuncia la Introducción: (a) trazabilidad y (b) verificabilidad. La \autoref{tab:consistencia} traza la correspondencia entre cada objetivo específico, la pregunta de investigación que responde, la variable o el indicador asociado, el método empleado y la evidencia que lo respalda en el documento.
+
+\begin{table}[htbp]
+\centering
+\caption[Matriz de consistencia de la investigación.]{Matriz de consistencia: correspondencia entre objetivos específicos, preguntas de investigación (PI), variables, métodos y evidencia. Cada pregunta corresponde a una cláusula de la hipótesis: PI-1 a la (a), trazabilidad, y PI-2 a la (b), verificabilidad.}
+\label{tab:consistencia}
+{\footnotesize
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{3.0cm}>{\raggedright\arraybackslash}p{1.3cm}>{\raggedright\arraybackslash}p{3.0cm}>{\raggedright\arraybackslash}p{3.6cm}>{\raggedright\arraybackslash}p{2.7cm}@{}}
+\toprule
+\textbf{Objetivo específico} & \textbf{PI} & \textbf{Variable / indicador} & \textbf{Método / instrumento} & \textbf{Evidencia} \\
+\midrule
+1. Diagnosticar los atributos que los recursos disponibles no ofrecen & PI-1 y PI-2 & Atributos ausentes, que pasan a ser requisitos & Revisión de los antecedentes y del estado del arte; análisis comparativo & \autoref{sec:antecedentes}; \autoref{tab:comparativa} \\
+2. Fundamentar el MEF en elasticidad plana y los principios de la exposición & PI-1 y PI-2 & Etapas del procedimiento; criterios de verificación y validación & Revisión de la literatura clásica del MEF, de la verificación y validación y de la enseñanza del método & \autoref{cap:marco_teorico} \\
+3. Desarrollar el motor, la interfaz, los módulos y la memoria & PI-1 & Variable independiente en su nivel de procedimiento a la vista; etapas expuestas; ida y vuelta de los formatos sin pérdida & Desarrollo iterativo con pruebas de regresión & \autoref{sec:diseno-edufem}; \autoref{sec:consistencia-interna}; \autoref{sec:cobertura-canal} \\
+4. Verificar y validar el motor & PI-2 & Verificabilidad: tasas, errores, equilibrio, bloqueo por cortante & Soluciones manufacturadas, viga de Timoshenko, membrana de Cook, SAP2000 & \autoref{sec:mms} a \autoref{sec:cook} \\
+5. Validar la propuesta & PI-1 y PI-2 & Trazabilidad: cobertura del procedimiento y del contenido; contraste global & Inventario de módulos; tabla de cobertura de contenido; ejemplo canónico & \autoref{sec:cobertura} a \autoref{sec:validacion-hipotesis}; \autoref{anexo:memoria} \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+Las preguntas de investigación son las enunciadas en la Introducción, una por cláusula de la hipótesis. \textbf{PI-1} pregunta por la organización de la interfaz, de los módulos y de la memoria que permite seguir cada resultado hasta sus datos. \textbf{PI-2} pregunta por la exactitud del motor frente a soluciones analíticas, casos clásicos y un software comercial, y por la reproducción de los fenómenos numéricos que la teoría predice. Los dos primeros objetivos —el diagnóstico y la fundamentación— son transversales: sustentan las dos preguntas y se materializan en el \autoref{cap:marco_teorico}. El intercambio de datos (DXF, CSV), incluido en el tercer objetivo, es un complemento instrumental de la trazabilidad: no origina una pregunta propia, pero sí un criterio de la cláusula (a), porque los resultados solo pueden seguirse hasta sus datos si el modelo entra y sale de la herramienta sin pérdida. Sus datos y su veredicto se reportan en la \autoref{sec:consistencia-interna}.
+
+\subsection{Población, muestra y casos de estudio}
+\label{sec:poblacion}
+
+La unidad de análisis es el procedimiento de cálculo del software, no las personas que lo usan. La \emph{población} es, por eso, el universo de problemas de elasticidad lineal plana —en tensión o en deformación plana— que pueden resolverse con elementos cuadriláteros isoparamétricos. La Carrera de Ingeniería Civil delimita el contexto de aplicación del trabajo; no es su población.
+
+La \emph{muestra} no es estadística, sino dirigida: una selección intencional por valor probatorio \autocite[p.~215]{sampieri2018metodologia}. Es coherente con la práctica de la verificación de códigos de cálculo, donde los casos de prueba se eligen por su capacidad de ejercitar todos los términos del modelo matemático y por cubrir la malla más general que el código deberá resolver, antes que por su realismo físico \autocite[pp.~190, 208]{oberkampf2010vv}. Los casos de estudio son tres, y cada uno aporta una referencia de naturaleza distinta:
+
+\begin{itemize}
+    \item El \emph{método de soluciones manufacturadas} provee una solución exacta construida a propósito. Ejercita la fuerza de volumen, las restricciones no homogéneas, las dos matrices constitutivas y el mapeo sobre elementos distorsionados. Se corre en cuatro configuraciones: cuadrado unitario y cuadrilátero distorsionado, en tensión y en deformación plana.
+    \item La \emph{viga de Timoshenko} simplemente apoyada ejercita la carga superficial uniforme y los apoyos. Aporta las dos referencias externas: una solución analítica de la teoría de la elasticidad y un modelo de cáscara en SAP2000.
+    \item La \emph{membrana de Cook} ejercita la distorsión trapezoidal bajo cortante y flexión, el modo de deformación ante el que el elemento Q4 bloquea.
+\end{itemize}
+
+Entre los tres quedan cubiertos los términos del modelo de la \autoref{sec:formulacion-debil}: cargas nodales, de volumen y superficiales uniformes, restricciones homogéneas y no homogéneas, ambos estados planos y ambos elementos. Hay una excepción, que se declara: la carga superficial linealmente variable no interviene en ningún caso de estudio y no tiene contraste externo; las recomendaciones proponen un caso que la incorpore. El refinamiento de malla y la comparación entre Q4 y Q9 se realizan en los dos casos con secuencia de mallas, el de soluciones manufacturadas y la membrana de Cook, ambos con $N\in\{2,4,8,16,32\}$ elementos por lado. La viga de Timoshenko se resuelve con una única malla fina de elementos Q9. Es un contraste puntual de exactitud frente a las dos referencias externas, no un estudio de convergencia. A los tres casos se suma el \emph{ejemplo canónico} —nueve nodos y cuatro elementos Q4—, que no mide exactitud: es el escenario sobre el que se demuestra, en el \autoref{anexo:memoria}, que la memoria de cálculo puede reproducirse a mano.
+
+Para la trazabilidad se define un \emph{universo de contenido}, que se recorre exhaustivamente y no por muestreo. Tiene dos partes. La primera son las nueve etapas del procedimiento de cálculo enumeradas en la \autoref{sec:variables-met}. La segunda son los contenidos que un consenso de 67 expertos de la industria y de la academia califica como necesarios para el egresado \autocite[pp.~1162-1163]{perezsantiago2023fem}. Ese estudio reúne 49 ítems en dos categorías: 15 conceptos teóricos (FEM1 a FEM15) y 34 destrezas prácticas (FEA1 a FEA34). De ellos se toman los 18 que pertenecen al procedimiento de cálculo y a su verificación dentro de la elasticidad plana:
+\begin{itemize}
+    \item quince destrezas: las seis de mallado (FEA13 a FEA18), las tres de post-proceso (FEA26 a FEA28), las tres de conceptos fundamentales (FEA29 a FEA31) y las tres de verificación y validación (FEA32 a FEA34), que están entre las dimensiones que ese consenso califica más alto \autocite[p.~1168]{perezsantiago2023fem};
+    \item tres conceptos: el ensamblaje con restricciones y solución (FEM2), la formulación isoparamétrica de elementos bidimensionales (FEM8) y la integración numérica de Gauss (FEM9).
+\end{itemize}
+Los 31 ítems restantes quedan fuera por tres motivos. Dieciocho caen fuera del alcance disciplinar: resortes, barras y vigas, elementos axisimétricos, análisis tridimensional, placas y cáscaras, problemas térmicos, modelado en CAD, cargas tomadas de un análisis previo, elementos rígidos y contacto. Doce son destrezas de planificación del análisis, de selección de materiales y de modelado de cargas y apoyos, que anteceden al procedimiento de cálculo. Y uno, la deducción de la matriz de rigidez por métodos alternativos (FEM3), es un desarrollo teórico que el software no expone. La \autoref{sec:contenido-didactico} los lista uno por uno.
+
+\subsection{Procedimiento, instrumentos y reproducibilidad}
+\label{sec:validacion-datos}
+
+Cada caso numérico sigue el mismo procedimiento. Un guion construye la malla y define el material, las cargas y los apoyos. El comprobador de salud del modelo (\autoref{sec:pre-proceso}) verifica la consistencia de los datos antes de resolver, y sus errores críticos bloquean el cálculo. En la verificación por soluciones manufacturadas, la consistencia de los datos se cumple por construcción: el término fuente se deduce analíticamente de la solución exacta elegida, y por eso las cargas y las restricciones corresponden exactamente a ella.
+
+El sistema se ensambla y se resuelve con las mismas funciones del motor que usan los módulos educativos y la memoria de cálculo. Por construcción, entonces, lo que el software expone es lo que el motor calcula. Las tensiones se recuperan por la secuencia descrita en la \autoref{sec:resolucion-tensiones}.
+
+Los instrumentos de medición numérica son los guiones de verificación y validación del proyecto (\texttt{tests/vv\_mms.py}, \texttt{tests/vv\_timoshenko.py} y \texttt{tests/vv\_cook.py}). Computan las normas de error (integradas con la cuadratura de orden superior de la \autoref{sec:verificacion-validacion}), los errores relativos frente a las referencias y las tasas de convergencia, y depositan los datos en archivos CSV. Dentro de cada caso solo se manipulan el tipo de elemento y la densidad de malla, fijos en la viga de Timoshenko. El tipo de análisis, el material, la geometría, las cargas y los apoyos, el orden de cuadratura ($2\times2$ para Q4 y $3\times3$ para Q9) y las tolerancias numéricas del motor permanecen fijos.
+
+Los instrumentos de la trazabilidad son dos. El primero es el \emph{inventario de módulos}: la lista de las etapas del procedimiento con el módulo educativo, la sección de la memoria o la vista del post-proceso que expone cada una. El segundo es la \emph{tabla de cobertura de contenido}, que confronta, ítem por ítem, lo que el software ofrece con lo que el consenso de expertos exige. Cruza cada ítem del universo de la \autoref{sec:poblacion} con el instrumento del software que lo cubre y con la evidencia de este documento que lo respalda. La regla de marcado es una sola: un ítem se da por cubierto solo si el instrumento existe en la versión evaluada y la \autoref{sec:diseno-edufem} o el \autoref{anexo:manual} lo describen; en caso contrario, la celda queda vacía. A estos instrumentos se suma el análisis comparativo de la \autoref{tab:comparativa}, que sitúa el software frente a los recursos existentes.
+
+La tabla de cobertura es una verificación de requisitos, no un juicio de expertos sobre el software. El universo no lo fijó el autor, sino un consenso publicado; el cotejo, en cambio, lo hace el autor, y por eso cada celda remite a una función o a una captura que cualquier lector puede comprobar con el software instalado. El propio estudio advierte que sus resultados, obtenidos con expertos mexicanos de ingeniería mecánica, no son generalizables a otros contextos \autocite[p.~1171]{perezsantiago2023fem}. Lo que ese contexto condiciona es la importancia relativa que los expertos dan a cada ítem, y la tabla no pondera: solo registra si el ítem tiene o no instrumento. A ello se añade que los dieciocho ítems retenidos no son propios de una especialidad. El mallado, el post-proceso, los conceptos fundamentales, la verificación y la validación, la formulación isoparamétrica y la cuadratura de Gauss pertenecen al procedimiento de cálculo del MEF, que es el mismo en ingeniería civil y en ingeniería mecánica. Los ítems ligados a una tipología estructural o a un dominio ajeno al continuo plano —resortes, barras y vigas, elementos axisimétricos, placas y cáscaras, problemas térmicos— quedaron fuera del universo por esa misma razón.
+
+La reproducibilidad se apoya, en lo numérico, en el determinismo del motor: ante las mismas entradas produce las mismas salidas, y cada caso se regenera por completo al ejecutar de nuevo su guion sobre la versión identificada en la \autoref{sec:proceso-met}. A ello se suma una batería de pruebas de regresión que verifica la estabilidad del modelo de datos ante operaciones de edición, y que se reporta en la \autoref{sec:consistencia-interna}.
+
+\subsection{Criterios de aceptación y contraste de la hipótesis}
+\label{sec:validacion-resultados}
+
+Los criterios numéricos de aceptación están escritos en los propios guiones de verificación y validación, que los evalúan automáticamente y terminan con error si alguno falla. Los de trazabilidad son documentales, y los verifica el autor sobre la versión evaluada con la regla de marcado de la \autoref{sec:validacion-datos}. Unos y otros quedaron fijados antes de las corridas que este documento reporta. La \autoref{tab:criterios} los reúne, con la procedencia de cada umbral y con el resultado que lo refutaría. En la cláusula (a), el inventario de módulos cubre las etapas 1 a 7 porque las dos últimas ---la solución del sistema y la recuperación de tensiones--- no tienen módulo propio y se exponen en el post-proceso, que la tercera fila audita con su propio criterio; las nueve se desarrollan en la memoria de cálculo.
+
+{\footnotesize
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.15}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{2.3cm}>{\raggedright\arraybackslash}p{3.6cm}>{\raggedright\arraybackslash}p{2.6cm}>{\raggedright\arraybackslash}p{3.0cm}>{\raggedright\arraybackslash}p{2.3cm}@{}}
+\caption[Criterios de aceptación con que se contrasta la hipótesis.]{Criterios de aceptación con que se contrasta la hipótesis: magnitud observada, umbral, procedencia del umbral y resultado que refutaría la cláusula.}\label{tab:criterios}\\
+\toprule
+\textbf{Caso o instrumento} & \textbf{Magnitud} & \textbf{Umbral} & \textbf{Procedencia del umbral} & \textbf{Lo refutaría} \\
+\midrule
+\endfirsthead
+\caption[]{Criterios de aceptación con que se contrasta la hipótesis (continuación).}\\
+\toprule
+\textbf{Caso o instrumento} & \textbf{Magnitud} & \textbf{Umbral} & \textbf{Procedencia del umbral} & \textbf{Lo refutaría} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\multicolumn{5}{@{}l}{\emph{Cláusula (a): trazabilidad}} \\*
+Inventario de módulos & Etapas 1 a 7 con módulo educativo & 7 de 7 & Exhaustividad & Una etapa sin módulo \\*
+Memoria de cálculo & Etapas con desarrollo y sustitución numérica & 9 de 9 & Exhaustividad & Una etapa sin desarrollo \\*
+Post-proceso & Solución y tensiones expuestas, en modo crudo y suavizado & Ambas & Exhaustividad & Una sin exposición \\*
+Interfaz & Fases que operan sobre el mismo lienzo & 3 de 3 & Exhaustividad & Una fase en otra vista \\*
+Tabla de cobertura & Ítems del universo de contenido con instrumento & 18 de 18 & Exhaustividad & Un ítem sin instrumento \\*
+Intercambio de datos & Ida y vuelta CSV sin pérdida; importación DXF repetible; memoria generada para Q4 y Q9 & Sin pérdida y sin error & Exhaustividad & Una entidad perdida o un error \\
+\midrule
+\multicolumn{5}{@{}l}{\emph{Cláusula (b): verificabilidad}} \\*
+Soluciones manufacturadas & Tasa de convergencia del desplazamiento en norma $L^2$, cuatro configuraciones (\autoref{sec:verificacion-validacion}) & Teórica $\pm 0{,}5$ (2 en Q4 y 3 en Q9) & Medio orden: separa el orden esperado del inmediato inferior, que es el que produce un error de programación & Una tasa fuera de margen \\
+Soluciones manufacturadas & Tasa de convergencia del desplazamiento en seminorma $H^1$, cuatro configuraciones & Teórica $\pm 0{,}5$ (1 en Q4 y 2 en Q9) & Medio orden, como en la fila anterior & Una tasa fuera de margen \\
+Viga de Timoshenko & Error de la flecha central frente a la solución analítica & $< 3\,\%$ & Tolerancia de ingeniería fijada por el autor & Error mayor \\
+Viga de Timoshenko & Error de $\sigma_x$ frente a la solución analítica, en los tres puntos de control de la \autoref{sec:timoshenko} & $< 1\,\%$ & Tolerancia de ingeniería fijada por el autor & Un valor mayor \\
+Viga de Timoshenko & Diferencia de $\sigma_x$ frente a SAP2000, en los mismos tres puntos & $< 1\,\%$ & Tolerancia de ingeniería fijada por el autor & Un valor mayor \\
+Viga de Timoshenko & Residuo relativo del equilibrio global de reacciones & $< 10^{-8}$ & Orden del cero numérico del motor & Residuo mayor \\
+Membrana de Cook & Error del desplazamiento con Q9 y $N=8$, en valor absoluto & $< 1{,}5\,\%$ & Tolerancia de ingeniería fijada por el autor & Error mayor \\
+Membrana de Cook & Flecha del Q4 menor que la del Q9 con la misma malla & Se observa & Predicción de la teoría: bloqueo por cortante & Que no se observe \\
+Ejemplo canónico & Etapas de la memoria desarrolladas con sustitución numérica y remitidas a su ecuación, de modo que puedan rehacerse a mano & Todas & Exhaustividad & Una etapa sin desarrollo cotejable \\
+\end{longtable}}
+
+Tres precisiones completan la tabla. Primera: las tasas de convergencia se juzgan en su valor asintótico, medido entre las dos mallas más finas ($N=16$ y $N=32$), porque en las mallas gruesas la tasa todavía no se ha estabilizado. Segunda: el autor fijó el criterio de la viga de Timoshenko sobre la tensión normal $\sigma_x$ porque es la magnitud primaria del problema de flexión. Las componentes secundarias se reportan, pero no forman parte del criterio: su magnitud en los puntos de control es muy inferior a la de $\sigma_x$, y su error relativo está dominado por esa diferencia de escala (\autoref{sec:interpretacion}). Tercera: para la tensión recuperada en los nodos, cuya tasa teórica no está establecida para la secuencia de extrapolación y promediado que emplea el motor, los guiones incluyen un umbral mínimo de 1,4 en Q4 y de 1,9 en Q9. El autor eligió ese umbral después de observar el comportamiento del motor. No es un criterio de aceptación de la hipótesis, sino una salvaguarda contra retrocesos al modificar el código. El desempeño del solucionador se reporta sin criterio de aceptación.
+
+La hipótesis se contrasta cláusula por cláusula con esos criterios. La cláusula (a), trazabilidad, responde a PI-1 y se contrasta en la \autoref{sec:cobertura}, salvo el intercambio de datos, que se reporta en la \autoref{sec:consistencia-interna}. La cláusula (b), verificabilidad, responde a PI-2 y se contrasta en la \autoref{sec:mms} y de la \autoref{sec:timoshenko} a la \autoref{sec:cook}. La \autoref{sec:validacion-hipotesis} reúne los veredictos en una sola tabla, criterio por criterio.

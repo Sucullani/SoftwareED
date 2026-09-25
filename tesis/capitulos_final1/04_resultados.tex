@@ -1,0 +1,470 @@
+\chapter{Presentación de resultados y análisis}
+\label{cap:resultados}
+
+
+Este capítulo presenta y analiza los resultados según el diseño metodológico de la \autoref{sec:metodologia}. La evidencia es de dos clases, una por cada dimensión de la variable dependiente. La \emph{verificabilidad} se establece con evidencia numérica: se somete a EduFEM a una batería de verificación y validación, en la acepción que fija la \autoref{sec:verificacion-validacion}. La \emph{trazabilidad} se establece con evidencia documental: el inventario de lo que el software expone y la tabla de cobertura de contenido de la \autoref{sec:validacion-datos}.
+
+Los datos y las figuras se reproducen ejecutando los guiones \texttt{tests/vv\_mms.py}, \texttt{tests/vv\_timoshenko.py} y \texttt{tests/vv\_cook.py} sobre la versión identificada en la \autoref{sec:proceso-met}, como detalla la \autoref{sec:vyv-reproducibilidad}.
+
+\section{Medición de los datos y confiabilidad de la medición}
+\label{sec:medicion}
+
+Las dos variables del problema científico se observan en el software. La independiente —la forma en que expone el procedimiento de cálculo— se observa con los indicadores de cobertura y organización de la \autoref{tab:variables}, que reporta la \autoref{sec:cobertura-canal}. La dependiente se observa en sus dos dimensiones: la trazabilidad, en esa misma sección y en la \autoref{sec:contenido-didactico}; y la verificabilidad, con tres familias de indicadores numéricos que se describen a continuación.
+
+La \emph{exactitud frente a soluciones de referencia} se cuantifica con la norma $L^2$ del desplazamiento y la seminorma $H^1$ de su gradiente, con la norma $L^2$ del campo de tensiones recuperado —el que el post-proceso muestra—, en sus formas absoluta y relativa, y con los errores relativos porcentuales en tensión y desplazamiento respecto de los valores analíticos o de referencia. La \emph{respuesta estructural} se registra como desplazamientos nodales, componentes cartesianas de tensión, tensiones principales y de von Mises, y reacciones en los apoyos, cuya suma se contrasta con la carga total como comprobación de equilibrio. La \emph{convergencia} se mide como la tasa con que decrecen las normas de error al refinar la malla, estimada por el logaritmo en base dos del cociente de errores entre dos mallas sucesivas.
+
+La confiabilidad de estas mediciones se respalda por tres vías. En primer lugar, las normas de error se integran con la cuadratura de orden superior de la \autoref{sec:verificacion-validacion}, para no subestimar el error. En segundo lugar, las tensiones se evalúan en los puntos de Gauss de cada elemento y se extrapolan a los nodos, según la \autoref{sec:resolucion-tensiones}. En tercer lugar, la corrección de ese operador de extrapolación se comprueba por separado, exigiendo que reproduzca exactamente los campos polinómicos de su espacio de interpolación; esa prueba forma parte de la batería de regresión, y la \autoref{sec:leccion-extrapolacion} cuenta por qué se incorporó. Los instrumentos de medición numérica son los guiones de verificación y validación del proyecto, deterministas y reejecutables: cada dato reportado puede repetirse. La confiabilidad de los instrumentos documentales descansa en que cada celda de sus tablas remite a una función descrita en la \autoref{sec:diseno-edufem}, a una captura del \autoref{anexo:manual} o a una prueba de la batería de regresión, que cualquier lector puede rehacer sobre el software distribuido; su limitación, declarada en la \autoref{sec:validacion-datos}, es que las construye el autor.
+
+\section{Verificación numérica por el método de soluciones manufacturadas}
+\label{sec:mms}
+
+El método de soluciones manufacturadas (MMS), que describe la \autoref{sec:verificacion-validacion}, verifica el código comparando su resultado con una solución exacta construida a propósito. Si la implementación es correcta, el error debe disminuir con el tamaño característico de malla $h$ a las tasas asintóticas allí establecidas: $\mathcal{O}(h^{p+1})$ en la norma $L^2$ y $\mathcal{O}(h^{p})$ en la seminorma $H^1$, con $p$ el orden polinómico del elemento.
+
+El autor adoptó como configuración base el cuadrado unitario $[0,1]^2$ en tensión plana, con material $E = 1{,}0$, $\nu = 0{,}3$ y espesor $t = 1{,}0$, y eligió como solución manufacturada
+
+\begin{equation}
+u_M(x,y) = \sin(\pi x)\,\sin(\pi y), \qquad v_M(x,y) = \cos(\pi x)\,\cos(\pi y),
+\label{eq:mms-solucion}
+\end{equation}
+
+cuyo término fuente $\bm{b} = -\nabla\cdot\bm{\sigma}(\bm{u}_M)$, con $\bm{u}_M = (u_M, v_M)$, se inyecta como fuerza de volumen, y los valores de $\bm{u}_M$ se imponen como restricciones de Dirichlet no homogéneas en el contorno. EduFEM resolvió mallas estructuradas de $N\times N$ elementos para $N\in\{2,4,8,16,32\}$ en cuatro configuraciones: el cuadrado unitario y un cuadrilátero distorsionado de vértices $(0;\ 0)$, $(1;\ 0{,}15)$, $(0{,}85;\ 1)$ y $(0{,}1;\ 0{,}8)$ —cuyos elementos tienen Jacobiano no constante—, cada uno en tensión plana y en deformación plana, con el término fuente deducido en cada caso de la ley constitutiva correspondiente. En todas ellas el guion de verificación midió las normas $L^2$ y $H^1$ del desplazamiento y la norma $L^2$ del campo de tensiones recuperado $\bm{\sigma}^*_h$ (extrapolado a los nodos, promediado e interpolado con las funciones de forma, tal como lo muestra el post-proceso), integradas con la cuadratura de orden superior que justifica la \autoref{sec:verificacion-validacion}. La \autoref{tab:mms} reporta la configuración base; las otras tres se resumen en la \autoref{tab:mms-configs} del \autoref{anexo:vyv}.
+
+La \autoref{tab:mms} reúne los errores y las tasas de convergencia observadas para ambos tipos de elemento. La tasa se calcula como el logaritmo en base dos del cociente de errores entre dos mallas sucesivas, puesto que cada refinamiento divide $h$ a la mitad. La tasa que se contrasta con el criterio es la asintótica, medida entre las dos mallas más finas ($N=16$ y $N=32$), porque en las mallas gruesas todavía no se ha estabilizado.
+
+\begin{table}[htbp]
+\centering
+\caption[Errores absolutos y tasas de convergencia medidas por MMS (configuración base).]{Errores absolutos y tasas de convergencia medidas por MMS para los elementos Q4 y Q9 en la configuración base (cuadrado unitario, tensión plana): normas $L^2$ y $H^1$ del desplazamiento y norma $L^2$ del campo de tensiones recuperado $\sigma^*$.}
+\label{tab:mms}
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{c r r c r c r c}
+\hline
+$N$ & GDL & error $L^2$ & tasa $L^2$ & error $H^1$ & tasa $H^1$ & error $\sigma^*$ & tasa $\sigma^*$ \\
+\hline
+\multicolumn{8}{l}{\textbf{Q4 (bilineal, $p=1$)}} \\
+2  & 18   & $2{,}559\times10^{-1}$ & ---  & $1{,}496$               & ---  & $1{,}106$              & ---  \\
+4  & 50   & $7{,}240\times10^{-2}$ & 1,82 & $7{,}247\times10^{-1}$  & 1,05 & $4{,}780\times10^{-1}$ & 1,21 \\
+8  & 162  & $1{,}866\times10^{-2}$ & 1,96 & $3{,}578\times10^{-1}$  & 1,02 & $1{,}686\times10^{-1}$ & 1,50 \\
+16 & 578  & $4{,}699\times10^{-3}$ & 1,99 & $1{,}783\times10^{-1}$  & 1,01 & $5{,}751\times10^{-2}$ & 1,55 \\
+32 & 2178 & $1{,}177\times10^{-3}$ & 2,00 & $8{,}906\times10^{-2}$  & 1,00 & $1{,}976\times10^{-2}$ & 1,54 \\
+\hline
+\multicolumn{8}{l}{\textbf{Q9 (bicuadrático, $p=2$)}} \\
+2  & 50   & $2{,}172\times10^{-2}$ & ---  & $2{,}911\times10^{-1}$  & ---  & $2{,}282\times10^{-1}$ & ---  \\
+4  & 162  & $2{,}776\times10^{-3}$ & 2,97 & $7{,}263\times10^{-2}$  & 2,00 & $6{,}076\times10^{-2}$ & 1,91 \\
+8  & 578  & $3{,}479\times10^{-4}$ & 3,00 & $1{,}809\times10^{-2}$  & 2,01 & $1{,}540\times10^{-2}$ & 1,98 \\
+16 & 2178 & $4{,}352\times10^{-5}$ & 3,00 & $4{,}516\times10^{-3}$  & 2,00 & $3{,}860\times10^{-3}$ & 2,00 \\
+32 & 8450 & $5{,}441\times10^{-6}$ & 3,00 & $1{,}129\times10^{-3}$  & 2,00 & $9{,}654\times10^{-4}$ & 2,00 \\
+\hline
+\end{tabular}
+{\singlespacing\notaapa{Los errores son absolutos y, como los datos de la configuración base, carecen de unidades; los relativos de la misma configuración están en la \autoref{tab:mms-rel}. Cada tasa se calcula con los errores sin redondear y puede diferir en una centésima de la que se obtiene con los valores impresos.}}
+\end{table}
+
+El elemento Q4 alcanza asintóticamente tasas de $\mathcal{O}(h^{2{,}00})$ en $L^2$ y $\mathcal{O}(h^{1{,}00})$ en $H^1$, que coinciden con la predicción teórica para un elemento de orden $p=1$; el elemento Q9 alcanza $\mathcal{O}(h^{3{,}00})$ en $L^2$ y $\mathcal{O}(h^{2{,}00})$ en $H^1$, igualmente coincidentes con la teoría para $p=2$. La aproximación progresiva de las tasas a su valor asintótico ---por ejemplo, el Q4 pasa de 1,82 en la malla más gruesa a 2,00 en la más fina--- es la firma esperada del régimen de convergencia. Las mismas tasas, con diferencias inferiores a 0,01, se obtienen en las otras tres configuraciones (\autoref{tab:mms-configs}): la deformación plana y la distorsión de los elementos no alteran el orden de convergencia, lo que descarta errores de orden en el ensamblaje, la integración por cuadratura de Gauss, el mapeo isoparamétrico sobre elementos no rectangulares, la matriz constitutiva de ambos estados planos y la imposición de restricciones no homogéneas.
+
+El campo de tensiones recuperado converge a $\mathcal{O}(h^{2{,}00})$ en el Q9 y a $\mathcal{O}(h^{1{,}54})$ en el Q4, por encima del orden $\mathcal{O}(h^{1})$ del gradiente crudo (seminorma $H^1$). Esas dos cifras son asintóticas: se miden entre las dos mallas más finas, igual que las del desplazamiento. El primer refinamiento, de $N=2$ a $N=4$, arroja todavía 1,21 en el Q4 y 1,91 en el Q9, valores que no están en régimen asintótico y que por eso no entran en el contraste. Medidas así, ambas tasas quedan por encima del mínimo de 1,4 en el Q4 y de 1,9 en el Q9 que los guiones exigen. Ese mínimo no es un criterio a priori de la hipótesis: es una salvaguarda contra retrocesos al modificar el código, que el autor eligió después de observar el comportamiento del motor (\autoref{sec:validacion-resultados}).
+
+Ese orden del Q4 es una observación propia de este trabajo sobre la secuencia de muestreo en los puntos de Gauss, extrapolación y promediado nodal que emplea el motor (\autoref{sec:resolucion-tensiones}): la literatura consultada no fija un orden para esa secuencia, y Cook advierte que el promediado nodal simple no mejora por sí mismo la exactitud en su ejemplo \autocite[p.~231]{cook2002concepts}. Una explicación plausible de que no alcance $\mathcal{O}(h^{2})$, que este trabajo no contrastó, es la capa de contorno, donde los nodos reciben el promedio de un solo lado y pierden la cancelación de errores que los nodos interiores obtienen de sus cuatro elementos vecinos; comprobarla exigiría recomputar la norma $L^2$ del campo de tensiones excluyendo la franja de contorno. Esta verificación tiene límites: como en un campo suave los cuatro valores de Gauss de un elemento fino difieren en $\mathcal{O}(h)$, una permutación errónea de las columnas de la matriz de extrapolación apenas altera la norma $L^2$ en el régimen asintótico, aunque corrompa gravemente las tensiones nodales de una malla gruesa. Por eso la batería incluye la prueba de reproducción exacta de campos polinómicos, que comprueba el operador de extrapolación con independencia del tamaño de malla. La \autoref{sec:leccion-extrapolacion} refiere el defecto que ese límite dejó pasar en este mismo trabajo y sus consecuencias.
+
+La \autoref{fig:convergencia} muestra las curvas de error del desplazamiento en escala doble logarítmica, donde la pendiente de cada recta corresponde a la tasa de convergencia; la \autoref{fig:convergencia-tension} muestra la del campo de tensiones recuperado.
+
+\begin{figure}[htbp]
+\centering
+\begin{minipage}{0.49\linewidth}
+  \centering
+  \includegraphics[width=\linewidth]{mms_convergence_l2.png}\\[2pt]
+  {\small (a) Norma $L^2$ del desplazamiento.}
+\end{minipage}
+\hfill
+\begin{minipage}{0.49\linewidth}
+  \centering
+  \includegraphics[width=\linewidth]{mms_convergence_h1.png}\\[2pt]
+  {\small (b) Seminorma $H^1$ del desplazamiento.}
+\end{minipage}
+\caption[Convergencia bajo refinamiento $h$ medida por MMS.]{Convergencia bajo refinamiento $h$ medida por MMS (configuración base). Las pendientes de las rectas reproducen las tasas teóricas $\mathcal{O}(h^{p+1})$ en $L^2$ y $\mathcal{O}(h^{p})$ en $H^1$; las líneas discontinuas marcan las pendientes de referencia.}
+\label{fig:convergencia}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.62\linewidth]{mms_convergence_stress.png}
+\caption[Convergencia del campo de tensiones recuperado medida por MMS.]{Convergencia bajo refinamiento $h$ del campo de tensiones recuperado $\bm{\sigma}^*_h$ (puntos de Gauss $\to$ nodos $\to$ promedio) medida por MMS en la configuración base. Las líneas discontinuas marcan las pendientes de referencia $\mathcal{O}(h^{1{,}5})$ y $\mathcal{O}(h^{2})$, próximas a las tasas asintóticas medidas de 1,54 en el Q4 y 2,00 en el Q9.}
+\label{fig:convergencia-tension}
+\end{figure}
+
+Criterio fijado en la \autoref{sec:validacion-resultados}: la tasa de convergencia del desplazamiento, en las dos normas del error y en las cuatro configuraciones, dentro de $\pm 0{,}5$ de la teórica. Observado: 2,00 en $L^2$ y 1,00 en $H^1$ para el Q4, y 3,00 y 2,00 para el Q9 en la configuración base; en las otras tres, las mismas cifras con diferencias inferiores a 0,01. Se cumple.
+
+\section{Consistencia interna del modelo de datos}
+\label{sec:consistencia-interna}
+
+Más allá de la corrección numérica del solucionador, la batería de regresión verifica la robustez de las operaciones de gestión del modelo que distinguen a EduFEM como herramienta interactiva (\autoref{sec:arquitectura}). Tres pruebas resultan especialmente relevantes: el ciclo de transformación entre tipos de elemento, la separación entre identidad del nodo e índice de grado de libertad, y el intercambio de datos con otras herramientas. La tercera sostiene el criterio de intercambio de datos de la cláusula (a) (\autoref{tab:criterios}).
+
+La primera es el ciclo de transformación $\text{Q4}\rightarrow\text{Q9}\rightarrow\text{Q4}$. Al expandir un elemento bilineal a bicuadrático se generan automáticamente cinco nodos adicionales (cuatro nodos medios de arista y el centroide); al reducir de nuevo a Q4 esos nodos auxiliares deben eliminarse sin contaminar el resultado. La prueba comprueba que el campo de desplazamientos calculado sobre la malla Q4 reducida es idéntico al de la malla Q4 original dentro de la tolerancia numérica, con $\max|u_{\text{Q4,inicial}} - u_{\text{Q4,reducido}}| < 10^{-9}$. En este caso, las rutinas de expansión y reducción de malla no introdujeron deriva (\emph{drift}) numérica apreciable.
+
+La segunda prueba aborda la separación entre identidad del nodo e índice de grado de libertad, que la \autoref{sec:identidad-gdl} explica. La prueba resuelve un mismo problema con identificadores no contiguos $\{1,5,50,99\}$ y verifica equivalencia numérica inferior a $10^{-9}$ respecto del mismo problema con identificadores contiguos $\{1,2,3,4\}$. Este resultado es coherente con el patrón de indexación adoptado y, en la configuración ensayada, no reproduce los fallos por indexación directa que aparecían al eliminar nodos.
+
+La tercera prueba verifica el intercambio de datos con otras herramientas que exige el tercer objetivo específico (Introducción, «Objetivos»; \texttt{tests/test\_interop.py}). El ejemplo canónico exportado al paquete CSV/ZIP y reimportado en un proyecto vacío conserva sus nueve nodos, cuatro elementos, material, cargas y restricciones, y el sistema resuelto sobre el modelo reimportado reproduce los desplazamientos originales con $\max|\Delta u| < 10^{-12}$. El archivo DXF de ejemplo del proyecto —una viga de $4\times1$~m subdividida en seis cuadriláteros en la capa \texttt{FEM\_ELEMENTS}, con una capa decorativa que debe ignorarse— se importa como seis elementos y doce nodos compartidos, todos con orientación antihoraria, y su reimportación es idempotente: cero nodos y cero elementos nuevos, seis duplicados omitidos. La serialización JSON del formato nativo se verifica por ida y vuelta en \texttt{tests/test\_serialization.py}, y la generación de la memoria de cálculo en PDF, para Q4 y Q9, en \texttt{tests/test\_memoria\_calculo.py}.
+
+Criterio fijado en la \autoref{sec:validacion-resultados}: ida y vuelta CSV sin pérdida, importación DXF repetible y memoria de cálculo generada para Q4 y Q9 sin error. Observado: el modelo reimportado conserva sus nueve nodos y cuatro elementos y reproduce los desplazamientos con $\max|\Delta u| < 10^{-12}$; la reimportación del DXF no creó entidades nuevas —cero nodos y cero elementos, con seis duplicados omitidos—; la memoria se generó para ambos tipos de elemento sin error. Se cumple.
+
+\section{Validación con la viga de Timoshenko}
+\label{sec:timoshenko}
+
+La validación confronta el software con una referencia externa de aceptación general. El autor eligió una viga simplemente apoyada de luz $L = 14$~m, peralte $H = 1{,}20$~m y base $b = 0{,}40$~m, sometida a una carga uniforme $q = 5000$~kgf/m. El modelo se planteó en el sistema técnico (kgf, cm), con material $E = 217\,370$~kgf/cm$^2$ (unos $21{,}32$~GPa) y $\nu = 0{,}20$. Ese módulo es el que arroja la correlación módulo--resistencia del hormigón de peso normal, $E = 15\,000\sqrt{f'_c}$ en unidades técnicas, evaluada en $f'_c = 210$~kgf/cm$^2$. El análisis es elástico lineal y no considera la fisuración del hormigón.
+
+El valor concreto de $E$ no condiciona la validación. En elasticidad lineal con cargas prescritas y apoyos de desplazamiento nulo, escalar el módulo por un factor $\alpha$ deja el campo de tensiones inalterado y divide los desplazamientos por $\alpha$. Como las tres soluciones que se comparan ---EduFEM, la solución analítica y el modelo de SAP2000--- usan el mismo módulo, los errores relativos de la \autoref{tab:timoshenko-stress} y de la \autoref{tab:timoshenko-defl} son invariantes ante esa elección. El autor adoptó un hormigón realista únicamente para que las magnitudes del ejemplo resulten familiares al lector de ingeniería civil, no porque de él dependa el resultado.
+
+El autor empleó una única malla Q9 estructurada de $56\times8$ elementos (448 elementos, 1921 nodos, 3842 GDL). Conforme a la \autoref{sec:poblacion}, este caso es un contraste puntual de exactitud sobre una malla fina y no un estudio de convergencia; el refinamiento y la comparación Q4 frente a Q9 se reportan en las secciones del MMS y de la membrana de Cook. Las dos referencias de contraste son la solución analítica de la teoría de la elasticidad de Timoshenko y Goodier \autocite[art.~21, pp.~39-43]{timoshenko1970elasticity} y un modelo equivalente resuelto en SAP2000 \autocite[p.~179]{csi2017sap2000} con elementos de cáscara (\emph{shell}) de formulación Mindlin-Reissner. Esa formulación no coincide exactamente con el continuo bidimensional de tensión plana de EduFEM —difiere en la cinemática y en la discretización—, por lo que pequeñas discrepancias entre ambos modelos son esperables y no deben interpretarse como mayor o menor exactitud de uno sobre otro. El detalle del modelo de SAP2000, la resolución analítica de Timoshenko-Goodier y la comparación punto a punto que originan estas referencias se documentan en el \autoref{anexo:sap2000}.
+
+La \autoref{tab:timoshenko-stress} compara la tensión normal $\sigma_x$ en tres puntos de control de la viga —uno en la fibra extrema del centro del vano (A) y dos interiores (B y C)— y, en el punto B, donde su error es máximo, las componentes secundarias $\sigma_y$ y $\tau_{xy}$; el conjunto completo de componentes está en la \autoref{tab:tim-componentes}. Las coordenadas siguen el marco de la solución de Timoshenko-Goodier, con origen en el centro del vano y eje $y$ positivo hacia la fibra traccionada; el guion de validación aplica el cambio de signo $y_{\text{MEF}} = -y_{\text{ref}}$ que documenta el \autoref{anexo:vyv}.
+
+\begin{table}[htbp]
+\centering
+\caption[Tensiones (kgf/cm$^2$) en los puntos de control de la viga de Timoshenko: EduFEM frente a la solución analítica y a SAP2000.]{Tensiones (kgf/cm$^2$) en los tres puntos de control de la viga de Timoshenko: EduFEM frente a la solución analítica de Timoshenko-Goodier y a SAP2000. Tensión normal $\sigma_x$ en A $(0;\ 0{,}6)$, B $(-4{,}5;\ -0{,}3)$ y C $(-3{,}5;\ -0{,}2)$~m, y componentes secundarias en B, donde su error es máximo.}
+\label{tab:timoshenko-stress}
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{c l r r r c c}
+\hline
+Punto & Magnitud & EduFEM & Analítico & SAP2000 & Error anal.\ (\%) & Difer.\ SAP (\%) \\
+\hline
+A & $\sigma_x$   & $127{,}8825$ & $127{,}8542$ & $127{,}8514$ & 0,02 & 0,02 \\
+B & $\sigma_x$   & $-37{,}3410$ & $-37{,}3255$ & $-37{,}2640$ & 0,04 & 0,21 \\
+C & $\sigma_x$   & $-31{,}8077$ & $-31{,}7992$ & $-31{,}7852$ & 0,03 & 0,07 \\
+B & $\sigma_y$   & $-1{,}0646$  & $-1{,}0547$  & $-1{,}0182$  & 0,94   & 4,56 \\
+B & $\tau_{xy}$  & $5{,}4257$   & $5{,}2734$   & $5{,}2818$   & 2,89   & 2,72 \\
+\hline
+\end{tabular}
+{\singlespacing\notaapa{El signo de $\tau_{xy}$ de SAP2000 se lleva a la convención de eje $y$ de la solución analítica (\autoref{anexo:vyv}). La última columna se rotula «diferencia» y no «error» porque la formulación de cáscara de SAP2000 no es la misma que el continuo de tensión plana de EduFEM: ninguna de las dos es el patrón de la otra.}}
+\end{table}
+
+Los errores de $\sigma_x$ frente a la solución analítica permanecen por debajo del $0{,}05\,\%$ en los tres puntos de control, con un máximo de $0{,}04\,\%$ en el punto B; la diferencia frente a SAP2000 alcanza un máximo de $0{,}21\,\%$, también en el punto B. En las componentes secundarias, cuya magnitud es entre seis y treinta y cinco veces menor que la de $\sigma_x$, los porcentajes crecen: en el punto B, el error frente a la solución analítica es del $0{,}94\,\%$ en $\sigma_y$ y del $2{,}89\,\%$ en $\tau_{xy}$, y la diferencia frente a SAP2000, del $4{,}56\,\%$ y del $2{,}72\,\%$. Esas componentes se reportan, pero no forman parte del criterio de aceptación (\autoref{sec:validacion-resultados}); la \autoref{sec:interpretacion} explica por qué crecen. El autor ubicó los puntos A, B y C a distintas alturas y abscisas, en zonas de tracción y de compresión, a lo largo del peralte en el que $\sigma_x$ varía linealmente. Los máximos anteriores se toman sobre esos tres puntos de control y no sobre todos los nodos de la malla: ese máximo sobre el dominio completo no se calculó. La suma de las reacciones verticales en los dos apoyos equilibra la carga total $qL = 70\,000$~kgf con un residuo relativo de $1{,}7\times10^{-13}$, y la suma horizontal es nula a precisión de máquina.
+
+La \autoref{tab:timoshenko-defl} contrasta la deflexión vertical: en el centro de la luz frente a la solución analítica y en los puntos de control frente a SAP2000.
+
+\begin{table}[htbp]
+\centering
+\caption[Deflexión vertical $|u_y|$ (cm): EduFEM frente a la solución analítica y a SAP2000.]{Deflexión vertical $|u_y|$ (cm) de la viga de Timoshenko: en el centro de la luz frente a la solución analítica con corrección de cortante, y en los tres puntos de control frente a SAP2000.}
+\label{tab:timoshenko-defl}
+\begin{tabular}{l r r r c c}
+\hline
+Medición & EduFEM & Analítico & SAP2000 & Error anal.\ (\%) & Difer.\ SAP (\%) \\
+\hline
+$|u_y|(0;\ 0)$ & $2{,}03460$ & $2{,}02926$ & ---         & 0,26 & --- \\
+$|u_y|$ en A & $2{,}03101$ & ---         & $2{,}02310$ & ---    & 0,39 \\
+$|u_y|$ en B & $1{,}09871$ & ---         & $1{,}09260$ & ---    & 0,56 \\
+$|u_y|$ en C & $1{,}45216$ & ---         & $1{,}44530$ & ---    & 0,47 \\
+\hline
+\end{tabular}
+\end{table}
+
+El error en deflexión es del $0{,}26\,\%$ frente a la solución analítica que incluye la corrección de cortante de Timoshenko \autocite[art.~21, pp.~39-43]{timoshenko1970elasticity}; con la fórmula clásica de Euler-Bernoulli, que desprecia la deformación por cortante, el valor de referencia sería $1{,}9976$~cm y el error aparente del software ascendería al $1{,}85\,\%$. Con una relación luz-peralte de $11{,}7$, la viga es lo bastante esbelta para que la deformación por cortante aporte poco, pero no tanto como para despreciarla: de ahí la distancia entre ese $1{,}85\,\%$ y el $0{,}26\,\%$ que se obtiene frente a la solución con corrección de cortante. Frente a SAP2000, la diferencia en la componente vertical del desplazamiento llega al $0{,}56\,\%$ en el punto B.
+
+La \autoref{fig:timoshenko-contorno} presenta el contorno de tensión normal y la configuración deformada de la viga, que permiten apreciar visualmente la distribución lineal de $\sigma_x$ en el peralte.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{fig_timoshenko_contorno}
+\caption[Campo de $\sigma_x$ sobre la viga de Timoshenko deformada ($56\times8$ Q9).]{Post-proceso de EduFEM: campo de tensión normal $\sigma_x$ sobre la configuración deformada de la viga de Timoshenko ($56\times8$ Q9). La gradación lineal de $\sigma_x$ en el peralte ---tracción (rojo) en la fibra inferior, compresión (azul) en la superior y eje neutro (verde)--- coincide con la predicción de la teoría de vigas. Las etiquetas de la captura conservan el punto decimal del software; las dos reacciones, de 35\,000~kgf, suman la carga total de 70\,000~kgf.}
+\label{fig:timoshenko-contorno}
+\end{figure}
+
+Criterio fijado en la \autoref{sec:validacion-resultados} para la tensión normal: error de $\sigma_x$ inferior al $1\,\%$ frente a la solución analítica y diferencia inferior al $1\,\%$ frente a SAP2000, en los tres puntos de control. Observado: $0{,}04\,\%$ de error y $0{,}21\,\%$ de diferencia, ambos en el punto B. Se cumple. Criterio para la flecha: error inferior al $3\,\%$ frente a la solución analítica. Observado: $0{,}26\,\%$ en el centro de la luz. Se cumple. Criterio para el equilibrio: residuo relativo de la suma de reacciones inferior a $10^{-8}$. Observado: $1{,}7\times10^{-13}$. Se cumple.
+
+\section{Validación con la membrana de Cook y el bloqueo por cortante}
+\label{sec:cook}
+
+La membrana de Cook es un caso de estudio clásico de la literatura de elementos finitos, que debe su nombre a R. D. Cook \autocite[p.~27]{stembera2019dkmq24} y resulta especialmente sensible al bloqueo por cortante (\emph{shear locking}) por combinar flexión, cortante y distorsión geométrica en un cuadrilátero trapezoidal. El dominio es un trapecio de vértices $(0;\ 0)$, $(48;\ 44)$, $(48;\ 60)$ y $(0;\ 44)$, empotrado en el borde izquierdo y cargado con una fuerza tangencial total unitaria en el borde derecho; el material es adimensional con $E = 1{,}0$, $\nu = 1/3$ y $t = 1{,}0$ en tensión plana. La cantidad de interés es el desplazamiento vertical $u_y$ en el punto $(48;\ 52)$, para la que el autor adoptó el valor de referencia $u_y^{\text{ref}} = 23{,}96$, de uso extendido para este caso. El planteamiento reproduce el de la literatura reciente, que emplea la misma geometría, el mismo material y la misma carga tangencial unitaria \autocite[p.~27]{stembera2019dkmq24}.
+
+Ese valor de referencia merece una precisión, porque es el único de los tres casos que no procede de una solución analítica cerrada: es un límite de convergencia y no un dato exacto. La literatura no lo trata de otro modo: Štembera y Füssl, que lo emplean para ensayar el comportamiento de membrana de un elemento de cáscara, advierten que este problema no tiene solución analítica disponible y obtienen su referencia por vía numérica, con una malla de $192\times128$ elementos, en $23{,}965$ \autocite[p.~28]{stembera2019dkmq24}. Este trabajo lo corrobora además con evidencia propia. La secuencia Q9 ($23{,}925 \to 23{,}949 \to 23{,}961$) todavía se mueve en la malla más fina, y su extrapolación de Richardson \autocite[pp.~309-312]{oberkampf2010vv} apunta a $\approx 23{,}97$, consistente con el valor adoptado; el orden observado, próximo a uno, refleja la singularidad de tensiones en los dos vértices del borde empotrado, donde la restricción cambia bruscamente de desplazamiento impuesto a borde libre. La incertidumbre de la referencia es, por tanto, del orden del $0{,}05\,\%$: es lo que separa las dos mallas Q9 más finas, $(23{,}961-23{,}949)/23{,}96$, y es del mismo orden que la distancia, del $0{,}04\,\%$, entre $23{,}96$ y el $23{,}97$ de la extrapolación. El valor publicado, $23{,}965$, cae dentro de ese intervalo, lo que respalda a la vez la referencia adoptada y la incertidumbre estimada. Los errores por debajo del $0{,}1\,\%$ ---el doble de esa incertidumbre--- no se distinguen de ella y no deben leerse como exactitud del elemento.
+
+La \autoref{tab:cook} reúne la convergencia bajo refinamiento $N$ para ambos elementos.
+
+\begin{table}[htbp]
+\centering
+\caption[Convergencia del desplazamiento $u_y$ en $(48;\ 52)$ para la membrana de Cook.]{Convergencia del desplazamiento $u_y$ en $(48;\ 52)$ para la membrana de Cook, bajo refinamiento $N$, con los elementos Q4 y Q9. Referencia adoptada $u_y^{\text{ref}} = 23{,}96$, con una incertidumbre del orden del $0{,}05\,\%$; el error se mide respecto de ella. La fuente publicada da $23{,}965$ para esa misma cantidad \autocite[p.~28]{stembera2019dkmq24}.}
+\label{tab:cook}
+\begin{tabular}{c r r r r r r}
+\hline
+ & \multicolumn{3}{c}{\textbf{Q4}} & \multicolumn{3}{c}{\textbf{Q9}} \\
+$N$ & GDL & $u_y$ & error (\%) & GDL & $u_y$ & error (\%) \\
+\hline
+2  & 18   & $11{,}845$ & $-50{,}563$ & 50   & $23{,}289$ & $-2{,}802$ \\
+4  & 50   & $18{,}299$ & $-23{,}626$ & 162  & $23{,}840$ & $-0{,}502$ \\
+8  & 162  & $22{,}079$ & $-7{,}850$  & 578  & $23{,}925$ & $-0{,}144$ \\
+16 & 578  & $23{,}430$ & $-2{,}210$  & 2178 & $23{,}949$ & $-0{,}044$ \\
+32 & 2178 & $23{,}818$ & $-0{,}594$  & 8450 & $23{,}961$ & $+0{,}003$ \\
+\hline
+\end{tabular}
+\end{table}
+
+El elemento Q4 subestima la respuesta en más de un $50\,\%$ en la malla más gruesa y conserva un error del $-0{,}594\,\%$ con $N=32$ (2178 GDL); su convergencia es lenta y monótona por debajo de la referencia. El elemento Q9 alcanza un error del $-0{,}144\,\%$ con $N=8$ (578 GDL) y del $-0{,}044\,\%$ con $N=16$ (2178 GDL), este último ya dentro de la incertidumbre de la propia referencia. A igualdad de grados de libertad, el error del Q9 es más de diez veces menor que el del Q4. Con 578 GDL ---que el Q4 alcanza con $N=16$ y el Q9 con $N=8$--- la razón es de poco más de quince veces con el $23{,}96$ adoptado, de más de trece con el $23{,}965$ publicado y de doce con el $23{,}97$ de la extrapolación. Con 2178 GDL la razón deja de ser informativa: el error del Q9 cae por debajo del $0{,}1\,\%$ y ya no se distingue de la incertidumbre de la referencia. La flecha del Q4 es menor que la del Q9 en las cinco mallas ensayadas, que es la firma del bloqueo por cortante.
+
+Esa secuencia admite además un contraste externo directo, que es lo que distingue a este caso de una comprobación puramente interna. Štembera y Füssl publican, para el mismo problema y el mismo refinamiento, los desplazamientos que obtienen con un cuadrilátero de cuatro nodos: $11{,}845$, $18{,}299$, $22{,}079$, $23{,}430$ y $23{,}818$ \autocite[p.~28]{stembera2019dkmq24}. Son, en las cinco mallas y hasta la última cifra publicada, los mismos valores que EduFEM calcula con su elemento Q4 (\autoref{tab:cook}). La coincidencia no prueba que ambos programas sean correctos, porque un error compartido de formulación se reproduciría en los dos; sí muestra que el motor de EduFEM resuelve este caso como lo resuelve un código independiente, desarrollado por otros autores y publicado.
+
+La \autoref{fig:cook-convergencia} muestra las curvas de convergencia de $u_y$ frente al número de grados de libertad para ambos elementos.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.72\linewidth]{cook_convergence.png}
+\caption[Convergencia del desplazamiento $u_y$ de la membrana de Cook para Q4 y Q9.]{Convergencia del desplazamiento vertical $u_y$ en $(48;\ 52)$ de la membrana de Cook para los elementos Q4 y Q9, frente al número de grados de libertad en escala logarítmica. La línea horizontal discontinua marca el valor de referencia adoptado, $u_y^{\text{ref}} = 23{,}96$.}
+\label{fig:cook-convergencia}
+\end{figure}
+
+Criterio fijado en la \autoref{sec:validacion-resultados} para la exactitud: error del desplazamiento con Q9 y $N=8$ inferior al $1{,}5\,\%$ en valor absoluto. Observado: $-0{,}144\,\%$, es decir, $0{,}144\,\%$ en valor absoluto. Se cumple. Criterio para el bloqueo por cortante: flecha del Q4 menor que la del Q9 con la misma malla. Observado: así ocurre en las cinco mallas. Se cumple.
+
+La \autoref{tab:resumen-q4q9} sintetiza la comparación global entre ambos elementos a lo largo de las tres baterías de prueba.
+
+\begin{table}[htbp]
+\centering
+\caption[Síntesis comparativa Q4 frente a Q9 en las baterías de verificación y validación.]{Síntesis comparativa Q4 frente a Q9 en las baterías de verificación y validación: tasas asintóticas de convergencia del desplazamiento medidas por MMS, desplazamiento $u_y$ y su error en la membrana de Cook a igualdad de refinamiento, y error de $\sigma_x$ en la viga de Timoshenko.}
+\label{tab:resumen-q4q9}
+\begin{tabular}{l c c}
+\hline
+Aspecto & Q4 (bilineal) & Q9 (bicuadrático) \\
+\hline
+Tasa $L^2$ (MMS)              & $\mathcal{O}(h^{2{,}00})$ & $\mathcal{O}(h^{3{,}00})$ \\
+Tasa $H^1$ (MMS)              & $\mathcal{O}(h^{1{,}00})$ & $\mathcal{O}(h^{2{,}00})$ \\
+Cook $N=8$ (162 / 578 GDL)    & $22{,}079$ ($-7{,}850\,\%$) & $23{,}925$ ($-0{,}144\,\%$) \\
+Cook $N=16$ (578 / 2178 GDL)  & $23{,}430$ ($-2{,}210\,\%$) & $23{,}949$ ($-0{,}044\,\%$) \\
+Timoshenko $\sigma_x$ (máx.\ en A, B y C) & --- & 0,04\,\% \\
+Comportamiento bajo distorsión & bloqueo parcial & sin bloqueo apreciable \\
+\hline
+\end{tabular}
+{\singlespacing\notaapa{La viga de Timoshenko se resolvió únicamente con Q9 (\autoref{sec:poblacion}). Su error de $\sigma_x$ es el máximo entre los tres puntos de control A, B y C de la \autoref{tab:timoshenko-stress}, frente a la solución analítica; el máximo sobre todos los nodos de la malla no se calculó.}}
+\end{table}
+
+\section{Cobertura del procedimiento y del contenido}
+\label{sec:cobertura}
+
+Esta sección reporta la cláusula (a) de la hipótesis, la trazabilidad. Primero, qué expone el software y cómo; después, si lo expuesto cubre el contenido que los expertos exigen.
+
+\subsection{Cobertura del procedimiento y organización de la interfaz}
+\label{sec:cobertura-canal}
+
+La \autoref{tab:fases} resume qué operaciones ofrece cada fase del análisis, qué etapas del procedimiento de cálculo expone y con qué instrumento; la \autoref{fig:fases-lienzo} muestra las tres fases operando sobre el mismo lienzo y el mismo modelo.
+
+\begin{table}[!htbp]
+\centering
+\caption[Fases del análisis en EduFEM: operaciones y exposición del procedimiento.]{Fases del análisis en EduFEM. Por cada fase: las operaciones disponibles, las etapas del procedimiento de cálculo que expone y el instrumento con que lo hace. Las nueve etapas son las enumeradas en la \autoref{sec:variables-met}; la discretización y la calidad de malla las anteceden y no se cuentan entre ellas.}
+\label{tab:fases}
+{\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{1.9cm}>{\raggedright\arraybackslash}p{5.1cm}>{\raggedright\arraybackslash}p{3.3cm}>{\raggedright\arraybackslash}p{3.7cm}@{}}
+\toprule
+\textbf{Fase} & \textbf{Operaciones disponibles} & \textbf{Etapas que expone} & \textbf{Instrumento de exposición} \\
+\midrule
+Pre-proceso & Definición tabular y gráfica de nodos, elementos, materiales, cargas y restricciones; importación DXF; deshacer y rehacer; comprobador de salud & Discretización y calidad de malla & M0 (calidad de malla, coloreado por elemento y distorsión en vivo) \\
+Proceso & Resolución del sistema con comprobación previa; exploración del procedimiento sobre el elemento seleccionado en el lienzo & Mapeo isoparamétrico, $\bm{J}$, $\bm{B}$, $\bm{D}$, $\bm{k}_e$ por cuadratura, fuerzas nodales equivalentes, ensamblaje (etapas 1 a 7) & M1 a M7: capas superpuestas; conmutador Fórmula~$\leftrightarrow$~Valores en M2, M3 y M4 \\
+Post-proceso & Contornos de tensión y desplazamiento, deformada, isolíneas, vista tridimensional, sonda puntual con círculo de Mohr, reacciones, tabla de resultados, exportación de la memoria & Solución del sistema y recuperación de tensiones, en modo crudo y suavizado (etapas 8 y 9) & Sonda, vista tridimensional y tabla de resultados; memoria de cálculo (las nueve etapas, con sustitución numérica) \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\begin{figure}[p]
+\centering
+\includegraphics[width=0.95\linewidth]{fig_fases_lienzo}
+\caption[Las tres fases del análisis sobre el mismo lienzo y el mismo modelo.]{Las tres fases del análisis sobre el mismo lienzo y el mismo modelo (ejemplo canónico: nueve nodos, cuatro elementos Q4, carga en el nodo 7). De arriba abajo: pre-proceso, con el modo de dibujo agregando un elemento sobre la malla existente; proceso, con el módulo M3 desplegado sobre el elemento seleccionado y los índices de grado de libertad junto a cada nodo; post-proceso, con el contorno de von Mises sobre la deformada, las reacciones en los apoyos y el panel de detalles del nodo 7 con su círculo de Mohr. Capturas de EduFEM; a tamaño completo, en el \autoref{anexo:manual}.}
+\label{fig:fases-lienzo}
+\end{figure}
+
+\paragraph{Cobertura del procedimiento} De las nueve etapas enumeradas en la \autoref{sec:variables-met}, las siete primeras tienen módulo educativo propio (M1 a M7, \autoref{tab:modulos}) y las nueve tienen desarrollo con sustitución numérica en la memoria de cálculo (\autoref{anexo:memoria}). La solución del sistema y la recuperación de tensiones —las etapas 8 y 9, que no tienen módulo propio— se exponen además en el post-proceso, mediante la sonda puntual con sus modos crudo y suavizado, la vista tridimensional y la tabla de resultados. El módulo M0 atiende la calidad de malla en el pre-proceso, con los mínimos de la biblioteca Verdict \autocite[pp.~51, 57]{stimpson2007verdict} endurecidos según la \autoref{sec:pre-proceso}.
+
+Criterios fijados en la \autoref{sec:validacion-resultados}: siete de siete etapas con módulo educativo, y nueve de nueve con desarrollo en la memoria. Observado: 7 de 7 y 9 de 9. Se cumplen. Criterio: solución y tensiones expuestas en el post-proceso, en modo crudo y suavizado. Observado: ambas, con los dos modos. Se cumple.
+
+Los módulos M1 a M7 recorren la fase de proceso en el orden del método, que refleja la dependencia lógica entre conceptos: la secuencia cinemática $\bm{N}\rightarrow\bm{J}\rightarrow\bm{B}$ precede a la constitutiva, y la deformación $\bm{\varepsilon} = \bm{B}\,\bm{u}$ antecede a la tensión $\bm{\sigma} = \bm{D}\,\bm{\varepsilon}$. Es el orden con que la literatura de referencia presenta la formulación isoparamétrica \autocites[pp.~339-347]{bathe2014fem}{cook2002concepts}, y es el que el autor adoptó para los módulos antes de construirlos; el criterio de la \autoref{sec:validacion-resultados} verifica que cada una de las siete etapas tenga módulo, no el orden en que se recorren. Cada módulo es una capa superpuesta sobre la malla real, con la disposición que describe la \autoref{sec:educacion}.
+
+\paragraph{Organización de la interfaz} Las tres fases operan sobre un único lienzo compartido. En los tres casos de estudio de este capítulo, el modelo se construyó o se importó, se resolvió y se inspeccionó sin cambiar de vista, y la selección de un elemento en la tabla o en el lienzo se reflejó en el otro. Criterio: las tres fases sobre el mismo lienzo. Observado: 3 de 3 fases, en cada uno de los tres casos de estudio. Se cumple.
+
+\paragraph{Trazabilidad e intercambio de datos} La memoria de cálculo se generó para el ejemplo canónico en Q4 y en Q9 sin error de compilación (\mbox{\texttt{tests/test\_memoria\_calculo.py}}); el \autoref{anexo:memoria} reproduce su secuencia de sustitución numérica, con cada paso remitido a la ecuación del \autoref{cap:marco_teorico} de la que procede, para que pueda rehacerse con lápiz y papel o en una hoja de cálculo. Cada valor que la memoria muestra coincide con el que calcula el motor, y esa coincidencia queda garantizada por construcción: ambos usan las mismas funciones (\autoref{sec:validacion-datos}). La ida y vuelta CSV y la repetibilidad de la importación DXF se reportaron en la \autoref{sec:consistencia-interna}. Ese resultado tiene un alcance acotado: lo comprobado es que el paquete CSV transporta sin pérdida las entidades del modelo ensayado —nodos, elementos, material, cargas y restricciones—, no que sea equivalente al formato nativo, que guarda además el valor de los desplazamientos prescritos y la configuración del proyecto. El formato de intercambio está pensado para editar un modelo en una hoja de cálculo, y ese alcance es el que la prueba cubre; el veredicto de ese criterio se da en la \autoref{sec:consistencia-interna}.
+
+\subsection{Cobertura de contenido}
+\label{sec:contenido-didactico}
+
+La \autoref{tab:especificaciones} cruza el universo de contenido de la \autoref{sec:poblacion} —las quince destrezas y los tres conceptos que el consenso de expertos de Pérez-Santiago y Campos califica como necesarios para el egresado \autocite[pp.~1162-1163]{perezsantiago2023fem}— con el instrumento de EduFEM que cubre cada uno y con la evidencia de este documento que lo respalda. Los códigos de la primera columna son los del propio consenso: FEA para las destrezas prácticas y FEM para los conceptos teóricos. La regla de marcado es la de la \autoref{sec:validacion-datos}: un ítem se da por cubierto solo si el instrumento existe en la versión evaluada y el documento lo describe.
+
+{\footnotesize
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.12}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{1.3cm}>{\raggedright\arraybackslash}p{5.3cm}>{\raggedright\arraybackslash}p{5.2cm}>{\raggedright\arraybackslash}p{2.6cm}@{}}
+\caption[Tabla de cobertura de contenido: destrezas y conceptos exigidos por los expertos e instrumento de EduFEM que los cubre.]{Tabla de cobertura de contenido. Por cada destreza o concepto que el consenso de expertos exige al egresado, dentro del alcance de este trabajo: el instrumento de EduFEM que lo cubre y la evidencia que lo respalda en este documento.}\label{tab:especificaciones}\\
+\toprule
+\textbf{Ítem} & \textbf{Destreza o concepto} & \textbf{Instrumento de EduFEM} & \textbf{Evidencia} \\
+\midrule
+\endfirsthead
+\caption[]{Tabla de cobertura de contenido (continuación).}\\
+\toprule
+\textbf{Ítem} & \textbf{Destreza o concepto} & \textbf{Instrumento de EduFEM} & \textbf{Evidencia} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\multicolumn{4}{@{}l}{\emph{Mallado}} \\
+FEA13 & Selección del tipo de elemento & Conversión Q4~$\leftrightarrow$~Q9 del modelo & \autoref{sec:pre-proceso}; \autoref{sec:cook} \\
+FEA14 & Definición del tamaño de elemento & Refinamiento manual; secuencias de malla de 2 a 32 elementos por lado & \autoref{tab:mms}; \autoref{tab:cook} \\
+FEA15 & Efecto de la relación de aspecto y la distorsión en la exactitud & M0 (calidad en vivo); M2 ($\det\bm{J}$); soluciones manufacturadas sobre malla distorsionada & \autoref{sec:educacion}; \autoref{tab:mms-configs} \\
+FEA16 & Efecto del orden del elemento en la exactitud & Cook: Q4 frente a Q9 a igual número de grados de libertad & \autoref{tab:cook}; \autoref{tab:resumen-q4q9} \\
+FEA17 & Refinamiento y convergencia de la malla & Tasas de convergencia; curvas de error & \autoref{tab:mms}; \autoref{fig:convergencia} \\
+FEA18 & Refinar en zonas de concentración de tensiones & Construcción de la malla con densidad variable, por tabla o sobre el lienzo, con la calidad de cada elemento a la vista en M0; la membrana de Cook concentra tensiones en los vértices del borde empotrado & \autoref{sec:pre-proceso}; \autoref{sec:cook} \\
+\multicolumn{4}{@{}l}{\emph{Post-proceso}} \\
+FEA26 & Presentar resultados de desplazamiento y tensión & Contornos, isolíneas, vista tridimensional, tabla de resultados & \autoref{sec:post-proceso}; \autoref{fig:fases-lienzo} \\
+FEA27 & Diferencia entre tensiones nodales y elementales & Sonda y vista tridimensional en modo crudo y suavizado & \autoref{sec:post-proceso}; \autoref{tab:fases} \\
+FEA28 & Deformada escalada & Deformada con factor de escala configurable & \autoref{sec:post-proceso} \\
+\multicolumn{4}{@{}l}{\emph{Conceptos fundamentales}} \\
+FEA29 & Visualizar el efecto de las cargas y compararlo con los resultados & Lienzo único: cargas del pre-proceso y campos del post-proceso sobre el mismo modelo & \autoref{fig:fases-lienzo} \\
+FEA30 & Prueba de convergencia refinando hasta una diferencia dada & Secuencias de malla con la diferencia entre mallas sucesivas como regla de parada, y extrapolación de Richardson para estimar el límite & \autoref{tab:mms}; \autoref{sec:cook} \\
+FEA31 & Definición de la tensión de von Mises & Contorno y sonda de von Mises; círculo de Mohr & \autoref{sec:post-proceso} \\
+\multicolumn{4}{@{}l}{\emph{Verificación y validación}} \\
+FEA32 & Revisar las tensiones para decidir el refinamiento & Modo crudo frente a suavizado; diagnóstico de la memoria & \autoref{sec:post-proceso}; \autoref{sec:memoria-io} \\
+FEA33 & Comparar las reacciones con las cargas aplicadas & Reacciones en el post-proceso; comprobación de equilibrio en la memoria & \autoref{sec:timoshenko}; \autoref{sec:memoria-io} \\
+FEA34 & Correlacionar los resultados con referencias externas & Contraste con la solución analítica y con SAP2000 & \autoref{sec:timoshenko} \\
+\multicolumn{4}{@{}l}{\emph{Conceptos teóricos del procedimiento}} \\
+FEM2 & Ensamblar las rigideces elementales, aplicar restricciones y resolver & M7; memoria (ensamblaje y solución) & \autoref{sec:educacion}; \autoref{anexo:memoria} \\
+FEM8 & Formulación isoparamétrica de elementos bidimensionales & M1, M2 y M3 & \autoref{tab:modulos} \\
+FEM9 & Integración numérica de Gauss para evaluar tensiones en cualquier punto & M5 (puntos de Gauss variables); sonda del post-proceso & \autoref{sec:educacion}; \autoref{sec:post-proceso} \\
+\end{longtable}}
+{\singlespacing\notaapa{Códigos e ítems según las tablas 1 y 2 del consenso de expertos \autocite[pp.~1162-1163]{perezsantiago2023fem}, traducidos por el autor. De los 49 ítems del consenso, estos 18 forman el universo y los 31 restantes quedan fuera por tres motivos; la procedencia del universo y el alcance de la advertencia de generalización de la fuente se discuten en la \autoref{sec:validacion-datos}. Fuera del alcance disciplinar de EduFEM (18): resortes, barras y vigas (FEM1, FEM4, FEM5), elementos axisimétricos (FEM6, FEM7), análisis tridimensional (FEM10--FEM13), placas y cáscaras (FEM14), problemas térmicos (FEM15), modelado e idealización en CAD (FEA6--FEA9), cargas tomadas de un análisis previo (FEA21), elementos rígidos (FEA22) y contacto (FEA23). Anteriores al procedimiento de cálculo, por pertenecer a la planificación del análisis, a la selección de materiales o al modelado de cargas y apoyos (12): FEA1--FEA5, FEA10--FEA12, FEA19, FEA20, FEA24 y FEA25. No expuesto por el software (1): la deducción de la matriz de rigidez por métodos alternativos (FEM3), que es un desarrollo teórico. Los siete ítems de tipo de análisis (TYPE1--TYPE7) no forman parte de esos 49: el consenso los trata en una categoría aparte, y quedan fuera porque EduFEM resuelve solo el caso estático lineal.}}
+
+El autor cotejó, ítem por ítem y con la regla de marcado de la \autoref{sec:validacion-datos}, que las quince destrezas y los tres conceptos tienen instrumento identificable en la versión evaluada. Criterio fijado en la \autoref{sec:validacion-resultados}: los 18 ítems con instrumento. Observado: 18 de 18. Se cumple.
+
+Ese resultado prueba cobertura y trazabilidad: que para cada contenido exigido existe en el software un instrumento identificable, y que ese instrumento está descrito en este documento. No prueba suficiencia ni profundidad —no dice cuánto cubre cada instrumento— ni efecto sobre quien lo usa. Dos filas piden una precisión, porque su instrumento no es una función que el software ejecute por sí sola. El refinamiento local de FEA18 se obtiene construyendo la malla con más elementos donde se los necesita, no con un algoritmo adaptativo: la herramienta no incorpora mallado automático, como declaran las limitaciones. Y la regla de parada de FEA30 la aplica quien compara dos mallas sucesivas, con la diferencia que la \autoref{tab:cook} deja a la vista. En ambos casos el instrumento existe y está descrito, pero lo ejecuta el usuario sobre el modelo. La cobertura tampoco es uniforme: las destrezas de mallado y de verificación se apoyan sobre todo en los casos de estudio y en la memoria, es decir, en lo que el usuario hace con la herramienta sobre un modelo, mientras que las de post-proceso y los conceptos del procedimiento tienen un instrumento propio de la interfaz. Ninguna se cubre solo con texto.
+
+\subsection{Trazabilidad de las decisiones de diseño}
+\label{sec:trazabilidad-diseno}
+
+La \autoref{tab:principios} cierra la cláusula de trazabilidad por el otro extremo: no ya qué expone el software, sino de dónde procede cada decisión sobre cómo exponerlo. Para cada uno de los cuatro principios de la \autoref{sec:fundamentos-pedagogicos}, registra la decisión de diseño que lo concreta y la evidencia comprobable en el software distribuido.
+
+\begin{table}[htbp]
+\centering
+\caption[Principios, decisiones de diseño y evidencia.]{Trazabilidad de las decisiones de diseño. Por cada principio de la \autoref{sec:fundamentos-pedagogicos}: la decisión de diseño de EduFEM que lo concreta y la evidencia comprobable en el software distribuido. La tabla la construyó el autor.}
+\label{tab:principios}
+{\footnotesize
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.12}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{3.4cm}>{\raggedright\arraybackslash}p{5.6cm}>{\raggedright\arraybackslash}p{5.4cm}@{}}
+\toprule
+\textbf{Principio (fuentes)} & \textbf{Decisión de diseño en EduFEM} & \textbf{Evidencia comprobable} \\
+\midrule
+Visibilidad del procedimiento \autocite[p.~157]{lee2015interactive} & Módulos M1 a M7 que exponen cada matriz sobre el elemento seleccionado, con las mismas funciones del motor; memoria con sustitución numérica de las nueve etapas; respuesta expuesta junto con su procedimiento & Siete de siete etapas con módulo y nueve de nueve en la memoria (\autoref{sec:cobertura-canal}); generación de la memoria para Q4 y Q9 en la batería de regresión \\
+Interactividad con vínculo al modelo \autocite[pp.~163, 166]{lee2015interactive} & Capa superpuesta que ilumina sobre la malla real el punto del cálculo; conmutador fórmula--valores; selección sincronizada entre lienzo y tabla; conversión Q4~$\leftrightarrow$~Q9 y refinamiento; sonda en modo crudo y suavizado & \autoref{fig:modulo-capa}; \autoref{fig:fases-lienzo}; \autoref{sec:pre-proceso}; \autoref{tab:cook} \\
+Construcción paso a paso \autocite[pp.~1010-1011, 1023]{bishay2020teaching} & Un módulo por etapa, en el orden del método; memoria de cálculo sobre el modelo propio, integrada en un documento, con cada etapa rotulada & \autoref{tab:modulos}; \autoref{sec:memoria-io}; \autoref{anexo:memoria} \\
+Conexión entre fundamento y operación \autocite[pp.~1159, 1168]{perezsantiago2023fem} & Comprobador de salud con explicación del diagnóstico; comprobación de equilibrio y condicionamiento en la memoria; verificación y validación publicadas y reproducibles con el software & \autoref{sec:pre-proceso}; \autoref{sec:memoria-io}; \autoref{tab:especificaciones} (FEA32--FEA34) \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+Los cuatro principios tienen al menos una decisión de diseño que los concreta, y esa decisión es comprobable en el software. Queda un límite: las destrezas de mallado se ejercitan sobre secuencias de mallas que el usuario debe construir, porque la herramienta no incorpora mallado automático.
+
+\section{Interpretación de los resultados}
+\label{sec:interpretacion}
+
+Esta sección interpreta lo que respaldan los tres casos de estudio y el límite que encontró la propia batería de verificación. Cierra con la posición de EduFEM frente a los recursos existentes y con las limitaciones que el desarrollo dejó a la vista.
+
+\subsection{Qué respalda la evidencia numérica}
+
+La batería de tres casos de estudio respalda la exactitud del núcleo numérico. La verificación por soluciones manufacturadas muestra que, en tensión y en deformación plana y sobre mallas regulares y distorsionadas, el desplazamiento converge con las tasas teóricas y el campo de tensiones recuperado converge con las tasas que reporta la \autoref{tab:mms}. Eso descarta los errores de orden que enumera la \autoref{sec:mms}, con el alcance que precisa la \autoref{sec:leccion-extrapolacion}.
+
+Las dos validaciones contrastan el software con referencias de naturaleza distinta. En la viga de Timoshenko —una solución analítica cerrada— el error es del $0{,}04\,\%$ en la tensión normal $\sigma_x$, del $0{,}26\,\%$ en la flecha y de hasta el $2{,}89\,\%$ en la tensión cortante. Frente a SAP2000, las diferencias son del $0{,}21\,\%$ en $\sigma_x$ y de hasta el $0{,}56\,\%$ en los desplazamientos, y crecen en las componentes secundarias, según reporta la \autoref{sec:timoshenko}. La razón de ese crecimiento es de escala: la magnitud de esas componentes es entre seis y treinta y cinco veces menor que la de $\sigma_x$, y un mismo error absoluto pesa, por eso, mucho más en términos relativos. En la componente cortante, además, el modelo de cáscara de SAP2000 queda más cerca de la solución analítica que EduFEM: difiere de ella en un $0{,}16\,\%$, según los valores de la \autoref{tab:timoshenko-stress}, frente al $2{,}89\,\%$ de EduFEM. Ambos modelos reproducen la solución analítica dentro de márgenes estrechos, y la diferencia entre ellos es atribuible a que sus formulaciones no son la misma —continuo de tensión plana frente a cáscara—, por lo que no permite afirmar la superioridad de una herramienta sobre la otra.
+
+Que el error de la flecha sea del $0{,}26\,\%$ frente a la solución con corrección de cortante y del $1{,}85\,\%$ frente a Euler-Bernoulli tiene una lectura de modelado. Muestra que el modelo de elasticidad bidimensional captura la contribución del cortante a la flecha, apreciable en una viga de canto grande, e ilustra que la referencia analítica debe elegirse acorde con el modelo numérico que se valida.
+
+En la membrana de Cook —una referencia clásica sensible al bloqueo— la herramienta reproduce tanto la patología del Q4 como la convergencia del Q9. La convergencia lenta y monótona por debajo de la referencia es el comportamiento característico de un elemento que resulta excesivamente rígido cuando debe representar flexión con una interpolación bilineal, incapaz de reproducir el modo de curvatura pura \autocites[pp.~98-99]{cook2002concepts}[p.~476]{bathe2014fem}. La comparación a igualdad de grados de libertad es lo que permite constatar la ventaja del elemento de mayor orden frente a un fenómeno que de otro modo queda en abstracto.
+
+Las componentes secundarias de tensión, de magnitud mucho menor y recuperadas con un orden de convergencia inferior, requieren mallas más finas para alcanzar el mismo nivel relativo que $\sigma_x$ (\autoref{sec:timoshenko}).
+
+\subsection{El límite de la propia batería: la extrapolación de tensiones}
+\label{sec:leccion-extrapolacion}
+
+La batería dejó una lección que acota el alcance de lo que una verificación por convergencia puede probar. Durante el desarrollo se detectó y corrigió un defecto en la matriz de extrapolación del elemento Q4, la de la \autoref{eq:extrap-q4}: estaba escrita para otra numeración de los puntos de Gauss que la que produce el motor. Los estudios de convergencia del desplazamiento no lo delataron, porque esa matriz no interviene en el desplazamiento. Lo delató la lectura de la memoria de cálculo del ejemplo canónico, donde las tensiones nodales no cerraban con las de los puntos de Gauss.
+
+De esa experiencia proviene la prueba de reproducción exacta de campos polinómicos, hoy parte permanente de la batería de regresión. Y de ahí también la precisión con que hay que enunciar lo que la verificación prueba: las tasas de convergencia comprueban que no hay errores de orden en los mecanismos que intervienen en el desplazamiento, no que el motor esté libre de todo error. La corrección de la extrapolación se comprueba aparte, con una prueba distinta. El episodio ilustra, además, la relación que la hipótesis postula: fue la trazabilidad —la posibilidad de leer el procedimiento paso a paso— la que hizo visible un defecto de exactitud que las métricas agregadas no mostraban.
+
+\subsection{Comparación con las herramientas existentes}
+
+La comparación de EduFEM con los recursos existentes está en la \autoref{tab:comparativa}. Los resultados de este capítulo aportan a esa tabla su última fila: una verificación y validación publicada junto con la herramienta, que ninguno de los antecedentes revisados documenta. Frente a los paquetes comerciales, EduFEM no compite en cobertura de tipologías estructurales, en escalabilidad ni en prestaciones de productividad. Su valor está en la exposición del cálculo y en la memoria que reconstruye el procedimiento sobre el modelo del usuario, orientación que responde a la demanda formativa que documenta la \autoref{sec:fundamentos-pedagogicos}.
+
+\subsection{Desempeño del solucionador}
+
+La matriz de rigidez se almacena en formato disperso y el sistema reducido se resuelve con una factorización directa, según la \autoref{sec:motor}. Esta arquitectura está implementada, no proyectada, y permite abordar mallas muy superiores a las de tamaño formativo empleadas en la verificación y la validación. La \autoref{tab:tiempos} cuantifica el costo de ensamblaje y de solución para la membrana de Cook con elementos Q9 a refinamientos crecientes, junto con la memoria que ocuparía la matriz de rigidez en formato denso frente al disperso.
+
+\begin{table}[htbp]
+\centering
+\caption[Tiempos de ensamblaje y solución, y memoria de la matriz de rigidez (Cook Q9).]{Tiempo de ensamblaje y de solución del sistema, y memoria que ocupa la matriz de rigidez en formato denso frente al disperso, para la membrana de Cook con elementos Q9 a refinamientos crecientes. Se lee por filas: al crecer el número de grados de libertad, los tiempos crecen moderadamente y la ventaja del formato disperso se amplía.}
+\label{tab:tiempos}
+\begin{tabular}{r r r r r}
+\toprule
+GDL & $t_{\text{ensamblaje}}$ (s) & $t_{\text{solución}}$ (s) & $\bm{K}$ densa (MB) & $\bm{K}$ dispersa (MB) \\
+\midrule
+578   & 0,004 & 0,007 & 3    & 0,21  \\
+2178  & 0,013 & 0,026 & 38   & 0,81  \\
+4802  & 0,028 & 0,061 & 184  & 1,81  \\
+8450  & 0,049 & 0,127 & 571  & 3,20  \\
+18\,818 & 0,111 & 0,329 & 2833 & 7,19  \\
+33\,282 & 0,191 & 0,721 & 8862 & 12,77 \\
+\bottomrule
+\end{tabular}
+{\singlespacing\notaapa{Medido en un equipo de escritorio con procesador Intel de 2012, Windows 10 y Python 3.13, con el motor que incorpora el software distribuido. Cada tiempo es el menor de tres corridas consecutivas sobre el mismo modelo y se reproduce con \texttt{tests/bench\_timing.py}; con otros procesos en ejecución, los tiempos pueden resultar varias veces mayores.}}
+\end{table}
+
+Las mediciones muestran que la malla más exigente de la verificación y la validación (8450 grados de libertad) se ensambla y se resuelve en cerca de dos décimas de segundo, y que el motor procesa problemas de más de 33\,000 grados de libertad en alrededor de un segundo, sobre un equipo de más de una década de antigüedad. El contraste de memoria es igualmente ilustrativo: con 33\,282 grados de libertad, la matriz densa requeriría cerca de 8,9~GB, mientras que su representación dispersa ocupa menos de 13~MB. Ese ahorro de casi tres órdenes de magnitud es lo que hace viable el cálculo en equipos modestos.
+
+El tiempo de solución crece más rápido que el de ensamblaje a medida que la factorización directa se vuelve dominante. El ensamblaje ya se realiza vectorizado, y la factorización aplica el reordenamiento de mínimo grado que describe la \autoref{sec:motor}, que reduce ese costo. Frente al reordenamiento genérico por columnas (\texttt{COLAMD}), medido con el mismo guion sobre el sistema reducido y como el menor de tres corridas, el tiempo de factorización y solución se reduce alrededor de 1,7 veces con 2178 grados de libertad, 2,0 veces con 8450 y 2,9 veces con 33\,282.
+
+\subsection{Limitaciones observadas}
+
+El alcance del software está acotado deliberadamente a la elasticidad lineal plana con elementos cuadriláteros Q4 y Q9, según la delimitación de la Introducción. Esas restricciones privilegian la claridad sobre la generalidad, y dejan fuera del alcance de la herramienta los casos de ingeniería que exceden lo formativo.
+
+Desde el punto de vista numérico, el elemento Q4 arrastra el bloqueo por cortante que documenta la \autoref{tab:cook}. El software lo muestra deliberadamente, pero no lo corrige: obtener resultados precisos en problemas dominados por flexión exige refinar la malla o convertir el modelo a Q9. No se implementaron técnicas de mitigación como la integración reducida selectiva o la formulación $\bar{\bm{B}}$, que quedan como línea de extensión. En la formulación de deformación plana, además, la matriz constitutiva degenera hacia la incompresibilidad cuando el coeficiente de Poisson se aproxima a $0{,}5$, régimen en el que aparece el bloqueo volumétrico; el módulo de la matriz constitutiva (M4) lo señala con una advertencia al aproximarse $\nu$ a ese límite, pero el software no lo resuelve.
+
+La limitación de escalabilidad no está en el almacenamiento ni en el rango de tamaños propio del uso formativo, sino en el extremo de las mallas muy grandes, donde la factorización directa se vuelve dominante (\autoref{tab:tiempos}). Las optimizaciones que quedan para problemas de gran tamaño —factorizaciones especializadas para sistemas definidos positivos y solucionadores iterativos— se plantean entre las recomendaciones.
+
+Finalmente, la verificación y la validación se apoyan en tres casos de estudio elegidos por su valor probatorio, y en un único caso con material de ingeniería civil. Una batería más amplia reforzaría la confianza ante geometrías y cargas más diversas.
+
+\section{Contraste de la hipótesis}
+\label{sec:validacion-hipotesis}
+
+La hipótesis se contrasta cláusula por cláusula contra los criterios fijados en la \autoref{sec:validacion-resultados}. La \autoref{tab:veredicto} reúne, para cada criterio, el umbral, la cifra observada, dónde se reporta y el veredicto.
+
+{\footnotesize
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.15}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{4.2cm}>{\raggedright\arraybackslash}p{2.5cm}>{\raggedright\arraybackslash}p{3.5cm}>{\raggedright\arraybackslash}p{2.6cm}>{\raggedright\arraybackslash}p{1.9cm}@{}}
+\caption[Contraste de la hipótesis: criterio, umbral, valor observado y veredicto.]{Contraste de la hipótesis. Por cada criterio fijado en la \autoref{sec:validacion-resultados}: el umbral, el valor medido, la sección o tabla que lo reporta y el veredicto.}\label{tab:veredicto}\\
+\toprule
+\textbf{Criterio} & \textbf{Umbral} & \textbf{Observado} & \textbf{Dónde} & \textbf{Veredicto} \\
+\midrule
+\endfirsthead
+\caption[]{Contraste de la hipótesis (continuación).}\\
+\toprule
+\textbf{Criterio} & \textbf{Umbral} & \textbf{Observado} & \textbf{Dónde} & \textbf{Veredicto} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\multicolumn{5}{@{}l}{\emph{Cláusula (a): trazabilidad}} \\*
+Etapas con módulo educativo & 7 de 7 & 7 de 7 & \autoref{sec:cobertura-canal} & Se cumple \\*
+Etapas con desarrollo en la memoria & 9 de 9 & 9 de 9 & \autoref{sec:cobertura-canal}; \autoref{anexo:memoria} & Se cumple \\*
+Solución y tensiones en el post-proceso, en modo crudo y suavizado & Ambas & Ambas, con los dos modos & \autoref{tab:fases} & Se cumple \\*
+Fases sobre el mismo lienzo & 3 de 3 & 3 de 3 & \autoref{sec:cobertura-canal}; \autoref{fig:fases-lienzo} & Se cumple \\*
+Ítems del universo de contenido con instrumento & 18 de 18 & 18 de 18 & \autoref{tab:especificaciones} & Se cumple \\*
+Ida y vuelta CSV sin pérdida; importación DXF repetible; memoria generada para Q4 y Q9 & Sin pérdida y sin error & Sin pérdida y sin error & \autoref{sec:consistencia-interna} & Se cumple \\
+\midrule
+\multicolumn{5}{@{}l}{\emph{Cláusula (b): verificabilidad}} \\*
+Tasa de convergencia del desplazamiento, norma $L^2$ (cuatro configuraciones) & Teórica $\pm 0{,}5$ & Q4: 2,00; Q9: 3,00 & \autoref{tab:mms}; \autoref{tab:mms-configs} & Se cumple \\
+Tasa de convergencia del desplazamiento, seminorma $H^1$ (cuatro configuraciones) & Teórica $\pm 0{,}5$ & Q4: 1,00; Q9: 2,00 & \autoref{tab:mms}; \autoref{tab:mms-configs} & Se cumple \\
+Error de la flecha central frente a la solución analítica (Timoshenko) & $< 3\,\%$ & $0{,}26\,\%$ & \autoref{tab:timoshenko-defl} & Se cumple \\
+Error de $\sigma_x$ frente a la solución analítica, tres puntos de control & $< 1\,\%$ & máx.\ $0{,}04\,\%$ & \autoref{tab:timoshenko-stress} & Se cumple \\
+Diferencia de $\sigma_x$ frente a SAP2000, tres puntos de control & $< 1\,\%$ & máx.\ $0{,}21\,\%$ & \autoref{tab:timoshenko-stress} & Se cumple \\
+Residuo relativo del equilibrio global de reacciones & $< 10^{-8}$ & $1{,}7\times10^{-13}$ & \autoref{sec:timoshenko} & Se cumple \\
+Error del desplazamiento con Q9 y 8 elementos por lado (Cook), en valor absoluto & $< 1{,}5\,\%$ & $-0{,}144\,\%$ & \autoref{tab:cook} & Se cumple \\
+Flecha del Q4 menor que la del Q9 con la misma malla (bloqueo por cortante) & Se observa & $22{,}079 < 23{,}925$ & \autoref{tab:cook} & Se cumple \\
+Etapas de la memoria del ejemplo canónico desarrolladas y remitidas a su ecuación & Todas & Todas & \autoref{anexo:memoria} & Se cumple \\
+\end{longtable}}
+{\singlespacing\notaapa{Los seis criterios de la cláusula (a) son de exhaustividad: su umbral es el total del universo, y por eso coincide con lo observado cuando se cumplen. A cada uno lo refutaría un solo caso en contra, el que precisa la columna «Lo refutaría» de la \autoref{tab:criterios}.}}
+
+La \textbf{cláusula (a)}, trazabilidad, se cumple en todos sus criterios (\autoref{tab:veredicto}). Cada resultado que el software entrega puede seguirse hacia atrás, etapa por etapa, hasta los datos del modelo: en los módulos educativos, sobre cualquier elemento que el usuario seleccione, y en la memoria de cálculo, íntegramente en los modelos pequeños y sobre el elemento representativo en las mallas mayores (\autoref{sec:memoria-io}).
+
+La \textbf{cláusula (b)}, verificabilidad, se cumple en todos sus criterios. El motor reproduce las tasas de convergencia teóricas del desplazamiento en las cuatro configuraciones ensayadas. En la viga de Timoshenko, el error frente a la solución analítica y la diferencia frente al modelo de SAP2000 quedan dentro de los umbrales fijados, y las reacciones equilibran la carga. La membrana de Cook reproduce el bloqueo por cortante del Q4 frente a la convergencia del Q9, y la memoria del ejemplo canónico desarrolla cada etapa con sustitución numérica cotejable contra su ecuación. Las magnitudes sobre las que se fijaron criterios numéricos se contrastaron con tres clases de patrón independiente ---una solución exacta construida, una solución analítica cerrada y un valor de referencia de uso extendido---, salvo el equilibrio de las reacciones, que se comprueba por su residuo, una comprobación interna. El modelo de SAP2000 se usa aparte: no actúa como patrón de exactitud ---ninguna de las dos formulaciones lo es de la otra, según advierte la nota de la \autoref{tab:timoshenko-stress}--- sino como segunda aproximación numérica con la que comparar. Fuera de ese alcance quedan las magnitudes que ningún caso de estudio ejercita, como la carga superficial linealmente variable, según se declara en las limitaciones.
+
+Con ello se responde a las dos preguntas de investigación. \textbf{PI-1} se responde con la organización de la \autoref{tab:fases} y con la cobertura que miden la \autoref{sec:cobertura-canal} y la \autoref{sec:contenido-didactico}. La respuesta es la combinación de un módulo educativo por etapa sobre el elemento que el usuario selecciona, una memoria de cálculo que desarrolla las nueve etapas con sustitución numérica y un post-proceso que muestra la respuesta con sus medios de comprobación, todo sobre un mismo lienzo. \textbf{PI-2} se responde con las cifras de la verificación y la validación: el motor reproduce, dentro de las tolerancias fijadas, las soluciones analíticas, los casos clásicos y los resultados del software comercial, y reproduce también el bloqueo por cortante que la teoría predice.
+
+Queda así respondido el problema científico en el alcance declarado, que se repite aquí: lo que se midió son propiedades del software y de sus resultados, no el uso de la herramienta en la Carrera. Frente al software de análisis que devuelve la respuesta como caja negra, un software educativo con tres rasgos hace que el análisis por el MEF en elasticidad plana resulte trazable y verificable. Construye el procedimiento de cálculo con las mismas funciones que exponen los módulos y la memoria, muestra la respuesta junto con su procedimiento y sus medios de comprobación, y somete su motor a verificación y validación con criterios fijados de antemano. La \autoref{sec:leccion-extrapolacion} muestra que esa relación no es una tautología: la trazabilidad hizo visible un defecto de exactitud que las métricas agregadas no delataban, y ese defecto pudo corregirse.
