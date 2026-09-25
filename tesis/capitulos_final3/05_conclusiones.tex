@@ -1,0 +1,121 @@
+\chapter*{Conclusiones y recomendaciones}
+\addcontentsline{toc}{chapter}{Conclusiones y recomendaciones}
+\markboth{Conclusiones y recomendaciones}{Conclusiones y recomendaciones}
+
+% Las figuras y tablas de este capitulo sin numero se rotulan «CR.1», «CR.2»...
+% (no «C», que es el Anexo C). El grupo deshace las redefiniciones al cerrar; el
+% primer \chapter de los Anexos vuelve a poner los contadores en cero. \theH...
+% da a hyperref destinos propios, distintos de los del Capitulo 3.
+\begingroup
+\setcounter{figure}{0}
+\setcounter{table}{0}
+\renewcommand{\thefigure}{CR.\arabic{figure}}
+\renewcommand{\thetable}{CR.\arabic{table}}
+\renewcommand{\theHfigure}{CR.\arabic{figure}}
+\renewcommand{\theHtable}{CR.\arabic{table}}
+
+\section*{Conclusiones}
+\phantomsection\addcontentsline{toc}{section}{Conclusiones}
+
+El trabajo cumplió su objetivo general: desarrolló EduFEM, un software educativo de elementos finitos para el análisis estructural, escrito en Python, que expone el procedimiento de cálculo de la elasticidad plana con elementos Q4 y Q9. A la pregunta del problema científico responde que la escasa transparencia del software de análisis deja un procedimiento de cálculo que no puede seguirse hasta sus datos ni comprobarse paso a paso, y que exponerlo, respaldado por su verificación y su validación, lo vuelve trazable y verificable. La hipótesis queda comprobada en sus dos cláusulas, con los criterios fijados de antemano y dentro del alcance declarado (\autoref{fig:contraste-hipotesis}). Lo medido son propiedades del software y de sus resultados en escenarios controlados, no su uso por estudiantes.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{fig_contraste_hipotesis}
+\caption[Contraste de la hipótesis por cláusula.]{Contraste de la hipótesis por cláusula. A la izquierda, la variable independiente: EduFEM lleva la transparencia del procedimiento de cálculo del nivel de caja negra al de procedimiento a la vista. A la derecha, la variable dependiente en sus dos dimensiones, con los indicadores medidos y el veredicto de cada cláusula. Las cifras son las de la \autoref{tab:veredicto}.}
+\label{fig:contraste-hipotesis}
+\end{figure}
+
+\textbf{Conclusión 1. El software comercial de análisis por elementos finitos opera como una caja negra, y ninguno de los recursos educativos revisados documenta a la vez los atributos que harían trazable y verificable el procedimiento de cálculo en elasticidad plana.} El antecedente educativo más directo, ED-Elas2D, sí expone el procedimiento, pero su publicación no documenta una memoria de cálculo ni una verificación y validación (\autoref{tab:comparativa}). De esa comparación salieron los cinco requisitos de la herramienta (\autoref{sec:requisitos}). La formulación isoparamétrica Q4 y Q9, con sus criterios de verificación y validación, es la base común del motor, de los módulos educativos y de la memoria de cálculo. Es un fundamento, no un resultado medido: los resultados comprueban que el motor construido sobre él se comporta como la teoría predice.
+
+\textbf{Conclusión 2. EduFEM lleva la transparencia del procedimiento de cálculo al nivel de procedimiento a la vista: cada etapa queda expuesta sobre el modelo del usuario.} El motor cubre las nueve etapas del procedimiento, del mapeo isoparamétrico a la recuperación de tensiones, incluidos los desplazamientos prescritos no nulos. Ocho módulos educativos exponen las etapas sobre el modelo del usuario: del mapeo al ensamblaje (M1 a M7, \autoref{tab:modulos}) y la calidad de malla (M0). La solución y las tensiones se exponen en el post-proceso, en modo crudo y suavizado, y la memoria de cálculo en PDF reconstruye todo el procedimiento con la versión legible del motor, que una prueba de regresión mantiene coincidente con la que resuelve. Las tres fases comparten un solo lienzo, y el modelo entra y sale de la herramienta sin pérdida (\autoref{sec:consistencia-interna}).
+
+\textbf{Conclusión 3. El procedimiento de cálculo de EduFEM es trazable y verificable: todos los criterios de aceptación, fijados de antemano, se cumplen.} La trazabilidad se estableció por cobertura: siete de siete etapas con módulo educativo, nueve de nueve con desarrollo en la memoria, tres de tres fases sobre un mismo lienzo y, según el cotejo del autor, los dieciocho contenidos del consenso de expertos con instrumento en el software. La verificabilidad se estableció con tres casos de estudio. Las tasas de convergencia coinciden con las teóricas, y los errores frente a la solución analítica y a la membrana de Cook, así como la diferencia frente al modelo de SAP2000, quedan por debajo de sus umbrales con amplio margen: la más cercana, la diferencia en $\sigma_x$ frente a SAP2000, consume la quinta parte del suyo (\autoref{fig:margen-criterios}). Con ello se responden las dos preguntas de investigación: la PI-1, con la organización que reúne módulos, memoria y post-proceso sobre un mismo lienzo, y la PI-2, con las cifras de la verificación y la validación.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{fig_margen_criterios}
+\caption[Margen de cada criterio numérico de la cláusula (b).]{Margen de cada criterio numérico de la cláusula (b): el valor observado dividido por su umbral, en escala logarítmica. Todos los puntos quedan a la izquierda de la línea del umbral, que es la condición de aceptación. En las tasas de convergencia se grafica el desvío respecto de la tasa teórica, en el peor de los cuatro casos ensayados, frente al margen de $\pm 0{,}5$. Las cifras proceden de los guiones de verificación y validación y coinciden con las de la \autoref{tab:veredicto}.}
+\label{fig:margen-criterios}
+\end{figure}
+
+El propio desarrollo aportó una comprobación no prevista de la relación que postula la hipótesis. Un defecto en la matriz de extrapolación de tensiones del elemento Q4 no lo delataron los estudios de convergencia del desplazamiento, porque esa matriz no interviene en el desplazamiento; lo delató la lectura de la memoria de cálculo, donde las tensiones nodales no cerraban con las de los puntos de Gauss (\autoref{sec:leccion-extrapolacion}). En un software de caja negra, ese defecto habría sido invisible para quien lo usa.
+
+\section*{Aportes del trabajo}
+\phantomsection\addcontentsline{toc}{section}{Aportes del trabajo}
+
+Una investigación en ciencia del diseño se distingue de un diseño rutinario por lo que deja en la base de conocimiento \autocite[p.~81]{hevner2004design}. Este trabajo deja tres aportes.
+
+El primero es el software. EduFEM es una herramienta libre, en español y verificada, que reúne en un solo programa tres capas: un motor de cálculo, una interfaz de modelado interactiva y un conjunto de módulos educativos. El motor implementa la formulación isoparamétrica Q4 y Q9 para los dos estados planos de la elasticidad, verificada por soluciones manufacturadas en ambos estados y contrastada con referencias externas en tensión plana: la solución analítica y el modelo de SAP2000 de la viga de Timoshenko, y los valores publicados para la membrana de Cook.
+
+El segundo es conocimiento de diseño: tres decisiones que hacen trazable un software de elementos finitos y que pueden reutilizarse. La primera es que los módulos educativos operen sobre el modelo del usuario ---M1 a M7, sobre el elemento que selecciona en el lienzo compartido--- y no sobre un ejemplo prefabricado; así, la distorsión de un elemento o la subintegración, con su advertencia de modos espurios (\emph{hourglass}), pueden examinarse en el modelo propio. La segunda es la memoria de cálculo generada con la versión legible del motor, la misma que usan los módulos: un documento que reconstruye el procedimiento con sustitución numérica, de las funciones de forma a las tensiones nodales, y lo cierra con un diagnóstico de equilibrio y de condicionamiento. El estudiante puede seguirlo, rehacerlo por sus propios medios y usarlo para comprobar los resultados. La tercera es conservar, junto al motor rápido, una versión legible del cálculo elemento por elemento, que sirve a la vez de base para los módulos y la memoria y de patrón de comparación para las pruebas de regresión (\autoref{sec:motor}).
+
+El tercero es conocimiento de evaluación. El trabajo deja una batería de verificación y validación reproducible, con sus guiones y sus datos, y un ejemplo documentado de cómo se verifica un programa de cálculo estructural. Deja también la prueba de reproducción exacta de campos polinómicos, que el límite de la propia batería obligó a incorporar (\autoref{sec:leccion-extrapolacion}). Y deja la tabla de cobertura de contenido, construida sobre los ítems de un consenso publicado de expertos. Se aplicó aquí a un único software y por un único evaluador; su uso con otros recursos queda por ensayar.
+
+\section*{Limitaciones}
+\phantomsection\addcontentsline{toc}{section}{Limitaciones}
+
+Las fronteras del trabajo se fijaron de antemano en la Introducción (\emph{Alcance y limitaciones}). A ellas se suman las que el desarrollo y los resultados pusieron de manifiesto, que aquí se resumen.
+
+\begin{itemize}
+    \item La evaluación la hizo el autor. El software fue ejercitado por el autor y por su batería automática de pruebas; no lo operaron terceros, y su facilidad de uso no está establecida. El motor, los guiones de verificación y los umbrales los escribió el autor, sin revisión independiente del código. La contrastación externa se apoya en la solución analítica de Timoshenko y Goodier, en los valores publicados para la membrana de Cook y en el modelo de SAP2000.
+    \item La tabla de cobertura es un cotejo del autor sobre un criterio externo publicado, no el juicio de un panel independiente. Ese criterio procede de expertos mexicanos de ingeniería mecánica, y el propio estudio advierte que sus resultados no son generalizables a otros contextos \autocite[p.~1171]{perezsantiago2023fem}.
+    \item La exposición del procedimiento es una posibilidad que el software ofrece, no una obligación que imponga. Un usuario puede construir el modelo, resolverlo y leer los resultados sin abrir ningún módulo ni generar la memoria. La herramienta no fuerza el recorrido, porque el orden de exploración lo fija la enseñanza y no el software.
+    \item Los módulos educativos llegan hasta el ensamblaje, por decisión de diseño. La solución del sistema y la recuperación de tensiones se exponen en el post-proceso y en la memoria, y no en un módulo propio. Las destrezas de mallado se ejercitan sobre mallas que el usuario debe construir sin un generador automático.
+    \item El elemento Q4 presenta bloqueo por cortante bajo flexión dominante y, en deformación plana, la matriz constitutiva degenera cuando $\nu \to 0{,}5$; el software señala ambos fenómenos, pero no los corrige (\autoref{sec:interpretacion}).
+    \item La deformación plana solo se verifica con el método de soluciones manufacturadas: los dos casos de contraste externo son de tensión plana, y la viga de Timoshenko se resolvió únicamente con elementos Q9. La carga superficial linealmente variable no interviene en ningún caso de estudio, y las cargas nodales solo en el ejemplo canónico, que no mide exactitud.
+    \item El campo de tensiones recuperado del Q4 converge a $\mathcal{O}(h^{1{,}54})$ y no alcanza $\mathcal{O}(h^{2})$. La explicación que propone el trabajo —la capa de contorno, donde cada nodo recibe el promedio de un solo lado— no se contrastó (\autoref{sec:mms}).
+    \item El solucionador es directo (\autoref{sec:motor}). Es adecuado para los tamaños de modelo de un contexto educativo y para las mallas de decenas de miles de grados de libertad que mide la \autoref{tab:tiempos}, en las que el almacenamiento disperso de $\bm{K}$ crece casi en proporción al número de grados de libertad. Su límite está en las mallas muy grandes: el tiempo de solución crece más que linealmente con el número de grados de libertad, porque la factorización se vuelve dominante. La memoria que consume la propia factorización no se midió.
+\end{itemize}
+
+\section*{Recomendaciones y trabajo futuro}
+\phantomsection\addcontentsline{toc}{section}{Recomendaciones y trabajo futuro}
+
+A partir de las limitaciones anteriores y de las fronteras que la Introducción fijó de antemano se plantean tres recomendaciones, una por capítulo, que completan la tríada de cada capítulo con su conclusión.
+
+\subsection*{Recomendación 1: la fundamentación teórica (\autoref{cap:marco_teorico})}
+\phantomsection\addcontentsline{toc}{subsection}{Recomendación 1: la fundamentación teórica}
+
+\textbf{Tratamiento del bloqueo.} Para abordar el bloqueo (\autoref{sec:locking}) —por cortante en flexión y volumétrico cuando $\nu \to 0{,}5$ en deformación plana— se recomienda incorporar técnicas correctivas, como la integración reducida selectiva o la formulación $\bar{\bm{B}}$ \autocites[pp.~221, 232-234]{hughes2000fem}[pp.~476-477]{bathe2014fem}. El Q9 con integración completa tampoco está libre del bloqueo volumétrico: estas técnicas beneficiarían a ambos elementos. Permitirían, además, un módulo educativo que contraste, sobre un mismo modelo, el comportamiento bloqueado y el corregido: el fenómeno que hoy solo se muestra con la membrana de Cook pasaría a poder manipularse.
+
+\textbf{Más tipos de elemento.} La biblioteca de elementos puede ampliarse con elementos triangulares, lineales y cuadráticos, y con cuadriláteros de ocho nodos y de transición, para enriquecer el estudio comparativo de la convergencia y del comportamiento bajo distorsión de malla \autocites[pp.~167-174, 194]{onate2009structural}{reddy2006introduction}.
+
+\subsection*{Recomendación 2: el desarrollo del software (\autoref{cap:diseno})}
+\phantomsection\addcontentsline{toc}{subsection}{Recomendación 2: el desarrollo del software}
+
+\textbf{Mallado automático.} Un generador de mallas sobre un contorno dibujado en el lienzo, con las métricas de calidad del módulo M0 como control, reduciría el trabajo manual que hoy exige un modelo de más de unas decenas de elementos. Convertiría además las destrezas de mallado de la tabla de cobertura —selección del tamaño, refinamiento en zonas de concentración, prueba de convergencia— en operaciones de la propia herramienta.
+
+\textbf{Solucionador para problemas de gran tamaño.} Las extensiones de mayor impacto sobre el esquema descrito en la \autoref{sec:motor} son dos: una factorización de Cholesky, aplicable porque $\bm{K}_{ff}$ es simétrica y definida positiva (\autoref{sec:resolucion-tensiones}), y un solucionador iterativo precondicionado para mallas muy grandes. Ambas preservarían la versión legible del ensamblaje que usan los módulos educativos.
+
+\textbf{Guía de uso en la cátedra.} El manual del \autoref{anexo:manual} describe la operación del software. Conviene acompañarlo con una guía docente que proponga una secuencia de prácticas. Tres son inmediatas: construir y resolver el ejemplo canónico y rehacer a mano una etapa de su memoria de cálculo; recorrer los módulos M1 a M7 sobre un elemento propio; y convertir un modelo de Q4 a Q9 y refinar la malla sobre la membrana de Cook para observar el bloqueo por cortante.
+
+\textbf{Extensión a tres dimensiones.} A más largo plazo, la extensión del motor a problemas tridimensionales con elementos hexaédricos y tetraédricos sería un paso natural, porque la formulación isoparamétrica y la infraestructura de cuadratura se formulan del mismo modo en tres dimensiones.
+
+\subsection*{Recomendación 3: la verificación y la validación (\autoref{cap:resultados})}
+\phantomsection\addcontentsline{toc}{subsection}{Recomendación 3: la verificación y la validación}
+
+\textbf{Ampliación de la batería de verificación y validación.} Se recomienda incorporar un caso con carga superficial linealmente variable, que ningún caso de estudio ejercita, y al menos un caso civil en deformación plana con solución publicada —una presa de gravedad, un muro de contención o un túnel somero— con peso propio. Así, la validación externa cubriría el estado plano que la práctica civil emplea con más frecuencia. En la verificación queda un experimento pendiente: recomputar la norma $L^2$ del campo de tensiones del Q4 excluyendo la franja de contorno, que contrastaría la explicación de su tasa de 1,54 (\autoref{sec:mms}).
+
+\textbf{Revisión independiente.} Se recomienda someter la tabla de cobertura de contenido al juicio de docentes de la asignatura o de especialistas en el MEF, y el código del motor a una revisión por terceros. Una línea de investigación distinta, de carácter educativo, podrá estudiar el uso de la herramienta en el aula.
+
+De las tres recomendaciones, las dos primeras amplían el software y la tercera amplía la evidencia que lo respalda y deja señalada una línea educativa, ajena al alcance de este trabajo. Las tres conservan lo que define a EduFEM: que cada resultado pueda seguirse hasta sus datos y comprobarse paso a paso. La \autoref{tab:triada} reúne la tríada completa: por cada capítulo, su objetivo, su conclusión, la evidencia que la respalda y su recomendación.
+
+\begin{table}[htbp]
+\centering
+\caption[La tríada: capítulo, conclusión y recomendación.]{La tríada del trabajo: por cada capítulo, el objetivo específico que cumple, la conclusión que establece, la evidencia que la respalda y la recomendación que deja.}
+\label{tab:triada}
+{\footnotesize
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{2.5cm}>{\raggedright\arraybackslash}p{4.6cm}>{\raggedright\arraybackslash}p{3.3cm}>{\raggedright\arraybackslash}p{4.1cm}@{}}
+\toprule
+\textbf{Capítulo y objetivo} & \textbf{Conclusión} & \textbf{Evidencia} & \textbf{Recomendación} \\
+\midrule
+\autoref{cap:marco_teorico}. Fundamentar & Ningún recurso revisado documenta a la vez los atributos que harían trazable y verificable el procedimiento; la formulación Q4 y Q9 es la base común del motor, los módulos y la memoria & \autoref{tab:comparativa}; cinco requisitos (\autoref{sec:requisitos}) & Tratar el bloqueo (integración reducida selectiva, $\bar{\bm{B}}$) y ampliar la biblioteca de elementos \\
+\autoref{cap:diseno}. Desarrollar & EduFEM expone el procedimiento a la vista: nueve etapas en el motor, módulos M0 a M7, post-proceso y memoria sobre un mismo lienzo & \autoref{sec:diseno-edufem}; \autoref{tab:modulos} & Mallado automático, solucionador para mallas grandes, guía docente y extensión a tres dimensiones \\
+\autoref{cap:resultados}. Verificar y validar & El procedimiento de cálculo es trazable y verificable: se cumplen todos los criterios fijados de antemano & \autoref{tab:veredicto}; \autoref{fig:contraste-hipotesis}; \autoref{fig:margen-criterios} & Ampliar la batería (carga variable, caso civil en deformación plana) y someterla a revisión independiente \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\endgroup

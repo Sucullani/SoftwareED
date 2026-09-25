@@ -1,0 +1,286 @@
+% =====================================================================
+%  capitulos/07_anexo_memoria.tex  --  Anexo F: Memoria de calculo
+%  Ejemplo Q4 canonico resuelto paso a paso. Los numeros provienen de
+%  figuras/anexo_calculo_data.tex (generado por gen_anexo_calculo.py:
+%  salida bit-exacta del motor de EduFEM). Las figuras mem_*.png las
+%  produce el mismo script con file_io/figure_export (estilo del canvas).
+% =====================================================================
+
+\input{figuras/anexo_calculo_data}
+% Separador de miles con espacio fino a partir de cinco cifras (CRITERIOS §4). Mismos valores que
+% genera gen_anexo_calculo.py; solo cambia la agrupacion de los digitos.
+\renewcommand{\valE}{225\,000}
+\renewcommand{\valDfactor}{234\,375}
+\renewcommand{\detJinline}{4{,}7604;\ 3{,}0283;\ 4{,}4717;\ 2{,}7396}
+\renewcommand{\Dmat}{\begin{bmatrix}
+234\,375{,}00 & 46\,875{,}00 & 0{,}00 \\
+46\,875{,}00 & 234\,375{,}00 & 0{,}00 \\
+0{,}00 & 0{,}00 & 93\,750{,}00
+\end{bmatrix}}
+
+\chapter{Memoria de cálculo: ejemplo resuelto paso a paso}
+\label{anexo:memoria}
+
+Este anexo presenta, en forma condensada, el contenido de la memoria de cálculo que EduFEM genera para el ejemplo canónico: nueve nodos, cuatro elementos Q4, tensión plana. La memoria completa que produce el software consta de nueve capítulos en dos estilos (\autoref{sec:memoria-io}); aquí se conserva la secuencia de sustitución numérica esencial. Cada matriz, vector y valor que sigue es la salida real del motor numérico, generada con las mismas funciones que emplea EduFEM, con sustitución directa sobre la formulación matricial. Junto a cada expresión se remite a la ecuación numerada del \autoref{cap:marco_teorico} de la que procede, para que todo paso numérico pueda cotejarse con su definición simbólica. Las magnitudes se expresan en un sistema de unidades coherente y arbitrario: por ejemplo, longitudes en cm, fuerzas en kgf y tensiones en kgf/cm$^2$, con $E = \valE$~kgf/cm$^2$, del orden del de un hormigón de resistencia media. La formulación no depende de la elección mientras sea coherente.
+
+\section{Datos}
+
+La \autoref{fig:mem-modelo} muestra el modelo discretizado; las Tablas \ref{tab:mem-nodos} y \ref{tab:mem-elem} recogen sus nodos y elementos, y la \autoref{tab:mem-param} los parámetros globales del análisis. El nodo de un elemento plano no tiene grado de libertad de giro: restringir sus dos desplazamientos lo fija por completo.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.74\linewidth]{mem_modelo}
+\caption[Modelo discretizado del ejemplo canónico.]{Modelo discretizado: malla, carga puntual $P=\valP$ aplicada hacia abajo en el nodo 7 y los dos desplazamientos restringidos en los nodos 1, 3 y 6.}
+\label{fig:mem-modelo}
+\end{figure}
+
+\noindent
+% El reparto es 0,34 / 0,62 y no mitad y mitad: la tabla de nodos son tres
+% columnas de numeros (3,5 cm de ancho natural) y la de la derecha carga ademas
+% el bloque de parametros globales, cuya fila mas larga -"Apoyos / Nodos 1, 3, 6
+% (empotrados)"- pide 9,4 cm y antes se salia al margen derecho.
+\begin{minipage}[t]{0.34\linewidth}
+\centering
+\captionof{table}{Nodos del ejemplo canónico y sus coordenadas (en las unidades del anexo).}
+\label{tab:mem-nodos}
+\begin{tabular}{c r r}
+\toprule
+Nodo & $x$ & $y$ \\
+\midrule
+\nodosRows \\
+\bottomrule
+\end{tabular}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.62\linewidth}
+\centering
+\captionof{table}{Elementos (conectividad y espesor).}
+\label{tab:mem-elem}
+\begin{tabular}{c c c c c c}
+\toprule
+Elem. & $N_1$ & $N_2$ & $N_3$ & $N_4$ & $t$ \\
+\midrule
+\elementosRows \\
+\bottomrule
+\end{tabular}
+
+\vspace{0.9em}
+\captionof{table}{Parámetros globales del análisis.}
+\label{tab:mem-param}
+\begin{tabular}{@{}l l@{}}
+\toprule
+Parámetro & Valor \\
+\midrule
+Módulo de elasticidad & $E = \valE$ \\
+Coeficiente de Poisson & $\nu = \valNu$ \\
+Espesor & $t = \valT$ \\
+Análisis & Tensión plana \\
+Carga & $F_y = -\valP$ (nodo 7) \\
+Apoyos & Nodos 1, 3, 6 ($u_x = u_y = 0$) \\
+\bottomrule
+\end{tabular}
+\end{minipage}
+
+\section{Procedimiento}
+
+\subsection{Matriz constitutiva}
+
+La matriz constitutiva de tensión plana es la de la \autoref{eq:D-tension-plana}. Con $E=\valE$ y $\nu=\valNu$ resulta, idéntica para los cuatro elementos, que comparten material:
+% Partida en dos renglones: las tres matrices 3x3 seguidas mas la fraccion no
+% entran en el ancho de linea y se metian 0,9 cm en el margen derecho.
+\begin{align*}
+\bm{D}&=\frac{E}{1-\nu^{2}}
+\begin{bmatrix} 1 & \nu & 0 \\ \nu & 1 & 0 \\ 0 & 0 & \tfrac{1-\nu}{2} \end{bmatrix}
+=\valDfactor\;\DmatNorm \\[0.4em]
+&=\Dmat .
+\end{align*}
+
+\subsection{Rigidez del elemento}
+
+Se desarrolla el elemento E\showId{} (nodos \showNodes); los tres restantes se calculan igual. Es el de mayor energía de deformación una vez resuelto el modelo, $U_e=\tfrac12\,\bm{u}_e^{T}\bm{k}_e\,\bm{u}_e$ (\energiaInline), el mismo criterio con que la memoria elige el elemento que desarrolla en las mallas mayores (\autoref{sec:memoria-io}). Sus coordenadas nodales son
+\[
+\bm{X}_e=\Xemat .
+\]
+En el punto de Gauss $\gpA$, las derivadas de las funciones de forma de la \autoref{eq:N-q4} en coordenadas naturales valen
+\[
+\partial\bm{N}_{\xi\eta}=\dNnatA .
+\]
+El Jacobiano de la \autoref{eq:jacobiano}, su determinante (\autoref{eq:detJ}) y su inversa por cofactores (\autoref{eq:invJ}) son
+% Idem: las tres igualdades en un renglon se pasaban del margen.
+\begin{align*}
+\bm{J}&=\partial\bm{N}_{\xi\eta}\,\bm{X}_e=\Jmata, \qquad
+\det\bm{J}=\detJa, \\[0.4em]
+\bm{J}^{-1}&=\invJa,
+\end{align*}
+y las derivadas físicas, obtenidas por la regla de la cadena de la \autoref{eq:fisica-natural}, y la matriz $\bm{B}$ de la \autoref{eq:matriz-B} ($3\times 8$, que ordena esas derivadas según $\bm{\varepsilon}=\bm{B}\,\bm{u}_e$) resultan
+\[
+\partial\bm{N}_{xy}=\bm{J}^{-1}\,\partial\bm{N}_{\xi\eta}=\dNphysA ,
+\]
+{\footnotesize\setlength{\arraycolsep}{4pt}
+\[
+\bm{B}=\Bmata .
+\]
+}%
+La rigidez del elemento es la cuadratura de la \autoref{eq:ke-gauss} sobre los cuatro puntos de Gauss (pesos $w_g=1$; determinantes $\det\bm{J}_g \in \{\detJinline\}$):
+\[
+\bm{k}_e=\sum_{g=1}^{4} w_g\,\bm{B}_g^{T}\,\bm{D}\,\bm{B}_g\,\lvert\det\bm{J}_g\rvert\,t .
+\]
+{\footnotesize\setlength{\arraycolsep}{3.5pt}
+\[
+\bm{k}_e=\keScale\cdot\keMat .
+\]
+}%
+
+\subsection{Ensamblaje}
+
+Cada $\bm{k}_e$ se dispersa a la matriz global según los grados de libertad (GDL) de sus nodos, con el operador de ensamblaje de la \autoref{eq:ensamblaje}; las cargas nodales arman $\bm{F}$:
+\[
+\bm{K}=\Ensamblaje_{e=1}^{4}\bm{k}_e \quad(\nDof\times\nDof),
+\qquad
+\bm{F}:\; F_{(7,y)}=-\valP,\ \text{resto } 0 .
+\]
+Como los identificadores del ejemplo son contiguos (1 a 9), el nodo $n$ recibe el ordinal $i = n-1$ y sus dos GDL ocupan las posiciones $2i$ y $2i+1$ del sistema (\autoref{sec:identidad-gdl}); contadas desde uno, como en este anexo, son la $2n-1$ y la $2n$. Así, los nodos 4, 5, 8 y 7 de E\showId{} ocupan los GDL globales 7-8, 9-10, 15-16 y 13-14, y cada término de $\bm{k}_e$ se suma en la posición de $\bm{K}$ que indican esos índices. La \autoref{fig:mem-K} muestra el patrón de entradas no nulas de $\bm{K}$.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.42\linewidth]{mem_Ksparsity}
+\caption[Patrón de entradas no nulas de la matriz de rigidez global.]{Patrón de entradas no nulas de la matriz de rigidez global $\bm{K}$ ($\nDof\times\nDof$). Cada bloque $2\times 2$ acopla dos nodos vecinos; el nodo central 5, compartido por los cuatro elementos, concentra el mayor número de acoplamientos.}
+\label{fig:mem-K}
+\end{figure}
+
+\subsection{Restricciones y solución}
+
+Los nodos 1, 3 y 6 fijan sus dos GDL (posiciones 1-2, 5-6 y 11-12 de $\bm{K}$, contadas desde uno): quedan \nRestr{} GDL restringidos y \nFree{} libres. Reordenando el sistema en bloques libre ($f$) y restringido ($r$), según la partición de la \autoref{eq:particion},
+\[
+\begin{bmatrix} \bm{K}_{ff} & \bm{K}_{fr} \\ \bm{K}_{rf} & \bm{K}_{rr} \end{bmatrix}
+\begin{bmatrix} \bm{u}_{f} \\ \bm{u}_{r} \end{bmatrix}
+=\begin{bmatrix} \bm{F}_{f} \\ \bm{F}_{r} \end{bmatrix},
+\]
+con $\bm{u}_r=\bm{0}$ el subsistema libre ($\nFree\times\nFree$) se reduce a
+\[
+\bm{K}_{ff}\,\bm{u}_{f}=\bm{F}_{f},
+\qquad
+\bm{F}_{f}^{T}=\bigl[\,0\ \cdots\ -\valP\ \cdots\ 0\,\bigr] .
+\]
+El motor resuelve este subsistema por factorización LU dispersa, con el reordenamiento de mínimo grado de la \autoref{sec:motor}, y entrega los desplazamientos nodales de la \autoref{tab:mem-resultados}; la comprobación del paso es el equilibrio de las reacciones que sigue.
+
+\subsection{Reacciones}
+
+En los GDL restringidos, $\bm{R}=\bm{K}\,\bm{u}-\bm{F}$ (\autoref{tab:mem-reacciones}):
+\begin{center}
+\captionof{table}{Reacciones en los nodos restringidos y su resultante.}
+\label{tab:mem-reacciones}
+\begin{tabular}{c r r}
+\toprule
+Nodo & $R_x$ & $R_y$ \\
+\midrule
+\reaccRows \\
+\midrule
+$\sum$ & $\RxTot$ & $\RyTot$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+La resultante vertical, $\RyTot$, equilibra la carga aplicada, $-\valP$, dentro de la precisión con que se imprimen los valores, y la horizontal es nula. Que las dos sumas cierren se sigue por construcción de $\bm{R}=\bm{K}\,\bm{u}-\bm{F}$, porque una traslación rígida no produce fuerzas; la comprobación no mide exactitud, pero delataría un error de ensamblaje o un sistema mal resuelto.
+
+\subsection{Recuperación de tensiones}
+
+En cada punto de Gauss del elemento, $\bm{\varepsilon}=\bm{B}\,\bm{u}_e$ (forma matricial de la \autoref{eq:cinematica}) y $\bm{\sigma}=\bm{D}\,\bm{\varepsilon}$, con los desplazamientos de la \autoref{tab:mem-resultados} ordenados según la conectividad de E\showId{} (nodos \showNodes):
+\[
+\begin{aligned}
+\bm{u}_e^{T}=\bigl[\,&{-}3{,}851\times10^{-4},\ -4{,}272\times10^{-3},\ -1{,}078\times10^{-3},\ -4{,}374\times10^{-3},\\
+&{-}5{,}398\times10^{-3},\ -5{,}605\times10^{-3},\ -6{,}894\times10^{-3},\ -1{,}308\times10^{-2}\,\bigr].
+\end{aligned}
+\]
+Los valores se imprimen redondeados ---las tensiones del primer punto de Gauss y las principales llevan un decimal más que las de las tablas---: rehacer $\bm{B}\,\bm{u}_e$ con las cifras impresas reproduce $\bm{\varepsilon}$ con tres cifras significativas. En $\gpA$:
+\[
+\bm{\varepsilon}=\epsA,
+\qquad
+\bm{\sigma}=\sigA .
+\]
+Las tensiones principales y la de von Mises de la \autoref{eq:principales-vm}, en su forma plana ($\sigma_z = 0$ en tensión plana), resultan en ese punto
+\[
+\sigma_{1,2}=\frac{\sigma_x+\sigma_y}{2}\pm\sqrt{\Bigl(\tfrac{\sigma_x-\sigma_y}{2}\Bigr)^{2}+\tau_{xy}^{2}}=\savgA\pm\radiusA=\sigOneA;\ \sigTwoA ,
+\]
+\[
+\sigma_{\mathrm{VM}}=\sqrt{\sigma_1^{2}-\sigma_1\sigma_2+\sigma_2^{2}}=\vmA .
+\]
+Repetida la operación en los cuatro puntos de Gauss —numerados $(-,-)$, $(-,+)$, $(+,-)$, $(+,+)$—, cada componente cartesiana se lleva a los nodos mediante la matriz de extrapolación constante $\bm{E}=\bm{M}^{-1}$ de la \autoref{eq:extrap-q4}, $\bm{\sigma}_{\mathrm{nod}}=\bm{E}\,\bm{\sigma}_{\mathrm{PG}}$; por ejemplo, para $\sigma_x$ (nodos \showNodes):
+{\footnotesize\setlength{\arraycolsep}{4pt}
+\[
+\sigxNodal=\Eextrap\,\sigxGauss .
+\]
+}%
+En negrita, $\bm{E}$ es esa matriz de extrapolación, que no debe confundirse con el módulo de elasticidad $E=\valE$ ni con los rótulos E1 a E4 de los elementos.
+Las Tablas \ref{tab:mem-gauss} y \ref{tab:mem-extrap} reúnen las tres componentes cartesianas y la tensión de von Mises, en los puntos de Gauss y en los nodos del elemento E\showId{}. La extrapolación se aplica únicamente a las componentes cartesianas: la tensión de von Mises de cada nodo se recalcula con la \autoref{eq:principales-vm} a partir de las componentes ya extrapoladas, por ser una función no lineal de ellas (\autoref{sec:resolucion-tensiones}).
+
+\noindent
+\begin{minipage}[t]{0.49\linewidth}
+\centering
+\captionof{table}{Tensiones en los puntos de Gauss (E\showId).}
+\label{tab:mem-gauss}
+\footnotesize
+\begin{tabular}{c r r r r}
+\toprule
+PG & $\sigma_x$ & $\sigma_y$ & $\tau_{xy}$ & $\sigma_{\mathrm{VM}}$ \\
+\midrule
+\gaussStressRows \\
+\bottomrule
+\end{tabular}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.49\linewidth}
+\centering
+\captionof{table}[Tensiones extrapoladas a los nodos de E\showId.]{Tensiones extrapoladas a los nodos de E\showId, en el orden de su conectividad, que es el de las filas de $\bm{E}$.}
+\label{tab:mem-extrap}
+\footnotesize
+\begin{tabular}{c r r r r}
+\toprule
+Nodo & $\sigma_x$ & $\sigma_y$ & $\tau_{xy}$ & $\sigma_{\mathrm{VM}}$ \\
+\midrule
+\nodalStressShowRows \\
+\bottomrule
+\end{tabular}
+\end{minipage}
+
+\medskip
+\noindent El campo nodal final (\autoref{tab:mem-resultados}) promedia, en cada nodo, las contribuciones de los elementos que lo comparten. Como en la extrapolación, el promedio recae solo sobre las componentes cartesianas, y así cada fila de la tabla es coherente consigo misma.
+
+\section{Resultados}
+
+La \autoref{tab:mem-resultados} reúne, por nodo, los desplazamientos (solución del sistema) y las tensiones recuperadas y promediadas entre los elementos que comparten cada nodo.
+
+\begin{table}[H]
+\centering
+\caption{Resultados nodales: desplazamientos y tensiones promediadas, en las unidades del anexo.}
+\label{tab:mem-resultados}
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{c r r r r r r}
+\toprule
+Nodo & $u_x$ & $u_y$ & $\sigma_x$ & $\sigma_y$ & $\tau_{xy}$ & $\sigma_{\mathrm{VM}}$ \\
+\midrule
+\nodalAllRows \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent El desplazamiento máximo es $\lvert\bm{u}\rvert_{\max}=\umaxMag$ en el nodo \umaxNode{} (donde se aplica la carga), y la tensión de von Mises máxima, $\sigma_{\mathrm{VM},\max}=\vmMax$ en el mismo nodo. Las cuatro energías elementales suman $6{,}54$, lo mismo que el trabajo de la carga, $\tfrac12\,P\,\lvert u_{7y}\rvert=\tfrac12\cdot\valP\cdot 1{,}308\times10^{-2}=6{,}54$. Como el equilibrio de las reacciones, ese balance se sigue de $\bm{K}\,\bm{u}=\bm{F}$, pero cruza las rigideces elementales con la solución global. Las Figuras \ref{fig:mem-deformada} y \ref{fig:mem-contorno} muestran la configuración deformada y el contorno de von Mises sobre la malla deformada, tal como los presenta el post-proceso del software.
+
+% Dos figuras lado a lado SIN entorno figure: con \floatstyle{plaintop} un
+% float con dos \caption conservaba solo el ultimo rotulo (la G.3 quedaba sin
+% rotulo y el de la G.4 caia sobre la imagen equivocada). \captionof numera y
+% ancla cada una por separado; el rotulo va arriba, como pide APA.
+\medskip
+\noindent
+\begin{minipage}[t]{0.49\linewidth}
+  \centering
+  \captionof{figure}{Configuración deformada, amplificada $\times 84{,}1$, sobre la malla original.}
+  \label{fig:mem-deformada}
+  \includegraphics[width=\linewidth]{mem_deformada}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.49\linewidth}
+  \centering
+  \captionof{figure}[Contorno de von Mises sobre la malla deformada.]{Contorno de tensión de von Mises sobre la malla deformada; la escala va de $42{,}47$ a $864{,}70$, los extremos de la \autoref{tab:mem-resultados}.}
+  \label{fig:mem-contorno}
+  \includegraphics[width=\linewidth]{mem_contorno_vm}
+\end{minipage}
