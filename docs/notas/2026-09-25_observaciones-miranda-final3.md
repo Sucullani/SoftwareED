@@ -83,7 +83,7 @@ aplicarlas **adaptadas** al contenido de la tesis, no al pie de la letra, sobre 
   (doble espacio y 2,54 cm).
 - **Presentación y video de defensa**: siguen `main_final.tex` y no tienen la formulación nueva.
 - **Hash de la revisión del instalador** sin PyMuPDF: hay un `% DATO PENDIENTE` en §2.1.1.
-- Sin commit.
+- En `origin/main` desde el 2026-09-25 (commit `d46c5d6`, en la integración `b9a5b61`…`ef1687b`).
 
 ## Verificación
 

@@ -89,4 +89,5 @@ naranja tiene 2,5:1 de contraste, así que ningún color va sin su rótulo.
   después.
 - Estado del repositorio: `tesis/README.md`, `docs/MAPA.md`, las tres skills `tesis-*`,
   `docs/notas/ESTADO.md` y la nota `docs/notas/2026-09-25_observaciones-miranda-final3.md`.
-- **Sin commit.**
+- En `origin/main` desde el 2026-09-25: commit `d46c5d6`, dentro de la integración de todas las
+  sesiones (`b9a5b61`…`ef1687b`).
