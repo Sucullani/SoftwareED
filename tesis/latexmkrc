@@ -1,0 +1,7 @@
+# latexmkrc -- configuracion de latexmk para la tesis (se lee sola al compilar desde tesis/).
+#
+# Los archivos auxiliares de compilacion (.aux, .bbl, .log, .toc, .xdv...) van a build/,
+# que git ignora; el PDF queda junto al .tex:
+#     latexmk -xelatex main_final4.tex   ->   tesis/main_final4.pdf
+# Si hiciera falta empezar de cero: borrar la carpeta build/.
+$aux_dir = 'build';

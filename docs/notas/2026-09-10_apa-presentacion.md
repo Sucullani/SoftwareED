@@ -26,13 +26,23 @@ Son decisiones del autor. **No las "corrijas" a la letra de APA sin preguntarle.
   letras». La tesis conserva `Capítulo 1`, `1.1`, `1.1.1` porque tiene ~50 referencias
   cruzadas `\autoref{cap:...}` y porque el tribunal espera capítulos numerados. Lo que se
   adoptó es la **tipografía** de cada nivel, no la supresión del número.
-- **Latin Modern 12, no Times New Roman 12.** APA acepta «Computer Modern normal (10 pt),
-  la fuente predeterminada en LaTeX»; a 12 pt no es literal la norma, pero es la familia
-  admitida y no toca ni una fórmula. `newtx` está instalado si alguna vez se quiere Times
-  con matemática a juego.
+- **Latin Modern 12 hasta final2.** APA acepta «Computer Modern normal (10 pt), la fuente
+  predeterminada en LaTeX»; a 12 pt no es literal la norma, pero es la familia admitida y no
+  toca ni una fórmula. Desde final3 el texto va en Times New Roman 12, la real del sistema (por
+  eso XeLaTeX), que APA admite: ya no es una excepción. Las fórmulas siguen en Latin Modern.
 - **Títulos en mayúscula de oración, no en Title Case.** APA pide «Cada Palabra Iniciando
   en Mayúscula». En español eso contradice la ortografía de la RAE, y son ~90 títulos.
   Queda como decisión abierta del autor.
+- **Texto justificado (desde final3).** APA pide el texto alineado a la izquierda; el tribunal
+  pidió justificarlo, y final3 lo hizo con partición silábica.
+- **Título de tablas y figuras en redonda (desde final4).** APA pone el título del rótulo en
+  cursiva; el tribunal pidió que no lo fuera tras la defensa de borrador. El número sigue en
+  negrita, y «Nota.» y «Palabras clave:» siguen en cursiva porque no son títulos.
+- **Número de página al pie (desde final4).** APA lo pone arriba a la derecha, solo; el tribunal
+  pidió el pie de página abajo y con mejor estilo. Va abajo a la derecha, con el nombre corto
+  del capítulo a la izquierda y un filete fino encima; la hoja de apertura de capítulo lleva solo
+  el número. Las notas al pie quedan fijas al fondo de la hoja (`footmisc [bottom]`).
+  Excepciones declaradas en la Introducción de final4 («Normas de citación y presentación»).
 
 ## Trampas encontradas
 

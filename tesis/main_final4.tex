@@ -1,0 +1,102 @@
+% =====================================================================
+%  main_final4.tex  --  Tesis EduFEM, VERSION FINAL 4 (2026-10-20).
+%
+%  Cuarta version de la MEJORA CONTINUA de la tesis final. Parte de
+%  main_final3.tex (archivada intacta en archivo/final3/) y aplica las
+%  observaciones del tribunal tras la defensa de borrador: hipotesis nueva
+%  (molde del tribunal) con su contraste por partes, Conclusiones sin
+%  "Aportes" ni "Limitaciones" y sin rotulos "Conclusion N", rotulos de
+%  tablas y figuras en redonda, numero de pagina al pie con el nombre del
+%  capitulo, y "ejemplo guia" en lugar de "ejemplo canonico". Corrige
+%  ademas la redaccion de los hallazgos H1 y H4 de la auditoria general.
+%  Registro, cambio por cambio: tesis/auditoria_final/IMPLEMENTACION-FINAL4.md.
+%
+%  Convencion de versiones: final (linea base auditada) -> final1 -> final2
+%  -> final3 -> final4 ... Cada version es AUTOCONTENIDA: lee solo su carpeta
+%  capitulos_finalN/, con su propio preambulo, su referencias.bib y sus
+%  figuras regeneradas; comparte con las demas portada/, figuras/ y anexos/.
+%  Para ver que cambio de una a otra:
+%     diff -r archivo/final3/capitulos_final3 capitulos_final4
+%
+%  Eje, formulacion y criterios editoriales: capitulos_final4/CRITERIOS.md.
+%
+%  Compilar (MiKTeX/Windows), desde la carpeta tesis/, CON XeLaTeX: la
+%  fuente del texto es la Times New Roman real del sistema.
+%     latexmk -xelatex main_final4.tex
+%  (Sin \pdfminorversion: es un primitivo de pdfTeX que XeLaTeX no tiene, y
+%  el driver xdvipdfmx acepta sin avisar el PDF 1.6 que embebe el Anexo E.)
+% =====================================================================
+\documentclass[12pt,a4paper,oneside]{report}
+
+% ---------------------------------------------------------------------
+%  Metadatos de portada  --  COMPLETAR estos placeholders
+% ---------------------------------------------------------------------
+\newcommand{\universidad}{Universidad Autónoma ``Tomás Frías''}
+\newcommand{\facultad}{Facultad de Ingeniería}
+\newcommand{\carrera}{Carrera de Ingeniería Civil}
+\newcommand{\gradoTesis}{Título de Licenciatura en Ingeniería Civil}
+\newcommand{\tituloTesis}{Desarrollo de software educativo de elementos finitos para el análisis estructural empleando el lenguaje de programación Python}
+\newcommand{\autorTesis}{Hedy Yhassmany Oyola Sucullani}
+\newcommand{\anioTesis}{octubre de 2026}
+\newcommand{\ciudadTesis}{Potosí -- Bolivia}
+
+\input{capitulos_final4/preambulo}
+
+\begin{document}
+
+% ----- Portada -----
+% Sin ancla de página en la portada: es la página "1" de la numeración inicial y
+% el cuerpo vuelve a empezar en 1, lo que duplicaba el destino page.1 de hyperref.
+\hypersetup{pageanchor=false}
+\input{portada/portada}
+
+% ----- Material preliminar (numeracion romana) -----
+\cleardoublepage
+\pagenumbering{roman}
+\hypersetup{pageanchor=true}
+
+% Preliminares: declaración de originalidad, dedicatoria y agradecimientos. Van en la versión
+% final. FUERA en la predefensa, por decision del autor (2026-09-21): para la entrega final,
+% descomentar la linea y personalizar la dedicatoria y los agradecimientos en ese archivo.
+% \input{capitulos_final4/00_preliminares}
+
+\input{capitulos_final4/00_resumen}
+
+\cleardoublepage
+\tableofcontents
+\cleardoublepage
+\phantomsection\addcontentsline{toc}{chapter}{Índice de figuras}
+\listoffigures
+
+\vspace{1.5em}
+\noindent\textit{\small Salvo que se indique lo contrario, las figuras y tablas de este documento son de elaboración propia. Las capturas de pantalla proceden del software EduFEM, desarrollado por el autor en el marco de esta tesis, y los gráficos de resultados, de sus propias corridas de verificación y validación.}
+\cleardoublepage
+\phantomsection\addcontentsline{toc}{chapter}{Índice de tablas}
+\listoftables
+
+% ----- Nomenclatura: lista de simbolos y abreviaturas -----
+\cleardoublepage
+\input{capitulos_final4/00b_nomenclatura}
+
+% ----- Cuerpo (numeracion arabiga) -----
+\cleardoublepage
+\pagenumbering{arabic}
+
+\input{capitulos_final4/01_introduccion}
+\input{capitulos_final4/02_marco_teorico}
+\input{capitulos_final4/02b_diseno_metodologico}
+\input{capitulos_final4/03_diseno_implementacion}
+\input{capitulos_final4/04_resultados}
+\input{capitulos_final4/05_conclusiones}
+
+% ----- Referencias bibliograficas (Vancouver; la norma se declara en la Introduccion, 'Normas de citacion y presentacion') -----
+\cleardoublepage
+\printbibliography[title={Referencias bibliográficas},heading=bibintoc]
+
+% ----- Anexos -----
+\appendix
+\renewcommand{\appendixname}{Anexo}  % rotular "Anexo A/B/..." (no el "Apéndice" por defecto de babel)
+\input{capitulos_final4/06_anexos}
+\input{capitulos_final4/07_anexo_memoria}
+
+\end{document}

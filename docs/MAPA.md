@@ -84,7 +84,7 @@ Cuál es cuál, porque las cuatro primeras se parecen y solo una se entrega:
 |---|---|---|
 | `resources/**` | `config.settings.resource_path`, `gui/fonts_loader._resources_root`, `build.spec` (`datas`), `installer/EduFEM.iss` (`SetupIconFile`) | Rutas construidas en runtime y en el empaquetado |
 | `resources/icons/edufem.ico` | `tools/make_icon.py` lo **escribe** (`../resources/icons`), `main_window` lo lee, el instalador lo usa | Salida fija del generador |
-| `docs/vyv/datos/`, `docs/vyv/figuras/` | `tests/vv_mms.py`, `vv_timoshenko.py`, `vv_cook.py` **escriben** ahí; `tesis/figuras/generar_figuras.py` copia desde ahí y `tesis/figuras/generar_figuras_formulacion.py` **lee** los CSV (Figuras CR.1 y CR.2 de final3, que comprueba contra la tabla de veredicto); el Anexo D de la tesis vigente (`tesis/capitulos_final3/06_anexos.tex`) las cita, y las que una versión rehace van a su propia `capitulos_finalN/figuras/` | Rutas literales en los scripts |
+| `docs/vyv/datos/`, `docs/vyv/figuras/` | `tests/vv_mms.py`, `vv_timoshenko.py`, `vv_cook.py` **escriben** ahí; `tesis/figuras/generar_figuras.py` copia desde ahí y `tesis/figuras/generar_figuras_formulacion.py` **lee** los CSV (Figuras 2.1, CR.1 y CR.2 de la versión que se le pase con `--version`, que comprueba fila por fila contra su tabla de veredicto); el Anexo D de la tesis vigente (`tesis/capitulos_final4/06_anexos.tex`) las cita, y las que una versión rehace van a su propia `capitulos_finalN/figuras/` | Rutas literales en los scripts |
 | `resources/examples/ejemplo_geometria.dxf` | `tests/generate_example_dxf.py` lo escribe | Ruta literal |
 | `tools/make_icon.py`, `tools/make_installer_images.py`, `tools/build_texlive.py`, `tools/licencias_terceros.py`, `tools/build_all.ps1` | `build_all.ps1` invoca a los `.py` por ruta relativa a `$PSScriptRoot` | Deben quedar hermanos en `tools/` |
 | `installer/dist_extra/LICENCIAS-TERCEROS.txt` | `tools/licencias_terceros.py` lo **escribe** (leyendo `build/build/*.toc`); `installer/EduFEM.iss` lo instala en `{app}`; `tests/test_distribucion.py` exige que exista y nombre cada dependencia de `requirements.txt` | Ruta literal en los tres |
@@ -116,7 +116,7 @@ Si movés un documento citado desde un comentario del código, actualizá tambi�
 | Documento teórico LaTeX | `docs/teoria/<tema>/` | `.tex` + `.pdf` compilado |
 | Nota de trabajo / hallazgo | `docs/notas/` | Ver [notas/README.md](notas/README.md) |
 | Regla permanente del proyecto | El capítulo que corresponda de `docs/convenciones/` | Si es una prohibición, además una fila en `no-reintroducir.md` |
-| Contenido de la tesis | `tesis/capitulos_final3/` (versión vigente; compila con `latexmk -xelatex main_final3.tex`) | Las versiones anteriores no se editan: cada mejora abre una carpeta nueva (`capitulos_final4/`…). Ver `tesis/README.md`, «Versiones», y las skills `tesis-*` |
+| Contenido de la tesis | `tesis/capitulos_final4/` (versión vigente; compila con `latexmk -xelatex main_final4.tex`) | Las versiones anteriores no se editan: cada mejora abre una carpeta nueva (`capitulos_final5/`…). Ver `tesis/README.md`, «Versiones», y las skills `tesis-*` |
 | Archivo temporal, log, salida intermedia | **Fuera del repo** (directorio scratch de la sesión) | Nunca en la raíz |
 
 ## 5. Comandos habituales

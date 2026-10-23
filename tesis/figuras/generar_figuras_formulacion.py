@@ -1,28 +1,37 @@
 # -*- coding: utf-8 -*-
 """
-generar_figuras_formulacion.py — Figuras de la formulación de la tesis (final3).
+generar_figuras_formulacion.py — Figuras de la formulación de la tesis.
 
-Tres figuras que nacieron con la versión final3, a partir de las observaciones
-del Ing. Julio Saúl Miranda (tribunal, 2026-09-25):
+Tres figuras que nacieron con final3 (observaciones del Ing. Julio Saúl
+Miranda, 2026-09-25) y que final4 rehízo (tribunal, defensa de borrador):
 
-  fig_relacion_variables.png   §2.1.2. Relación entre las variables: el diagrama
+  fig_relacion_variables.pdf   §2.1.2. Relación entre las variables: el diagrama
                                de círculos de sus láminas (causa → efecto, con la
                                solución que cierra el ciclo).
-  fig_contraste_hipotesis.png  Conclusiones. La hipótesis contrastada: por
-                               cláusula, sus indicadores y el veredicto.
-  fig_margen_criterios.png     Conclusiones. Qué fracción de su umbral consume
+  fig_contraste_hipotesis.pdf  Conclusiones. La hipótesis, parte por parte: cada
+                               tramo del enunciado con lo que se comprobó y su
+                               veredicto.
+  fig_margen_criterios.pdf     Conclusiones. Qué fracción de su umbral consume
                                cada criterio numérico de la cláusula (b).
 
-Las cifras de las dos últimas se leen de docs/vyv/datos/*.csv, los mismos datos
-de las tablas del Cap. 3, y el guion comprueba que, redondeadas como las imprime
-la tabla de veredicto (tab:veredicto, 04_resultados.tex), coinciden con la tesis.
-Si algo no coincide, termina con error antes de escribir ninguna figura.
+Las cifras se leen de docs/vyv/datos/*.csv, los mismos datos de las tablas del
+Cap. 3. Antes de dibujar, el guion aísla la tabla de veredicto de la tesis
+(tab:veredicto, 04_resultados.tex) y comprueba, fila por fila, que cada cifra
+impresa coincide con la del CSV, que la cláusula (a) tiene sus seis criterios y
+la (b) sus nueve, y que todos dicen «Se cumple». Si algo no coincide, termina
+con error y no escribe ninguna figura.
+
+Las figuras se escriben en PDF vectorial al ancho de la caja de texto (15,92 cm)
+y se incluyen a ese ancho: el cuerpo de letra que fija este guion es el que se
+imprime (APA pide entre 8 y 14 puntos dentro de las figuras). La letra es la
+Times New Roman del texto, con DejaVu Sans de respaldo para el signo ✓.
 
 Reproducible (desde la raíz del repositorio):
 
-    .venv\\Scripts\\python.exe tesis\\figuras\\generar_figuras_formulacion.py
+    .venv\\Scripts\\python.exe tesis\\figuras\\generar_figuras_formulacion.py --version final4
 
-Escribe en tesis/capitulos_final3/figuras/ (se cambia con --out DIR).
+Lee tesis/capitulos_<version>/04_resultados.tex y escribe en
+tesis/capitulos_<version>/figuras/ (la salida se cambia con --out DIR).
 """
 
 from __future__ import annotations
@@ -31,6 +40,7 @@ import argparse
 import csv
 import math
 import os
+import re
 import sys
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -45,9 +55,9 @@ from matplotlib.patches import Circle, FancyArrowPatch, FancyBboxPatch
 from config.settings import PHASE_PRE_COLOR, PHASE_PROC_COLOR, PHASE_POST_COLOR
 
 DATOS = os.path.join(_ROOT, "docs", "vyv", "datos")
-TESIS = os.path.join(_ROOT, "tesis", "capitulos_final3")
-OUT_DEFECTO = os.path.join(TESIS, "figuras")
-DPI = 150
+VERSION_DEFECTO = "final4"
+ANCHO_CM = 15.92          # caja de texto: A4 menos dos márgenes de 2,54 cm
+CM = 1 / 2.54             # pulgadas por centímetro
 
 # Paleta: la de generar_figuras.py. Validada con el validador de la skill dataviz
 # (azul, violeta y naranja como identidad: pasa las pruebas de daltonismo; el
@@ -62,6 +72,27 @@ C_MUTED = "#6c757d"
 C_GRID = "#dee2e6"
 
 
+def configurar_estilo():
+    """Times New Roman como el texto de la tesis; DejaVu Sans solo para los
+    signos que la Times no tiene (✓). Fórmulas en Computer Modern, como las de
+    la tesis (Latin Modern). Fuentes TrueType incrustadas en el PDF."""
+    plt.rcParams.update({
+        "font.family": ["Times New Roman", "DejaVu Sans"],
+        "mathtext.fontset": "cm",
+        "font.size": 9,
+        "pdf.fonttype": 42,
+        "axes.unicode_minus": False,
+    })
+
+
+class ErrorGuarda(SystemExit):
+    pass
+
+
+def _fallar(msg):
+    raise ErrorGuarda(f"[guarda] {msg}")
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Datos y comprobación contra la tesis
 # ─────────────────────────────────────────────────────────────────────────────
@@ -72,8 +103,13 @@ def _leer(nombre):
 
 
 def _coma(x, nd):
-    """Número con coma decimal, como lo escribe la tesis."""
+    """Número con coma decimal, como lo escribe la tesis en el texto."""
     return f"{x:.{nd}f}".replace(".", ",")
+
+
+def _coma_tex(x, nd):
+    """Número como lo escribe la tesis dentro de una fórmula: 0{,}26."""
+    return f"{x:.{nd}f}".replace(".", "{,}")
 
 
 def _tasa(filas, col):
@@ -96,7 +132,8 @@ def reunir_datos():
         # La tabla de veredicto imprime «Q4: 2,00; Q9: 3,00» (L2) y «Q4: 1,00;
         # Q9: 2,00» (H1) para las cuatro configuraciones.
         for v in valores:
-            assert round(v, 2) == p, f"tasa {el} {col} = {v:.4f}, la tesis dice {p:.2f}"
+            if round(v, 2) != p:
+                _fallar(f"tasa {el} {col} = {v:.4f}, la tesis dice {p:.2f}")
         peor = max(valores, key=lambda v: abs(v - p))
         tasas[(el, col)] = (peor, p)
 
@@ -107,48 +144,147 @@ def reunir_datos():
     residuo = float(_leer("timoshenko_equilibrio.csv")[0]["residuo_relativo"])
     cook = next(f for f in _leer("cook.csv")
                 if f["element_type"] == "Q9" and int(f["N"]) == 8)
-    cook_err = abs(float(cook["error_pct"]))
     cook_q4 = next(f for f in _leer("cook.csv")
                    if f["element_type"] == "Q4" and int(f["N"]) == 8)
-
-    # Lo que imprime tab:veredicto (04_resultados.tex).
-    assert round(flecha, 2) == 0.26, flecha
-    assert round(sx_anal, 2) == 0.04, sx_anal
-    assert round(sx_sap, 2) == 0.21, sx_sap
-    assert f"{residuo:.1e}" == "1.7e-13", residuo
-    assert round(cook_err, 3) == 0.144, cook_err
-    assert _coma(float(cook_q4["uy"]), 3) == "22,079", cook_q4["uy"]
-    assert _coma(float(cook["uy"]), 3) == "23,925", cook["uy"]
-
-    # Los criterios documentales de la cláusula (a) no salen de un CSV: se
-    # comprueba que la tabla de veredicto de la tesis los imprima tal cual.
-    with open(os.path.join(TESIS, "04_resultados.tex"), encoding="utf-8") as fh:
-        cap3 = fh.read()
-    for texto in ("7 de 7", "9 de 9", "3 de 3", "18 de 18"):
-        assert texto in cap3, f"«{texto}» no está en 04_resultados.tex"
-
     return {"tasas": tasas, "flecha": flecha, "sx_anal": sx_anal,
-            "sx_sap": sx_sap, "residuo": residuo, "cook_err": cook_err}
+            "sx_sap": sx_sap, "residuo": residuo,
+            "cook_err": abs(float(cook["error_pct"])),
+            "cook_q9": float(cook["uy"]), "cook_q4": float(cook_q4["uy"])}
 
 
-def _guardar(fig, carpeta, nombre):
+def leer_veredicto(ruta_cap3):
+    """Aísla el longtable de tab:veredicto y devuelve sus filas de criterio,
+    agrupadas por cláusula: {"a": [[celdas]], "b": [[celdas]]}."""
+    if not os.path.exists(ruta_cap3):
+        _fallar(f"no existe {ruta_cap3}")
+    with open(ruta_cap3, encoding="utf-8") as fh:
+        cap3 = fh.read()
+    i = cap3.find(r"\label{tab:veredicto}")
+    if i < 0:
+        _fallar("no se encuentra \\label{tab:veredicto} en 04_resultados.tex")
+    j = cap3.find(r"\end{longtable}", i)
+    tabla = cap3[i:j]
+    grupos, actual = {"a": [], "b": []}, None
+    for trozo in re.split(r"\\\\\*?", tabla):
+        trozo = trozo.strip()
+        m = re.search(r"Cláusula \((a|b)\)", trozo)
+        if m and "&" not in trozo:
+            actual = m.group(1)
+            continue
+        if actual is None or trozo.count("&") != 4:
+            continue
+        celdas = [c.strip() for c in trozo.split("&")]
+        celdas[0] = re.sub(r"\\(midrule|bottomrule|endfoot|endhead)\s*", "", celdas[0]).strip()
+        grupos[actual].append(celdas)
+    return grupos
+
+
+def comprobar_veredicto(d, grupos):
+    """Cada cifra de la figura, en la fila de la tabla de veredicto que la
+    imprime; seis criterios en (a), nueve en (b), todos «Se cumple»."""
+    a, b = grupos["a"], grupos["b"]
+    if len(a) != 6 or len(b) != 9:
+        _fallar(f"tab:veredicto tiene {len(a)} criterios en (a) y {len(b)} en (b); "
+                "se esperaban 6 y 9")
+    for fila in a + b:
+        if fila[4] != "Se cumple":
+            _fallar(f"criterio sin «Se cumple»: {fila[0]!r} -> {fila[4]!r}")
+
+    def observado(grupo, clave):
+        filas = [f for f in grupo if clave in f[0]]
+        if len(filas) != 1:
+            _fallar(f"{len(filas)} filas de tab:veredicto contienen {clave!r}")
+        return filas[0][2]
+
+    esperados_a = {"módulo educativo": "7 de 7", "desarrollo en la memoria": "9 de 9",
+                   "post-proceso": "Ambas", "mismo lienzo": "3 de 3",
+                   "universo de contenido": "18 de 18", "CSV": "Sin pérdida y sin error"}
+    for clave, texto in esperados_a.items():
+        if texto not in observado(a, clave):
+            _fallar(f"(a) {clave}: la tabla no imprime {texto!r}")
+
+    t = d["tasas"]
+    esperados_b = {
+        "norma $L^2$": f"Q4: {_coma(t[('q4', 'L2_disp')][1], 2)}; "
+                       f"Q9: {_coma(t[('q9', 'L2_disp')][1], 2)}",
+        "seminorma $H^1$": f"Q4: {_coma(t[('q4', 'H1_semi')][1], 2)}; "
+                           f"Q9: {_coma(t[('q9', 'H1_semi')][1], 2)}",
+        "flecha central": _coma_tex(d["flecha"], 2),
+        "solución analítica, tres": _coma_tex(d["sx_anal"], 2),
+        "SAP2000": _coma_tex(d["sx_sap"], 2),
+        "equilibrio": f"{_coma_tex(d['residuo'] * 1e13, 1)}\\times10^{{-13}}",
+        "Cook": _coma_tex(d["cook_err"], 3),
+        "bloqueo": f"{_coma_tex(d['cook_q4'], 3)} < {_coma_tex(d['cook_q9'], 3)}",
+        "memoria": "Todas",
+    }
+    for clave, texto in esperados_b.items():
+        if texto not in observado(b, clave):
+            _fallar(f"(b) {clave}: la tabla no imprime {texto!r} "
+                    f"(imprime {observado(b, clave)!r})")
+    return {"a": (len(a), 6), "b": (len(b), 9)}
+
+
+def margenes(d):
+    """(rótulo, observado/umbral) de cada criterio numérico de la cláusula (b)."""
+    t = d["tasas"]
+    filas = []
+    for el, col, nombre in [("q4", "L2_disp", "Tasa $L^2$, Q4"),
+                            ("q9", "L2_disp", "Tasa $L^2$, Q9"),
+                            ("q4", "H1_semi", "Tasa $H^1$, Q4"),
+                            ("q9", "H1_semi", "Tasa $H^1$, Q9")]:
+        v, p = t[(el, col)]
+        filas.append((f"{nombre}: desvío de {_coma(abs(v - p), 4)} "
+                      f"(margen ± 0,5)", abs(v - p) / 0.5))
+    filas += [
+        (f"Flecha, Timoshenko: {_coma(d['flecha'], 2)} % (umbral < 3 %)",
+         d["flecha"] / 3.0),
+        (f"$\\sigma_x$ frente a la analítica: {_coma(d['sx_anal'], 2)} % "
+         f"(umbral < 1 %)", d["sx_anal"] / 1.0),
+        (f"$\\sigma_x$ frente a SAP2000: {_coma(d['sx_sap'], 2)} % (umbral < 1 %)",
+         d["sx_sap"] / 1.0),
+        (f"Residuo de equilibrio: {_coma(d['residuo'] * 1e13, 1)}"
+         f"$\\times10^{{-13}}$ (umbral < $10^{{-8}}$)", d["residuo"] / 1e-8),
+        (f"Cook, Q9 con $N = 8$: {_coma(d['cook_err'], 3)} % (umbral < 1,5 %)",
+         d["cook_err"] / 1.5),
+    ]
+    for rotulo, r in filas:
+        if not 0 < r < 1:
+            _fallar(f"criterio fuera de su umbral: {rotulo} (cociente {r:.3g})")
+    return filas
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Utilidades de dibujo (coordenadas en centímetros, letra en puntos)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _lienzo(alto_cm, ancho_cm=ANCHO_CM):
+    fig = plt.figure(figsize=(ancho_cm * CM, alto_cm * CM))
+    ax = fig.add_axes([0, 0, 1, 1])
+    ax.set_xlim(0, ancho_cm); ax.set_ylim(0, alto_cm); ax.axis("off")
+    return fig, ax
+
+
+def _guardar(fig, carpeta, nombre, formato):
     os.makedirs(carpeta, exist_ok=True)
-    fig.savefig(os.path.join(carpeta, nombre), dpi=DPI, bbox_inches="tight",
-                facecolor="white")
+    ruta = os.path.join(carpeta, f"{nombre}.{formato}")
+    # Sin bbox_inches="tight": el ancho del archivo es el de la caja de texto y la
+    # letra se imprime al cuerpo fijado aquí.
+    fig.savefig(ruta, dpi=300, facecolor="white")
     plt.close(fig)
-    print(f"  [OK] {nombre}")
+    print(f"  [OK] {os.path.basename(ruta)}")
+    return ruta
 
 
-def _caja(ax, x, y, w, h, color, relleno=0.07, lw=2.0):
+def _caja(ax, x, y, w, h, color, relleno=0.07, lw=1.4, estilo="solid", radio=0.18):
     ax.add_patch(FancyBboxPatch((x, y), w, h,
-                                boxstyle="round,pad=0.02,rounding_size=0.18",
-                                linewidth=lw, edgecolor=color,
+                                boxstyle=f"round,pad=0,rounding_size={radio}",
+                                linewidth=lw, edgecolor=color, linestyle=estilo,
                                 facecolor=matplotlib.colors.to_rgba(color, relleno),
                                 zorder=2))
 
 
-def _flecha(ax, a, b, color=C_MUTED, rad=0.0, lw=1.6):
-    ax.add_patch(FancyArrowPatch(a, b, arrowstyle="-|>", mutation_scale=16,
+def _flecha(ax, a, b, color=C_MUTED, rad=0.0, lw=1.2, escala=11):
+    ax.add_patch(FancyArrowPatch(a, b, arrowstyle="-|>", mutation_scale=escala,
                                  color=color, lw=lw, zorder=1,
                                  connectionstyle=f"arc3,rad={rad}"))
 
@@ -157,184 +293,198 @@ def _flecha(ax, a, b, color=C_MUTED, rad=0.0, lw=1.6):
 # Figura 2.1 — relación entre las variables
 # ─────────────────────────────────────────────────────────────────────────────
 
-def fig_relacion_variables(carpeta):
-    fig, ax = plt.subplots(figsize=(10.0, 6.2))
-    ax.set_xlim(0, 12); ax.set_ylim(0, 7.6); ax.axis("off")
-
-    cy = 4.45   # centro de los dos círculos
+def fig_relacion_variables(carpeta, formato):
+    # Alto contenido (8,5 cm): con el rótulo, la figura ocupa menos de la mitad de la
+    # hoja y puede ir arriba con texto debajo, en lugar de quedar sola en una hoja.
+    alto = 8.5
+    fig, ax = _lienzo(alto)
+    cy, r = 5.55, 2.0             # centro y radio de los dos círculos
     for cx, color, rotulo, texto, niveles in [
-        (2.4, C_VI, "Variable independiente (causa)",
-         "Transparencia\ndel procedimiento\nde cálculo", "caja negra  |  a la vista"),
-        (9.6, C_VD, "Variable dependiente (efecto)",
-         "Trazabilidad y\nverificabilidad del\nprocedimiento\nde cálculo", "baja  |  alta"),
+        (2.55, C_VI, "Variable independiente (causa)",
+         "Transparencia\ndel procedimiento\nde cálculo", "niveles:\ncaja negra | a la vista"),
+        (13.37, C_VD, "Variable dependiente (efecto)",
+         "Trazabilidad y\nverificabilidad del\nprocedimiento\nde cálculo", "niveles:\nbaja | alta"),
     ]:
-        ax.add_patch(Circle((cx, cy), 1.75, linewidth=2.2, edgecolor=color,
+        ax.add_patch(Circle((cx, cy), r, linewidth=1.5, edgecolor=color,
                             facecolor=matplotlib.colors.to_rgba(color, 0.07), zorder=2))
-        ax.text(cx, 7.1, rotulo, ha="center", va="center", fontsize=11,
+        ax.text(cx, cy + r + 0.42, rotulo, ha="center", va="center", fontsize=10,
                 color=C_TXT, fontweight="bold")
-        ax.text(cx, cy + 0.3, texto, ha="center", va="center", fontsize=11.5,
-                color=C_TXT, fontweight="bold", linespacing=1.25, zorder=3)
-        ax.text(cx, cy - 1.05, "niveles: " + niveles, ha="center", va="center",
-                fontsize=8.4, color=C_MUTED, style="italic", zorder=3)
+        ax.text(cx, cy + 0.42, texto, ha="center", va="center", fontsize=10,
+                color=C_TXT, fontweight="bold", linespacing=1.15, zorder=3)
+        ax.text(cx, cy - 1.0, niveles, ha="center", va="center",
+                fontsize=8, color=C_MUTED, linespacing=1.15, zorder=3)
 
     # Problema: la causa en su nivel de caja negra incide en el efecto.
-    _flecha(ax, (3.95, 5.55), (8.05, 5.55), color=C_MAL, rad=-0.2, lw=1.8)
-    ax.text(6.0, 4.6, "Problema:\nla escasa transparencia\n(caja negra) incide en\n"
+    _flecha(ax, (4.5, cy + 0.95), (11.42, cy + 0.95), color=C_MAL, rad=-0.16, lw=1.4)
+    ax.text(7.96, cy - 0.2, "Problema:\nla escasa transparencia\n(caja negra) incide en\n"
             "la baja trazabilidad\ny verificabilidad", ha="center", va="center",
-            fontsize=9.3, color=C_TXT, linespacing=1.3)
+            fontsize=9, color=C_TXT, linespacing=1.2)
 
-    # Solución: EduFEM actúa sobre la causa (ciclo inferior, como en la lámina).
-    _caja(ax, 4.35, 0.2, 3.3, 1.05, C_INT)
-    ax.text(6.0, 0.97, "Variable interviniente (solución)", ha="center",
-            va="center", fontsize=9.6, color=C_TXT)
-    ax.text(6.0, 0.53, "EduFEM", ha="center", va="center", fontsize=12.5,
+    # Solución: EduFEM, desarrollado bajo un método de diseño, actúa sobre la causa
+    # (ciclo inferior, como en la lámina del tribunal).
+    _caja(ax, 3.56, 0.15, 8.8, 1.55, C_INT)
+    ax.text(7.96, 1.38, "Variable interviniente (solución)", ha="center",
+            va="center", fontsize=9, color=C_TXT)
+    ax.text(7.96, 0.93, "EduFEM", ha="center", va="center", fontsize=11.5,
             color=C_TXT, fontweight="bold")
-    _flecha(ax, (9.35, 2.72), (7.75, 0.75), rad=-0.25)
-    _flecha(ax, (4.25, 0.75), (2.65, 2.72), rad=-0.25)
-    ax.text(6.0, 2.2, "Hipótesis: EduFEM lleva la transparencia\n"
-            "al nivel de procedimiento a la vista y eleva\n"
-            "la trazabilidad y la verificabilidad", ha="center", va="center",
-            fontsize=9.3, color=C_TXT, linespacing=1.3)
-    _guardar(fig, carpeta, "fig_relacion_variables.png")
+    ax.text(7.96, 0.48, "desarrollado bajo un método de diseño de software educativo",
+            ha="center", va="center", fontsize=9, color=C_TXT)
+    _flecha(ax, (13.2, cy - r - 0.1), (12.46, 0.95), rad=-0.3)
+    _flecha(ax, (3.46, 0.95), (2.72, cy - r - 0.1), rad=-0.3)
+    # No se rotula «Hipótesis»: su enunciado literal está en el texto. Aquí van los
+    # papeles: la intervención (premisa) y el efecto que la hipótesis predice.
+    ax.text(7.96, 2.55, "Intervención: el desarrollo de EduFEM pone el procedimiento\n"
+            "a la vista. La hipótesis predice que permitirá mejorar\n"
+            "la trazabilidad y la verificabilidad del análisis",
+            ha="center", va="center", fontsize=9, color=C_TXT, linespacing=1.25)
+    return _guardar(fig, carpeta, "fig_relacion_variables", formato)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Figura CR.1 — contraste de la hipótesis
+# Figura CR.1 — la hipótesis, parte por parte
 # ─────────────────────────────────────────────────────────────────────────────
 
-def fig_contraste_hipotesis(carpeta, d):
-    fig, ax = plt.subplots(figsize=(10.4, 6.8))
-    ax.set_xlim(0, 13); ax.set_ylim(0, 8.5); ax.axis("off")
-
-    # Causa: de la caja negra al procedimiento a la vista.
-    _caja(ax, 0.2, 1.35, 3.6, 5.3, C_VI)
-    ax.text(2.0, 6.25, "Transparencia del\nprocedimiento de cálculo", ha="center",
-            va="center", fontsize=10.5, color=C_TXT, fontweight="bold")
-    ax.text(2.0, 5.05, "Software comercial:\ncaja negra\n(solo datos y resultados)",
-            ha="center", va="center", fontsize=9.2, color=C_TXT)
-    _flecha(ax, (2.0, 4.35), (2.0, 3.55), color=C_INT, lw=2.0)
-    ax.text(2.25, 3.95, "EduFEM", ha="left", va="center", fontsize=10,
-            color=C_TXT, fontweight="bold")
-    ax.text(2.0, 2.55, "Procedimiento a la vista:\nmódulos educativos,\n"
-            "post-proceso y memoria\nde cálculo", ha="center", va="center",
-            fontsize=9.2, color=C_TXT)
-
-    _flecha(ax, (3.95, 4.0), (4.75, 5.15), rad=-0.1, lw=1.8)
-    _flecha(ax, (3.95, 4.0), (4.75, 2.55), rad=0.1, lw=1.8)
-
-    t = d["tasas"]
-    clausulas = [
-        (4.25, "(a) Trazabilidad", [
-            "7 de 7 etapas con módulo educativo",
-            "9 de 9 etapas desarrolladas en la memoria de cálculo",
-            "solución y tensiones en el post-proceso (crudo y suavizado)",
-            "3 de 3 fases sobre un mismo lienzo",
-            "18 de 18 contenidos del consenso de expertos con instrumento",
-            "intercambio de datos sin pérdida",
-        ]),
-        (0.25, "(b) Verificabilidad", [
-            "tasas iguales a las teóricas: Q4 "
-            f"{_coma(round(t[('q4','L2_disp')][0], 2), 2)} ($L^2$) y "
-            f"{_coma(round(t[('q4','H1_semi')][0], 2), 2)} ($H^1$); Q9 "
-            f"{_coma(round(t[('q9','L2_disp')][0], 2), 2)} y "
-            f"{_coma(round(t[('q9','H1_semi')][0], 2), 2)}",
-            f"Timoshenko: {_coma(d['sx_anal'], 2)} % en $\\sigma_x$ y "
-            f"{_coma(d['flecha'], 2)} % en la flecha",
-            f"SAP2000: {_coma(d['sx_sap'], 2)} % en $\\sigma_x$",
-            f"equilibrio de reacciones: residuo "
-            f"{_coma(d['residuo'] * 1e13, 1)}×10⁻¹³",
-            f"Cook: {_coma(d['cook_err'], 3)} % con Q9 (N = 8) y bloqueo del Q4",
-            "memoria del ejemplo canónico reproducible a mano",
-        ]),
+def fig_contraste_hipotesis(carpeta, d, conteos, formato):
+    (na, ta), (nb, tb) = conteos["a"], conteos["b"]
+    # Cada caja nombra una parte de la hipótesis, en el orden de su enunciado, sin
+    # copiarlo: el enunciado literal está en la Introducción, §2.1.3 y §3.8 (el
+    # autor pidió no repetirlo en las Conclusiones). El veredicto global lo da el
+    # texto que acompaña a la figura.
+    partes = [
+        # (color, papel, parte, qué se comprobó, veredicto)
+        (C_INT, "Condición · variable interviniente",
+         "método de diseño de software educativo",
+         "Ciencia del diseño, aplicada en sus seis\nactividades: requisitos tomados de los\n"
+         "antecedentes y decisiones de diseño trazadas\na cuatro principios.",
+         "✓ Respaldada"),
+        (C_INT, "Intervención · variable interviniente",
+         "desarrollo de EduFEM",
+         "De caja negra a procedimiento a la vista:\nmódulos educativos, post-proceso y "
+         "memoria\nde cálculo sobre el modelo del usuario.",
+         "✓ Respaldada"),
+        (C_VD, "Efecto (a) · variable dependiente",
+         "trazabilidad del análisis",
+         "Antes: ningún resultado se sigue etapa\npor etapa. Con EduFEM: 7 de 7 etapas con\n"
+         "módulo, 9 de 9 en la memoria, 3 de 3 fases\nen un lienzo y 18 de 18 contenidos.",
+         f"✓ Se cumple\n{na} de {ta} criterios"),
+        (C_VD, "Efecto (b) · variable dependiente",
+         "verificabilidad del análisis",
+         "Antes: solo se comprueba el resultado final.\nCon EduFEM: tasas teóricas, solución\n"
+         "analítica, SAP2000, equilibrio, membrana de\nCook y memoria reproducible a mano.",
+         f"✓ Se cumple\n{nb} de {tb} criterios"),
+        (C_VI, "Antecedente · variable independiente",
+         "escasa transparencia del software\nde análisis",
+         "Software comercial de análisis: cálculo paso\na paso «Baja (caja negra)», "
+         "informes sin\nel desarrollo matricial.",
+         "✓ Respaldado"),
     ]
-    for y0, titulo, items in clausulas:
-        _caja(ax, 4.85, y0, 8.0, 3.45, C_VD)
-        ax.text(5.1, y0 + 3.05, titulo, ha="left", va="center", fontsize=11,
-                color=C_TXT, fontweight="bold")
-        ax.text(12.6, y0 + 3.05, "✓ Se cumple", ha="right", va="center",
-                fontsize=10.5, color=C_OK, fontweight="bold")
-        for i, item in enumerate(items):
-            ax.text(5.25, y0 + 2.55 - 0.44 * i, "•  " + item, ha="left",
-                    va="center", fontsize=9.3, color=C_TXT)
-
-    ax.text(6.5, 8.2, "La hipótesis queda comprobada en sus dos cláusulas, "
-            "con criterios fijados de antemano", ha="center", va="center",
-            fontsize=11, color=C_TXT, fontweight="bold")
-    _guardar(fig, carpeta, "fig_contraste_hipotesis.png")
+    # Alto de cada fila según su contenido: la parte lleva además el renglón de
+    # su papel; 0,40 cm por renglón de 9-9,5 pt con interlineado 1,2.
+    def _renglones(s):
+        return s.count("\n") + 1
+    altos = [0.40 * max(_renglones(tramo) + 1, _renglones(prueba)) + 0.45
+             for _, _, tramo, prueba, _ in partes]
+    sep, cab, pie = 0.16, 0.75, 0.0
+    alto = cab + sum(altos) + sep * len(partes) + pie + 0.1
+    fig, ax = _lienzo(alto)
+    x1, w1 = 0.05, 6.25          # parte de la hipótesis
+    x2, w2 = 6.85, 6.25          # qué se comprobó
+    x3, w3 = 13.35, 2.52         # veredicto
+    ytop = alto - cab
+    for x, texto in [(x1, "Parte de la hipótesis"), (x2, "Evidencia"),
+                     (x3, "Veredicto")]:
+        ax.text(x + 0.1, ytop + 0.35, texto, ha="left", va="center", fontsize=9,
+                color=C_MUTED, fontweight="bold")
+    y_cursor = ytop
+    for i, (color, papel, tramo, prueba, veredicto) in enumerate(partes):
+        alto_fila = altos[i]
+        y0 = y_cursor - alto_fila
+        y_cursor = y0 - sep
+        _caja(ax, x1, y0, w1, alto_fila, color)
+        # El papel y el tramo van centrados como bloque en la altura de la caja.
+        arriba = y0 + alto_fila / 2 + 0.40 * (_renglones(tramo) + 1) / 2
+        ax.text(x1 + 0.2, arriba - 0.20, papel, ha="left", va="center",
+                fontsize=8.5, color=color if color != C_INT else "#b35c00",
+                fontweight="bold")
+        ax.text(x1 + 0.2, arriba - 0.44, tramo, ha="left", va="top",
+                fontsize=9.5, color=C_TXT, linespacing=1.2)
+        _flecha(ax, (x1 + w1 + 0.06, y0 + alto_fila / 2),
+                (x2 - 0.06, y0 + alto_fila / 2), lw=1.1)
+        ax.text(x2 + 0.05, y0 + alto_fila / 2, prueba, ha="left", va="center",
+                fontsize=9, color=C_TXT, linespacing=1.2)
+        ax.text(x3 + 0.1, y0 + alto_fila / 2, veredicto, ha="left", va="center",
+                fontsize=9.5, color=C_OK, fontweight="bold", linespacing=1.2)
+    return _guardar(fig, carpeta, "fig_contraste_hipotesis", formato)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Figura CR.2 — margen de cada criterio numérico
 # ─────────────────────────────────────────────────────────────────────────────
 
-def fig_margen_criterios(carpeta, d):
-    t = d["tasas"]
-    filas = []   # (rótulo, observado/umbral)
-    for el, col, nombre in [("q4", "L2_disp", "Tasa L², Q4"),
-                            ("q9", "L2_disp", "Tasa L², Q9"),
-                            ("q4", "H1_semi", "Tasa H¹, Q4"),
-                            ("q9", "H1_semi", "Tasa H¹, Q9")]:
-        v, p = t[(el, col)]
-        filas.append((f"{nombre}: desvío de {_coma(abs(v - p), 4)} "
-                      f"(umbral ± 0,5)", abs(v - p) / 0.5))
-    filas += [
-        (f"Flecha, Timoshenko: {_coma(d['flecha'], 2)} % (umbral < 3 %)",
-         d["flecha"] / 3.0),
-        (f"$\\sigma_x$ frente a la analítica: {_coma(d['sx_anal'], 2)} % "
-         f"(umbral < 1 %)", d["sx_anal"] / 1.0),
-        (f"$\\sigma_x$ frente a SAP2000: {_coma(d['sx_sap'], 2)} % (umbral < 1 %)",
-         d["sx_sap"] / 1.0),
-        (f"Residuo de equilibrio: {_coma(d['residuo'] * 1e13, 1)}×10⁻¹³ "
-         f"(umbral < 10⁻⁸)", d["residuo"] / 1e-8),
-        (f"Cook, Q9 con N = 8: {_coma(d['cook_err'], 3)} % (umbral < 1,5 %)",
-         d["cook_err"] / 1.5),
-    ]
-    assert all(0 < r < 1 for _, r in filas), filas
-
-    fig, ax = plt.subplots(figsize=(9.2, 4.9))
+def fig_margen_criterios(carpeta, filas, formato):
+    # Rótulos a 11,5 pt: así los exponentes y subíndices (al 70 %) no bajan de 8 pt.
+    fig = plt.figure(figsize=(ANCHO_CM * CM, 9.0 * CM))
+    ax = fig.add_axes([0.57, 0.16, 0.42, 0.81])
     ys = list(range(len(filas)))[::-1]
     x0 = 1e-6
     for y, (_, r) in zip(ys, filas):
-        ax.plot([x0, r], [y, y], color=C_GRID, lw=1.4, zorder=1,
+        ax.plot([x0, r], [y, y], color=C_GRID, lw=1.2, zorder=1,
                 solid_capstyle="round")
-        ax.plot([r], [y], "o", ms=8.5, color=C_VI, mec="white", mew=2,
+        ax.plot([r], [y], "o", ms=6.5, color=C_VI, mec="white", mew=1.5,
                 zorder=3)
-    ax.axvline(1.0, color=C_TXT, lw=1.3, zorder=2)
-    ax.axvspan(1.0, 4.0, color="#f1f3f5", zorder=0)
-    ax.text(1.12, len(filas) - 0.35, "umbral", ha="left", va="center",
-            fontsize=9.5, color=C_TXT)
-    ax.text(1.12, len(filas) - 0.95, "(no cumple\na la derecha)", ha="left",
-            va="top", fontsize=8.3, color=C_MUTED)
+    ax.axvline(1.0, color=C_TXT, lw=1.1, zorder=2)
+    ax.axvspan(1.0, 100.0, color="#f1f3f5", zorder=0)
+    ax.text(1.25, len(filas) - 0.55, "umbral", ha="left", va="center",
+            fontsize=9, color=C_TXT)
+    ax.text(1.25, len(filas) - 1.15, "no cumple\na la derecha", ha="left",
+            va="top", fontsize=8.5, color=C_MUTED, linespacing=1.15)
     ax.set_xscale("log")
-    ax.set_xlim(x0, 4.0)
-    ax.set_ylim(-0.7, len(filas) - 0.1)
+    ax.set_xlim(x0, 100.0)
+    ax.set_xticks([1e-6, 1e-4, 1e-2, 1.0])   # sin marca en 10², que el borde cortaba
+    ax.set_ylim(-0.6, len(filas) - 0.2)
     ax.set_yticks(ys)
-    ax.set_yticklabels([f for f, _ in filas], fontsize=9.3, color=C_TXT)
-    ax.set_xlabel("Valor observado dividido por su umbral (escala logarítmica)",
-                  fontsize=10, color=C_TXT)
+    ax.set_yticklabels([f for f, _ in filas], fontsize=11.5, color=C_TXT)
+    ax.set_xlabel("Observado ÷ umbral (escala logarítmica)", fontsize=9.5, color=C_TXT)
     ax.tick_params(axis="y", length=0)
-    ax.tick_params(axis="x", colors=C_MUTED, labelsize=9)
-    ax.grid(axis="x", which="major", color=C_GRID, lw=0.7)
+    ax.tick_params(axis="x", colors=C_MUTED, labelsize=11.5)
+    ax.grid(axis="x", which="major", color=C_GRID, lw=0.6)
     for lado in ("top", "right", "left"):
         ax.spines[lado].set_visible(False)
     ax.spines["bottom"].set_color(C_GRID)
     for yy in (4.5, 0.5):       # separa MMS | Timoshenko | Cook
-        ax.axhline(yy, color=C_GRID, lw=0.8, zorder=0)
-    _guardar(fig, carpeta, "fig_margen_criterios.png")
+        ax.axhline(yy, color=C_GRID, lw=0.7, zorder=0)
+    return _guardar(fig, carpeta, "fig_margen_criterios", formato)
 
 
-def main():
+def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[1])
-    ap.add_argument("--out", default=OUT_DEFECTO)
-    args = ap.parse_args()
-    print("Comprobando las cifras contra docs/vyv/datos/ y la tesis...")
+    ap.add_argument("--version", default=VERSION_DEFECTO,
+                    help="versión de la tesis: lee y escribe en tesis/capitulos_<version>/")
+    ap.add_argument("--out", default=None, help="carpeta de salida (por defecto, la figuras/ de la versión)")
+    ap.add_argument("--formato", default="pdf", choices=("pdf", "png"))
+    ap.add_argument("--solo-comprobar", action="store_true",
+                    help="comprueba las cifras contra la tesis y no dibuja nada")
+    args = ap.parse_args(argv)
+    tesis = os.path.join(_ROOT, "tesis", f"capitulos_{args.version}")
+    if not os.path.isdir(tesis):
+        _fallar(f"no existe la carpeta de la versión: {tesis}")
+    salida = args.out or os.path.join(tesis, "figuras")
+
+    configurar_estilo()
+    print("Comprobando las cifras contra docs/vyv/datos/ y la tabla de veredicto...")
     d = reunir_datos()
-    print("  cifras coinciden con tab:veredicto")
-    print("Generando figuras en:", args.out)
-    fig_relacion_variables(args.out)
-    fig_contraste_hipotesis(args.out, d)
-    fig_margen_criterios(args.out, d)
+    conteos = comprobar_veredicto(d, leer_veredicto(os.path.join(tesis, "04_resultados.tex")))
+    filas = margenes(d)
+    print(f"  cifras coinciden con tab:veredicto ({args.version}): "
+          f"(a) {conteos['a'][0]} criterios, (b) {conteos['b'][0]} criterios")
+    if args.solo_comprobar:
+        return 0
+    print("Generando figuras en:", salida)
+    fig_relacion_variables(salida, args.formato)
+    fig_contraste_hipotesis(salida, d, conteos, args.formato)
+    fig_margen_criterios(salida, filas, args.formato)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

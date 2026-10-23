@@ -1,6 +1,8 @@
 # ============================================================
 #  Artefactos de compilacion LaTeX (regenerables, no versionar)
 # ============================================================
+# latexmkrc los manda a build/ (ver ese archivo)
+build/
 *.aux
 *.bbl
 *.bcf
@@ -40,13 +42,21 @@ main_v4.pdf
 compile_v4.txt
 compile_v3.txt
 compile_final.txt
-# main_final.pdf SI se versiona: es el entregable de la version final.
+# main_final4.pdf SI se versiona: es el entregable de la version vigente (las
+# versiones anteriores guardan el suyo en archivo/).
 
 # Copias de seguridad y temporales de editores
 *.bak
 *~
 *.tmp
 *.sublime-*
+# Accesos directos de Windows (p. ej. 'main_final4.pdf - Acceso directo.lnk')
+*.lnk
+
+# Copias archivadas que ya no se usan: quedan solo en el disco del autor y no se
+# suben al repositorio (decision del autor, 2026-10-23). La defensa de final3
+# pesa 417 MB, con videos de 76-82 MB.
+presentacion/archivo/final3/
 
 # Las figuras (figuras/) SI se versionan: no estan ignoradas.
 

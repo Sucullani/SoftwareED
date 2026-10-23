@@ -12,11 +12,12 @@ al contenido de la tesis, no aplicarlas al pie de la letra. Después agregó una
 |---|---|
 | `diagnostico_miranda.pdf` (`.tex` al lado) | El diagnóstico de cada observación: lo que dijo, el veredicto (se adopta / se adopta con ajustes), por qué, y el ancla en sus láminas (PP, OG, SP) o en los talleres de Barrios. Incluye el antes y después de la formulación, la tríada objetivo → capítulo → conclusión → recomendación, y qué responder si pregunta por los ajustes. Puede mostrarse al tutor o al propio Ing. Miranda |
 
-Dónde quedó aplicado: la versión **final3** de la tesis (`tesis/main_final3.tex` +
-`tesis/capitulos_final3/`). El registro de cada cambio está en
+Dónde quedó aplicado: la versión **final3** de la tesis (hoy archivada en
+`tesis/archivo/final3/`: `main_final3.tex` + `capitulos_final3/`); final4, la vigente, conserva esa
+formulación con la hipótesis que dictó el tribunal tras la defensa de borrador. El registro de cada cambio está en
 [`../auditoria_final/IMPLEMENTACION-FINAL3.md`](../auditoria_final/IMPLEMENTACION-FINAL3.md).
 
-Compilar el diagnóstico (usa las figuras de `../capitulos_final3/figuras/`):
+Compilar el diagnóstico (usa las figuras de `../archivo/final3/capitulos_final3/figuras/`):
 
 ```
 cd tesis/observaciones_miranda

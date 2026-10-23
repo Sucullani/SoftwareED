@@ -174,6 +174,11 @@ EduFEM 2,89 %?» (pregunta D4). Si se incorpora al texto, vale la misma adverten
 
 ### H4 — «Criterios fijados de antemano»: matizar la redacción (prioridad media-alta)
 
+> **Fe de erratas (2026-10-20).** `c8885e0` no es el primer commit del proyecto (`02ab0d4`,
+> 27-02-2026), sino el que agregó estos umbrales, una semana después de las primeras corridas
+> (`ed852bf`, 25-05), cuyos resultados ya estaban en `docs/vyv/datos`. Ningún umbral precede a
+> sus resultados. final4 lo declara así en §2.1.6.
+
 **Qué pasa.** El historial de git distingue dos grupos de umbrales:
 - **3 % en la flecha, 1,5 % en Cook y ±0,5 en las tasas.** Están escritos en los guiones desde
   el primer commit del proyecto (`c8885e0`, 1 de junio). Es el registro más antiguo, y no
@@ -494,6 +499,13 @@ en Cook. Si preguntan si los fijaste antes de ver resultados, responde con la ve
 H4: los de la flecha, Cook y las tasas están en los guiones desde el primer commit; los de
 σx y el equilibrio se formalizaron el 16-09.*
 
+> **Fe de erratas (2026-10-20).** La respuesta en cursiva repite el error de H4 (véase su fe de
+> erratas). Respuesta corregida: «Ninguno antes de ver los primeros resultados. Las corridas
+> del 25 de mayo solo imprimían los errores; los umbrales de la flecha, Cook y las tasas se
+> escribieron el 1 de junio, como salvaguarda de regresión, y los de σx y del equilibrio el 16
+> de septiembre. Son tolerancias holgadas: los cuatro umbrales porcentuales quedan entre unas 5
+> y 24 veces por encima de lo observado (Figura CR.2), y el veredicto descansa en ese margen.»
+
 **A12. (difícil) «El 18 de 18 lo marcó usted. ¿No es autoevaluación?»**
 Sí, y lo declaro (p. 106). Lo que no es mío es el universo: un consenso publicado de 67
 expertos (Pérez-Santiago y Campos, pp. 1162-1163). La regla de marcado está escrita
@@ -659,6 +671,10 @@ En sentido estricto la validación exige experimentos, y lo digo (p. 35). Mi con
 verificación de solución y comparación código a código. En el OE3, «validar» cubre además
 el sentido metodológico: comprobar que la solución cumple criterios fijados de antemano
 (p. 35).
+
+> **Fe de erratas (2026-10-21).** Esta respuesta repite el error de H4 (véase su fe de erratas).
+> final4 dice en §1.13 «sus criterios de aceptación explícitos»: responder con esa expresión y,
+> si preguntan cuándo se fijaron los umbrales, con la respuesta corregida de A11.
 
 **D2. «Explique el MMS. ¿Qué verifica y qué no?»**
 Elijo un campo exacto, deduzco la fuerza de cuerpo que lo produce y mido si el error baja

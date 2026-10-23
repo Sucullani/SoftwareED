@@ -1,15 +1,15 @@
 ---
 name: tesis-bibliografia
-description: Agrega y gestiona referencias de la tesis de EduFEM en biblatex/Vancouver (convencion de claves, campos obligatorios por tipo, sin DOIs/ISBNs inventados, como citar y compilar). Usar al anadir o corregir bibliografia de la version vigente de la tesis (hoy tesis/capitulos_final3/referencias.bib).
+description: Agrega y gestiona referencias de la tesis de EduFEM en biblatex/Vancouver (convencion de claves, campos obligatorios por tipo, sin DOIs/ISBNs inventados, como citar y compilar). Usar al anadir o corregir bibliografia de la version vigente de la tesis (hoy tesis/capitulos_final4/referencias.bib).
 ---
 
 # Bibliografia de la tesis (biblatex + biber, estilo Vancouver)
 
 Cada version final lleva su propia bibliografia. La de la **version vigente** vive en
-`tesis/capitulos_final3/referencias.bib`; `tesis/bibliografia/referencias.bib` es la de
-`main_final.tex` (base auditada, no se edita) y la carpeta guarda ademas los ejemplares PDF
+`tesis/capitulos_final4/referencias.bib`; `tesis/bibliografia/referencias.bib` es la de
+`tesis/archivo/final/main_final.tex` (base auditada, no se edita) y la carpeta guarda ademas los ejemplares PDF
 consultados. El estilo es **Vancouver**: citas numericas por orden de aparicion, lista de
-referencias numerada. El preambulo de la version vigente (`tesis/capitulos_final3/preambulo.tex`)
+referencias numerada. El preambulo de la version vigente (`tesis/capitulos_final4/preambulo.tex`)
 ya carga biblatex con biber.
 
 ## Convencion de claves
@@ -76,7 +76,7 @@ Usa los nombres de campo de biblatex, no los alias legacy de BibTeX: `journaltit
 Desde `tesis/`:
 
 ```
-latexmk -xelatex main_final3.tex
+latexmk -xelatex main_final4.tex
 ```
 
 (latexmk corre xelatex y biber las veces necesarias; la version vigente usa la Times New Roman real del sistema, que solo XeLaTeX puede cargar.)
@@ -110,7 +110,8 @@ Validacion: manual de SAP2000 (CSI). Metodologia (unicas fuentes en espanol del 
 Alvarez de Zayas (objeto de estudio, campo de accion, problema cientifico, modelo teorico),
 Hernandez-Sampieri y Mendoza 2018 (enfoque cuantitativo, variables, muestra dirigida) y
 Garcia-Cordoba 2005 (investigacion tecnologica en ingenierias; la **hipotesis tecnologica**
-de su p. 85 es la que sostiene que esta tesis plantee hipotesis de diseno y no estadistica).
+de su p. 85 es la que sostiene que la hipotesis de esta tesis sea la solucion tentativa a un
+problema concreto, que se aprueba o no al construirla y ponerla a prueba).
 
 **No volver a citar el material docente de la carrera** (`tesis/Material docente/`): se uso el
 2026-09-08 y se retiro el 2026-09-09. Son diapositivas sin bibliografia —material terciario sin
@@ -121,7 +122,7 @@ estan **gitignorados** (material con copyright, repo publico). Sacar de ahi los 
 portada y pagina de creditos, nunca la web.
 
 **Localizadores de pagina: regla unica (2026-09-16), declarada en la Introduccion de la tesis
-("Estructura del documento").** Llevan `[p.~NN]` (o `[pp.~a-b]`, `[art.~n, pp.~a-b]`) las
+("Normas de citacion y presentacion").** Llevan `[p.~NN]` (o `[pp.~a-b]`, `[art.~n, pp.~a-b]`) las
 citas que sostienen una ecuacion, un valor numerico, un umbral, una definicion o una
 atribucion concreta; van sin localizador las citas de encuadre (mencion de la literatura o
 del producto en general). La pagina sale de `tesis/respaldo_citas/verificado.json` (pagina
