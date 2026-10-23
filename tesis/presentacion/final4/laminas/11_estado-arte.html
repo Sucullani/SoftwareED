@@ -1,0 +1,148 @@
+<section class="lamina" id="estado-arte" data-bloque="teoria" data-titulo="Estado del arte y requisitos" data-pasos="3">
+  <!-- grupo: formulacion -->
+  <div class="cabecera">
+    <div class="rotulo" data-auto data-sec="§ 1.1 · Tabla 1.1 · § 2.2.1"></div>
+    <h2 class="titulo">Estado del arte: la brecha y los cinco requisitos</h2>
+  </div>
+
+  <!-- Pasos (viz/l4_formulacion.js, «ea-matriz»):
+       0 la matriz de la Tabla 1.1 (ocho atributos × cinco recursos) se arma columna por columna
+       1 entra la columna EduFEM
+       2 el vacío: las filas de la memoria de cálculo y de la verificación y validación publicada
+       3 la matriz se repliega; de ella salen los cinco requisitos (§ 2.2.1) y los cuatro
+         principios que orientan la exposición (§ 1.2)
+       Celdas: las de la lámina «estado-arte» de final3, cotejadas una por una con la Tabla 1.1 de
+       final4 (filas Idioma, Licencia, Dimensión y Elementos, Cálculo paso a paso, Procedimiento
+       completo, Memoria de cálculo automática, Fenómenos numéricos observables, Verificación y
+       validación publicada). -->
+  <div class="ea" data-viz="ea-matriz">
+    <div class="ea-mat">
+      <div class="ea-fila ea-cab">
+        <div class="ea-esq">Atributo</div>
+        <div class="ea-rec"><b>ED-Elas2D</b><small>[6] · 1998</small></div>
+        <div class="ea-rec"><b>Analizador de cerchas</b><small>[10]</small></div>
+        <div class="ea-rec"><b>VisualFEA</b><small>simuladores [9, 17]</small></div>
+        <div class="ea-rec"><b>Bibliotecas</b><small>CALFEM, FEniCS</small></div>
+        <div class="ea-rec"><b>Software comercial</b><small>SAP2000 [18], ANSYS, Abaqus</small></div>
+        <div class="ea-rec edu" data-paso="1"><b>EduFEM</b><small>esta tesis</small></div>
+      </div>
+      <div class="ea-fila">
+        <div class="ea-attr"><i>1</i>Interfaz en español</div>
+        <div class="ea-c nc"><span><i class="ea-i">?</i>No consta: capturas en inglés</span></div>
+        <div class="ea-c no"><span><i class="ea-i">✗</i>Inglés</span></div>
+        <div class="ea-c no"><span><i class="ea-i">✗</i>Inglés</span></div>
+        <div class="ea-c no"><span><i class="ea-i">✗</i>Inglés</span></div>
+        <div class="ea-c parcial"><span><i class="ea-i"></i>Inglés (localización parcial)</span></div>
+        <div class="ea-c si edu" data-paso="1" data-retraso="0"><span><i class="ea-i">✓</i>Español</span></div>
+      </div>
+      <div class="ea-fila">
+        <div class="ea-attr"><i>2</i>Libre y código abierto</div>
+        <div class="ea-c nc"><span><i class="ea-i">?</i>No consta</span></div>
+        <div class="ea-c nc"><span><i class="ea-i">?</i>No declarada (código MATLAB)</span></div>
+        <div class="ea-c no"><span><i class="ea-i">✗</i>Comercial</span></div>
+        <div class="ea-c si"><span><i class="ea-i">✓</i>Libre</span></div>
+        <div class="ea-c no"><span><i class="ea-i">✗</i>Comercial</span></div>
+        <div class="ea-c si edu" data-paso="1" data-retraso="110"><span><i class="ea-i">✓</i>Libre (MIT), código abierto</span></div>
+      </div>
+      <div class="ea-fila">
+        <div class="ea-attr"><i>3</i>Continuo elástico plano</div>
+        <div class="ea-c si"><span><i class="ea-i">✓</i>2D: triángulos y Q4, Q8, Q9</span></div>
+        <div class="ea-c no"><span><i class="ea-i">✗</i>Barras (cercha)</span></div>
+        <div class="ea-c si"><span><i class="ea-i">✓</i>Continuo, placas, láminas y sólidos</span></div>
+        <div class="ea-c si"><span><i class="ea-i">✓</i>Diversos</span></div>
+        <div class="ea-c si"><span><i class="ea-i">✓</i>Amplios</span></div>
+        <div class="ea-c si edu" data-paso="1" data-retraso="220"><span><i class="ea-i">✓</i>2D: Q4 y Q9</span></div>
+      </div>
+      <div class="ea-fila">
+        <div class="ea-attr"><i>4</i>Paso a paso sobre el modelo</div>
+        <div class="ea-c si"><span><i class="ea-i">✓</i>Alta: matrices de cada etapa</span></div>
+        <div class="ea-c parcial"><span><i class="ea-i"></i>Media-alta (en el código)</span></div>
+        <div class="ea-c si"><span><i class="ea-i">✓</i>Alta, hasta la solución</span></div>
+        <div class="ea-c parcial"><span><i class="ea-i"></i>En el código, sin guía visual</span></div>
+        <div class="ea-c no"><span><i class="ea-i">✗</i>Baja (caja negra)</span></div>
+        <div class="ea-c si edu" data-paso="1" data-retraso="330"><span><i class="ea-i">✓</i>Alta: ocho módulos</span></div>
+      </div>
+      <div class="ea-fila">
+        <div class="ea-attr"><i>5</i>Procedimiento completo</div>
+        <div class="ea-c si"><span><i class="ea-i">✓</i>Sí</span></div>
+        <div class="ea-c parcial"><span><i class="ea-i"></i>Parcial (solo barras)</span></div>
+        <div class="ea-c parcial"><span><i class="ea-i"></i>Sin recuperación de tensiones</span></div>
+        <div class="ea-c parcial"><span><i class="ea-i"></i>Parcial (programando)</span></div>
+        <div class="ea-c no"><span><i class="ea-i">✗</i>No concebido para la enseñanza</span></div>
+        <div class="ea-c si edu" data-paso="1" data-retraso="440"><span><i class="ea-i">✓</i>Sí</span></div>
+      </div>
+      <div class="ea-fila" data-clase-paso="2:vacio">
+        <div class="ea-attr"><i>6</i>Memoria de cálculo</div>
+        <div class="ea-c nc"><span><i class="ea-i">?</i>No consta</span></div>
+        <div class="ea-c nc"><span><i class="ea-i">?</i>No consta</span></div>
+        <div class="ea-c parcial"><span><i class="ea-i"></i>En pantalla, no como documento</span></div>
+        <div class="ea-c no"><span><i class="ea-i">✗</i>La programa el usuario</span></div>
+        <div class="ea-c no"><span><i class="ea-i">✗</i>Informes sin el desarrollo matricial</span></div>
+        <div class="ea-c si edu" data-paso="1" data-retraso="550"><span><i class="ea-i">✓</i>PDF con sustitución numérica</span></div>
+      </div>
+      <div class="ea-fila alta">
+        <div class="ea-attr"><i>7</i>Fenómenos numéricos</div>
+        <div class="ea-c nc"><span><i class="ea-i">?</i>No consta</span></div>
+        <div class="ea-c nc"><span><i class="ea-i">?</i>No consta</span></div>
+        <div class="ea-c si"><span><i class="ea-i">✓</i>Modos espurios y bloqueo</span></div>
+        <div class="ea-c parcial"><span><i class="ea-i"></i>Programando, sin guía</span></div>
+        <div class="ea-c no"><span><i class="ea-i">✗</i>Solo a través de los resultados</span></div>
+        <div class="ea-c si edu" data-paso="1" data-retraso="660"><span><i class="ea-i">✓</i>Distorsión, espurios, bloqueo y condicionamiento</span></div>
+      </div>
+      <div class="ea-fila alta" data-clase-paso="2:vacio">
+        <div class="ea-attr"><i>8</i>Verificación y validación publicada</div>
+        <div class="ea-c nc"><span><i class="ea-i">?</i>No consta</span></div>
+        <div class="ea-c nc"><span><i class="ea-i">?</i>No consta</span></div>
+        <div class="ea-c nc"><span><i class="ea-i">?</i>No consta</span></div>
+        <div class="ea-c raya"><span><i class="ea-i">—</i>No evaluado</span></div>
+        <div class="ea-c raya"><span><i class="ea-i">—</i>No evaluado</span></div>
+        <div class="ea-c si edu" data-paso="1" data-retraso="770"><span><i class="ea-i">✓</i>Sí: tres casos de estudio</span></div>
+      </div>
+    </div>
+
+    <!-- leyenda (pasos 0 y 1) y el vacío (paso 2), en la misma franja -->
+    <div class="ea-ley" data-hasta="1">
+      <span><i class="ea-i si">✓</i>sí</span>
+      <span><i class="ea-i parcial"></i>parcial</span>
+      <span><i class="ea-i no">✗</i>no</span>
+      <span><i class="ea-i nc">?</i>no consta: la publicación no lo documenta</span>
+      <span><i class="ea-i raya">—</i>no evaluado en las categorías generales</span>
+    </div>
+    <div class="ea-vacio" data-solo="2"><b>El vacío:</b> ningún recurso didáctico revisado documenta una memoria de cálculo reproducible a mano ni una verificación y validación publicada junto con la herramienta.</div>
+
+    <!-- Paso 3 · los cinco requisitos (§ 2.2.1) y los cuatro principios (§ 1.2) -->
+    <div class="ea-req-tit" data-paso="3" data-retraso="300">De esa brecha salen cinco requisitos <span>(§ 2.2.1)</span></div>
+    <div class="ea-reqs">
+      <div class="ea-req" data-paso="3" data-retraso="420" data-anim="escala">
+        <span class="n">1</span><span class="t">El procedimiento de cálculo completo, a la vista sobre el modelo del usuario</span>
+        <span class="d"><i class="ea-dim" data-ico="traza"></i>Trazabilidad</span>
+      </div>
+      <div class="ea-req" data-paso="3" data-retraso="600" data-anim="escala">
+        <span class="n">2</span><span class="t">Una memoria de cálculo reproducible a mano</span>
+        <span class="d"><i class="ea-dim" data-ico="ambas"></i>Trazabilidad y verificabilidad</span>
+      </div>
+      <div class="ea-req" data-paso="3" data-retraso="780" data-anim="escala">
+        <span class="n">3</span><span class="t">Exactitud verificada y validada, publicada junto con la herramienta</span>
+        <span class="d"><i class="ea-dim" data-ico="verif"></i>Verificabilidad</span>
+      </div>
+      <div class="ea-req" data-paso="3" data-retraso="960" data-anim="escala">
+        <span class="n">4</span><span class="t">La cobertura del contenido que exige un consenso publicado de expertos</span>
+        <span class="d"><i class="ea-dim" data-ico="traza"></i>Trazabilidad del contenido</span>
+      </div>
+      <div class="ea-req quinto" data-paso="3" data-retraso="1140" data-anim="escala">
+        <span class="n">5</span><span class="t">Un software libre y en español</span>
+        <span class="d"><i class="ea-dim" data-ico="alcance"></i>Al alcance del estudiante</span>
+      </div>
+    </div>
+    <div class="ea-princ-tit" data-paso="3" data-retraso="1700">Cuatro principios orientan cómo exponer el procedimiento <span>(§ 1.2)</span></div>
+    <div class="ea-princ">
+      <!-- citas con página, las de § 1.2 de final4 (el cuarto principio reúne las dos citas de su
+           párrafo: [3, pp. 1159, 1171] y [3, p. 1168]). Los espacios duros dejan cortar el renglón
+           solo entre referencias, nunca entre «p.» y su número -->
+      <div class="ea-p" data-paso="3" data-retraso="1900"><i class="ea-pi" data-ico="ojo"></i><div><b>Visibilidad del procedimiento</b><small>[9,&nbsp;p.&nbsp;157; 17,&nbsp;p.&nbsp;872; 10,&nbsp;p.&nbsp;1008]</small></div></div>
+      <div class="ea-p" data-paso="3" data-retraso="2080"><i class="ea-pi" data-ico="mano"></i><div><b>Interactividad con vínculo al modelo</b><small>[9,&nbsp;pp.&nbsp;158,&nbsp;163,&nbsp;166,&nbsp;168; 17,&nbsp;p.&nbsp;874]</small></div></div>
+      <div class="ea-p" data-paso="3" data-retraso="2260"><i class="ea-pi" data-ico="escalera"></i><div><b>Construcción paso a paso</b><small>[10,&nbsp;pp.&nbsp;1010–1011, 1019,&nbsp;1023]</small></div></div>
+      <div class="ea-p" data-paso="3" data-retraso="2440"><i class="ea-pi" data-ico="puente"></i><div><b>Conexión entre fundamento y operación</b><small>[3,&nbsp;pp.&nbsp;1159,&nbsp;1168,&nbsp;1171]</small></div></div>
+    </div>
+  </div>
+</section>

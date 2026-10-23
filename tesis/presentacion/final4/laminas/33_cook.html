@@ -1,0 +1,79 @@
+<section class="lamina" id="cook" data-bloque="resultados" data-titulo="Membrana de Cook" data-pasos="3">
+  <!-- grupo: resultados -->
+  <div class="cabecera">
+    <div class="rotulo" data-auto data-sec="§ 3.5 · Tabla 3.4 · Figura 3.4"></div>
+    <h2 class="titulo">Validación 2: la membrana de Cook y el bloqueo del Q4</h2>
+  </div>
+
+  <!-- § 3.5 de final4 (Tabla 3.4, Figura 3.4). Pasos (viz/l4_resultados.js, «r33-cook»):
+       0 la membrana (datos del motor): trapecio empotrado, carga tangencial, u_y en (48; 52);
+         referencia 23,96 (extrapolación ≈ 23,97; publicada 23,965 [26, p. 28])
+       1 Figura 3.4 TAL CUAL (figdoc «cook»): se traza el Q4; la membrana muestra la malla de
+         cada punto que aparece; −50,563 % con N = 2, −0,594 % con N = 32
+       2 se traza el Q9: con N = 8, 23,925 y 0,144 % (umbral 1,5 %); a 578 GDL, más de diez veces menor
+       3 por qué: el bloqueo por cortante (video), la flecha del Q4 menor que la del Q9 en las cinco
+         mallas, y los cinco valores del Q4 iguales a los de Štembera y Füssl [26, p. 28] -->
+  <div class="r3 r33">
+
+    <!-- ============================== columna izquierda: la membrana (pasos 0 a 2) -->
+    <div class="r33-memb" data-hasta="2">
+      <div class="r33-lienzo"></div>
+      <div class="r33-info" data-paso="1">
+        <div class="r33-info-el"></div>
+        <div class="r33-info-gdl"></div>
+        <div class="r33-info-uy"></div>
+        <div class="r33-info-err"></div>
+      </div>
+    </div>
+    <div class="r33-ficha q4" data-solo="1" data-retraso="1900">
+      <div class="r33-ft"><b>Q4</b>: se queda corto y se acerca despacio</div>
+      <div class="r33-fn"><span><b>−50,563 %</b> con N = 2</span><span><b>−0,594 %</b> con N = 32</span></div>
+    </div>
+    <div class="r33-ficha q9" data-solo="2" data-retraso="2000">
+      <div class="r33-ft"><b>Q9</b>: con N = 8, error de <b>0,144 %</b> <span>(umbral 1,5 %)</span></div>
+      <div class="r33-fx">Con 578 GDL, su error es <b>más de diez veces menor</b> que el del Q4 (−0,144 % frente a −2,210 %)</div>
+    </div>
+
+    <!-- ============================== paso 3: por qué, y el contraste externo -->
+    <div class="r33-video" data-paso="3">
+      <div class="r33-vid" data-viz="video" data-src="assets/video/cantilever_q4_q9.mp4" data-cuadros="88" data-fps="22"></div>
+      <div class="r33-vt q4">Q4: sus bordes quedan rectos</div>
+      <div class="r33-vt q9">Q9: sus bordes se curvan</div>
+    </div>
+    <div class="r33-vpie" data-paso="3">En flexión pura, el Q4 resulta demasiado rígido</div>
+    <div class="r33-stem" data-paso="3" data-retraso="700">
+      <div class="r33-st-tit">Contraste externo: Štembera y Füssl [26, p. 28], cuatro nodos</div>
+      <table class="r33-tab">
+        <thead><tr><th>N</th><th>2</th><th>4</th><th>8</th><th>16</th><th>32</th></tr></thead>
+        <tbody>
+          <tr class="edu"><td>EduFEM, Q4</td><td>11,845</td><td>18,299</td><td>22,079</td><td>23,430</td><td>23,818</td></tr>
+          <tr class="pub"><td>Štembera y Füssl</td><td>11,845</td><td>18,299</td><td>22,079</td><td>23,430</td><td>23,818</td></tr>
+        </tbody>
+      </table>
+      <div class="r33-st-rem" data-paso="3" data-retraso="2700">Los mismos valores, hasta la última cifra publicada</div>
+    </div>
+
+    <!-- ============================== columna derecha: el caso (paso 0) y la Figura 3.4 -->
+    <div class="tarjeta r33-caso" data-solo="0">
+      <div class="r3-etq">Un clásico de la literatura [26, p. 27]</div>
+      <p class="r33-c1">Un trapecio que combina <b>flexión, cortante y distorsión</b></p>
+      <div class="r33-ref" data-entrada="1" data-retraso="1700">
+        <span class="r33-ref-n">23,96</span>
+        <span class="r33-ref-t">valor de referencia, de uso extendido, de u<sub>y</sub> en (48; 52)</span>
+      </div>
+      <p class="r33-c2" data-entrada="2" data-retraso="2200">Lo corroboran una extrapolación propia (≈ 23,97) y el valor publicado, 23,965 [26, p. 28]</p>
+    </div>
+
+    <div class="r3-fig r33-fig" data-paso="1">
+      <div class="r3-figdoc" data-viz="figdoc" data-fig="cook" data-fig-pasos='{"1":["serie_q4"],"2":["serie_q9"]}'></div>
+      <svg class="r3-sobre r33-sobre" viewBox="0 0 504 360" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
+      <span class="r3-fuente-fig">Figura 3.4</span>
+    </div>
+    <div class="r33-sellos">
+      <span class="l4-sello" data-paso="2" data-retraso="2300"><span>Exactitud del Q9 · se cumple</span></span>
+      <span class="l4-sello" data-paso="3" data-retraso="1300"><span>Bloqueo del Q4, en las 5 mallas · se cumple</span></span>
+    </div>
+
+    <div class="r3-motor" data-viz="r33-cook" aria-hidden="true"></div>
+  </div>
+</section>

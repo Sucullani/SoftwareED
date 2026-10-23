@@ -1,0 +1,45 @@
+<section class="lamina" id="demo" data-bloque="diseno" data-titulo="Demostración" data-pasos="1">
+  <!-- grupo: software -->
+  <div class="cabecera">
+    <div class="rotulo" data-auto data-sec="Anexo B · Tabla B.1 · Figura 3.5"></div>
+    <h2 class="titulo">Demostración en vivo</h2>
+  </div>
+
+  <!-- El guion de la demostración (Anexo B: Ctrl+E carga el ejemplo guía, F5 resuelve tras el
+       comprobador de salud, Ctrl+1 a Ctrl+7 abren M1 a M7, el clic derecho abre la sonda con su
+       círculo de Mohr, Archivo ▸ Exportar genera la memoria de cálculo) y, por si el equipo de la
+       sala falla y para el video, un recorrido con capturas reales (viz/l4_software.js, «sw24-demo»):
+       0 el guion, con la primera captura quieta · 1 el recorrido: cada captura con un acercamiento
+       lento (4 s cada una, en bucle) y el paso del guion que le corresponde resaltado. -->
+  <div class="sw sw24" data-viz="sw24-demo">
+    <div class="sw24-pasos">
+      <div class="sw24-p" data-entrada="1"><span class="k">1</span><span class="ico"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M8 50 L20 14 L44 14 L56 50 Z M20 14 L32 50 M44 14 L32 50 M14 32 L50 32" style="fill:var(--h-int-suave);stroke:var(--h-int);stroke-width:3.5;stroke-linejoin:round"/><circle cx="32" cy="50" r="5" style="fill:var(--h-int)"/></svg></span><div><b>Cargar el ejemplo guía</b><span>Ayuda ▸ Cargar ejemplo · Ctrl+E</span></div></div>
+      <div class="sw24-p" data-entrada="2"><span class="k">2</span><span class="ico"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 6 L54 14 V30 C54 44 44 54 32 58 C20 54 10 44 10 30 V14 Z" style="fill:var(--h-ok-suave);stroke:var(--h-ok);stroke-width:3.5;stroke-linejoin:round"/><path d="M21 31 L29 39 L43 23" style="fill:none;stroke:var(--h-ok);stroke-width:5;stroke-linecap:round;stroke-linejoin:round"/></svg></span><div><b>Comprobar y resolver</b><span>F5 · primero revisa el comprobador de salud</span></div></div>
+      <div class="sw24-p" data-entrada="3"><span class="k">3</span><span class="ico"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 30 L58 42 L32 54 L6 42 Z" style="fill:var(--superficie-3);stroke:var(--texto-3);stroke-width:3;stroke-linejoin:round"/><path d="M32 12 L58 24 L32 36 L6 24 Z" style="fill:var(--h-int-suave);stroke:var(--h-int);stroke-width:3.5;stroke-linejoin:round"/></svg></span><div><b>Abrir un módulo sobre un elemento</b><span>Ctrl+1 … Ctrl+7 y clic en el elemento</span></div></div>
+      <div class="sw24-p" data-entrada="4"><span class="k">4</span><span class="ico"><svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="20" style="fill:none;stroke:var(--h-int);stroke-width:3.5"/><path d="M32 4 V18 M32 46 V60 M4 32 H18 M46 32 H60" style="stroke:var(--h-int);stroke-width:3.5;stroke-linecap:round"/><circle cx="32" cy="32" r="6" style="fill:var(--h-int)"/></svg></span><div><b>Consultar un nodo con la sonda</b><span>clic derecho: tensiones y círculo de Mohr</span></div></div>
+      <div class="sw24-p" data-entrada="5"><span class="k">5</span><span class="ico"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M14 4 H40 L52 16 V60 H14 Z" style="fill:var(--superficie);stroke:var(--h-int);stroke-width:3.5;stroke-linejoin:round"/><path d="M40 4 V16 H52" style="fill:none;stroke:var(--h-int);stroke-width:3.5;stroke-linejoin:round"/><path d="M21 28 H45 M21 36 H45 M21 44 H37" style="stroke:var(--texto-3);stroke-width:3;stroke-linecap:round"/></svg></span><div><b>Generar la memoria de cálculo</b><span>Archivo ▸ Exportar: un PDF</span></div></div>
+      <div class="sw24-botones grupo-botones solo-vivo">
+        <button class="boton acento" data-ir="demo" data-ir-paso="1" data-sin-historial>▶ Recorrido</button>
+        <button class="boton" data-ir="trazabilidad">◆ Trazabilidad</button>
+        <button class="boton" data-ir="r-calculo-manual">◆ Cálculo a mano</button>
+      </div>
+    </div>
+
+    <div class="sw24-der">
+      <div class="sw24-tit" data-entrada="6">Recorrido de respaldo <b>· capturas reales de EduFEM</b></div>
+      <div class="sw24-marco" data-entrada="6" data-pptx-clip="recorrido:16000:ciclo">
+        <div class="sw24-cuadro" data-rotulo="Pre-proceso: el ejemplo guía cargado, en tablas y en el lienzo"><img src="assets/img/fig_app_completa.png" alt="EduFEM en pre-proceso con el ejemplo guía cargado"></div>
+        <div class="sw24-cuadro" data-rotulo="Proceso: el módulo M3, desplegado sobre el elemento elegido"><img src="assets/img/fig_modulo_capa.png" alt="Módulo M3 sobre el elemento E1"></div>
+        <div class="sw24-cuadro" data-rotulo="Post-proceso: von Mises, reacciones y la sonda en el nodo 7"><img src="assets/img/fig_postproceso.png" alt="Post-proceso con la sonda en el nodo 7"></div>
+        <div class="sw24-cuadro" data-rotulo="La memoria de cálculo del ejemplo guía (Anexo G)"><img src="assets/img/l4/software_hojas.png" alt="Hojas del Anexo G: datos, el elemento E3 y los resultados"></div>
+        <div class="sw24-rot"></div>
+      </div>
+      <div class="sw24-tira" data-entrada="7">
+        <div class="sw24-mini"><div class="im"><img src="assets/img/fig_app_completa.png" alt=""></div><span>Pre-proceso</span></div>
+        <div class="sw24-mini"><div class="im"><img src="assets/img/fig_modulo_capa.png" alt=""></div><span>Módulo M3</span></div>
+        <div class="sw24-mini"><div class="im"><img src="assets/img/fig_postproceso.png" alt=""></div><span>Post-proceso y sonda</span></div>
+        <div class="sw24-mini"><div class="im"><img src="assets/img/l4/software_hojas.png" alt=""></div><span>Memoria de cálculo</span></div>
+      </div>
+    </div>
+  </div>
+</section>

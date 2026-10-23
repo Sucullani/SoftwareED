@@ -1,0 +1,91 @@
+<section class="lamina" id="mms" data-bloque="resultados" data-titulo="Verificación (MMS)" data-pasos="3">
+  <!-- grupo: resultados -->
+  <div class="cabecera">
+    <div class="rotulo" data-auto data-sec="§ 3.2 · Tabla 3.1 · Figura 3.1"></div>
+    <h2 class="titulo">Verificación: el error baja como predice la teoría</h2>
+  </div>
+
+  <!-- § 3.2 de final4 (Tabla 3.1, Tabla D.3, Figura 3.1). Pasos (viz/l4_resultados.js, «r31-mms»):
+       0 la idea: una solución exacta fabricada, las mallas N = 2 … 32 y el error de cada una
+       1 Figura 3.1 (a) TAL CUAL (figdoc «mms_l2»): se traza el Q4 y su recta O(h²); el triángulo
+         «h ÷ 2 → error ÷ 4» entre N = 16 y N = 32; ficha «pendiente 2,00, teórica 2»
+       2 se traza el Q9 y su O(h³); triángulo «h ÷ 2 → error ÷ 8»; ficha «3,00, teórica 3»
+       3 Figura 3.1 (b) (figdoc «mms_h1») junto a la (a): 1,00 y 2,00; las cuatro configuraciones
+         (Tabla D.3) dan las mismas tasas; sello «teórica ± 0,5 · se cumple».
+       Sin decir que el MMS verifica la matriz constitutiva (CRITERIOS de final4, H1). -->
+  <div class="r3 r31">
+
+    <!-- ============================== paso 0 · la idea -->
+    <div class="r31-idea" data-solo="0">
+      <div class="r31-preg" data-entrada="1">Verificar: <b>¿resuelve bien sus ecuaciones?</b></div>
+
+      <div class="r31-panel r31-p1" data-entrada="2">
+        <div class="r31-pt"><i>1</i>Una solución exacta, fabricada</div>
+        <div class="r31-campos">
+          <figure><canvas class="r31-cu" width="230" height="230"></canvas><figcaption data-tex="u_M=\sin\pi x\,\sin\pi y"></figcaption></figure>
+          <figure><canvas class="r31-cv" width="230" height="230"></canvas><figcaption data-tex="v_M=\cos\pi x\,\cos\pi y"></figcaption></figure>
+        </div>
+      </div>
+      <div class="r31-fl f1" data-entrada="3">→</div>
+
+      <div class="r31-panel r31-p2" data-entrada="3" data-retraso="420">
+        <div class="r31-pt"><i>2</i>EduFEM la calcula en mallas cada vez más finas</div>
+        <div class="r31-mallas"></div>
+        <div class="r31-h"><b>h</b> = 1/N: el tamaño de los elementos</div>
+      </div>
+      <div class="r31-fl f2" data-entrada="4" data-retraso="1700">→</div>
+
+      <div class="r31-panel r31-p3" data-entrada="4" data-retraso="1800">
+        <div class="r31-pt"><i>3</i>Se mide su error</div>
+        <div class="r31-err" data-tex="\lVert u_h-u_M\rVert"></div>
+        <div class="r31-err-tx">entre lo que calcula EduFEM y la solución exacta</div>
+      </div>
+
+      <div class="r3-remate r31-pred" data-entrada="5" data-retraso="2400"><span class="ico">◆</span><span>Si resuelve bien, el error baja <b>al ritmo que predice la teoría</b>.</span></div>
+    </div>
+
+    <!-- ============================== pasos 1 a 3 · la Figura 3.1 de la tesis, tal cual -->
+    <div class="r3-fig r31-fig r31-fa" data-paso="1">
+      <div class="r3-figdoc" data-viz="figdoc" data-fig="mms_l2" data-fig-escalon="1650"
+           data-fig-pasos='{"1":["serie_q4","pend_q4"],"2":["serie_q9","pend_q9"]}'></div>
+      <svg class="r3-sobre r31-sobre" viewBox="0 0 504 360" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
+      <span class="r3-fuente-fig">Figura 3.1 (a)</span>
+    </div>
+
+    <div class="tarjeta r31-lee" data-paso="1" data-hasta="2">
+      <div class="r3-etq">Cómo se lee la gráfica</div>
+      <div class="r31-item"><i class="r3-ico" data-ico="malla"></i><span><b>Cada punto es una malla</b></span></div>
+      <div class="r31-mini"></div>
+      <div class="r31-item"><i class="r3-ico" data-ico="ejes"></i><span>A la izquierda, <b>mallas más finas</b>; abajo, <b>menos error</b></span></div>
+      <div class="r31-item"><i class="r3-ico" data-ico="pendiente"></i><span><b>Pendiente</b>: cuánto baja el error si h se divide por 2</span></div>
+    </div>
+
+    <div class="r3-fig r31-fig r31-fb" data-paso="3">
+      <div class="r3-figdoc" data-viz="figdoc" data-fig="mms_h1" data-fig-escalon="650"
+           data-fig-pasos='{"3":["serie_q4","serie_q9","pend_q4","pend_q9"]}'></div>
+      <span class="r3-fuente-fig">Figura 3.1 (b)</span>
+    </div>
+
+    <!-- tasas asintóticas (N = 16 → 32), Tabla 3.1: cada una bajo su figura -->
+    <div class="r31-chips r31-ca">
+      <div class="r31-chip q4" data-paso="1" data-retraso="2350"><b>Q4</b><span class="pend">pendiente <strong>2,00</strong></span><span class="teo">teórica 2</span></div>
+      <div class="r31-chip q9" data-paso="2" data-retraso="2250"><b>Q9</b><span class="pend">pendiente <strong>3,00</strong></span><span class="teo">teórica 3</span></div>
+    </div>
+    <div class="r31-chips r31-cb">
+      <div class="r31-chip q4" data-paso="3" data-retraso="1900"><b>Q4</b><span class="pend">pendiente <strong>1,00</strong></span><span class="teo">teórica 1</span></div>
+      <div class="r31-chip q9" data-paso="3" data-retraso="2550"><b>Q9</b><span class="pend">pendiente <strong>2,00</strong></span><span class="teo">teórica 2</span></div>
+    </div>
+
+    <!-- las cuatro configuraciones (Tabla D.3) y el criterio -->
+    <div class="r31-cierre" data-paso="3" data-retraso="2850">
+      <div class="r31-conf">
+        <span class="r31-cfg" data-cfg="cuad"></span><span class="r31-cfg" data-cfg="dist"></span>
+        <span class="r31-conf-tx"><b>Cuadrado y distorsionado, en tensión y en deformación plana:</b> las mismas tasas, con diferencias menores que 0,01 <small>(Tabla D.3)</small></span>
+      </div>
+      <span class="l4-sello">Teórica ± 0,5 · se cumple</span>
+    </div>
+
+    <!-- la animación va al final: actúa después de que «figdoc» deja cada serie en su estado -->
+    <div class="r3-motor" data-viz="r31-mms" aria-hidden="true"></div>
+  </div>
+</section>

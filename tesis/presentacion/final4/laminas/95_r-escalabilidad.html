@@ -1,0 +1,26 @@
+<section class="lamina" id="r-escalabilidad" data-respaldo data-titulo="Desempeño del motor">
+  <!-- grupo: respaldo -->
+  <div class="cabecera">
+    <div class="rotulo"><span class="num">R</span><span>Respaldo</span><span class="fuente-sec">· § 3.7.4 · Tabla 3.9</span></div>
+    <h2 class="titulo">Mallas grandes: más de 33 000 GDL en menos de un segundo</h2>
+  </div>
+  <div class="r-cuerpo">
+    <div class="r-kpis">
+      <div class="r-kpi"><b>0,721 s</b><span>ensamblar y resolver 33 282 GDL (Cook, Q9)</span></div>
+      <div class="r-kpi"><b>12,77 MB</b><span>la matriz de rigidez guardando solo sus valores no nulos</span></div>
+      <div class="r-kpi"><b>≈ 8,9 GB</b><span>la misma matriz completa, con todos sus ceros</span></div>
+    </div>
+    <table class="tabla r-tabla">
+      <thead><tr><th class="der">GDL</th><th class="der">Ensamblaje (s)</th><th class="der">Solución completa (s)</th><th class="der">K completa (MB)</th><th class="der">K sin ceros (MB)</th></tr></thead>
+      <tbody>
+        <tr><td class="der">578</td><td class="der">0,004</td><td class="der">0,007</td><td class="der">3</td><td class="der">0,21</td></tr>
+        <tr><td class="der">2178</td><td class="der">0,013</td><td class="der">0,026</td><td class="der">38</td><td class="der">0,81</td></tr>
+        <tr><td class="der">4802</td><td class="der">0,028</td><td class="der">0,061</td><td class="der">184</td><td class="der">1,81</td></tr>
+        <tr><td class="der">8450</td><td class="der">0,049</td><td class="der">0,127</td><td class="der">571</td><td class="der">3,20</td></tr>
+        <tr><td class="der">18 818</td><td class="der">0,111</td><td class="der">0,329</td><td class="der">2833</td><td class="der">7,19</td></tr>
+        <tr><td class="der">33 282</td><td class="der">0,191</td><td class="der">0,721</td><td class="der">8862</td><td class="der">12,77</td></tr>
+      </tbody>
+    </table>
+    <p class="mini" style="margin-top:14px">Equipo de escritorio con procesador Intel de 2012, Windows 10; cada tiempo es el menor de tres corridas, y la solución completa incluye el ensamblaje. El límite está en las mallas muy grandes, donde domina la factorización (§ 3.7.5).</p>
+  </div>
+</section>

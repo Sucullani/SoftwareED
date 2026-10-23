@@ -1,0 +1,13 @@
+[
+ {"id": "alcance", "narracion": [
+  "El objeto de estudio es el análisis de medios continuos en elasticidad lineal plana por el método de los elementos finitos: su procedimiento de cálculo, etapa por etapa, hasta las tensiones. El campo de acción son los medios con que ese análisis se enseña: el software educativo y la memoria de cálculo.",
+  "Acoté el alcance a propósito, para ganar profundidad. Del análisis estructural, el trabajo toma solo los sólidos continuos de dos dimensiones; fuera quedan los pórticos, las cerchas, las placas, las cáscaras y el análisis tridimensional. El material es elástico, lineal e isótropo, y el problema, estático. Los elementos son cuadriláteros de cuatro y de nueve nodos, Q4 y Q9. Y no hay mallado automático ni validación con ensayos físicos. Cada exclusión es una decisión, no un olvido: busca que lo que queda dentro pueda seguirse número por número, y varias de esas fronteras reaparecen al final, en las recomendaciones.",
+  "Dentro de ese dominio caben las dos idealizaciones clásicas: la tensión plana, para cuerpos delgados cargados en su plano, como una viga de gran peralte o un muro; y la deformación plana, para cuerpos largos como presas, muros de contención o túneles, donde una rebanada representa todo el sólido.",
+  "Y el problema se delimita en cuatro planos: el disciplinar, que es este dominio; el institucional, la formación de grado en ingeniería civil, con la Carrera de la Universidad Autónoma Tomás Frías como destinataria; el espacial, el aula y la computadora personal, sin licencias; y el temporal, la gestión 2026."
+ ]},
+ {"id": "plano", "narracion": [
+  "¿Por qué el plano? Porque la barra, punto de partida habitual, no muestra los conceptos centrales: el mapeo de un cuadrado de referencia al elemento real, el Jacobiano como matriz, que mide cuánto se estira y se gira ese cuadrado, y la integración en dos direcciones.",
+  "El sólido sí los tiene, pero el tamaño de sus matrices los oscurece: la rigidez de un hexaedro de ocho nodos tiene veinticuatro por veinticuatro términos; seguirla paso a paso es impracticable. La del Q4 tiene ocho por ocho.",
+  "El plano es la dimensión mínima con toda la formulación y matrices que todavía se leen. Y es un puente: el mapeo, la integración y el ensamblaje que EduFEM expone son los mismos que rigen el caso tridimensional."
+ ]}
+]

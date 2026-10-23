@@ -1,0 +1,117 @@
+<section class="lamina" id="evaluacion" data-bloque="diseno" data-titulo="Cómo se contrasta" data-pasos="2">
+  <!-- grupo: software -->
+  <div class="cabecera">
+    <div class="rotulo" data-auto data-sec="§ 2.1.2 a § 2.1.6 · Tablas 2.2 y 2.4"></div>
+    <h2 class="titulo">Cómo se contrasta la hipótesis</h2>
+  </div>
+
+  <!-- § 2.1.2 (variables e indicadores, Tabla 2.2), § 2.1.4 (casos de estudio) y § 2.1.6 (criterios
+       con umbral, Tabla 2.4, y regla conjuntiva). Pasos (viz/l4_software.js, «sw21-evaluacion»):
+       0 qué se mide: la independiente, en dos niveles; la dependiente, en sus dos dimensiones
+         (la trazabilidad se cuenta: la cadena se corta en su eslabón más débil; la verificabilidad
+         se mide con el error frente a una referencia)
+       1 los tres casos de estudio y el ejemplo guía, cada uno con su referencia
+       2 los 15 criterios con umbral explícito (6 + 9) y la regla de decisión conjuntiva.
+         Los nueve de la verificabilidad quedan encima del caso que los mide. -->
+  <div class="sw sw21" data-viz="sw21-evaluacion">
+
+    <!-- fila A · pasos 0 y 1: la variable independiente -->
+    <div class="sw21-vi" data-hasta="1">
+      <div class="sw21-tag">Variable independiente<span class="nom">Transparencia del procedimiento de cálculo</span></div>
+      <div class="sw21-niveles">
+        <div class="sw21-pills">
+          <span class="sw21-nivel"><svg viewBox="0 0 64 50" aria-hidden="true"><rect x="3" y="3" width="58" height="44" rx="7" style="fill:var(--texto)"/><text x="32" y="34" text-anchor="middle" style="font:800 24px var(--fuente);fill:var(--fondo)">?</text></svg>Caja negra</span>
+          <span class="sw21-o">o</span>
+          <span class="sw21-nivel"><svg viewBox="0 0 64 50" aria-hidden="true"><rect x="3" y="3" width="58" height="44" rx="7" style="fill:var(--superficie);stroke:var(--h-vi);stroke-width:3"/><g style="fill:var(--h-vi)"><rect x="10" y="10" width="12" height="8" rx="2"/><rect x="26" y="10" width="12" height="8" rx="2"/><rect x="42" y="10" width="12" height="8" rx="2"/><rect x="10" y="21" width="12" height="8" rx="2"/><rect x="26" y="21" width="12" height="8" rx="2"/><rect x="42" y="21" width="12" height="8" rx="2"/><rect x="10" y="32" width="12" height="8" rx="2"/><rect x="26" y="32" width="12" height="8" rx="2"/><rect x="42" y="32" width="12" height="8" rx="2"/></g></svg>Procedimiento a la vista</span>
+        </div>
+        <span class="sw21-nota">dos niveles: presencia frente a ausencia</span>
+      </div>
+    </div>
+
+    <!-- fila A · paso 2: la regla de decisión conjuntiva (§ 2.1.6) -->
+    <div class="sw21-regla" data-paso="2" data-retraso="1700">
+      <div class="sw21-ecu">
+        <span class="sw21-tag">Regla conjuntiva</span>
+        <span class="sw21-term prem">premisas respaldadas</span><span class="sw21-op">+</span>
+        <span class="sw21-term efe">(a) se cumple</span><span class="sw21-op">+</span>
+        <span class="sw21-term efe">(b) se cumple</span><span class="sw21-op">⇒</span>
+        <span class="sw21-term fin">comprobada</span>
+      </div>
+      <div class="sw21-otras">Si se cumple solo una cláusula, <b>parcialmente comprobada</b>; si ninguna, <b>no comprobada</b>. Cada criterio declara qué resultado lo refutaría.</div>
+    </div>
+
+    <!-- fila B · pasos 0 y 1: las dos dimensiones de la variable dependiente -->
+    <div class="sw21-vd" data-hasta="1">
+      <div class="sw21-tag" data-entrada="2">Variable dependiente<span>sus dos dimensiones</span></div>
+      <div class="sw21-dims">
+        <div class="sw21-dim" data-entrada="3">
+          <h3>(a) Trazabilidad<span>· se cuenta lo que queda expuesto</span></h3>
+          <div class="sw21-dibujo sw21-cadena"></div>
+          <div class="sw21-pie sw21-pie-a">Basta una etapa oculta para cortar la cadena: por eso el umbral es <b>todas</b>.</div>
+        </div>
+        <div class="sw21-dim" data-entrada="4">
+          <h3>(b) Verificabilidad<span>· se mide el error</span></h3>
+          <div class="sw21-dibujo sw21-tol"></div>
+          <div class="sw21-pie sw21-pie-b">Frente a referencias de exactitud conocida, con <b>tolerancias explícitas</b>.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- fila B · paso 2: los 15 criterios con umbral (Tabla 2.4) -->
+    <div class="sw21-crit" data-paso="2">
+      <div class="sw21-ccab a"><b>(a) Trazabilidad · 6 criterios</b><span>umbral: la exhaustividad</span></div>
+      <div class="sw21-fa">
+        <div class="sw21-ca"><b>7 de 7</b><span>etapas con módulo</span></div>
+        <div class="sw21-ca"><b>9 de 9</b><span>etapas en la memoria</span></div>
+        <div class="sw21-ca"><b>ambas</b><span>solución y tensiones</span></div>
+        <div class="sw21-ca"><b>3 de 3</b><span>fases en un lienzo</span></div>
+        <div class="sw21-ca"><b>18 de 18</b><span>contenidos de expertos</span></div>
+        <div class="sw21-ca"><b>sin pérdida</b><span>intercambio de datos</span></div>
+      </div>
+      <div class="sw21-ccab b"><b>(b) Verificabilidad · 9 criterios</b><span>los numéricos, escritos en las pruebas del software, que avisan si uno no se cumple</span></div>
+      <div class="sw21-fb">
+        <div class="sw21-colb">
+          <div class="sw21-cb"><span>Tasa L²</span><b>teórica ± 0,5</b></div>
+          <div class="sw21-cb"><span>Tasa H¹</span><b>teórica ± 0,5</b></div>
+        </div>
+        <div class="sw21-colb">
+          <div class="sw21-cb"><span>Flecha central</span><b>&lt; 3 %</b></div>
+          <div class="sw21-cb"><span>σ<sub>x</sub> frente a la analítica</span><b>&lt; 1 %</b></div>
+          <div class="sw21-cb"><span>σ<sub>x</sub> frente a SAP2000</span><b>&lt; 1 %</b></div>
+          <div class="sw21-cb"><span>Equilibrio de reacciones</span><b>&lt; 10<sup>−8</sup></b></div>
+        </div>
+        <div class="sw21-colb">
+          <div class="sw21-cb"><span>Error con Q9, N = 8</span><b>&lt; 1,5 %</b></div>
+          <div class="sw21-cb"><span>Flecha del Q4 &lt; Q9</span><b>se observa</b></div>
+        </div>
+        <div class="sw21-colb">
+          <div class="sw21-cb"><span>Etapas para rehacer a mano</span><b>todas</b></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- fila C · desde el paso 1: los tres casos de estudio y el ejemplo guía (§ 2.1.4) -->
+    <div class="sw21-casos">
+      <div class="sw21-caso" data-paso="1" data-retraso="450">
+        <div class="sw21-img" data-caso="mms"></div>
+        <span class="sw21-insignia">Caso de estudio 1</span>
+        <div class="sw21-ct"><b>Soluciones manufacturadas</b><span class="ref">una solución exacta construida</span><span class="det">4 configuraciones · N = 2 … 32</span></div>
+      </div>
+      <div class="sw21-caso" data-paso="1" data-retraso="750">
+        <div class="sw21-img" data-caso="timoshenko"></div>
+        <span class="sw21-insignia">Caso de estudio 2</span>
+        <div class="sw21-ct"><b>Viga de Timoshenko</b><span class="ref">analítica [14] y SAP2000 [18]</span><span class="det">Q9 56 × 8 · 3842 GDL</span></div>
+      </div>
+      <div class="sw21-caso" data-paso="1" data-retraso="1050">
+        <div class="sw21-img" data-caso="cook"></div>
+        <span class="sw21-insignia">Caso de estudio 3</span>
+        <div class="sw21-ct"><b>Membrana de Cook</b><span class="ref">referencia: 23,96</span><span class="det">distorsión y bloqueo del Q4</span></div>
+      </div>
+      <div class="sw21-caso guia" data-paso="1" data-retraso="1350">
+        <div class="sw21-img" data-caso="guia"></div>
+        <span class="sw21-insignia">Se suma a los tres</span>
+        <div class="sw21-ct"><b>Ejemplo guía</b><span class="ref">su memoria se rehace a mano</span><span class="det">9 nodos · 4 elementos Q4 · Anexo G</span></div>
+      </div>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,67 @@
+<section class="lamina" id="hipotesis" data-bloque="intro" data-titulo="Hipótesis" data-pasos="3">
+  <!-- grupo: hipotesis -->
+  <div class="cabecera">
+    <div class="rotulo" data-auto data-sec="Introducción · Hipótesis · Variables · Figura 2.1 · Preguntas de investigación"></div>
+    <h2 class="titulo">Hipótesis, variables y preguntas de investigación</h2>
+  </div>
+
+  <!-- Pasos (los anima viz/l4_hipotesis.js, «h7-hipotesis»):
+       0 el enunciado exacto, palabra por palabra
+       1 sus cuatro partes: las palabras vuelan a una fila por parte, con su color y su rótulo
+       2 Figura 2.1: las tres variables y el cambio de nivel que la hipótesis predice
+       3 PI-1 y PI-2 cuelgan de las cláusulas (a) y (b) del efecto -->
+  <div class="h7" data-viz="h7-hipotesis">
+
+    <!-- paso 0 · el enunciado (Introducción, «Hipótesis») -->
+    <div class="h7-tit-enun" data-solo="0">Enunciado de la hipótesis</div>
+    <p class="h7-enun" data-solo="0" data-pptx-entrada="1" data-pptx-anim="palabras"><span class="h7-comilla">“</span>Bajo la aplicación de un método de diseño de software educativo, el desarrollo de EduFEM permitirá mejorar la trazabilidad y la verificabilidad del análisis por el Método de los Elementos Finitos en elasticidad plana, dada la escasa transparencia con que el software expone su procedimiento de cálculo.</p>
+
+    <!-- paso 1 · las cuatro partes (§ 2.1.6: condición, intervención, efecto, antecedente) -->
+    <div class="h7-partes" data-solo="1" data-anim="fundido">
+      <div class="h7-filas">
+        <div class="h7-fila">
+          <div class="h7-rot l4-parte h-int"><b>Condición</b><span>variable interviniente</span></div>
+          <div class="h7-txt"><span class="h7-frag p-int">Bajo la aplicación de un método de diseño de software educativo,</span></div>
+        </div>
+        <div class="h7-fila">
+          <div class="h7-rot l4-parte h-int"><b>Intervención</b><span>variable interviniente</span></div>
+          <div class="h7-txt"><span class="h7-frag p-int">el desarrollo de EduFEM</span></div>
+        </div>
+        <div class="h7-fila">
+          <div class="h7-rot l4-parte h-vd"><b>Efecto</b><span>variable dependiente</span></div>
+          <div class="h7-txt"><span class="h7-frag p-vd">permitirá mejorar la trazabilidad <span class="h7-letra">a</span> y la verificabilidad <span class="h7-letra">b</span> del análisis por el Método de los Elementos Finitos en elasticidad plana,</span></div>
+        </div>
+        <div class="h7-fila">
+          <div class="h7-rot l4-parte h-vi"><b>Antecedente</b><span>variable independiente</span></div>
+          <div class="h7-txt"><span class="h7-frag p-vi">dada la escasa transparencia con que <span class="h7-glosa">el software</span> expone su procedimiento de cálculo.</span>
+            <div class="h7-nota"><b>«el software»:</b> el software de análisis de uso corriente, no EduFEM</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- paso 2 · Figura 2.1, relación entre las variables (§ 2.1.2) -->
+    <div class="h7-fig" data-solo="2" data-anim="fundido"></div>
+
+    <!-- paso 3 · las dos preguntas de investigación (Introducción, «Preguntas de investigación») -->
+    <div class="h7-efe3" data-paso="3" data-anim="fundido">
+      <div class="h7-fila">
+        <div class="h7-rot l4-parte h-vd"><b>Efecto</b><span>variable dependiente</span></div>
+        <div class="h7-txt"><span class="h7-frag p-vd">…permitirá mejorar la trazabilidad <span class="h7-letra" data-cl="a">a</span> y la verificabilidad <span class="h7-letra" data-cl="b">b</span> del análisis…</span></div>
+      </div>
+    </div>
+    <div class="h7-conect" data-paso="3" data-anim="fundido"></div>
+    <div class="h7-pis">
+      <div class="h7-pi" data-paso="3" data-retraso="650" data-anim="fundido" data-pi="a">
+        <div class="cab"><span class="h7-letra">a</span>PI-1 · trazabilidad</div>
+        <p>¿Qué organización del software permite seguir cada resultado hasta sus datos, etapa por etapa, sobre el modelo del usuario, y cubrir el contenido que exige un consenso publicado de expertos?</p>
+      </div>
+      <div class="h7-pi" data-paso="3" data-retraso="950" data-anim="fundido" data-pi="b">
+        <div class="cab"><span class="h7-letra">b</span>PI-2 · verificabilidad</div>
+        <p>¿Reproduce el motor, dentro de tolerancias explícitas, las soluciones exactas, las referencias externas y los fenómenos numéricos que predice la teoría?</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="remate" data-paso="3" data-retraso="1500"><span class="ico">⚖&#xFE0E;</span><span>El efecto es la parte que puede resultar falsa: cada cláusula lleva criterios con umbral explícito.</span></div>
+</section>

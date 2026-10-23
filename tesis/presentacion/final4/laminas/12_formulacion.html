@@ -1,0 +1,112 @@
+<section class="lamina" id="formulacion" data-bloque="teoria" data-titulo="Formulación variacional" data-pasos="3">
+  <!-- grupo: formulacion -->
+  <div class="cabecera">
+    <div class="rotulo" data-auto data-sec="§ 1.3"></div>
+    <h2 class="titulo">Formulación variacional: los trabajos virtuales</h2>
+  </div>
+
+  <!-- § 1.3 de final4 (ecuaciones 1.1 a 1.3). Pasos (viz/l4_formulacion.js, «f12-formulacion»):
+       0 del pórtico a la chapa: la barra tiene rigidez en forma cerrada; la chapa, no: se integra
+       1 la forma fuerte: equilibrio punto por punto, que pide derivadas segundas continuas
+       2 el desplazamiento virtual δu (nulo en los apoyos): trabajo interno = trabajo externo,
+         calculados con el ejemplo guía resuelto (δuᵀ K u frente a δuᵀ F)
+       3 la forma débil solo pide derivadas primeras: la cadena N → B → D → kₑ → ensamblaje → K u = F -->
+  <div class="f12" data-viz="f12-formulacion">
+
+    <!-- el recorrido de la lámina -->
+    <div class="f12-ruta">
+      <div class="f12-hito" data-clase-paso="0:actual;1:hecho"><b>1</b>Del pórtico a la chapa</div>
+      <i class="f12-sep">›</i>
+      <div class="f12-hito" data-clase-paso="1:actual;2:hecho"><b>2</b>Equilibrio punto por punto</div>
+      <i class="f12-sep">›</i>
+      <div class="f12-hito" data-clase-paso="2:actual;3:hecho"><b>3</b>El desplazamiento virtual</div>
+      <i class="f12-sep">›</i>
+      <div class="f12-hito" data-clase-paso="3:actual"><b>4</b>De la forma débil a <span class="f12-kuf">K u = F</span></div>
+    </div>
+
+    <!-- ============================== paso 0 · del pórtico a la chapa -->
+    <div class="f12-esc e0" data-solo="0">
+      <div class="f12-panel izq">
+        <div class="f12-pt"><b>Pórtico</b>cada barra tiene su rigidez en forma cerrada</div>
+      </div>
+      <div class="f12-panel der">
+        <div class="f12-pt"><b>Chapa</b>su rigidez no se escribe: se obtiene integrando sobre el área</div>
+      </div>
+      <div class="f12-etq e0-kbarra">rigidez de una barra a flexión</div>
+      <div class="f12-ec e0-kbarra-ec" data-tex="\mathbf{k}=\dfrac{EI}{L^{3}}\begin{bmatrix}12&amp;6L&amp;-12&amp;6L\\6L&amp;4L^{2}&amp;-6L&amp;2L^{2}\\-12&amp;-6L&amp;12&amp;-6L\\6L&amp;2L^{2}&amp;-6L&amp;4L^{2}\end{bmatrix}"></div>
+      <div class="f12-etq e0-kchapa">rigidez de cada elemento</div>
+      <div class="f12-ec e0-kchapa-ec" data-tex="\mathbf{k}_e=\displaystyle\int_{\Omega_e}\mathbf{B}^{T}\mathbf{D}\,\mathbf{B}\,t\,dA"></div>
+      <div class="f12-etq e0-gauss">● puntos donde se evalúa<br>la integral</div>
+      <div class="f12-etq e0-kp">K del pórtico</div>
+      <div class="f12-etq e0-kc">K de la chapa</div>
+      <div class="f12-kuf-caja" data-entrada="1" data-retraso="2300"><span data-tex="\mathbf{K}\,\mathbf{u}=\mathbf{F}"></span><small>el mismo sistema para los dos</small></div>
+    </div>
+
+    <!-- ============================== paso 1 · la forma fuerte -->
+    <div class="f12-esc e1" data-solo="1">
+      <div class="f12-etq e1-punto">un punto cualquiera del cuerpo</div>
+      <div class="f12-etq e1-dif">sus tensiones se equilibran con la carga <i>b</i></div>
+      <div class="e1-ecs">
+        <div class="f12-tit">Equilibrio en cada punto: la <b>forma fuerte</b></div>
+        <div class="f12-ec grande" data-tex="\nabla\cdot\boldsymbol{\sigma}+\mathbf{b}=\mathbf{0}\quad\text{en }\Omega"></div>
+        <div class="f12-ec mediana" data-tex="\begin{aligned}\frac{\partial\sigma_x}{\partial x}+\frac{\partial\tau_{xy}}{\partial y}+b_x&amp;=0\\[2pt]\frac{\partial\tau_{xy}}{\partial x}+\frac{\partial\sigma_y}{\partial y}+b_y&amp;=0\end{aligned}"></div>
+        <div class="f12-cita">Ecuación 1.1</div>
+      </div>
+      <div class="e1-nota" data-paso="1" data-retraso="1500">
+        <div class="f12-etq e1-u">un desplazamiento aproximado por trozos</div>
+        <div class="f12-etq e1-ddu">en cada quiebre, la derivada segunda no existe</div>
+        <div class="e1-nota-tx"><span><b>Pide derivadas segundas continuas</b> del desplazamiento en todo el cuerpo: difícil de cumplir con una aproximación por trozos.</span></div>
+      </div>
+    </div>
+
+    <!-- ============================== paso 2 · el desplazamiento virtual -->
+    <div class="f12-esc e2" data-solo="2">
+      <div class="e2-anim" data-pptx-clip="f12-virtual:9600:ciclo"></div>
+      <div class="f12-etq e2-dv">δu: un desplazamiento <b>imaginario</b> y pequeño (aquí, ampliado)<br>que es <b>nulo en los apoyos</b></div>
+      <div class="e2-med int"><b>Trabajo interno</b>de las tensiones</div>
+      <div class="e2-med ext"><b>Trabajo externo</b>de las cargas</div>
+      <div class="e2-regla"><b>Para todo δu compatible con los apoyos:</b> interno = externo ⇔ equilibrio</div>
+      <div class="e2-ec">
+        <div class="e2-miembro int"><span data-tex="\displaystyle\int_\Omega \delta\boldsymbol{\varepsilon}^{T}\boldsymbol{\sigma}\,d\Omega"></span><small>trabajo interno</small></div>
+        <div class="e2-igual">=</div>
+        <div class="e2-miembro ext"><span data-tex="\displaystyle\int_\Omega \delta\mathbf{u}^{T}\mathbf{b}\,d\Omega+\int_{\Gamma_t}\delta\mathbf{u}^{T}\mathbf{t}\,d\Gamma"></span><small>trabajo externo: cargas de volumen y de borde</small></div>
+      </div>
+      <div class="f12-cita e2-cita">Ecuación 1.2 · [1, pp. 69–71; 15, pp. 77–79; 5, pp. 612–613]</div>
+      <div class="e2-palanca">
+        <div class="f12-etq e2-pal-tit">Analogía: la palanca de la estática</div>
+        <div class="f12-ec e2-pal-ec" data-tex="P_1\,\delta_1=P_2\,\delta_2"></div>
+      </div>
+    </div>
+
+    <!-- ============================== paso 3 · de la forma débil a K u = F -->
+    <div class="f12-esc e3" data-solo="3">
+      <div class="e3-lema"><b>La forma débil solo pide derivadas primeras:</b> basta un desplazamiento continuo, interpolado dentro de cada elemento.</div>
+      <div class="f12-etq e3-ok">continuo, con quiebres: suficiente</div>
+      <div class="e3-eslabon" style="left:0" data-paso="3" data-retraso="300">
+        <div class="e3-ec" data-tex="\mathbf{u}\approx\mathbf{N}\,\mathbf{u}_e"></div>
+        <div class="e3-tx"><b>Funciones de forma</b>el interior se interpola desde los nodos</div>
+      </div>
+      <div class="e3-eslabon" style="left:278px" data-paso="3" data-retraso="720">
+        <div class="e3-ec" data-tex="\boldsymbol{\varepsilon}=\mathbf{B}\,\mathbf{u}_e"></div>
+        <div class="e3-tx"><b>Matriz B</b>de desplazamientos a deformaciones</div>
+      </div>
+      <div class="e3-eslabon" style="left:556px" data-paso="3" data-retraso="1140">
+        <div class="e3-ec" data-tex="\boldsymbol{\sigma}=\mathbf{D}\,\boldsymbol{\varepsilon}"></div>
+        <div class="e3-tx"><b>Matriz D</b>de deformaciones a tensiones: el material</div>
+      </div>
+      <div class="e3-eslabon ancho" style="left:834px" data-paso="3" data-retraso="1560">
+        <div class="e3-ec" data-tex="\mathbf{k}_e=\displaystyle\int_{\Omega_e}\mathbf{B}^{T}\mathbf{D}\,\mathbf{B}\,t\,dA"></div>
+        <div class="e3-tx"><b>Rigidez del elemento</b>se integra sobre su área</div>
+      </div>
+      <div class="e3-eslabon" style="left:1192px" data-paso="3" data-retraso="1980">
+        <!-- el operador de ensamblaje de final4 (\Ensamblaje del preámbulo: A grande, sin serifa) -->
+        <div class="e3-ec" data-tex="\mathbf{K}=\mathop{\text{\Large\textsf{A}}}\limits_{e}\,\mathbf{k}_e"></div>
+        <div class="e3-tx"><b>Ensamblaje</b>cada k<sub>e</sub> en su lugar de K</div>
+      </div>
+      <div class="e3-eslabon fin" style="left:1470px" data-paso="3" data-retraso="2400">
+        <div class="e3-ec" data-tex="\mathbf{K}\,\mathbf{u}=\mathbf{F}"></div>
+        <div class="e3-tx"><b>El mismo sistema</b>que el del pórtico</div>
+      </div>
+    </div>
+  </div>
+</section>

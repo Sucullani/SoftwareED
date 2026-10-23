@@ -1,0 +1,99 @@
+<section class="lamina" id="trazabilidad" data-bloque="diseno" data-titulo="Trazabilidad en acción" data-pasos="3">
+  <!-- grupo: software -->
+  <div class="cabecera">
+    <div class="rotulo" data-auto data-sec="§ 2.1.2 · Anexo G"></div>
+    <h2 class="titulo">Trazabilidad en acción: de una tensión a sus datos</h2>
+  </div>
+
+  <!-- El recorrido hacia atrás sobre el ejemplo guía (definición de trazabilidad: Introducción y
+       § 2.1.2). Cada cifra es la del Anexo G de final4: Tablas G.1 a G.3 (datos, p. 168), D y Xₑ
+       (p. 169), J, det J = 4,7604, B y kₑ (p. 170), K de 18 × 18 y F₇ᵧ = −1000 (p. 171), 12 GDL
+       libres (pp. 171–172), Tablas G.5 y G.6 (p. 174) y Tabla G.7 (p. 174): σVM del nodo 7 = 864,70.
+       El nodo 7 pertenece solo a E3: su tensión es la extrapolada desde los cuatro puntos de Gauss
+       de E3, sin promedio. Pasos (viz/l4_software.js, «sw23-traza»):
+       0 el resultado · 1 el camino hacia atrás, de la etapa 9 a la 1 · 2 los datos del modelo
+       3 la memoria lo deja por escrito: la página del Anexo G de cada etapa; al frente, la p. 174 -->
+  <div class="sw sw23" data-viz="sw23-traza">
+    <div class="sw23-izq">
+      <div class="sw23-lienzo" data-hasta="2"></div>
+      <div class="sw23-ley" data-solo="0">Contorno de von Mises sobre la deformada del ejemplo guía, de 42,47 (azul) a 864,70 (rojo), como en la Figura G.4</div>
+      <div class="sw23-ley" data-solo="1">El nodo 7 solo pertenece a <b>E3</b>: su tensión sale de los cuatro puntos de Gauss de ese elemento</div>
+      <div class="sw23-ley" data-solo="2"><b>Ninguna etapa queda escondida:</b> del resultado se llega a los datos</div>
+      <div class="sw23-hojas" data-paso="3" data-anim="fundido">
+        <div class="sw23-hoja"><img src="assets/img/l4/anexoG4_p167.png" alt="Anexo G, p. 167"></div>
+        <div class="sw23-hoja"><img src="assets/img/l4/anexoG4_p168.png" alt="Anexo G, p. 168"></div>
+        <div class="sw23-hoja"><img src="assets/img/l4/anexoG4_p169.png" alt="Anexo G, p. 169"></div>
+        <div class="sw23-hoja"><img src="assets/img/l4/anexoG4_p170.png" alt="Anexo G, p. 170"></div>
+        <div class="sw23-hoja"><img src="assets/img/l4/anexoG4_p171.png" alt="Anexo G, p. 171"></div>
+        <div class="sw23-hoja"><img src="assets/img/l4/anexoG4_p172.png" alt="Anexo G, p. 172"></div>
+        <div class="sw23-hoja"><img src="assets/img/l4/anexoG4_p173.png" alt="Anexo G, p. 173"></div>
+        <div class="sw23-hoja"><img src="assets/img/l4/anexoG4_p175.png" alt="Anexo G, p. 175"></div>
+        <div class="sw23-hoja"><img class="zoomable" src="assets/img/l4/anexoG4_p174.png" alt="Anexo G, p. 174: Tablas G.5, G.6 y G.7">
+          <!-- 864,70 en la fila del nodo 7 de las Tablas G.6 y G.7 (medido sobre la hoja: px 735–787 × 442–463 y 690–749 × 976–999) -->
+          <i class="sw23-marca" style="left:80.77%;top:34.34%;width:5.71%;height:1.63%"></i>
+          <i class="sw23-marca" style="left:75.82%;top:75.84%;width:6.48%;height:1.79%"></i>
+        </div>
+        <div class="sw23-hpie">La memoria lo deja por escrito: <b>Anexo G</b>, pp. 167–175, con los números sustituidos</div>
+      </div>
+    </div>
+
+    <!-- la escalera: del resultado (arriba) a los datos (abajo) -->
+    <div class="sw23-esc">
+      <div class="sw23-f res" data-n="r">
+        <span class="n">σ</span><span class="nom">Resultado</span>
+        <span class="val">σ<sub>VM</sub> en el nodo 7 =<span class="grande sw-num">864,70</span></span>
+        <span class="pag" data-paso="3" data-retraso="1900">p. 174</span>
+      </div>
+      <div class="sw23-f" data-n="9">
+        <span class="n">9 <i>σ</i></span><span class="nom">Tensiones</span>
+        <span class="val sw-num" data-paso="1" data-retraso="350">σ<sub>7</sub> = (−25,26; −845,06; 134,51)<span class="de" data-hasta="2">← 4 puntos de Gauss</span></span>
+        <span class="pag" data-paso="3" data-retraso="1800">pp. 173–174</span>
+      </div>
+      <div class="sw23-f" data-n="8">
+        <span class="n">8 <i>u</i></span><span class="nom">Solución</span>
+        <span class="val sw-num" data-paso="1" data-retraso="630">u<sub>7y</sub> = −1,308 × 10<sup>−2</sup><span class="de" data-hasta="2">← K u = F, 12 GDL libres</span></span>
+        <span class="pag" data-paso="3" data-retraso="1700">pp. 171–172</span>
+      </div>
+      <div class="sw23-f" data-n="7">
+        <span class="n">7 <i>K</i></span><span class="nom">Ensamblaje</span>
+        <span class="val sw-num" data-paso="1" data-retraso="910">K de 18 × 18<span class="de" data-hasta="2">← las cuatro k<sub>e</sub></span></span>
+        <span class="pag" data-paso="3" data-retraso="1600">p. 171</span>
+      </div>
+      <div class="sw23-f" data-n="6">
+        <span class="n">6 <i>f</i></span><span class="nom">Fuerzas</span>
+        <span class="val sw-num" data-paso="1" data-retraso="1190">F<sub>7y</sub> = −1000<span class="de" data-hasta="2">← la carga del nodo 7</span></span>
+        <span class="pag" data-paso="3" data-retraso="1500">p. 171</span>
+      </div>
+      <div class="sw23-f" data-n="5">
+        <span class="n">5 <i>k<sub>e</sub></i></span><span class="nom">Rigidez de E3</span>
+        <span class="val sw-num" data-paso="1" data-retraso="1470">k<sub>e</sub> de 8 × 8<span class="de" data-hasta="2">← suma en 4 puntos de Gauss</span></span>
+        <span class="pag" data-paso="3" data-retraso="1400">p. 170</span>
+      </div>
+      <div class="sw23-f" data-n="4">
+        <span class="n">4 <i>D</i></span><span class="nom">Matriz D</span>
+        <span class="val sw-num" data-paso="1" data-retraso="1750">E / (1 − ν²) = 234 375<span class="de" data-hasta="2">← el material</span></span>
+        <span class="pag" data-paso="3" data-retraso="1300">p. 169</span>
+      </div>
+      <div class="sw23-f" data-n="3">
+        <span class="n">3 <i>B</i></span><span class="nom">Matriz B</span>
+        <span class="val sw-num" data-paso="1" data-retraso="2030">B de 3 × 8<span class="de" data-hasta="2">← en cada punto de Gauss</span></span>
+        <span class="pag" data-paso="3" data-retraso="1200">p. 170</span>
+      </div>
+      <div class="sw23-f" data-n="2">
+        <span class="n">2 <i>J</i></span><span class="nom">Jacobiano</span>
+        <span class="val sw-num" data-paso="1" data-retraso="2310">det J = 4,7604<span class="de" data-hasta="2">← en el primer punto de Gauss</span></span>
+        <span class="pag" data-paso="3" data-retraso="1100">p. 170</span>
+      </div>
+      <div class="sw23-f" data-n="1">
+        <span class="n">1 <i>N</i></span><span class="nom">Mapeo</span>
+        <span class="val sw-num" data-paso="1" data-retraso="2590">E3: nodos 4, 5, 8 y 7<span class="de" data-hasta="2">← sus coordenadas</span></span>
+        <span class="pag" data-paso="3" data-retraso="1000">p. 169</span>
+      </div>
+      <div class="sw23-f datos" data-n="0">
+        <span class="n">◉</span><span class="nom">Datos</span>
+        <span class="val sw-num" data-paso="2" data-retraso="500">E = 225 000 · ν = 0,2 · t = 0,8 · tensión plana; P = 1000 en el nodo 7; apoyos en los nodos 1, 3 y 6</span>
+        <span class="pag" data-paso="3" data-retraso="900">p. 168</span>
+      </div>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,92 @@
+<section class="lamina" id="alcance" data-bloque="intro" data-titulo="Objeto, campo y alcance" data-pasos="3">
+  <!-- grupo: alcance -->
+  <div class="cabecera">
+    <div class="rotulo" data-auto data-sec="Introducción · Objeto de estudio y campo de acción · Delimitación · Alcance y limitaciones"></div>
+    <h2 class="titulo">Qué se estudia y hasta dónde llega</h2>
+  </div>
+
+  <!-- Paso 0 · objeto de estudio y campo de acción (Introducción, «Objeto de estudio y campo de acción») -->
+  <div class="tarjeta alc-carta alc-objeto" data-solo="0" data-entrada="1">
+    <div class="barra-sup"></div>
+    <div class="etq">Objeto de estudio <span class="alc-cita">[8, p. 8]</span></div>
+    <div class="alc-ilus" data-ico="objeto"></div>
+    <h3>El análisis de medios continuos en elasticidad lineal plana por el MEF</h3>
+    <p>El procedimiento de cálculo que va del mapeo isoparamétrico a la recuperación de tensiones, con elementos Q4 y Q9</p>
+  </div>
+  <div class="tarjeta alc-carta alc-campo" data-solo="0" data-entrada="2">
+    <div class="barra-sup"></div>
+    <div class="etq">Campo de acción</div>
+    <div class="alc-ilus" data-ico="campo"></div>
+    <h3>Los medios de cálculo con que ese análisis se enseña</h3>
+    <p>El software educativo que expone el procedimiento y la memoria de cálculo que lo documenta sobre el modelo del usuario</p>
+  </div>
+
+  <!-- Pasos 1 a 3 · el embudo del alcance (Introducción, «Alcance y limitaciones»).
+       La visualización dibuja el embudo, coloca los rótulos de cada nivel y hace salir de
+       escena, hacia la columna «Fuera del alcance», lo que cada nivel deja afuera. -->
+  <div class="alc-embudo" data-viz="alc-embudo" data-paso="1">
+    <div class="alc-nivel"><b>Análisis estructural</b></div>
+    <div class="alc-nivel obj"><b>Sólidos continuos en dos dimensiones</b></div>
+    <div class="alc-nivel obj"><b>Elasticidad lineal estática</b></div>
+    <div class="alc-nivel obj"><b>Material elástico, lineal<br>e isótropo (<i>E</i>, <span class="nu">ν</span>)</b></div>
+    <div class="alc-nivel obj"><b>Q4 y Q9</b><small>cuadriláteros isoparamétricos</small></div>
+    <div class="alc-nivel edu"><b>EduFEM</b><small>software educativo de escritorio, en español</small></div>
+    <div class="alc-leyenda">
+      <span class="obj">Objeto de estudio</span>
+      <span class="campo">Campo de acción: el software educativo</span>
+    </div>
+    <div class="alc-fuera" data-solo="1">
+      <div class="alc-fuera-tit"><span class="alc-ico mini" data-ico="prohibido"></span>Fuera del alcance</div>
+      <div class="alc-sale" data-desde="0" data-cuando="1"><span class="alc-ico" data-ico="portico"></span><div class="alc-sale-tx"><b>Pórticos y cerchas<i class="alc-tacha"></i></b><small>sistemas de barras</small></div></div>
+      <div class="alc-sale" data-desde="0" data-cuando="1"><span class="alc-ico" data-ico="placa"></span><div class="alc-sale-tx"><b>Placas y cáscaras<i class="alc-tacha"></i></b></div></div>
+      <div class="alc-sale" data-desde="0" data-cuando="1"><span class="alc-ico" data-ico="solido"></span><div class="alc-sale-tx"><b>Análisis tridimensional<i class="alc-tacha"></i></b></div></div>
+      <div class="alc-sale" data-desde="1" data-cuando="2"><span class="alc-ico" data-ico="nolineal"></span><div class="alc-sale-tx"><b>No linealidad<i class="alc-tacha"></i></b><small>del material o geométrica</small></div></div>
+      <div class="alc-sale" data-desde="1" data-cuando="2"><span class="alc-ico" data-ico="dinamica"></span><div class="alc-sale-tx"><b>Efectos dinámicos<i class="alc-tacha"></i></b><small>o dependientes del tiempo</small></div></div>
+      <div class="alc-sale" data-desde="3" data-cuando="4"><span class="alc-ico" data-ico="triq8"></span><div class="alc-sale-tx"><b>Triángulos y cuadriláteros de ocho nodos<i class="alc-tacha"></i></b><small>quedan como recomendación</small></div></div>
+      <div class="alc-sale" data-desde="5" data-cuando="5"><span class="alc-ico" data-ico="mallado"></span><div class="alc-sale-tx"><b>Mallado automático<i class="alc-tacha"></i></b><small>la malla se arma por tablas, por dibujo o desde un DXF; en los casos de estudio, por generación estructurada</small></div></div>
+      <div class="alc-sale" data-desde="5" data-cuando="5"><span class="alc-ico" data-ico="ensayo"></span><div class="alc-sale-tx"><b>Ensayos físicos<i class="alc-tacha"></i></b><small>se valida con soluciones analíticas, casos clásicos y un software comercial</small></div></div>
+    </div>
+  </div>
+
+  <!-- Paso 2 · las dos idealizaciones dentro del dominio [14, p. 11] -->
+  <div class="alc-escena">
+    <div class="alc-esc-tit" data-solo="2">Dentro del dominio: dos idealizaciones <span class="alc-cita">[14, p. 11]</span></div>
+    <div class="alc-video" data-solo="2" data-viz="video" data-src="assets/video/tension_deformacion_plana.mp4" data-cuadros="194" data-fps="22"></div>
+    <div class="tarjeta alc-ideal tp" data-solo="2">
+      <div class="alc-ideal-cab"><b>Tensión plana</b><span class="alc-cond"><i>σ</i><sub>z</sub> = 0</span></div>
+      <p>cuerpos delgados cargados en su plano</p>
+      <div class="alc-ejemplos">
+        <figure><span class="alc-ico ej" data-ico="viga"></span><figcaption>viga de gran peralte</figcaption></figure>
+        <figure><span class="alc-ico ej" data-ico="muro"></span><figcaption>muro cargado en su plano</figcaption></figure>
+      </div>
+    </div>
+    <div class="tarjeta alc-ideal dp" data-solo="2">
+      <div class="alc-ideal-cab"><b>Deformación plana</b><span class="alc-cond"><i>ε</i><sub>z</sub> = 0</span></div>
+      <p>cuerpos prismáticos largos: una rebanada representa todo el sólido</p>
+      <div class="alc-ejemplos">
+        <figure><span class="alc-ico ej" data-ico="presa"></span><figcaption>presa</figcaption></figure>
+        <figure><span class="alc-ico ej" data-ico="contencion"></span><figcaption>muro de contención</figcaption></figure>
+        <figure><span class="alc-ico ej" data-ico="tunel"></span><figcaption>túnel</figcaption></figure>
+      </div>
+    </div>
+
+    <!-- Paso 3 · delimitación en cuatro planos (Introducción, «Delimitación») -->
+    <div class="alc-esc-tit" data-paso="3">Delimitación en cuatro planos</div>
+    <div class="alc-plano-d" data-paso="3" style="top:56px">
+      <span class="alc-ico caja" data-ico="disciplinar"></span>
+      <div><div class="etq">Disciplinar</div><p>Elasticidad lineal plana con elementos Q4 y Q9</p></div>
+    </div>
+    <div class="alc-plano-d" data-paso="3" style="top:236px">
+      <span class="alc-ico caja" data-ico="institucional"></span>
+      <div><div class="etq">Institucional</div><p>Formación de grado en ingeniería civil; la Carrera de Ingeniería Civil de la UATF, destinataria inmediata</p></div>
+    </div>
+    <div class="alc-plano-d" data-paso="3" style="top:416px">
+      <span class="alc-ico caja" data-ico="espacial"></span>
+      <div><div class="etq">Espacial</div><p>El aula y la computadora personal, sin laboratorio de cómputo ni licencias</p></div>
+    </div>
+    <div class="alc-plano-d" data-paso="3" style="top:596px">
+      <span class="alc-ico caja" data-ico="temporal"></span>
+      <div><div class="etq">Temporal</div><p>Desarrollo, verificación y validación en la gestión 2026</p></div>
+    </div>
+  </div>
+</section>

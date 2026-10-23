@@ -1,0 +1,95 @@
+<section class="lamina" id="respuesta" data-bloque="conclusiones" data-titulo="Respuesta al problema" data-pasos="4">
+  <!-- grupo: conclusiones -->
+  <div class="cabecera">
+    <div class="rotulo" data-auto data-sec="§ 3.8 · Conclusiones"></div>
+    <h2 class="titulo">La respuesta al problema y a las dos preguntas</h2>
+  </div>
+
+  <!-- viz/l4_conclusiones.js, «c44-respuesta». Textos: § 3.8 («Respuesta al problema», las dos
+       preguntas) y Conclusiones de final4 (el inconveniente y las tres debilidades, § 3.7.5).
+       Pasos: 0 el problema → por qué incide: la caja oculta las magnitudes intermedias, el camino
+       hacia los datos se corta y solo el resultado final se comprueba · 1 la caja se abre: los tres
+       rasgos que revierten esa situación · 2 PI-1 y PI-2, respondidas · 3 la mejora frente a la
+       situación de partida (§ 3.8): la comprobación que la caja negra impedía · 4 necesario, no
+       suficiente, y las tres debilidades. -->
+  <div class="c44" data-viz="c44-respuesta">
+
+    <!-- escena A · pasos 0 y 1 -->
+    <div class="c44-a" data-hasta="1">
+      <div class="c44-prob" data-entrada="1">
+        <span class="c44-pill">Problema</span>
+        <p>¿De qué manera <span class="vi">la escasa transparencia del procedimiento de cálculo</span> del software de análisis por elementos finitos podrá incidir en la <span class="vd">baja trazabilidad y verificabilidad de ese procedimiento</span>, en la gestión 2026?</p>
+      </div>
+      <div class="c44-diag"></div>
+      <div class="c44-resp" data-entrada="2" data-retraso="1900">
+        <div class="c4-etq">Respuesta al problema</div>
+        <p>Incide porque <b>oculta las magnitudes intermedias</b>: sin ellas, ningún resultado se sigue hasta sus datos y solo se comprueba el resultado final.</p>
+      </div>
+      <div class="c44-rasgos" data-paso="1" data-retraso="1300">
+        <div class="c4-etq">Un software educativo con tres rasgos revierte esa situación</div>
+        <div class="c44-rasgos-fila">
+          <div class="c44-rasgo" data-paso="1" data-retraso="1500"><span class="c44-rn">1</span><div><b>Expone su procedimiento</b><span class="det">etapa por etapa, con los números del modelo</span></div></div>
+          <div class="c44-rasgo" data-paso="1" data-retraso="1850"><span class="c44-rn">2</span><div><b>Muestra la respuesta</b><span class="det">con sus medios de comprobación</span></div></div>
+          <div class="c44-rasgo" data-paso="1" data-retraso="2200"><span class="c44-rn">3</span><div><b>Verifica y valida su motor</b><span class="det">con criterios explícitos</span></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- escena B · pasos 2 y 3 -->
+    <div class="c44-b" data-paso="2">
+      <div class="c44-resumen"><span class="c44-ok">✓</span><span><b>Problema respondido.</b> Y las dos preguntas de investigación:</span></div>
+      <div class="c44-pis">
+        <!-- PI-1 · trazabilidad -->
+        <div class="c44-pi" data-pi="a">
+          <div class="c44-pi-cab"><span class="c44-letra">a</span><span class="c44-pi-tit">PI-1 · trazabilidad</span><span class="l4-sello">Respondida</span></div>
+          <p class="c44-preg">¿Qué organización del software permite seguir cada resultado hasta sus datos, etapa por etapa, sobre el modelo del usuario, y cubrir el contenido que exige un consenso publicado de expertos?</p>
+          <div class="c44-r-etq">Respuesta: la organización de EduFEM</div>
+          <a class="c44-org c4-enlace" data-ir="cobertura">
+            <span class="c44-org-lienzo">un mismo lienzo · tres fases</span>
+            <span class="c44-org-fila">
+              <span class="c44-et">N</span><span class="c44-et">J</span><span class="c44-et">B</span><span class="c44-et">D</span><span class="c44-et">k<sub>e</sub></span><span class="c44-et">f</span><span class="c44-et">K</span><span class="c44-et">u</span><span class="c44-et">σ</span>
+            </span>
+            <span class="c44-org-fila">
+              <span class="c44-mod">M1</span><span class="c44-mod">M2</span><span class="c44-mod">M3</span><span class="c44-mod">M4</span><span class="c44-mod">M5</span><span class="c44-mod">M6</span><span class="c44-mod">M7</span><span class="c44-mod post">post-proceso</span>
+            </span>
+            <span class="c44-mem">memoria de cálculo: las nueve etapas</span>
+          </a>
+          <div class="c44-cob"><b>18 de 18</b> contenidos del consenso, con instrumento</div>
+        </div>
+        <!-- PI-2 · verificabilidad -->
+        <div class="c44-pi" data-pi="b">
+          <div class="c44-pi-cab"><span class="c44-letra">b</span><span class="c44-pi-tit">PI-2 · verificabilidad</span><span class="l4-sello">Respondida</span></div>
+          <p class="c44-preg">¿Reproduce el motor, dentro de tolerancias explícitas, las soluciones exactas, las referencias externas y los fenómenos numéricos que predice la teoría?</p>
+          <div class="c44-r-etq">Respuesta: <b class="si">sí</b>, dentro de las tolerancias declaradas</div>
+          <div class="c44-ref3">
+            <a class="c44-ref c4-enlace" data-ir="mms"><i class="c44-chk"></i><b>Soluciones exactas</b><span>las tasas de convergencia que predice la teoría</span></a>
+            <a class="c44-ref c4-enlace" data-ir="timoshenko"><i class="c44-chk"></i><b>Referencias externas</b><span>la solución analítica, la membrana de Cook y SAP2000</span></a>
+            <a class="c44-ref c4-enlace" data-ir="cook"><i class="c44-chk"></i><b>Fenómenos numéricos</b><span>el bloqueo por cortante del Q4</span></a>
+          </div>
+        </div>
+      </div>
+
+      <!-- paso 3: la mejora frente a la situación de partida (§ 3.8): la comprobación que la caja
+           negra impedía (lámina 02); el paso 4 la reemplaza por las debilidades -->
+      <div class="c44-ind" data-solo="3" data-retraso="200">
+        <div class="c4-etq">La mejora frente a la situación de partida · § 3.8</div>
+        <div class="c44-ind-fila">
+          <div class="c44-ind-antes"><i></i><span><b>Caja negra:</b> no se puede saber si las tensiones de los nodos cierran con las de los elementos</span></div>
+          <div class="c44-ind-fl">→</div>
+          <a class="c44-ind-con c4-enlace" data-ir="leccion"><i class="c44-chk"></i><span><b>EduFEM:</b> puede comprobarse en la memoria de cálculo (§ 3.7.2)</span></a>
+        </div>
+      </div>
+
+      <!-- paso 3 -->
+      <div class="c44-lim" data-paso="4">
+        <a class="c44-nns c4-enlace" data-ir="leccion"><i class="c4-ico" data-ico="lupa"></i><div><b>Necesario, pero no suficiente</b><p>Lo expuesto tenía un defecto —la extrapolación de tensiones del Q4—: la trazabilidad lo hizo visible y se corrigió.</p></div></a>
+        <div class="c44-deb">
+          <div class="c4-etq">Tres debilidades declaradas · § 3.7.5</div>
+          <div class="c44-deb-it" data-paso="4" data-retraso="450"><i class="c4-ico" data-ico="autor"></i><span>La evaluación es del autor</span></div>
+          <div class="c44-deb-it" data-paso="4" data-retraso="700"><i class="c4-ico" data-ico="presa"></i><span>La deformación plana no tiene contraste externo</span></div>
+          <div class="c44-deb-it" data-paso="4" data-retraso="950"><i class="c4-ico" data-ico="ruta"></i><span>La exposición es una posibilidad que el software ofrece, no un recorrido que imponga</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

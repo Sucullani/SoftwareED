@@ -1,0 +1,108 @@
+<section class="lamina" id="objetivos-cumplidos" data-bloque="conclusiones" data-titulo="Objetivos" data-pasos="3">
+  <!-- grupo: conclusiones -->
+  <div class="cabecera">
+    <div class="rotulo" data-auto data-sec="Conclusiones · Tabla CR.1"></div>
+    <h2 class="titulo">¿Se cumplieron los objetivos?</h2>
+  </div>
+
+  <!-- Tablero (viz/l4_conclusiones.js, «c41-objetivos»). Pasos:
+       0 el objetivo general: lo que pide → EduFEM, con su sello «Cumplido»
+       1-3 cada objetivo específico (el frente repite la tarjeta de la lámina 06) se da vuelta y
+         muestra su conclusión con la fórmula del documento («De … (Capítulo N) se concluye
+         que…»), su evidencia y su sello; el contador llega a 3 de 3.
+       Textos: Introducción («Objetivos») y Conclusiones de final4. -->
+  <div class="c41" data-viz="c41-objetivos">
+
+    <!-- objetivo general -->
+    <div class="c41-og" data-entrada="1">
+      <div class="c41-og-obj">
+        <div class="c4-etq">Objetivo general</div>
+        <p>Desarrollar un software educativo de elementos finitos … <b>para mejorar la trazabilidad y la verificabilidad</b> del procedimiento de cálculo</p>
+      </div>
+      <div class="c41-og-fl">→</div>
+      <div class="c41-og-res">
+        <img class="c41-logo" src="assets/img/fig_logo_edufem.png" alt="">
+        <div>
+          <div class="c41-og-nom">Edu<b>FEM</b><span>expone su procedimiento de cálculo</span></div>
+          <div class="c41-og-chips"><span>libre</span><span>en español</span><span>escrito en Python</span><span>elasticidad plana con Q4 y Q9</span></div>
+        </div>
+      </div>
+      <div class="c41-og-ver"><span class="l4-sello">Cumplido</span></div>
+    </div>
+
+    <!-- contador de los objetivos específicos -->
+    <div class="c41-fila" data-entrada="2">
+      <span class="c4-etq">Objetivos específicos · uno por capítulo</span>
+      <span class="c41-cuenta"><span class="c41-seg"><i><b></b></i><i><b></b></i><i><b></b></i></span><b class="n">0</b><span>de 3 cumplidos</span></span>
+    </div>
+
+    <div class="c41-oes">
+      <!-- Capítulo 1 · Fundamentar -->
+      <div class="c41-oe" data-entrada="3">
+        <div class="c41-cara c41-frente">
+          <div class="c41-cab"><span class="c41-num">1</span><span class="c41-cap">Capítulo 1</span></div>
+          <div class="c41-verbo">Fundamentar</div>
+          <p class="c41-que">teóricamente el MEF en elasticidad plana con elementos Q4 y Q9, y el estado del arte del software para su enseñanza, <b>para fijar los requisitos de la herramienta</b>.</p>
+          <span class="c41-espera">¿cumplido?</span>
+        </div>
+        <div class="c41-cara c41-dorso">
+          <div class="c41-cab"><span class="c41-num ok">1</span><span class="c41-cap">Capítulo 1 · Fundamentar</span></div>
+          <p class="c41-formula">De la fundamentación teórica (Capítulo 1) se concluye que:</p>
+          <ul class="c41-lista">
+            <li><i class="c4-ico" data-ico="caja"></i><span>el software comercial de análisis opera como una <b>caja negra</b>;</span></li>
+            <li><i class="c4-ico" data-ico="matriz"></i><span><b>ningún recurso educativo revisado</b> documenta a la vez los atributos que harían trazable y verificable el procedimiento de cálculo.</span></li>
+          </ul>
+          <div class="c41-pie">
+            <a class="c41-chip c4-enlace" data-ir="estado-arte"><i class="c4-ico" data-ico="doc"></i>Tabla 1.1 · § 2.2.1</a>
+            <span class="l4-sello">Cumplido</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Capítulo 2 · Desarrollar -->
+      <div class="c41-oe" data-entrada="4">
+        <div class="c41-cara c41-frente">
+          <div class="c41-cab"><span class="c41-num">2</span><span class="c41-cap">Capítulo 2</span></div>
+          <div class="c41-verbo">Desarrollar</div>
+          <p class="c41-que">EduFEM en Python —motor de cálculo, interfaz, módulos educativos y memoria de cálculo— <b>para exponer el procedimiento de cálculo etapa por etapa sobre el modelo del usuario</b>.</p>
+          <span class="c41-espera">¿cumplido?</span>
+        </div>
+        <div class="c41-cara c41-dorso">
+          <div class="c41-cab"><span class="c41-num ok">2</span><span class="c41-cap">Capítulo 2 · Desarrollar</span></div>
+          <p class="c41-formula">Del desarrollo de EduFEM (Capítulo 2) se concluye que el software lleva su procedimiento a la vista:</p>
+          <ul class="c41-lista">
+            <li><i class="c4-ico" data-ico="modulos"></i><span>los <b>módulos educativos</b>, sobre el modelo del usuario, hasta el ensamblaje;</span></li>
+            <li><i class="c4-ico" data-ico="post"></i><span>el <b>post-proceso</b>, con sus medios de comprobación;</span></li>
+            <li><i class="c4-ico" data-ico="memoria"></i><span>la <b>memoria de cálculo</b>, con sustitución numérica.</span></li>
+          </ul>
+          <div class="c41-pie">
+            <a class="c41-chip c4-enlace" data-ir="software"><i class="c4-ico" data-ico="doc"></i>Tabla 3.6 · Figura 3.5</a>
+            <span class="l4-sello">Cumplido</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Capítulo 3 · Verificar y validar -->
+      <div class="c41-oe" data-entrada="5">
+        <div class="c41-cara c41-frente">
+          <div class="c41-cab"><span class="c41-num">3</span><span class="c41-cap">Capítulo 3</span></div>
+          <div class="c41-verbo">Verificar y validar</div>
+          <p class="c41-que">EduFEM, midiendo la cobertura de su procedimiento de cálculo y la exactitud de su motor frente a soluciones exactas y referencias externas, <b>para establecer si ese procedimiento es trazable y verificable</b>.</p>
+          <span class="c41-espera">¿cumplido?</span>
+        </div>
+        <div class="c41-cara c41-dorso">
+          <div class="c41-cab"><span class="c41-num ok">3</span><span class="c41-cap">Capítulo 3 · Verificar y validar</span></div>
+          <p class="c41-formula">De la verificación y la validación (Capítulo 3) se concluye que:</p>
+          <ul class="c41-lista">
+            <li><i class="c4-ico" data-ico="traza"></i><span>ese procedimiento es <b>trazable y verificable</b>;</span></li>
+            <li><i class="c4-ico" data-ico="margen"></i><span>se cumplen los <b>15 de 15 criterios</b>: 6 de trazabilidad y 9 de verificabilidad.</span></li>
+          </ul>
+          <div class="c41-pie">
+            <a class="c41-chip c4-enlace" data-ir="contraste"><i class="c4-ico" data-ico="doc"></i>Tabla 3.10 · Figura CR.2</a>
+            <span class="l4-sello">Cumplido</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

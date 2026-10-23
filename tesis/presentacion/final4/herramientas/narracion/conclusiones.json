@@ -1,0 +1,25 @@
+[
+ {"id": "objetivos-cumplidos", "narracion": [
+  "El objetivo general se cumplió: EduFEM es un software educativo de elementos finitos, libre, en español y escrito en Python, que expone su procedimiento de cálculo en elasticidad plana con elementos Q4 y Q9.",
+  "De la fundamentación teórica, el primer capítulo, se concluye que el software comercial opera como una caja negra, y que ningún recurso educativo revisado documenta a la vez los atributos que harían trazable y verificable el procedimiento.",
+  "Del desarrollo de EduFEM, el segundo capítulo, se concluye que el software lleva su procedimiento a la vista: los módulos educativos, sobre el modelo del usuario, hasta el ensamblaje; el post-proceso, con sus medios de comprobación; y la memoria de cálculo, con los números sustituidos.",
+  "Y de la verificación y la validación, el tercer capítulo, se concluye que ese procedimiento es trazable y verificable: se cumplen los quince criterios. Con los tres objetivos cumplidos, queda juzgar el para qué del objetivo general —mejorar la trazabilidad y la verificabilidad—: es el contraste de la hipótesis."
+ ]},
+ {"id": "margen", "narracion": [
+  "Esta figura de las conclusiones mide cuán lejos quedó cada criterio numérico de incumplirse: el valor observado dividido por su umbral, en escala logarítmica. Lo que queda a la izquierda de la línea, se cumple.",
+  "Los nueve puntos son los siete criterios numéricos —las tasas se dibujan por separado para el Q4 y el Q9—. Todos quedan a la izquierda del umbral; las tasas y el equilibrio, a varios órdenes de magnitud.",
+  "El más ajustado, la tensión normal frente a SAP2000, consume cerca de la quinta parte de su umbral: ninguno quedó cerca del límite. Por eso el veredicto no descansa en el valor exacto de cada umbral, sino en el margen con que se cumple."
+ ]},
+ {"id": "respuesta", "narracion": [
+  "La respuesta al problema es esta: la escasa transparencia del software de análisis incide en la baja trazabilidad y verificabilidad porque oculta las magnitudes intermedias. Sin ellas, ningún resultado puede seguirse etapa por etapa hasta sus datos, y solo los resultados finales pueden comprobarse.",
+  "Un software educativo con tres rasgos revierte esa situación: expone su procedimiento; muestra la respuesta con sus medios de comprobación; y somete su motor a verificación y validación con criterios explícitos.",
+  "Con ello quedan respondidas las dos preguntas. La primera, con la organización que acabo de contrastar: un mismo lienzo, un módulo para cada etapa hasta el ensamblaje, la memoria completa y el post-proceso con sus comprobaciones; y los dieciocho contenidos del consenso tienen su instrumento. La segunda, con un sí, dentro de las tolerancias declaradas.",
+  "Y la mejora frente a la situación de partida se ve en el ejemplo del principio: lo que la caja negra hacía imposible —saber si las tensiones de los nodos cierran con las calculadas dentro de los elementos— en EduFEM puede comprobarse en la memoria de cálculo.",
+  "Esa misma comprobación delató el defecto de la extrapolación: exponer el procedimiento es necesario, pero no suficiente. Y quedan tres debilidades declaradas: la evaluación es mía, la deformación plana no tiene contraste externo, y la exposición es una posibilidad que el software ofrece, no un recorrido que imponga."
+ ]},
+ {"id": "recomendaciones", "narracion": [
+  "Las recomendaciones nacen de esas debilidades y de las fronteras del alcance, una vía por capítulo. Para la fundamentación: tratar el bloqueo, con integración reducida selectiva o la formulación B barra, y agregar más tipos de elemento.",
+  "Para el software: un mallado automático, un solucionador para mallas muy grandes, una guía docente con prácticas y la extensión a tres dimensiones.",
+  "Y para la verificación: un caso civil en deformación plana con solución publicada, cargas linealmente variables y una revisión independiente de la tabla de cobertura y del código. El uso de la herramienta en el aula queda para una investigación educativa distinta."
+ ]}
+]

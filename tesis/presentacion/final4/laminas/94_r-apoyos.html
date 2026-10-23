@@ -1,0 +1,21 @@
+<section class="lamina" id="r-apoyos" data-respaldo data-titulo="Viga: apoyos y equilibrio">
+  <!-- grupo: respaldo -->
+  <div class="cabecera">
+    <div class="rotulo"><span class="num">R</span><span>Respaldo</span><span class="fuente-sec">· § 3.4 · Tablas 3.2 y 3.3 · Anexo E</span></div>
+    <h2 class="titulo">Viga de Timoshenko: apoyos, carga y equilibrio</h2>
+  </div>
+  <div class="r-cuerpo">
+    <div class="rejilla-2" style="gap:36px">
+      <div class="pila" style="display:flex;flex-direction:column;gap:20px">
+        <div class="tarjeta"><div class="etq">Apoyos (en el eje neutro, y = 0)</div><p>Fijo en x = −7 m: restringe u y v · móvil en x = +7 m: restringe v.</p></div>
+        <div class="tarjeta"><div class="etq">Carga</div><p>q = 5000 kgf/m como carga superficial sobre la arista superior, convertida en fuerzas nodales equivalentes con la formulación de la § 1.10.</p></div>
+        <div class="tarjeta exito"><div class="etq" style="color:var(--h-ok)">Prueba de que la carga entró bien</div><p>ΣR<sub>y</sub> = qL = 70 000 kgf con residuo relativo <b>1,7 × 10⁻¹³</b>; ΣR<sub>x</sub> no pasa de 4 × 10⁻¹² veces la carga: orden del redondeo.</p></div>
+      </div>
+      <div class="pila" style="display:flex;flex-direction:column;gap:20px">
+        <div class="tarjeta plana"><div class="etq">Malla y material</div><p>Q9 56 × 8 (448 elementos, 1921 nodos, 3842 GDL) · E = 217 370 kgf/cm², <span class="nu">ν</span> = 0,20 · b = 0,40 m · elástico lineal, sin fisuración.</p></div>
+        <div class="tarjeta plana"><div class="etq">Puntos de control</div><p>A (0; 0,6), B (−4,5; −0,3), C (−3,5; −0,2) m: tracción y compresión, a distintas alturas del peralte.</p></div>
+        <div class="tarjeta plana"><div class="etq">SAP2000</div><p>Cáscara (<i>shell</i>) cuya membrana es isoparamétrica con giro <i>drilling</i> [18, p. 179] (Anexo E): una segunda aproximación numérica, patrón de comparación y no de exactitud.</p></div>
+      </div>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,254 @@
+{
+ "voz": "es-BO-MarceloNeural",
+ "rate": "+0%",
+ "pausa_s": 1.0,
+ "nota": "Un texto por paso de cada lámina (paso 0, 1, 2...). Se escribe con ortografía normal: sintetizar_voz.py lo convierte para la voz (cifras en palabras, Q4 -> Q cuatro, σx -> sigma equis). El mismo texto alimenta las notas del orador y los subtítulos. No se edita a mano: sale de herramientas/narracion/*.json con armar_narracion.py.",
+ "laminas": [
+  {
+   "id": "portada",
+   "pasos": [
+    "Buenos días, señores miembros del tribunal. Mi nombre es Hedy Yhassmany Oyola Sucullani y presento la tesis «Desarrollo de software educativo de elementos finitos para el análisis estructural empleando el lenguaje de programación Python». Su producto es EduFEM: un software libre y en español que muestra, etapa por etapa, cómo calcula el método de los elementos finitos un sólido plano, en tensión o en deformación plana."
+   ]
+  },
+  {
+   "id": "sep-intro",
+   "pasos": [
+    "La exposición sigue los capítulos del documento: primero planteo el problema y su alcance, los objetivos y la hipótesis; después, un capítulo por cada objetivo específico; y al final, las conclusiones."
+   ]
+  },
+  {
+   "id": "caja-negra",
+   "pasos": [
+    "Hoy, el software comercial de análisis funciona como una caja negra. Se le dan la geometría, el material y las cargas, y devuelve un resultado: un mapa de colores con las tensiones. Lo que pasa en medio no se ve.",
+    "Mirando el programa no se puede saber de dónde sale la tensión de un nodo, ni comprobar si coincide con la que se calculó dentro de los elementos.",
+    "El antecedente educativo más cercano, ED-Elas2D, lo señalaba ya en 1998: con los programas comerciales, el estudiante solo introduce datos e interpreta resultados. Y un consenso de 67 expertos pide egresados que sepan verificar y validar sus análisis, no solo ejecutarlos.",
+    "En la práctica profesional, todo cálculo estructural se entrega con su memoria de cálculo, para que otro ingeniero pueda seguirlo y comprobarlo. Este trabajo abre la caja: deja a la vista las nueve etapas del cálculo."
+   ]
+  },
+  {
+   "id": "problema",
+   "pasos": [
+    "De esa situación nace el problema científico: ¿de qué manera la escasa transparencia del procedimiento de cálculo del software de análisis por elementos finitos podrá incidir en la baja trazabilidad y verificabilidad de ese procedimiento, en la gestión 2026?",
+    "La causa, en azul, es la transparencia del procedimiento de cálculo. El efecto, en violeta, es su trazabilidad y su verificabilidad. Esos colores vuelven en toda la exposición.",
+    "Trazable quiere decir que cada resultado puede seguirse hacia atrás, etapa por etapa, hasta los datos. Verificable, que cada magnitud, intermedia o final, puede compararse con un patrón independiente —un cálculo a mano, una solución analítica u otro programa— y queda dentro de una tolerancia explícita, que no depende del valor observado."
+   ]
+  },
+  {
+   "id": "alcance",
+   "pasos": [
+    "El objeto de estudio es el análisis de medios continuos en elasticidad lineal plana por el método de los elementos finitos: su procedimiento de cálculo, etapa por etapa, hasta las tensiones. El campo de acción son los medios con que ese análisis se enseña: el software educativo y la memoria de cálculo.",
+    "Acoté el alcance a propósito, para ganar profundidad. Del análisis estructural, el trabajo toma solo los sólidos continuos de dos dimensiones; fuera quedan los pórticos, las cerchas, las placas, las cáscaras y el análisis tridimensional. El material es elástico, lineal e isótropo, y el problema, estático. Los elementos son cuadriláteros de cuatro y de nueve nodos, Q4 y Q9. Y no hay mallado automático ni validación con ensayos físicos. Cada exclusión es una decisión, no un olvido: busca que lo que queda dentro pueda seguirse número por número, y varias de esas fronteras reaparecen al final, en las recomendaciones.",
+    "Dentro de ese dominio caben las dos idealizaciones clásicas: la tensión plana, para cuerpos delgados cargados en su plano, como una viga de gran peralte o un muro; y la deformación plana, para cuerpos largos como presas, muros de contención o túneles, donde una rebanada representa todo el sólido.",
+    "Y el problema se delimita en cuatro planos: el disciplinar, que es este dominio; el institucional, la formación de grado en ingeniería civil, con la Carrera de la Universidad Autónoma Tomás Frías como destinataria; el espacial, el aula y la computadora personal, sin licencias; y el temporal, la gestión 2026."
+   ]
+  },
+  {
+   "id": "plano",
+   "pasos": [
+    "¿Por qué el plano? Porque la barra, punto de partida habitual, no muestra los conceptos centrales: el mapeo de un cuadrado de referencia al elemento real, el Jacobiano como matriz, que mide cuánto se estira y se gira ese cuadrado, y la integración en dos direcciones.",
+    "El sólido sí los tiene, pero el tamaño de sus matrices los oscurece: la rigidez de un hexaedro de ocho nodos tiene veinticuatro por veinticuatro términos; seguirla paso a paso es impracticable. La del Q4 tiene ocho por ocho.",
+    "El plano es la dimensión mínima con toda la formulación y matrices que todavía se leen. Y es un puente: el mapeo, la integración y el ensamblaje que EduFEM expone son los mismos que rigen el caso tridimensional."
+   ]
+  },
+  {
+   "id": "objetivos",
+   "pasos": [
+    "Con el problema y su alcance fijados, el objetivo general responde a cuatro preguntas: qué, desarrollar un software educativo de elementos finitos para el análisis estructural; cómo, empleando el lenguaje de programación Python; por qué, debido a la escasa transparencia del procedimiento de cálculo del software de análisis; y para qué, para mejorar la trazabilidad y la verificabilidad del procedimiento de cálculo.",
+    "Su primera parte es, casi palabra por palabra, el título de la tesis.",
+    "Tres objetivos específicos lo concretan, uno por capítulo: fundamentar el método y el estado del arte, para fijar los requisitos; desarrollar EduFEM, para exponer el procedimiento etapa por etapa; y verificarlo y validarlo, para establecer si ese procedimiento es trazable y verificable."
+   ]
+  },
+  {
+   "id": "hipotesis",
+   "pasos": [
+    "La hipótesis dice: bajo la aplicación de un método de diseño de software educativo, el desarrollo de EduFEM permitirá mejorar la trazabilidad y la verificabilidad del análisis por el método de los elementos finitos en elasticidad plana, dada la escasa transparencia con que el software expone su procedimiento de cálculo.",
+    "Tiene cuatro partes. En naranja, la condición, el método de diseño, y la intervención, el desarrollo de EduFEM. En violeta, el efecto, en dos cláusulas: trazabilidad, a, y verificabilidad, b. Y en azul, el antecedente: la escasa transparencia del software de uso corriente, no de EduFEM.",
+    "Así se relacionan las tres variables. La caja negra incide en la baja trazabilidad y verificabilidad: ese es el problema. EduFEM, la variable interviniente —la solución tentativa con que se actúa sobre la causa—, pone el procedimiento a la vista, y la hipótesis predice que así ambas pasan de bajas a altas.",
+    "De las dos cláusulas del efecto salen las dos preguntas de investigación: la primera, por la trazabilidad, pregunta qué organización del software permite seguir cada resultado hasta sus datos y cubrir el contenido que exigen los expertos; la segunda, si el motor reproduce, dentro de tolerancias explícitas, las soluciones exactas, las referencias externas y los fenómenos numéricos que predice la teoría. Como el efecto es la parte que puede resultar falsa, cada cláusula lleva criterios con umbral."
+   ]
+  },
+  {
+   "id": "metodo",
+   "pasos": [
+    "Por su finalidad, el trabajo es propositivo; por su naturaleza, una investigación tecnológica; su enfoque es cuantitativo y su nivel, descriptivo y comparativo.",
+    "El método es el de la ciencia del diseño: el conocimiento se obtiene construyendo el producto y evaluándolo con rigor. Sus seis actividades ordenan el trabajo, de identificar el problema a comunicar el resultado, y las cuatro centrales responden a los objetivos específicos: definir los objetivos de la solución, al primero; diseñar y desarrollar, al segundo; demostrar y evaluar, al tercero. Es una validación de laboratorio: escenarios controlados, sin sujetos."
+   ]
+  },
+  {
+   "id": "sep-cap1",
+   "pasos": [
+    "El primer capítulo cumple el primer objetivo: fundamentar el método y el estado del arte, para fijar los requisitos de la herramienta."
+   ]
+  },
+  {
+   "id": "estado-arte",
+   "pasos": [
+    "Comparé los recursos para enseñar el método en ocho atributos, de la licencia y el idioma a la memoria de cálculo y la verificación publicada. Cada uno cubre algunos: ED-Elas2D y los simuladores de VisualFEA, el continuo y el paso a paso; las bibliotecas, la licencia libre; el analizador de cerchas se limita a las barras. Y el software comercial es una caja negra.",
+    "Ninguno reúne los ocho. Esa es la brecha que EduFEM se propone cubrir.",
+    "El vacío se concentra en dos filas: ningún recurso didáctico revisado documenta una memoria de cálculo reproducible a mano ni una verificación y validación publicada junto con la herramienta.",
+    "De esa brecha salen cinco requisitos: el procedimiento completo a la vista, una memoria reproducible a mano, una exactitud verificada, validada y publicada, la cobertura del contenido que exigen los expertos, y un software libre y en español. Y cuatro principios, cada uno apoyado en la literatura sobre la enseñanza del método, orientan cómo exponerlo."
+   ]
+  },
+  {
+   "id": "formulacion",
+   "pasos": [
+    "Lo que la herramienta debe exponer es el método mismo, y su punto de partida es familiar para un ingeniero civil. En un pórtico, cada barra tiene una rigidez conocida, que se escribe con una fórmula cerrada; las barras se ensamblan y se resuelve K por u igual a F. Un trozo de chapa, en cambio, no tiene fórmula: su rigidez hay que obtenerla integrando sobre su área. Las dos, al final, llevan al mismo sistema.",
+    "El equilibrio de un sólido se escribe primero punto por punto: en cada pedacito del cuerpo, las tensiones de sus caras se equilibran con la carga. Es la forma fuerte. Pero exige que el desplazamiento tenga derivadas segundas continuas en todo el cuerpo, algo difícil de cumplir con una aproximación por trozos, que se quiebra entre un elemento y otro.",
+    "Por eso el método parte de la forma débil, que en elasticidad es el principio de los trabajos virtuales. La idea es la misma de la palanca en estática: se imagina un desplazamiento pequeño, compatible con los apoyos, y se exige que el trabajo de las tensiones internas iguale al trabajo de las cargas. Si esa igualdad se cumple para todo desplazamiento virtual, el cuerpo está en equilibrio en todo su dominio. En la pantalla está el ejemplo guía, un modelo de nueve nodos y cuatro elementos que acompaña todo el procedimiento: para cualquier desplazamiento virtual de sus nodos que respete los apoyos, los dos medidores marcan lo mismo. En ese sentido, el de los trabajos virtuales, la solución por elementos finitos está en equilibrio.",
+    "La ventaja es que solo pide derivadas primeras, y entonces basta interpolar el desplazamiento dentro de cada elemento con funciones de forma: unos pesos que reparten hacia el interior lo que se mueven los nodos; cada una vale uno en su nodo y cero en los demás. De ahí sale la matriz B, que convierte desplazamientos en deformaciones; con la matriz D, la del material, que las convierte en tensiones, la rigidez de cada elemento es la integral de B transpuesta por D por B. Y como la igualdad debe cumplirse para cualquier desplazamiento virtual de los nodos, cada grado de libertad —cada movimiento posible de un nodo, horizontal o vertical— aporta una ecuación; y al ensamblar las rigideces de los elementos, cada una en su lugar, esas ecuaciones forman el mismo sistema del pórtico: K por u igual a F."
+   ]
+  },
+  {
+   "id": "procedimiento",
+   "pasos": [
+    "Ese cálculo se organiza en nueve etapas, aquí sobre el elemento E3 del ejemplo guía. Las tres primeras son geométricas: el mapeo y el Jacobiano, que ya presenté —este da, además, por cuánto se multiplica el área en cada punto—, y la matriz B, que pasa de ocho desplazamientos a tres deformaciones.",
+    "Las dos siguientes traen el material y la rigidez. La matriz D depende de si el caso es de tensión o de deformación plana. Y la rigidez del elemento se integra sumando sus aportes en unos puntos fijos de su interior, los puntos de Gauss: dos por dos en el Q4 y tres por tres en el Q9.",
+    "Después, el cálculo pasa del elemento a la estructura: las cargas repartidas se convierten en fuerzas en los nodos, cada elemento entra en su lugar de la matriz global, se imponen los apoyos y se resuelve el sistema.",
+    "La última etapa recupera las tensiones: se calculan en los puntos de Gauss, se extrapolan a los nodos y se promedian entre los elementos vecinos. Cada etapa tiene en EduFEM un lugar donde verse, y la memoria de cálculo las reúne a todas."
+   ]
+  },
+  {
+   "id": "sep-cap2",
+   "pasos": [
+    "El segundo capítulo cumple el segundo objetivo: desarrollar EduFEM. Primero, cómo se iba a contrastar la hipótesis; después, el software."
+   ]
+  },
+  {
+   "id": "evaluacion",
+   "pasos": [
+    "La variable independiente tiene dos niveles: caja negra o procedimiento a la vista. La trazabilidad se mide contando lo que queda expuesto, porque la cadena se rompe en su eslabón más débil: basta una etapa oculta para que el resultado ya no pueda seguirse hasta sus datos. La verificabilidad se mide con el error frente a referencias de exactitud conocida, con tolerancias explícitas.",
+    "Para eso elegí tres casos de estudio, cada uno con un patrón de distinta naturaleza: las soluciones manufacturadas, una solución exacta construida a propósito; la viga de Timoshenko, con su solución analítica clásica; y la membrana de Cook, un caso clásico de la literatura, con un valor de referencia de uso extendido. Se suma el ejemplo guía, cuya memoria se rehace a mano.",
+    "Cada cláusula se juzga con criterios de umbral explícito: seis para la trazabilidad, donde el umbral es la exhaustividad, y nueve para la verificabilidad. Cada criterio dice qué resultado lo refutaría. La regla es conjuntiva: la hipótesis queda comprobada solo si sus premisas se respaldan y se cumplen las dos cláusulas; parcialmente, si se cumple una; y no comprobada, si ninguna. Si una premisa no se respaldara, el efecto ni siquiera llegaría a juzgarse."
+   ]
+  },
+  {
+   "id": "software",
+   "pasos": [
+    "EduFEM organiza el análisis en las tres fases del software profesional, sobre un mismo lienzo. En el pre-proceso, el modelo se dibuja o se escribe en tablas, y un comprobador de salud revisa los datos antes de resolver. En el proceso se abren los módulos educativos. Y en el post-proceso se leen los colores de tensión, la deformada, las reacciones y, con una sonda, el estado de tensión de cualquier punto, con su círculo de Mohr.",
+    "El módulo M0 se abre ya en el pre-proceso y colorea cada elemento de la malla según su calidad; los otros siete, de M1 a M7, se abren sobre el elemento que el usuario elige en su propio modelo y muestran su etapa con los números de ese elemento. Lo que muestran es lo que EduFEM calcula: una prueba automática comprueba que la versión escrita para leerse y la que resuelve coincidan.",
+    "Y la memoria de cálculo reconstruye todo el procedimiento en un PDF, con los números del modelo sustituidos paso a paso, para rehacerlo a mano o en una hoja de cálculo, como la memoria que acompaña a cualquier proyecto. Todo es libre, está en español y se instala sin requisitos adicionales."
+   ]
+  },
+  {
+   "id": "trazabilidad",
+   "pasos": [
+    "Así se ve la trazabilidad en el ejemplo guía. Elijo un resultado: la tensión de von Mises del nodo 7, 864,70.",
+    "Y lo sigo hacia atrás, etapa por etapa. Como el nodo 7 solo pertenece al elemento E3, su tensión sale de los cuatro puntos de Gauss de ese elemento; esas tensiones, de los desplazamientos; los desplazamientos, del sistema resuelto; el sistema, del ensamblaje de las cuatro rigideces y de las fuerzas en los nodos; y la rigidez de E3, de su matriz D, de su matriz B, de su Jacobiano y de su mapeo.",
+    "Al final del camino están los datos del modelo: el material, el espesor, la carga de mil en el nodo 7 y los apoyos en los nodos 1, 3 y 6. Ninguna etapa queda escondida.",
+    "La memoria de cálculo deja ese mismo camino por escrito, con los números sustituidos: es el Anexo G de la tesis, y cada etapa puede rehacerse con lápiz y papel."
+   ]
+  },
+  {
+   "id": "demo",
+   "pasos": [
+    "Este es el recorrido que hago en el propio software, en cinco pasos: cargo el ejemplo guía, lo compruebo y lo resuelvo, abro un módulo sobre un elemento, consulto un nodo con la sonda y genero la memoria de cálculo.",
+    "En las capturas: el ejemplo guía en el pre-proceso; el módulo M3, con la matriz B del elemento elegido y sus propios números; la sonda en el nodo 7, con su estado de tensión y su círculo de Mohr; y las hojas de la memoria de cálculo."
+   ]
+  },
+  {
+   "id": "sep-cap3",
+   "pasos": [
+    "El tercer capítulo cumple el tercer objetivo: verificar y validar EduFEM, para establecer si su procedimiento es trazable y verificable."
+   ]
+  },
+  {
+   "id": "mms",
+   "pasos": [
+    "Verificar es preguntar si el programa resuelve bien sus ecuaciones. Para eso se fabrica una solución exacta, se le pide a EduFEM que la reproduzca en mallas cada vez más finas, de dos a treinta y dos elementos por lado, y se mide cuánto se equivoca. Si resuelve bien, el error baja al ritmo que predice la teoría.",
+    "Esta es la gráfica de la tesis: en el eje horizontal, el tamaño de los elementos; en el vertical, el error en los desplazamientos, los dos en escala logarítmica. Cada punto es una malla, y hacia la izquierda las mallas son más finas. Con el Q4, cada vez que el tamaño se reduce a la mitad, el error se divide por cuatro: la pendiente es dos, la que predice la teoría.",
+    "Con el Q9, el error se divide por ocho: pendiente tres, también la teórica.",
+    "En la segunda gráfica, que mide el error en las deformaciones, las pendientes son uno y dos, otra vez las teóricas. Y las cuatro configuraciones ensayadas, con elementos cuadrados y distorsionados, en tensión y en deformación plana, dan las mismas tasas, con diferencias menores que una centésima. El criterio, la tasa teórica más o menos medio orden, se cumple."
+   ]
+  },
+  {
+   "id": "timoshenko",
+   "pasos": [
+    "Validar es preguntar si los resultados coinciden con referencias externas. La primera validación es una viga de hormigón simplemente apoyada, de 14 metros de luz y 1,20 metros de peralte, con 5000 kilogramos fuerza por metro, modelada con 448 elementos Q9. Se compara con dos referencias: la solución analítica de Timoshenko y Goodier, y un modelo en SAP2000, que sirve de patrón de comparación, no de exactitud, porque su formulación de cáscara no es la de EduFEM.",
+    "En los tres puntos de control, la tensión normal de EduFEM difiere de la analítica, como máximo, un 0,04 %, y de SAP2000, un 0,21 %. El umbral era del 1 %.",
+    "La flecha central difiere un 0,26 % de la solución que incluye la deformación por cortante; frente a la fórmula de Euler-Bernoulli, que la desprecia, la diferencia sería del 1,85 %: la referencia correcta es la que, como el modelo, incluye el cortante. Y las reacciones equilibran la carga total de 70 000 kilogramos fuerza con un residuo del orden de diez a la menos trece: cero, a efectos numéricos."
+   ]
+  },
+  {
+   "id": "cook",
+   "pasos": [
+    "La segunda validación es la membrana de Cook: un trapecio empotrado a la izquierda y cargado en su borde derecho, que combina flexión, cortante y distorsión. Se mide el desplazamiento vertical en el punto medio de su borde derecho, cuyo valor de referencia es 23,96, corroborado por una extrapolación propia y por el valor publicado.",
+    "Esta es la gráfica del documento. El Q4 se queda corto: con la malla más gruesa subestima la respuesta en más de la mitad, y se acerca muy despacio; con treinta y dos elementos por lado todavía le falta más de medio punto porcentual.",
+    "El Q9 llega casi enseguida: con ocho elementos por lado, su error es de 0,144 %, muy por debajo del umbral del 1,5 %. Con esos mismos 578 grados de libertad, que el Q4 alcanza con dieciséis elementos por lado, el error del Q9 es más de diez veces menor que el del Q4.",
+    "La razón es el bloqueo por cortante: los bordes del Q4 se mantienen rectos, no pueden curvarse, y el elemento resulta demasiado rígido en flexión. EduFEM lo reproduce tal como predice la teoría. Además, los cinco valores del Q4 coinciden, hasta la última cifra publicada, con los de Štembera y Füssl para un elemento de cuatro nodos."
+   ]
+  },
+  {
+   "id": "cobertura",
+   "pasos": [
+    "Para la trazabilidad, el resultado es un inventario sin huecos: las siete primeras etapas tienen su módulo educativo; las nueve, su desarrollo en la memoria de cálculo; la solución y las tensiones se muestran en el post-proceso, sin promediar y promediadas; las tres fases comparten un lienzo, y las entidades del modelo —nodos, elementos, material, cargas y restricciones— entran y salen por hoja de cálculo sin pérdida.",
+    "Y frente al consenso de expertos: de sus 49 contenidos, 18 pertenecen al procedimiento de cálculo y a su verificación, dentro de este alcance. Los 18 tienen un instrumento en EduFEM.",
+    "Esto prueba cobertura, no suficiencia ni efecto sobre quien lo usa; y el cotejo lo hice yo, con una regla de marcado explícita."
+   ]
+  },
+  {
+   "id": "leccion",
+   "pasos": [
+    "Hubo un inconveniente que vale la pena contar. La matriz que lleva las tensiones del Q4 de los puntos de Gauss a los nodos estaba escrita para otra numeración de esos puntos. Las pruebas de convergencia del desplazamiento no lo vieron, porque esa matriz no interviene en los desplazamientos.",
+    "Lo delató la memoria de cálculo: al leerla, las tensiones de los nodos no cerraban con las de los puntos de Gauss. Llevadas a los nodos y traídas de vuelta, deberían volver iguales, y no todas volvían.",
+    "Se corrigió, y hoy una prueba propia, la reproducción exacta de campos polinómicos, lo detectaría. La lección es doble: exponer el procedimiento no asegura que lo expuesto sea correcto, y fue precisamente poder leerlo paso a paso lo que hizo visible el error. Por eso la hipótesis no es una tautología: la verificabilidad hubo que medirla, y pudo haber fallado."
+   ]
+  },
+  {
+   "id": "sep-conclusiones",
+   "pasos": [
+    "Paso a las conclusiones, donde respondo a los objetivos, a la hipótesis, al problema y a las preguntas de investigación."
+   ]
+  },
+  {
+   "id": "objetivos-cumplidos",
+   "pasos": [
+    "El objetivo general se cumplió: EduFEM es un software educativo de elementos finitos, libre, en español y escrito en Python, que expone su procedimiento de cálculo en elasticidad plana con elementos Q4 y Q9.",
+    "De la fundamentación teórica, el primer capítulo, se concluye que el software comercial opera como una caja negra, y que ningún recurso educativo revisado documenta a la vez los atributos que harían trazable y verificable el procedimiento.",
+    "Del desarrollo de EduFEM, el segundo capítulo, se concluye que el software lleva su procedimiento a la vista: los módulos educativos, sobre el modelo del usuario, hasta el ensamblaje; el post-proceso, con sus medios de comprobación; y la memoria de cálculo, con los números sustituidos.",
+    "Y de la verificación y la validación, el tercer capítulo, se concluye que ese procedimiento es trazable y verificable: se cumplen los quince criterios. Con los tres objetivos cumplidos, queda juzgar el para qué del objetivo general —mejorar la trazabilidad y la verificabilidad—: es el contraste de la hipótesis."
+   ]
+  },
+  {
+   "id": "contraste",
+   "pasos": [
+    "La hipótesis se contrasta parte por parte, con los mismos colores con que la presenté. Para cada parte, la tabla pone frente a frente la situación de partida, con software de caja negra, y la que alcanza EduFEM.",
+    "Las tres premisas se respaldan con evidencia documental. La condición: el método de la ciencia del diseño se aplicó en sus seis actividades, con requisitos tomados de los antecedentes y decisiones trazadas a cuatro principios. La intervención: EduFEM lleva el procedimiento de la caja negra a la vista. Y el antecedente: la comparación de recursos registra al software comercial como una caja negra, con informes sin el desarrollo matricial.",
+    "El efecto se juzga con criterios. Trazabilidad: antes, ningún resultado podía seguirse etapa por etapa; con EduFEM, siete de siete etapas con módulo, nueve de nueve en la memoria, la solución y las tensiones sin promediar y promediadas, tres de tres fases en un lienzo, dieciocho de dieciocho contenidos y el intercambio de datos sin pérdida. Se cumplen los seis criterios.",
+    "Verificabilidad: antes, solo podía comprobarse el resultado final; con EduFEM, las dos tasas teóricas de convergencia, la flecha y la tensión frente a la solución analítica, la tensión frente a SAP2000, el equilibrio de las reacciones, la membrana de Cook, el bloqueo del Q4 y una memoria que puede rehacerse a mano. Nueve de nueve criterios cumplidos.",
+    "Frente a la situación de partida, la trazabilidad y la verificabilidad pasan de su nivel bajo al alto; y con la regla de decisión conjuntiva —las tres premisas respaldadas y las dos cláusulas cumplidas—, la hipótesis queda comprobada. Lo está dentro del alcance declarado: se midieron propiedades del software, no su uso por estudiantes; los contrastes externos son de tensión plana, y la evaluación la hice yo."
+   ]
+  },
+  {
+   "id": "margen",
+   "pasos": [
+    "Esta figura de las conclusiones mide cuán lejos quedó cada criterio numérico de incumplirse: el valor observado dividido por su umbral, en escala logarítmica. Lo que queda a la izquierda de la línea, se cumple.",
+    "Los nueve puntos son los siete criterios numéricos —las tasas se dibujan por separado para el Q4 y el Q9—. Todos quedan a la izquierda del umbral; las tasas y el equilibrio, a varios órdenes de magnitud.",
+    "El más ajustado, la tensión normal frente a SAP2000, consume cerca de la quinta parte de su umbral: ninguno quedó cerca del límite. Por eso el veredicto no descansa en el valor exacto de cada umbral, sino en el margen con que se cumple."
+   ]
+  },
+  {
+   "id": "respuesta",
+   "pasos": [
+    "La respuesta al problema es esta: la escasa transparencia del software de análisis incide en la baja trazabilidad y verificabilidad porque oculta las magnitudes intermedias. Sin ellas, ningún resultado puede seguirse etapa por etapa hasta sus datos, y solo los resultados finales pueden comprobarse.",
+    "Un software educativo con tres rasgos revierte esa situación: expone su procedimiento; muestra la respuesta con sus medios de comprobación; y somete su motor a verificación y validación con criterios explícitos.",
+    "Con ello quedan respondidas las dos preguntas. La primera, con la organización que acabo de contrastar: un mismo lienzo, un módulo para cada etapa hasta el ensamblaje, la memoria completa y el post-proceso con sus comprobaciones; y los dieciocho contenidos del consenso tienen su instrumento. La segunda, con un sí, dentro de las tolerancias declaradas.",
+    "Y la mejora frente a la situación de partida se ve en el ejemplo del principio: lo que la caja negra hacía imposible —saber si las tensiones de los nodos cierran con las calculadas dentro de los elementos— en EduFEM puede comprobarse en la memoria de cálculo.",
+    "Esa misma comprobación delató el defecto de la extrapolación: exponer el procedimiento es necesario, pero no suficiente. Y quedan tres debilidades declaradas: la evaluación es mía, la deformación plana no tiene contraste externo, y la exposición es una posibilidad que el software ofrece, no un recorrido que imponga."
+   ]
+  },
+  {
+   "id": "recomendaciones",
+   "pasos": [
+    "Las recomendaciones nacen de esas debilidades y de las fronteras del alcance, una vía por capítulo. Para la fundamentación: tratar el bloqueo, con integración reducida selectiva o la formulación B barra, y agregar más tipos de elemento.",
+    "Para el software: un mallado automático, un solucionador para mallas muy grandes, una guía docente con prácticas y la extensión a tres dimensiones.",
+    "Y para la verificación: un caso civil en deformación plana con solución publicada, cargas linealmente variables y una revisión independiente de la tabla de cobertura y del código. El uso de la herramienta en el aula queda para una investigación educativa distinta."
+   ]
+  },
+  {
+   "id": "cierre",
+   "pasos": [
+    "EduFEM deja a la vista lo que el software comercial oculta: cada resultado puede seguirse hasta sus datos y comprobarse paso a paso. Seis de seis criterios de trazabilidad, nueve de nueve de verificabilidad: la hipótesis queda comprobada, dentro de su alcance. Muchas gracias por su atención; quedo a disposición del tribunal para sus preguntas."
+   ]
+  }
+ ]
+}

@@ -1,0 +1,2303 @@
+<!doctype html>
+<html lang="es" data-tema="oscuro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Defensa EduFEM</title>
+<meta name="description" content="Defensa de tesis: desarrollo de software educativo de elementos finitos (EduFEM). Presentación final, sincronizada con la tesis final4.">
+<link rel="icon" href="assets/img/fig_logo_edufem.png">
+<link rel="stylesheet" href="assets/terceros/inter.css">
+<link rel="stylesheet" href="assets/terceros/katex/katex.min.css">
+<link rel="stylesheet" href="assets/css/deck.css">
+<link rel="stylesheet" href="assets/css/laminas.css">
+<link rel="stylesheet" href="assets/css/l4_comun.css">
+<link rel="stylesheet" href="assets/css/l4_intro.css">
+<link rel="stylesheet" href="assets/css/l4_alcance.css">
+<link rel="stylesheet" href="assets/css/l4_hipotesis.css">
+<link rel="stylesheet" href="assets/css/l4_formulacion.css">
+<link rel="stylesheet" href="assets/css/l4_software.css">
+<link rel="stylesheet" href="assets/css/l4_resultados.css">
+<link rel="stylesheet" href="assets/css/l4_conclusiones.css">
+<link rel="stylesheet" href="assets/css/l4_respaldo.css">
+</head>
+<body>
+<div id="escenario">
+
+<!-- 00_portada.html -->
+<section class="lamina portada" id="portada" data-titulo="Carátula" data-sin-pie>
+  <!-- grupo: intro -->
+  <div class="port-izq">
+    <div class="inst" data-entrada="1">
+      <img class="escudo" src="assets/img/logo_universidad.png" alt="Escudo de la UATF">
+      <div>
+        <div class="u">Universidad Autónoma «Tomás Frías»</div>
+        <div class="f">Facultad de Ingeniería · Carrera de Ingeniería Civil</div>
+      </div>
+    </div>
+    <div class="tipo" data-entrada="2">Tesis de grado · Licenciatura en Ingeniería Civil</div>
+    <h1 class="titulo-port" data-entrada="3">Desarrollo de software educativo de elementos finitos para el análisis estructural empleando el lenguaje de programación <span class="py">Python</span></h1>
+    <div class="autor" data-entrada="4"><span class="etq">Postulante</span>Hedy Yhassmany Oyola Sucullani</div>
+    <div class="lugar" data-entrada="5">Potosí – Bolivia · octubre de 2026</div>
+    <div class="grupo-botones solo-vivo" data-entrada="6">
+      <button class="boton acento" onclick="EF.Deck.siguiente()">Comenzar <span class="flecha">→</span></button>
+      <button class="boton" onclick="EF.Deck.alternarCapa('menu')">☰ Índice</button>
+      <button class="boton fantasma" data-ir="demo">▶ Demostración</button>
+    </div>
+  </div>
+  <div class="port-der" data-viz="portada" data-pptx-clip="portada:6000:ciclo">
+    <div class="etq-campo">Membrana de Cook · von Mises · datos del motor</div>
+    <div class="marca-port">
+      <img src="assets/img/fig_logo_edufem.png" alt="">
+      <div><div class="nom">Edu<b>FEM</b></div><div class="lema">El procedimiento de cálculo, a la vista</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 01_sep-intro.html -->
+<section class="lamina separador agenda" id="sep-intro" data-bloque="intro" data-titulo="Recorrido de la defensa" data-sin-pie>
+  <!-- grupo: intro -->
+  <div class="fondo-malla" data-viz="separador" data-pptx-clip="malla:6000:idavuelta"></div>
+  <div class="agenda-cab" data-entrada="1">
+    <div class="agenda-etq">Recorrido de la defensa</div>
+    <div class="agenda-tit">Un capítulo por objetivo y, al final, la respuesta</div>
+  </div>
+  <div class="ruta" data-viz="ruta-agenda">
+    <div class="estacion actual" data-entrada="2">
+      <div class="n">▸</div><div class="nom">Introducción</div><div class="verbo">Plantear</div>
+      <div class="que">Problema · alcance · objetivos · hipótesis · método</div>
+    </div>
+    <div class="estacion" data-entrada="3">
+      <div class="n">1</div><div class="nom">Capítulo 1</div><div class="verbo">Fundamentar</div>
+      <div class="que">Estado del arte · formulación variacional · nueve etapas</div>
+    </div>
+    <div class="estacion" data-entrada="4">
+      <div class="n">2</div><div class="nom">Capítulo 2</div><div class="verbo">Desarrollar</div>
+      <div class="que">Cómo se contrasta · EduFEM · demostración</div>
+    </div>
+    <div class="estacion" data-entrada="5">
+      <div class="n">3</div><div class="nom">Capítulo 3</div><div class="verbo">Verificar y validar</div>
+      <div class="que">Soluciones exactas · Timoshenko · Cook · cobertura</div>
+    </div>
+    <div class="estacion" data-entrada="6">
+      <div class="n">✓</div><div class="nom">Conclusiones</div><div class="verbo">Responder</div>
+      <div class="que">Objetivos · hipótesis · problema · preguntas</div>
+    </div>
+  </div>
+</section>
+
+<!-- 02_caja-negra.html -->
+<section class="lamina" id="caja-negra" data-bloque="intro" data-titulo="La caja negra" data-pasos="3">
+  <!-- grupo: intro -->
+  <div class="cabecera">
+    <div class="rotulo" data-auto data-sec="Introducción · Situación problemática"></div>
+    <h2 class="titulo">Resultados sin procedimiento: <span class="suave">la caja negra</span></h2>
+  </div>
+  <div class="lienzo-cn" data-viz="cajanegra4"></div>
+  <div class="cita" data-solo="2">
+    <div><b>ED-Elas2D, 1998 [6, p. 246]:</b> con los programas comerciales, el estudiante queda limitado a introducir los datos del problema e interpretar los resultados, sin acceso a los detalles del análisis.</div>
+    <div><b>Consenso de 67 expertos [3, pp. 1159, 1171]:</b> el egresado debe saber planificar, verificar y validar sus análisis, no solo ejecutarlos.</div>
+  </div>
+  <div class="remate cn-remate" data-paso="3"><span class="ico">✎</span><span>En la práctica profesional, el cálculo estructural se entrega con su <b>memoria de cálculo</b>, para que otro pueda seguirlo y comprobarlo.</span></div>
+</section>
+
+<!-- 03_problema.html -->
+<section class="lamina" id="problema" data-bloque="intro" data-titulo="Problema científico">
+  <!-- grupo: intro -->
+  <div class="cabecera">
+    <div class="rotulo" data-auto data-sec="Introducción · Formulación del problema · Variables"></div>
+    <h2 class="titulo">Problema científico</h2>
+  </div>
+  <div class="enunciado l4-enunciado" data-clase-paso="1:marcar" data-pptx-entrada="1" data-pptx-anim="palabras">
+    ¿De qué manera <span class="vi">la escasa transparencia del procedimiento de cálculo</span> del software de análisis por elementos finitos podrá incidir en la <span class="vd">baja trazabilidad y verificabilidad de ese procedimiento</span>, en la gestión 2026?
+  </div>
+  <div class="rejilla-2 l4-vars" data-paso="1">
+    <div class="var-chip vi"><span>Causa · variable independiente</span>La transparencia del procedimiento de cálculo</div>
+    <div class="var-chip vd"><span>Efecto · variable dependiente</span>La trazabilidad y la verificabilidad del procedimiento de cálculo</div>
+  </div>
+  <div class="rejilla-2 l4-defs" data-paso="2">
+    <div class="tarjeta definicion compacta">
+      <div class="ico-anim" data-viz="icono-traza"></div>
+      <div><h3>Trazabilidad</h3><p>Cada resultado puede seguirse hacia atrás, etapa por etapa, hasta los datos del modelo.</p></div>
+    </div>
+    <div class="tarjeta definicion compacta">
+      <div class="ico-anim" data-viz="icono-verif"></div>
+      <div><h3>Verificabilidad</h3><p>Cada magnitud puede comprobarse contra un patrón independiente —cálculo manual, solución analítica u otro programa— y da conforme dentro de una tolerancia explícita, que no depende del valor observado.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 04_alcance.html -->
+<section class="lamina" id="alcance" data-bloque="intro" data-titulo="Objeto, campo y alcance" data-pasos="3">
+  <!-- grupo: alcance -->
+  <div class="cabecera">
+    <div class="rotulo" data-auto data-sec="Introducción · Objeto de estudio y campo de acción · Delimitación · Alcance y limitaciones"></div>
+    <h2 class="titulo">Qué se estudia y hasta dónde llega</h2>
+  </div>
+
+  <!-- Paso 0 · objeto de estudio y campo de acción (Introducción, «Objeto de estudio y campo de acción») -->
+  <div class="tarjeta alc-carta alc-objeto" data-solo="0" data-entrada="1">
+    <div class="barra-sup"></div>
+    <div class="etq">Objeto de estudio <span class="alc-cita">[8, p. 8]</span></div>
+    <div class="alc-ilus" data-ico="objeto"></div>
+    <h3>El análisis de medios continuos en elasticidad lineal plana por el MEF</h3>
+    <p>El procedimiento de cálculo que va del mapeo isoparamétrico a la recuperación de tensiones, con elementos Q4 y Q9</p>
+  </div>
+  <div class="tarjeta alc-carta alc-campo" data-solo="0" data-entrada="2">
+    <div class="barra-sup"></div>
+    <div class="etq">Campo de acción</div>
+    <div class="alc-ilus" data-ico="campo"></div>
+    <h3>Los medios de cálculo con que ese análisis se enseña</h3>
+    <p>El software educativo que expone el procedimiento y la memoria de cálculo que lo documenta sobre el modelo del usuario</p>
+  </div>
+
+  <!-- Pasos 1 a 3 · el embudo del alcance (Introducción, «Alcance y limitaciones»).
+       La visualización dibuja el embudo, coloca los rótulos de cada nivel y hace salir de
+       escena, hacia la columna «Fuera del alcance», lo que cada nivel deja afuera. -->
+  <div class="alc-embudo" data-viz="alc-embudo" data-paso="1">
+    <div class="alc-nivel"><b>Análisis estructural</b></div>
+    <div class="alc-nivel obj"><b>Sólidos continuos en dos dimensiones</b></div>
+    <div class="alc-nivel obj"><b>Elasticidad lineal estática</b></div>
+    <div class="alc-nivel obj"><b>Material elástico, lineal<br>e isótropo (<i>E</i>, <span class="nu">ν</span>)</b></div>
+    <div class="alc-nivel obj"><b>Q4 y Q9</b><small>cuadriláteros isoparamétricos</small></div>
+    <div class="alc-nivel edu"><b>EduFEM</b><small>software educativo de escritorio, en español</small></div>
+    <div class="alc-leyenda">
+      <span class="obj">Objeto de estudio</span>
+      <span class="campo">Campo de acción: el software educativo</span>
+    </div>
+    <div class="alc-fuera" data-solo="1">
+      <div class="alc-fuera-tit"><span class="alc-ico mini" data-ico="prohibido"></span>Fuera del alcance</div>
+      <div class="alc-sale" data-desde="0" data-cuando="1"><span class="alc-ico" data-ico="portico"></span><div class="alc-sale-tx"><b>Pórticos y cerchas<i class="alc-tacha"></i></b><small>sistemas de barras</small></div></div>
+      <div class="alc-sale" data-desde="0" data-cuando="1"><span class="alc-ico" data-ico="placa"></span><div class="alc-sale-tx"><b>Placas y cáscaras<i class="alc-tacha"></i></b></div></div>
+      <div class="alc-sale" data-desde="0" data-cuando="1"><span class="alc-ico" data-ico="solido"></span><div class="alc-sale-tx"><b>Análisis tridimensional<i class="alc-tacha"></i></b></div></div>
+      <div class="alc-sale" data-desde="1" data-cuando="2"><span class="alc-ico" data-ico="nolineal"></span><div class="alc-sale-tx"><b>No linealidad<i class="alc-tacha"></i></b><small>del material o geométrica</small></div></div>
+      <div class="alc-sale" data-desde="1" data-cuando="2"><span class="alc-ico" data-ico="dinamica"></span><div class="alc-sale-tx"><b>Efectos dinámicos<i class="alc-tacha"></i></b><small>o dependientes del tiempo</small></div></div>
+      <div class="alc-sale" data-desde="3" data-cuando="4"><span class="alc-ico" data-ico="triq8"></span><div class="alc-sale-tx"><b>Triángulos y cuadriláteros de ocho nodos<i class="alc-tacha"></i></b><small>quedan como recomendación</small></div></div>
+      <div class="alc-sale" data-desde="5" data-cuando="5"><span class="alc-ico" data-ico="mallado"></span><div class="alc-sale-tx"><b>Mallado automático<i class="alc-tacha"></i></b><small>la malla se arma por tablas, por dibujo o desde un DXF; en los casos de estudio, por generación estructurada</small></div></div>
+      <div class="alc-sale" data-desde="5" data-cuando="5"><span class="alc-ico" data-ico="ensayo"></span><div class="alc-sale-tx"><b>Ensayos físicos<i class="alc-tacha"></i></b><small>se valida con soluciones analíticas, casos clásicos y un software comercial</small></div></div>
+    </div>
+  </div>
+
+  <!-- Paso 2 · las dos idealizaciones dentro del dominio [14, p. 11] -->
+  <div class="alc-escena">
+    <div class="alc-esc-tit" data-solo="2">Dentro del dominio: dos idealizaciones <span class="alc-cita">[14, p. 11]</span></div>
+    <div class="alc-video" data-solo="2" data-viz="video" data-src="assets/video/tension_deformacion_plana.mp4" data-cuadros="194" data-fps="22"></div>
+    <div class="tarjeta alc-ideal tp" data-solo="2">
+      <div class="alc-ideal-cab"><b>Tensión plana</b><span class="alc-cond"><i>σ</i><sub>z</sub> = 0</span></div>
+      <p>cuerpos delgados cargados en su plano</p>
+      <div class="alc-ejemplos">
+        <figure><span class="alc-ico ej" data-ico="viga"></span><figcaption>viga de gran peralte</figcaption></figure>
+        <figure><span class="alc-ico ej" data-ico="muro"></span><figcaption>muro cargado en su plano</figcaption></figure>
+      </div>
+    </div>
+    <div class="tarjeta alc-ideal dp" data-solo="2">
+      <div class="alc-ideal-cab"><b>Deformación plana</b><span class="alc-cond"><i>ε</i><sub>z</sub> = 0</span></div>
+      <p>cuerpos prismáticos largos: una rebanada representa todo el sólido</p>
+      <div class="alc-ejemplos">
+        <figure><span class="alc-ico ej" data-ico="presa"></span><figcaption>presa</figcaption></figure>
+        <figure><span class="alc-ico ej" data-ico="contencion"></span><figcaption>muro de contención</figcaption></figure>
+        <figure><span class="alc-ico ej" data-ico="tunel"></span><figcaption>túnel</figcaption></figure>
+      </div>
+    </div>
+
+    <!-- Paso 3 · delimitación en cuatro planos (Introducción, «Delimitación») -->
+    <div class="alc-esc-tit" data-paso="3">Delimitación en cuatro planos</div>
+    <div class="alc-plano-d" data-paso="3" style="top:56px">
+      <span class="alc-ico caja" data-ico="disciplinar"></span>
+      <div><div class="etq">Disciplinar</div><p>Elasticidad lineal plana con elementos Q4 y Q9</p></div>
+    </div>
+    <div class="alc-plano-d" data-paso="3" style="top:236px">
+      <span class="alc-ico caja" data-ico="institucional"></span>
+      <div><div class="etq">Institucional</div><p>Formación de grado en ingeniería civil; la Carrera de Ingeniería Civil de la UATF, destinataria inmediata</p></div>
+    </div>
+    <div class="alc-plano-d" data-paso="3" style="top:416px">
+      <span class="alc-ico caja" data-ico="espacial"></span>
+      <div><div class="etq">Espacial</div><p>El aula y la computadora personal, sin laboratorio de cómputo ni licencias</p></div>
+    </div>
+    <div class="alc-plano-d" data-paso="3" style="top:596px">
+      <span class="alc-ico caja" data-ico="temporal"></span>
+      <div><div class="etq">Temporal</div><p>Desarrollo, verificación y validación en la gestión 2026</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 05_plano.html -->
+<section class="lamina" id="plano" data-bloque="intro" data-titulo="¿Por qué el plano?" data-pasos="2">
+  <!-- grupo: alcance -->
+  <div class="cabecera">
+    <div class="rotulo" data-auto data-sec="Introducción · Alcance y limitaciones"></div>
+    <h2 class="titulo">¿Por qué el plano?</h2>
+  </div>
+
+  <!-- Introducción, «Alcance y limitaciones»: la elección del dominio bidimensional como decisión
+       de diseño. La visualización dibuja los tres elementos, las matrices a escala y el puente. -->
+  <div class="pla" data-viz="alc-plano">
+    <!-- Paso 0 · barra, plano y sólido frente a los conceptos de la formulación -->
+    <div class="pla-col barra" data-solo="0" data-entrada="1"><div class="pla-cab"><b>Barra</b> · 1D</div><div class="pla-sub">punto de partida habitual</div></div>
+    <div class="pla-col plano" data-solo="0" data-entrada="2"><div class="pla-cab"><b>Plano</b> · 2D</div><div class="pla-sub"><span class="pla-edufem">EduFEM</span></div></div>
+    <div class="pla-col solido" data-solo="0" data-entrada="3"><div class="pla-cab"><b>Sólido</b> · 3D</div><div class="pla-sub">hexaedro de ocho nodos</div></div>
+    <div class="pla-fila" data-solo="0" data-entrada="4" style="top:436px">Mapeo de un cuadrado de referencia al elemento</div>
+    <div class="pla-fila" data-solo="0" data-entrada="4" style="top:524px">Jacobiano como matriz</div>
+    <div class="pla-fila" data-solo="0" data-entrada="4" style="top:612px">Cuadratura en dos direcciones</div>
+    <span class="pla-marca no" data-solo="0" style="left:642px;top:452px">✗</span>
+    <span class="pla-marca no" data-solo="0" style="left:642px;top:540px">✗</span>
+    <span class="pla-marca no" data-solo="0" style="left:642px;top:628px">✗</span>
+    <span class="pla-marca si" data-solo="0" style="left:1067px;top:452px">✓</span>
+    <span class="pla-marca si" data-solo="0" style="left:1067px;top:540px">✓</span>
+    <span class="pla-marca si" data-solo="0" style="left:1067px;top:628px">✓</span>
+    <span class="pla-marca si" data-solo="0" style="left:1492px;top:452px">✓</span>
+    <span class="pla-marca si" data-solo="0" style="left:1492px;top:540px">✓</span>
+    <span class="pla-marca si" data-solo="0" style="left:1492px;top:628px">✓</span>
+
+    <!-- Paso 1 · el tamaño real de las matrices, a escala (una celda = un término) [2, p. 218] -->
+    <div class="pla-tit" data-paso="1" data-retraso="150" style="left:88px"><b>Plano</b> · Q4 <span class="pla-edufem">EduFEM</span></div>
+    <div class="pla-tit" data-paso="1" data-retraso="250" style="left:690px"><b>Sólido</b> · hexaedro de ocho nodos <span class="pla-cita">[2, p. 218]</span></div>
+    <div class="pla-mat" data-paso="1" data-retraso="450" data-m="qD" style="left:0"><b>D</b> <span>3 × 3</span></div>
+    <div class="pla-mat" data-paso="1" data-retraso="650" data-m="qB" style="left:130px"><b>B</b> <span>3 × 8</span></div>
+    <div class="pla-mat" data-paso="1" data-retraso="850" data-m="qK" style="left:310px"><b>k<sub>e</sub></b> <span>8 × 8</span></div>
+    <div class="pla-mat" data-paso="1" data-retraso="1150" data-m="sD" style="left:600px"><b>D</b> <span>6 × 6</span></div>
+    <div class="pla-mat" data-paso="1" data-retraso="1150" data-m="sB" style="left:730px"><b>B</b> <span>6 × 24</span></div>
+    <div class="pla-mat" data-paso="1" data-retraso="1150" data-m="sK" style="left:1212px"><b>k<sub>e</sub></b> <span>24 × 24</span></div>
+    <div class="pla-fantasma" data-paso="1" data-retraso="1300">8 × 8</div>
+    <div class="pla-ver ok" data-paso="1" data-retraso="1250"><span class="pla-marca si chica">✓</span>Matrices de tamaño legible: cada operación puede exhibirse</div>
+    <div class="pla-ver mal" data-paso="1" data-retraso="2600"><b>k<sub>e</sub></b> de 24 × 24: impracticable seguirla paso a paso</div>
+
+    <!-- Paso 2 · el plano como puente hacia el caso tridimensional [1, 4] -->
+    <div class="pla-pila izq" data-paso="2" data-retraso="0"><b>Plano (2D): la dimensión mínima</b><span>toda la formulación, con matrices que todavía se leen</span></div>
+    <div class="pla-tablero" data-paso="2" data-retraso="500"><b>La misma formulación en 2D y en 3D <span class="pla-cita">[1, 4]</span></b><span>mapeo isoparamétrico · cuadratura de Gauss · ensamblaje</span></div>
+    <div class="pla-pila der" data-paso="2" data-retraso="900"><b>Sólido (3D)</b><span>línea de continuación del proyecto</span></div>
+  </div>
+</section>
+
+<!-- 06_objetivos.html -->
+<section class="lamina" id="objetivos" data-bloque="intro" data-titulo="Objetivos">
+  <!-- grupo: intro -->
+  <div class="cabecera">
+    <div class="rotulo" data-auto data-sec="Introducción · Objetivos"></div>
+    <h2 class="titulo">Objetivo general y tres objetivos específicos</h2>
+  </div>
+  <!-- pasos 0 y 1: el objetivo general -->
+  <div class="og-bloques l4-og" data-hasta="1">
+    <div class="tarjeta" data-entrada="1"><div class="etq">Qué</div><p><b>Desarrollar un software educativo</b> de elementos finitos para el análisis estructural</p></div>
+    <div class="tarjeta" data-entrada="2"><div class="etq">Cómo</div><p>Empleando el lenguaje de programación <b>Python</b></p></div>
+    <div class="tarjeta og-vi" data-entrada="3"><div class="etq">Por qué</div><p>Debido a la <b>escasa transparencia del procedimiento de cálculo</b> del software de análisis</p></div>
+    <div class="tarjeta og-vd" data-entrada="4"><div class="etq">Para qué</div><p>Para mejorar la <b>trazabilidad y la verificabilidad</b> del procedimiento de cálculo</p></div>
+  </div>
+  <div class="tarjeta plana og-enunciado l4-og-enunciado" data-paso="1" data-hasta="1" data-clase-paso="1:marcar">
+    <div class="etq">Objetivo general</div>
+    <p><span class="og-titulo">Desarrollar un software educativo de elementos finitos para el análisis estructural, empleando el lenguaje de programación Python</span>, <span class="og-vi">debido a la escasa transparencia del procedimiento de cálculo del software de análisis</span>, <span class="og-vd">para mejorar la trazabilidad y la verificabilidad del procedimiento de cálculo</span>.</p>
+  </div>
+  <div class="remate l4-og-remate" data-paso="1" data-hasta="1"><span class="ico">◆</span><span>Con el verbo sustantivado —«Desarrollo de software educativo…»—, la parte resaltada es el <b>título de la tesis</b>.</span></div>
+  <!-- paso 2: los tres objetivos específicos, uno por capítulo -->
+  <div class="l4-oe" data-paso="2">
+    <div class="l4-oe-col" data-retraso="0">
+      <div class="cab"><span class="num">1</span><span class="cap">Capítulo 1</span></div>
+      <div class="verbo">Fundamentar</div>
+      <div class="que">teóricamente el MEF en elasticidad plana con elementos Q4 y Q9, y el estado del arte del software para su enseñanza, <b>para fijar los requisitos de la herramienta</b>.</div>
+    </div>
+    <div class="l4-oe-flecha" data-retraso="350">→</div>
+    <div class="l4-oe-col" data-retraso="500">
+      <div class="cab"><span class="num">2</span><span class="cap">Capítulo 2</span></div>
+      <div class="verbo">Desarrollar</div>
+      <div class="que">EduFEM en Python —motor de cálculo, interfaz, módulos educativos y memoria de cálculo— <b>para exponer el procedimiento de cálculo etapa por etapa sobre el modelo del usuario</b>.</div>
+    </div>
+    <div class="l4-oe-flecha" data-retraso="850">→</div>
+    <div class="l4-oe-col" data-retraso="1000">
+      <div class="cab"><span class="num">3</span><span class="cap">Capítulo 3</span></div>
+      <div class="verbo">Verificar y validar</div>
+      <div class="que">EduFEM, midiendo la cobertura de su procedimiento de cálculo y la exactitud de su motor frente a soluciones exactas y referencias externas, <b>para establecer si ese procedimiento es trazable y verificable</b>.</div>
+    </div>
+  </div>
+  <div class="remate l4-oe-remate" data-paso="2" data-retraso="1400"><span class="ico">≡</span><span><b>Cada capítulo lleva por título su objetivo.</b> En las conclusiones, cada uno recibe su respuesta.</span></div>
+</section>
+
+<!-- 07_hipotesis.html -->
+<section class="lamina" id="hipotesis" data-bloque="intro" data-titulo="Hipótesis" data-pasos="3">
+  <!-- grupo: hipotesis -->
+  <div class="cabecera">
+    <div class="rotulo" data-auto data-sec="Introducción · Hipótesis · Variables · Figura 2.1 · Preguntas de investigación"></div>
+    <h2 class="titulo">Hipótesis, variables y preguntas de investigación</h2>
+  </div>
+
+  <!-- Pasos (los anima viz/l4_hipotesis.js, «h7-hipotesis»):
+       0 el enunciado exacto, palabra por palabra
+       1 sus cuatro partes: las palabras vuelan a una fila por parte, con su color y su rótulo
+       2 Figura 2.1: las tres variables y el cambio de nivel que la hipótesis predice
+       3 PI-1 y PI-2 cuelgan de las cláusulas (a) y (b) del efecto -->
+  <div class="h7" data-viz="h7-hipotesis">
+
+    <!-- paso 0 · el enunciado (Introducción, «Hipótesis») -->
+    <div class="h7-tit-enun" data-solo="0">Enunciado de la hipótesis</div>
+    <p class="h7-enun" data-solo="0" data-pptx-entrada="1" data-pptx-anim="palabras"><span class="h7-comilla">“</span>Bajo la aplicación de un método de diseño de software educativo, el desarrollo de EduFEM permitirá mejorar la trazabilidad y la verificabilidad del análisis por el Método de los Elementos Finitos en elasticidad plana, dada la escasa transparencia con que el software expone su procedimiento de cálculo.</p>
+
+    <!-- paso 1 · las cuatro partes (§ 2.1.6: condición, intervención, efecto, antecedente) -->
+    <div class="h7-partes" data-solo="1" data-anim="fundido">
+      <div class="h7-filas">
+        <div class="h7-fila">
+          <div class="h7-rot l4-parte h-int"><b>Condición</b><span>variable interviniente</span></div>
+          <div class="h7-txt"><span class="h7-frag p-int">Bajo la aplicación de un método de diseño de software educativo,</span></div>
+        </div>
+        <div class="h7-fila">
+          <div class="h7-rot l4-parte h-int"><b>Intervención</b><span>variable interviniente</span></div>
+          <div class="h7-txt"><span class="h7-frag p-int">el desarrollo de EduFEM</span></div>
+        </div>
+        <div class="h7-fila">
+          <div class="h7-rot l4-parte h-vd"><b>Efecto</b><span>variable dependiente</span></div>
+          <div class="h7-txt"><span class="h7-frag p-vd">permitirá mejorar la trazabilidad <span class="h7-letra">a</span> y la verificabilidad <span class="h7-letra">b</span> del análisis por el Método de los Elementos Finitos en elasticidad plana,</span></div>
+        </div>
+        <div class="h7-fila">
+          <div class="h7-rot l4-parte h-vi"><b>Antecedente</b><span>variable independiente</span></div>
+          <div class="h7-txt"><span class="h7-frag p-vi">dada la escasa transparencia con que <span class="h7-glosa">el software</span> expone su procedimiento de cálculo.</span>
+            <div class="h7-nota"><b>«el software»:</b> el software de análisis de uso corriente, no EduFEM</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- paso 2 · Figura 2.1, relación entre las variables (§ 2.1.2) -->
+    <div class="h7-fig" data-solo="2" data-anim="fundido"></div>
+
+    <!-- paso 3 · las dos preguntas de investigación (Introducción, «Preguntas de investigación») -->
+    <div class="h7-efe3" data-paso="3" data-anim="fundido">
+      <div class="h7-fila">
+        <div class="h7-rot l4-parte h-vd"><b>Efecto</b><span>variable dependiente</span></div>
+        <div class="h7-txt"><span class="h7-frag p-vd">…permitirá mejorar la trazabilidad <span class="h7-letra" data-cl="a">a</span> y la verificabilidad <span class="h7-letra" data-cl="b">b</span> del análisis…</span></div>
+      </div>
+    </div>
+    <div class="h7-conect" data-paso="3" data-anim="fundido"></div>
+    <div class="h7-pis">
+      <div class="h7-pi" data-paso="3" data-retraso="650" data-anim="fundido" data-pi="a">
+        <div class="cab"><span class="h7-letra">a</span>PI-1 · trazabilidad</div>
+        <p>¿Qué organización del software permite seguir cada resultado hasta sus datos, etapa por etapa, sobre el modelo del usuario, y cubrir el contenido que exige un consenso publicado de expertos?</p>
+      </div>
+      <div class="h7-pi" data-paso="3" data-retraso="950" data-anim="fundido" data-pi="b">
+        <div class="cab"><span class="h7-letra">b</span>PI-2 · verificabilidad</div>
+        <p>¿Reproduce el motor, dentro de tolerancias explícitas, las soluciones exactas, las referencias externas y los fenómenos numéricos que predice la teoría?</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="remate" data-paso="3" data-retraso="1500"><span class="ico">⚖&#xFE0E;</span><span>El efecto es la parte que puede resultar falsa: cada cláusula lleva criterios con umbral explícito.</span></div>
+</section>
+
+<!-- 08_metodo.html -->
+<section class="lamina" id="metodo" data-bloque="intro" data-titulo="Metodología">
+  <!-- grupo: intro -->
+  <div class="cabecera">
+    <div class="rotulo" data-auto data-sec="Introducción · Metodología de la investigación · § 2.1.1 · Tabla 2.1"></div>
+    <h2 class="titulo">Metodología: la ciencia del diseño</h2>
+  </div>
+  <div class="clasif">
+    <div class="tarjeta" data-entrada="1"><div class="etq">Finalidad</div><div class="v">Propositiva</div></div>
+    <div class="tarjeta" data-entrada="2"><div class="etq">Naturaleza [7, p. 91]</div><div class="v">Investigación tecnológica</div></div>
+    <div class="tarjeta" data-entrada="3"><div class="etq">Enfoque [23, p. 6]</div><div class="v">Cuantitativo</div></div>
+    <div class="tarjeta" data-entrada="4"><div class="etq">Nivel</div><div class="v">Descriptivo y comparativo</div></div>
+  </div>
+  <div data-paso="1" class="l4-metodo">
+    <div class="aux l4-metodo-etq">Ciencia del diseño [13, pp. 75, 83] · sus seis actividades [24, pp. 52–56] en esta tesis</div>
+    <div class="ciclo" data-viz="ciclo-dsr">
+      <div class="act"><div class="n">1</div><div class="t">Identificar el problema</div><div class="d">La caja negra</div></div>
+      <div class="act"><div class="oe">OE1</div><div class="n">2</div><div class="t">Definir los objetivos</div><div class="d">Cinco requisitos</div></div>
+      <div class="act"><div class="oe">OE2</div><div class="n">3</div><div class="t">Diseñar y desarrollar</div><div class="d">EduFEM</div></div>
+      <div class="act"><div class="oe">OE3</div><div class="n">4</div><div class="t">Demostrar</div><div class="d">Ejemplo guía y tres casos</div></div>
+      <div class="act"><div class="oe">OE3</div><div class="n">5</div><div class="t">Evaluar</div><div class="d">Criterios y veredicto por parte y por cláusula</div></div>
+      <div class="act"><div class="n">6</div><div class="t">Comunicar</div><div class="d">Documento, repositorio, instalador</div></div>
+    </div>
+    <div class="base-conoc">Base de conocimiento <b>(OE1 · Capítulo 1)</b>: el MEF en elasticidad plana, la verificación y validación, y los principios que orientan la exposición</div>
+  </div>
+  <div class="remate" data-paso="1" data-retraso="2600"><span class="ico">⚙</span><span>Una <b>validación de laboratorio</b> [25, pp. 30–31]: escenarios controlados, sin sujetos. La hipótesis se aprueba o no en la propia práctica de construir la solución y ponerla a prueba [7, p. 85].</span></div>
+</section>
+
+<!-- 10_sep-cap1.html -->
+<section class="lamina separador" id="sep-cap1" data-bloque="teoria" data-titulo="Capítulo 1 · Fundamentar" data-sin-pie>
+  <!-- grupo: intro -->
+  <div class="fondo-malla" data-viz="separador" data-pptx-clip="malla:6000:idavuelta"></div>
+  <div class="contenido-sep">
+    <div class="cap-oe" data-entrada="1"><span class="ficha acento">Objetivo específico 1</span><span><b>Fundamentar</b></span></div>
+    <div class="numero" data-entrada="1">1</div>
+    <div class="nombre" data-entrada="2">Fundamentación teórica</div>
+    <div class="desc" data-entrada="3">Fundamentar teóricamente el MEF en elasticidad plana con elementos Q4 y Q9, y el estado del arte del software para su enseñanza, para fijar los requisitos de la herramienta.</div>
+  </div>
+  <div class="cadena" data-entrada="4"></div>
+</section>
+
+<!-- 11_estado-arte.html -->
+<section class="lamina" id="estado-arte" data-bloque="teoria" data-titulo="Estado del arte y requisitos" data-pasos="3">
+  <!-- grupo: formulacion -->
+  <div class="cabecera">
+    <div class="rotulo" data-auto data-sec="§ 1.1 · Tabla 1.1 · § 2.2.1"></div>
+    <h2 class="titulo">Estado del arte: la brecha y los cinco requisitos</h2>
+  </div>
+
+  <!-- Pasos (viz/l4_formulacion.js, «ea-matriz»):
+       0 la matriz de la Tabla 1.1 (ocho atributos × cinco recursos) se arma columna por columna
+       1 entra la columna EduFEM
+       2 el vacío: las filas de la memoria de cálculo y de la verificación y validación publicada
+       3 la matriz se repliega; de ella salen los cinco requisitos (§ 2.2.1) y los cuatro
+         principios que orientan la exposición (§ 1.2)
+       Celdas: las de la lámina «estado-arte» de final3, cotejadas una por una con la Tabla 1.1 de
+       final4 (filas Idioma, Licencia, Dimensión y Elementos, Cálculo paso a paso, Procedimiento
+       completo, Memoria de cálculo automática, Fenómenos numéricos observables, Verificación y
+       validación publicada). -->
+  <div class="ea" data-viz="ea-matriz">
+    <div class="ea-mat">
+      <div class="ea-fila ea-cab">
+        <div class="ea-esq">Atributo</div>
+        <div class="ea-rec"><b>ED-Elas2D</b><small>[6] · 1998</small></div>
+        <div class="ea-rec"><b>Analizador de cerchas</b><small>[10]</small></div>
+        <div class="ea-rec"><b>VisualFEA</b><small>simuladores [9, 17]</small></div>
+        <div class="ea-rec"><b>Bibliotecas</b><small>CALFEM, FEniCS</small></div>
+        <div class="ea-rec"><b>Software comercial</b><small>SAP2000 [18], ANSYS, Abaqus</small></div>
+        <div class="ea-rec edu" data-paso="1"><b>EduFEM</b><small>esta tesis</small></div>
+      </div>
+      <div class="ea-fila">
+        <div class="ea-attr"><i>1</i>Interfaz en español</div>
+        <div class="ea-c nc"><span><i class="ea-i">?</i>No consta: capturas en inglés</span></div>
+        <div class="ea-c no"><span><i class="ea-i">✗</i>Inglés</span></div>
+        <div class="ea-c no"><span><i class="ea-i">✗</i>Inglés</span></div>
+        <div class="ea-c no"><span><i class="ea-i">✗</i>Inglés</span></div>
+        <div class="ea-c parcial"><span><i class="ea-i"></i>Inglés (localización parcial)</span></div>
+        <div class="ea-c si edu" data-paso="1" data-retraso="0"><span><i class="ea-i">✓</i>Español</span></div>
+      </div>
+      <div class="ea-fila">
+        <div class="ea-attr"><i>2</i>Libre y código abierto</div>
+        <div class="ea-c nc"><span><i class="ea-i">?</i>No consta</span></div>
+        <div class="ea-c nc"><span><i class="ea-i">?</i>No declarada (código MATLAB)</span></div>
+        <div class="ea-c no"><span><i class="ea-i">✗</i>Comercial</span></div>
+        <div class="ea-c si"><span><i class="ea-i">✓</i>Libre</span></div>
+        <div class="ea-c no"><span><i class="ea-i">✗</i>Comercial</span></div>
+        <div class="ea-c si edu" data-paso="1" data-retraso="110"><span><i class="ea-i">✓</i>Libre (MIT), código abierto</span></div>
+      </div>
+      <div class="ea-fila">
+        <div class="ea-attr"><i>3</i>Continuo elástico plano</div>
+        <div class="ea-c si"><span><i class="ea-i">✓</i>2D: triángulos y Q4, Q8, Q9</span></div>
+        <div class="ea-c no"><span><i class="ea-i">✗</i>Barras (cercha)</span></div>
+        <div class="ea-c si"><span><i class="ea-i">✓</i>Continuo, placas, láminas y sólidos</span></div>
+        <div class="ea-c si"><span><i class="ea-i">✓</i>Diversos</span></div>
+        <div class="ea-c si"><span><i class="ea-i">✓</i>Amplios</span></div>
+        <div class="ea-c si edu" data-paso="1" data-retraso="220"><span><i class="ea-i">✓</i>2D: Q4 y Q9</span></div>
+      </div>
+      <div class="ea-fila">
+        <div class="ea-attr"><i>4</i>Paso a paso sobre el modelo</div>
+        <div class="ea-c si"><span><i class="ea-i">✓</i>Alta: matrices de cada etapa</span></div>
+        <div class="ea-c parcial"><span><i class="ea-i"></i>Media-alta (en el código)</span></div>
+        <div class="ea-c si"><span><i class="ea-i">✓</i>Alta, hasta la solución</span></div>
+        <div class="ea-c parcial"><span><i class="ea-i"></i>En el código, sin guía visual</span></div>
+        <div class="ea-c no"><span><i class="ea-i">✗</i>Baja (caja negra)</span></div>
+        <div class="ea-c si edu" data-paso="1" data-retraso="330"><span><i class="ea-i">✓</i>Alta: ocho módulos</span></div>
+      </div>
+      <div class="ea-fila">
+        <div class="ea-attr"><i>5</i>Procedimiento completo</div>
+        <div class="ea-c si"><span><i class="ea-i">✓</i>Sí</span></div>
+        <div class="ea-c parcial"><span><i class="ea-i"></i>Parcial (solo barras)</span></div>
+        <div class="ea-c parcial"><span><i class="ea-i"></i>Sin recuperación de tensiones</span></div>
+        <div class="ea-c parcial"><span><i class="ea-i"></i>Parcial (programando)</span></div>
+        <div class="ea-c no"><span><i class="ea-i">✗</i>No concebido para la enseñanza</span></div>
+        <div class="ea-c si edu" data-paso="1" data-retraso="440"><span><i class="ea-i">✓</i>Sí</span></div>
+      </div>
+      <div class="ea-fila" data-clase-paso="2:vacio">
+        <div class="ea-attr"><i>6</i>Memoria de cálculo</div>
+        <div class="ea-c nc"><span><i class="ea-i">?</i>No consta</span></div>
+        <div class="ea-c nc"><span><i class="ea-i">?</i>No consta</span></div>
+        <div class="ea-c parcial"><span><i class="ea-i"></i>En pantalla, no como documento</span></div>
+        <div class="ea-c no"><span><i class="ea-i">✗</i>La programa el usuario</span></div>
+        <div class="ea-c no"><span><i class="ea-i">✗</i>Informes sin el desarrollo matricial</span></div>
+        <div class="ea-c si edu" data-paso="1" data-retraso="550"><span><i class="ea-i">✓</i>PDF con sustitución numérica</span></div>
+      </div>
+      <div class="ea-fila alta">
+        <div class="ea-attr"><i>7</i>Fenómenos numéricos</div>
+        <div class="ea-c nc"><span><i class="ea-i">?</i>No consta</span></div>
+        <div class="ea-c nc"><span><i class="ea-i">?</i>No consta</span></div>
+        <div class="ea-c si"><span><i class="ea-i">✓</i>Modos espurios y bloqueo</span></div>
+        <div class="ea-c parcial"><span><i class="ea-i"></i>Programando, sin guía</span></div>
+        <div class="ea-c no"><span><i class="ea-i">✗</i>Solo a través de los resultados</span></div>
+        <div class="ea-c si edu" data-paso="1" data-retraso="660"><span><i class="ea-i">✓</i>Distorsión, espurios, bloqueo y condicionamiento</span></div>
+      </div>
+      <div class="ea-fila alta" data-clase-paso="2:vacio">
+        <div class="ea-attr"><i>8</i>Verificación y validación publicada</div>
+        <div class="ea-c nc"><span><i class="ea-i">?</i>No consta</span></div>
+        <div class="ea-c nc"><span><i class="ea-i">?</i>No consta</span></div>
+        <div class="ea-c nc"><span><i class="ea-i">?</i>No consta</span></div>
+        <div class="ea-c raya"><span><i class="ea-i">—</i>No evaluado</span></div>
+        <div class="ea-c raya"><span><i class="ea-i">—</i>No evaluado</span></div>
+        <div class="ea-c si edu" data-paso="1" data-retraso="770"><span><i class="ea-i">✓</i>Sí: tres casos de estudio</span></div>
+      </div>
+    </div>
+
+    <!-- leyenda (pasos 0 y 1) y el vacío (paso 2), en la misma franja -->
+    <div class="ea-ley" data-hasta="1">
+      <span><i class="ea-i si">✓</i>sí</span>
+      <span><i class="ea-i parcial"></i>parcial</span>
+      <span><i class="ea-i no">✗</i>no</span>
+      <span><i class="ea-i nc">?</i>no consta: la publicación no lo documenta</span>
+      <span><i class="ea-i raya">—</i>no evaluado en las categorías generales</span>
+    </div>
+    <div class="ea-vacio" data-solo="2"><b>El vacío:</b> ningún recurso didáctico revisado documenta una memoria de cálculo reproducible a mano ni una verificación y validación publicada junto con la herramienta.</div>
+
+    <!-- Paso 3 · los cinco requisitos (§ 2.2.1) y los cuatro principios (§ 1.2) -->
+    <div class="ea-req-tit" data-paso="3" data-retraso="300">De esa brecha salen cinco requisitos <span>(§ 2.2.1)</span></div>
+    <div class="ea-reqs">
+      <div class="ea-req" data-paso="3" data-retraso="420" data-anim="escala">
+        <span class="n">1</span><span class="t">El procedimiento de cálculo completo, a la vista sobre el modelo del usuario</span>
+        <span class="d"><i class="ea-dim" data-ico="traza"></i>Trazabilidad</span>
+      </div>
+      <div class="ea-req" data-paso="3" data-retraso="600" data-anim="escala">
+        <span class="n">2</span><span class="t">Una memoria de cálculo reproducible a mano</span>
+        <span class="d"><i class="ea-dim" data-ico="ambas"></i>Trazabilidad y verificabilidad</span>
+      </div>
+      <div class="ea-req" data-paso="3" data-retraso="780" data-anim="escala">
+        <span class="n">3</span><span class="t">Exactitud verificada y validada, publicada junto con la herramienta</span>
+        <span class="d"><i class="ea-dim" data-ico="verif"></i>Verificabilidad</span>
+      </div>
+      <div class="ea-req" data-paso="3" data-retraso="960" data-anim="escala">
+        <span class="n">4</span><span class="t">La cobertura del contenido que exige un consenso publicado de expertos</span>
+        <span class="d"><i class="ea-dim" data-ico="traza"></i>Trazabilidad del contenido</span>
+      </div>
+      <div class="ea-req quinto" data-paso="3" data-retraso="1140" data-anim="escala">
+        <span class="n">5</span><span class="t">Un software libre y en español</span>
+        <span class="d"><i class="ea-dim" data-ico="alcance"></i>Al alcance del estudiante</span>
+      </div>
+    </div>
+    <div class="ea-princ-tit" data-paso="3" data-retraso="1700">Cuatro principios orientan cómo exponer el procedimiento <span>(§ 1.2)</span></div>
+    <div class="ea-princ">
+      <!-- citas con página, las de § 1.2 de final4 (el cuarto principio reúne las dos citas de su
+           párrafo: [3, pp. 1159, 1171] y [3, p. 1168]). Los espacios duros dejan cortar el renglón
+           solo entre referencias, nunca entre «p.» y su número -->
+      <div class="ea-p" data-paso="3" data-retraso="1900"><i class="ea-pi" data-ico="ojo"></i><div><b>Visibilidad del procedimiento</b><small>[9,&nbsp;p.&nbsp;157; 17,&nbsp;p.&nbsp;872; 10,&nbsp;p.&nbsp;1008]</small></div></div>
+      <div class="ea-p" data-paso="3" data-retraso="2080"><i class="ea-pi" data-ico="mano"></i><div><b>Interactividad con vínculo al modelo</b><small>[9,&nbsp;pp.&nbsp;158,&nbsp;163,&nbsp;166,&nbsp;168; 17,&nbsp;p.&nbsp;874]</small></div></div>
+      <div class="ea-p" data-paso="3" data-retraso="2260"><i class="ea-pi" data-ico="escalera"></i><div><b>Construcción paso a paso</b><small>[10,&nbsp;pp.&nbsp;1010–1011, 1019,&nbsp;1023]</small></div></div>
+      <div class="ea-p" data-paso="3" data-retraso="2440"><i class="ea-pi" data-ico="puente"></i><div><b>Conexión entre fundamento y operación</b><small>[3,&nbsp;pp.&nbsp;1159,&nbsp;1168,&nbsp;1171]</small></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 12_formulacion.html -->
+<section class="lamina" id="formulacion" data-bloque="teoria" data-titulo="Formulación variacional" data-pasos="3">
+  <!-- grupo: formulacion -->
+  <div class="cabecera">
+    <div class="rotulo" data-auto data-sec="§ 1.3"></div>
+    <h2 class="titulo">Formulación variacional: los trabajos virtuales</h2>
+  </div>
+
+  <!-- § 1.3 de final4 (ecuaciones 1.1 a 1.3). Pasos (viz/l4_formulacion.js, «f12-formulacion»):
+       0 del pórtico a la chapa: la barra tiene rigidez en forma cerrada; la chapa, no: se integra
+       1 la forma fuerte: equilibrio punto por punto, que pide derivadas segundas continuas
+       2 el desplazamiento virtual δu (nulo en los apoyos): trabajo interno = trabajo externo,
+         calculados con el ejemplo guía resuelto (δuᵀ K u frente a δuᵀ F)
+       3 la forma débil solo pide derivadas primeras: la cadena N → B → D → kₑ → ensamblaje → K u = F -->
+  <div class="f12" data-viz="f12-formulacion">
+
+    <!-- el recorrido de la lámina -->
+    <div class="f12-ruta">
+      <div class="f12-hito" data-clase-paso="0:actual;1:hecho"><b>1</b>Del pórtico a la chapa</div>
+      <i class="f12-sep">›</i>
+      <div class="f12-hito" data-clase-paso="1:actual;2:hecho"><b>2</b>Equilibrio punto por punto</div>
+      <i class="f12-sep">›</i>
+      <div class="f12-hito" data-clase-paso="2:actual;3:hecho"><b>3</b>El desplazamiento virtual</div>
+      <i class="f12-sep">›</i>
+      <div class="f12-hito" data-clase-paso="3:actual"><b>4</b>De la forma débil a <span class="f12-kuf">K u = F</span></div>
+    </div>
+
+    <!-- ============================== paso 0 · del pórtico a la chapa -->
+    <div class="f12-esc e0" data-solo="0">
+      <div class="f12-panel izq">
+        <div class="f12-pt"><b>Pórtico</b>cada barra tiene su rigidez en forma cerrada</div>
+      </div>
+      <div class="f12-panel der">
+        <div class="f12-pt"><b>Chapa</b>su rigidez no se escribe: se obtiene integrando sobre el área</div>
+      </div>
+      <div class="f12-etq e0-kbarra">rigidez de una barra a flexión</div>
+      <div class="f12-ec e0-kbarra-ec" data-tex="\mathbf{k}=\dfrac{EI}{L^{3}}\begin{bmatrix}12&amp;6L&amp;-12&amp;6L\\6L&amp;4L^{2}&amp;-6L&amp;2L^{2}\\-12&amp;-6L&amp;12&amp;-6L\\6L&amp;2L^{2}&amp;-6L&amp;4L^{2}\end{bmatrix}"></div>
+      <div class="f12-etq e0-kchapa">rigidez de cada elemento</div>
+      <div class="f12-ec e0-kchapa-ec" data-tex="\mathbf{k}_e=\displaystyle\int_{\Omega_e}\mathbf{B}^{T}\mathbf{D}\,\mathbf{B}\,t\,dA"></div>
+      <div class="f12-etq e0-gauss">● puntos donde se evalúa<br>la integral</div>
+      <div class="f12-etq e0-kp">K del pórtico</div>
+      <div class="f12-etq e0-kc">K de la chapa</div>
+      <div class="f12-kuf-caja" data-entrada="1" data-retraso="2300"><span data-tex="\mathbf{K}\,\mathbf{u}=\mathbf{F}"></span><small>el mismo sistema para los dos</small></div>
+    </div>
+
+    <!-- ============================== paso 1 · la forma fuerte -->
+    <div class="f12-esc e1" data-solo="1">
+      <div class="f12-etq e1-punto">un punto cualquiera del cuerpo</div>
+      <div class="f12-etq e1-dif">sus tensiones se equilibran con la carga <i>b</i></div>
+      <div class="e1-ecs">
+        <div class="f12-tit">Equilibrio en cada punto: la <b>forma fuerte</b></div>
+        <div class="f12-ec grande" data-tex="\nabla\cdot\boldsymbol{\sigma}+\mathbf{b}=\mathbf{0}\quad\text{en }\Omega"></div>
+        <div class="f12-ec mediana" data-tex="\begin{aligned}\frac{\partial\sigma_x}{\partial x}+\frac{\partial\tau_{xy}}{\partial y}+b_x&amp;=0\\[2pt]\frac{\partial\tau_{xy}}{\partial x}+\frac{\partial\sigma_y}{\partial y}+b_y&amp;=0\end{aligned}"></div>
+        <div class="f12-cita">Ecuación 1.1</div>
+      </div>
+      <div class="e1-nota" data-paso="1" data-retraso="1500">
+        <div class="f12-etq e1-u">un desplazamiento aproximado por trozos</div>
+        <div class="f12-etq e1-ddu">en cada quiebre, la derivada segunda no existe</div>
+        <div class="e1-nota-tx"><span><b>Pide derivadas segundas continuas</b> del desplazamiento en todo el cuerpo: difícil de cumplir con una aproximación por trozos.</span></div>
+      </div>
+    </div>
+
+    <!-- ============================== paso 2 · el desplazamiento virtual -->
+    <div class="f12-esc e2" data-solo="2">
+      <div class="e2-anim" data-pptx-clip="f12-virtual:9600:ciclo"></div>
+      <div class="f12-etq e2-dv">δu: un desplazamiento <b>imaginario</b> y pequeño (aquí, ampliado)<br>que es <b>nulo en los apoyos</b></div>
+      <div class="e2-med int"><b>Trabajo interno</b>de las tensiones</div>
+      <div class="e2-med ext"><b>Trabajo externo</b>de las cargas</div>
+      <div class="e2-regla"><b>Para todo δu compatible con los apoyos:</b> interno = externo ⇔ equilibrio</div>
+      <div class="e2-ec">
+        <div class="e2-miembro int"><span data-tex="\displaystyle\int_\Omega \delta\boldsymbol{\varepsilon}^{T}\boldsymbol{\sigma}\,d\Omega"></span><small>trabajo interno</small></div>
+        <div class="e2-igual">=</div>
+        <div class="e2-miembro ext"><span data-tex="\displaystyle\int_\Omega \delta\mathbf{u}^{T}\mathbf{b}\,d\Omega+\int_{\Gamma_t}\delta\mathbf{u}^{T}\mathbf{t}\,d\Gamma"></span><small>trabajo externo: cargas de volumen y de borde</small></div>
+      </div>
+      <div class="f12-cita e2-cita">Ecuación 1.2 · [1, pp. 69–71; 15, pp. 77–79; 5, pp. 612–613]</div>
+      <div class="e2-palanca">
+        <div class="f12-etq e2-pal-tit">Analogía: la palanca de la estática</div>
+        <div class="f12-ec e2-pal-ec" data-tex="P_1\,\delta_1=P_2\,\delta_2"></div>
+      </div>
+    </div>
+
+    <!-- ============================== paso 3 · de la forma débil a K u = F -->
+    <div class="f12-esc e3" data-solo="3">
+      <div class="e3-lema"><b>La forma débil solo pide derivadas primeras:</b> basta un desplazamiento continuo, interpolado dentro de cada elemento.</div>
+      <div class="f12-etq e3-ok">continuo, con quiebres: suficiente</div>
+      <div class="e3-eslabon" style="left:0" data-paso="3" data-retraso="300">
+        <div class="e3-ec" data-tex="\mathbf{u}\approx\mathbf{N}\,\mathbf{u}_e"></div>
+        <div class="e3-tx"><b>Funciones de forma</b>el interior se interpola desde los nodos</div>
+      </div>
+      <div class="e3-eslabon" style="left:278px" data-paso="3" data-retraso="720">
+        <div class="e3-ec" data-tex="\boldsymbol{\varepsilon}=\mathbf{B}\,\mathbf{u}_e"></div>
+        <div class="e3-tx"><b>Matriz B</b>de desplazamientos a deformaciones</div>
+      </div>
+      <div class="e3-eslabon" style="left:556px" data-paso="3" data-retraso="1140">
+        <div class="e3-ec" data-tex="\boldsymbol{\sigma}=\mathbf{D}\,\boldsymbol{\varepsilon}"></div>
+        <div class="e3-tx"><b>Matriz D</b>de deformaciones a tensiones: el material</div>
+      </div>
+      <div class="e3-eslabon ancho" style="left:834px" data-paso="3" data-retraso="1560">
+        <div class="e3-ec" data-tex="\mathbf{k}_e=\displaystyle\int_{\Omega_e}\mathbf{B}^{T}\mathbf{D}\,\mathbf{B}\,t\,dA"></div>
+        <div class="e3-tx"><b>Rigidez del elemento</b>se integra sobre su área</div>
+      </div>
+      <div class="e3-eslabon" style="left:1192px" data-paso="3" data-retraso="1980">
+        <!-- el operador de ensamblaje de final4 (\Ensamblaje del preámbulo: A grande, sin serifa) -->
+        <div class="e3-ec" data-tex="\mathbf{K}=\mathop{\text{\Large\textsf{A}}}\limits_{e}\,\mathbf{k}_e"></div>
+        <div class="e3-tx"><b>Ensamblaje</b>cada k<sub>e</sub> en su lugar de K</div>
+      </div>
+      <div class="e3-eslabon fin" style="left:1470px" data-paso="3" data-retraso="2400">
+        <div class="e3-ec" data-tex="\mathbf{K}\,\mathbf{u}=\mathbf{F}"></div>
+        <div class="e3-tx"><b>El mismo sistema</b>que el del pórtico</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 13_procedimiento.html -->
+<section class="lamina" id="procedimiento" data-bloque="teoria" data-titulo="Las nueve etapas" data-pasos="3">
+  <!-- grupo: formulacion -->
+  <div class="cabecera">
+    <div class="rotulo" data-auto data-sec="§ 1.4 a § 1.11 · § 2.1.2 · Anexo G"></div>
+    <h2 class="titulo">Del elemento al resultado: nueve etapas</h2>
+  </div>
+
+  <!-- Las nueve etapas de § 2.1.2, sobre el elemento E3 del ejemplo guía (nodos 4, 5, 8, 7; datos
+       del motor en EDUFEM_DATOS, los mismos del Anexo G). Pasos (viz/l4_formulacion.js, «f13-etapas»):
+       0 etapas 1–3, geometría: mapeo, Jacobiano (det J en los puntos de Gauss), matriz B
+       1 etapas 4–5, material y rigidez: D de tensión plana; kₑ como suma de los aportes de Gauss
+       2 etapas 6–8, del elemento a la estructura: fuerzas equivalentes, ensamblaje, apoyos y solución
+       3 etapa 9, tensiones: de los puntos de Gauss a los nodos (Tablas G.5 y G.6) y el promedio
+         entre vecinos (Tabla G.7)
+       La pista de abajo marca el grupo de cada paso; las fichas dicen dónde se ve cada etapa en EduFEM
+       (módulos M1 a M7, post-proceso para 8 y 9, memoria de cálculo para las nueve: Tabla 3.6). -->
+  <div class="f13" data-viz="f13-etapas">
+
+    <!-- ============================== paso 0 · etapas 1 a 3 -->
+    <div class="f13-esc" data-solo="0">
+      <div class="f13-pt" style="left:0"><b>1</b>Mapeo isoparamétrico</div>
+      <div class="f13-pt" style="left:580px"><b>2</b>Jacobiano</div>
+      <div class="f13-pt" style="left:1160px"><b>3</b>Matriz B</div>
+      <div class="f13-ec e0-mapeo" data-tex="x=\textstyle\sum_i N_i\,x_i"></div>
+      <div class="f13-ec e0-dA" data-tex="dA=\det\mathbf{J}\;d\xi\,d\eta"></div>
+      <div class="f13-cap" style="left:0">del cuadrado de referencia al elemento real</div>
+      <div class="f13-cap" style="left:580px">det J: por cuánto se multiplica el área<br>en cada punto de Gauss</div>
+      <div class="f13-cap" style="left:1160px;width:560px">B convierte los desplazamientos de los nodos en deformaciones</div>
+    </div>
+
+    <!-- ============================== paso 1 · etapas 4 y 5 -->
+    <div class="f13-esc" data-solo="1">
+      <div class="f13-pt" style="left:0"><b>4</b>Matriz constitutiva D</div>
+      <div class="f13-pt" style="left:640px"><b>5</b>Rigidez por cuadratura de Gauss</div>
+      <div class="e1-chips"><span class="f13-chip sel">Tensión plana · ejemplo guía</span><span class="f13-chip">Deformación plana: otra D</span></div>
+      <div class="f13-ec e1-D" data-tex="\mathbf{D}=\dfrac{E}{1-\nu^{2}}\begin{bmatrix}1&amp;\nu&amp;0\\\nu&amp;1&amp;0\\0&amp;0&amp;\frac{1-\nu}{2}\end{bmatrix}"></div>
+      <div class="f13-ec e1-Dnum" data-paso="1" data-retraso="700" data-tex="=234\,375\begin{bmatrix}1{,}00&amp;0{,}20&amp;0{,}00\\0{,}20&amp;1{,}00&amp;0{,}00\\0{,}00&amp;0{,}00&amp;0{,}40\end{bmatrix}"></div>
+      <div class="f13-nota e1-datos" data-paso="1" data-retraso="700">E = 225 000 · <span class="nu">ν</span> = 0,2 (Anexo G)</div>
+      <div class="f13-etq e1-ke">k<sub>e</sub> de E3 (8 × 8)</div>
+      <div class="f13-etq e1-cont"></div>
+      <div class="f13-etq e1-q4">Q4: 2 × 2</div>
+      <div class="f13-etq e1-q9">Q9: 3 × 3</div>
+      <div class="f13-cap" style="left:0">D trae el material; depende de si el caso es de tensión o de deformación plana</div>
+      <div class="f13-cap" style="left:640px;width:1080px">k<sub>e</sub> es la suma de los aportes de los puntos de Gauss</div>
+    </div>
+
+    <!-- ============================== paso 2 · etapas 6 a 8 -->
+    <div class="f13-esc" data-solo="2">
+      <div class="f13-pt" style="left:0"><b>6</b>Fuerzas equivalentes</div>
+      <div class="f13-pt" style="left:520px"><b>7</b>Ensamblaje <span class="f13-y">·</span> <b>8</b>Restricciones y solución</div>
+      <div class="f13-etq e2-K">K del ejemplo guía (18 × 18)</div>
+      <div class="f13-etq e2-libres" data-paso="2" data-retraso="2150">se quitan las filas y columnas de los apoyos</div>
+      <div class="f13-etq e2-u" data-paso="2" data-retraso="2450">deformada (ampliada): u</div>
+      <div class="f13-cap" style="left:0;width:480px">la carga repartida pasa a los nodos</div>
+      <div class="f13-cap" style="left:520px;width:1200px">cada k<sub>e</sub> cae en su lugar de K; se imponen los apoyos y se resuelve u</div>
+    </div>
+
+    <!-- ============================== paso 3 · etapa 9 -->
+    <div class="f13-esc" data-solo="3">
+      <div class="f13-pt" style="left:0"><b>9</b>Recuperación de tensiones <span class="f13-comp">σ<sub>y</sub></span></div>
+      <div class="f13-cap" style="left:0">en los puntos de Gauss, y de ahí a los nodos (Tablas&nbsp;G.5&nbsp;y&nbsp;G.6)</div>
+      <div class="f13-cap" style="left:600px">el nodo 5 recibe un valor de cada vecino: se promedian</div>
+      <div class="f13-cap" style="left:1180px;width:540px">el campo promediado (Tabla G.7)</div>
+    </div>
+
+    <!-- ============================== la pista de las nueve etapas -->
+    <div class="f13-grupos">
+      <div class="f13-grupo" style="left:0;width:566px" data-clase-paso="0:actual;1:hecho">Geometría</div>
+      <div class="f13-grupo" style="left:576px;width:374px" data-clase-paso="1:actual;2:hecho">Material y rigidez</div>
+      <div class="f13-grupo" style="left:960px;width:566px" data-clase-paso="2:actual;3:hecho">Del elemento a la estructura</div>
+      <div class="f13-grupo" style="left:1536px;width:182px" data-clase-paso="3:actual">Tensiones</div>
+    </div>
+    <div class="f13-pista">
+      <div class="f13-et" data-clase-paso="0:actual;1:hecho"><span class="n">1</span><span class="s">N</span><span class="t">Mapeo<br>isoparamétrico</span></div>
+      <div class="f13-et" data-clase-paso="0:actual;1:hecho"><span class="n">2</span><span class="s">J</span><span class="t">Matriz<br>Jacobiana</span></div>
+      <div class="f13-et" data-clase-paso="0:actual;1:hecho"><span class="n">3</span><span class="s">B</span><span class="t">Matriz de<br>deformación</span></div>
+      <div class="f13-et" data-clase-paso="1:actual;2:hecho"><span class="n">4</span><span class="s">D</span><span class="t">Matriz<br>constitutiva</span></div>
+      <div class="f13-et" data-clase-paso="1:actual;2:hecho"><span class="n">5</span><span class="s">k<sub>e</sub></span><span class="t">Rigidez<br>por Gauss</span></div>
+      <div class="f13-et" data-clase-paso="2:actual;3:hecho"><span class="n">6</span><span class="s">f</span><span class="t">Fuerzas<br>equivalentes</span></div>
+      <div class="f13-et" data-clase-paso="2:actual;3:hecho"><span class="n">7</span><span class="s">K</span><span class="t">Ensamblaje</span></div>
+      <div class="f13-et" data-clase-paso="2:actual;3:hecho"><span class="n">8</span><span class="s">u</span><span class="t">Restricciones<br>y solución</span></div>
+      <div class="f13-et" data-clase-paso="3:actual"><span class="n">9</span><span class="s">σ</span><span class="t">Recuperación<br>de tensiones</span></div>
+    </div>
+    <div class="f13-fichas">
+      <span class="f13-ficha mod" style="left:0" data-entrada="2" data-retraso="900">Módulo M1</span>
+      <span class="f13-ficha mod" style="left:192px" data-entrada="2" data-retraso="1300">Módulo M2</span>
+      <span class="f13-ficha mod" style="left:384px" data-entrada="2" data-retraso="1700">Módulo M3</span>
+      <span class="f13-ficha mod" style="left:576px" data-paso="1" data-retraso="400">Módulo M4</span>
+      <span class="f13-ficha mod" style="left:768px" data-paso="1" data-retraso="1000">Módulo M5</span>
+      <span class="f13-ficha mod" style="left:960px" data-paso="2" data-retraso="400">Módulo M6</span>
+      <span class="f13-ficha mod" style="left:1152px" data-paso="2" data-retraso="1000">Módulo M7</span>
+      <span class="f13-ficha post" style="left:1344px" data-paso="2" data-retraso="2400">Post-proceso</span>
+    </div>
+    <div class="f13-memoria" data-paso="3" data-retraso="2300"><i class="f13-mem-barra"></i><span>Memoria de cálculo: las nueve etapas, con los números del modelo</span></div>
+  </div>
+</section>
+
+<!-- 20_sep-cap2.html -->
+<section class="lamina separador" id="sep-cap2" data-bloque="diseno" data-titulo="Capítulo 2 · Desarrollar" data-sin-pie>
+  <!-- grupo: intro -->
+  <div class="fondo-malla" data-viz="separador" data-pptx-clip="malla:6000:idavuelta"></div>
+  <div class="contenido-sep">
+    <div class="cap-oe" data-entrada="1"><span class="ficha acento">Objetivo específico 2</span><span><b>Desarrollar</b></span></div>
+    <div class="numero" data-entrada="1">2</div>
+    <div class="nombre" data-entrada="2">Desarrollo de EduFEM</div>
+    <div class="desc" data-entrada="3">Desarrollar EduFEM en Python —motor de cálculo, interfaz, módulos educativos y memoria de cálculo— para exponer el procedimiento de cálculo etapa por etapa sobre el modelo del usuario.</div>
+  </div>
+  <div class="cadena" data-entrada="4"></div>
+</section>
+
+<!-- 21_evaluacion.html -->
+<section class="lamina" id="evaluacion" data-bloque="diseno" data-titulo="Cómo se contrasta" data-pasos="2">
+  <!-- grupo: software -->
+  <div class="cabecera">
+    <div class="rotulo" data-auto data-sec="§ 2.1.2 a § 2.1.6 · Tablas 2.2 y 2.4"></div>
+    <h2 class="titulo">Cómo se contrasta la hipótesis</h2>
+  </div>
+
+  <!-- § 2.1.2 (variables e indicadores, Tabla 2.2), § 2.1.4 (casos de estudio) y § 2.1.6 (criterios
+       con umbral, Tabla 2.4, y regla conjuntiva). Pasos (viz/l4_software.js, «sw21-evaluacion»):
+       0 qué se mide: la independiente, en dos niveles; la dependiente, en sus dos dimensiones
+         (la trazabilidad se cuenta: la cadena se corta en su eslabón más débil; la verificabilidad
+         se mide con el error frente a una referencia)
+       1 los tres casos de estudio y el ejemplo guía, cada uno con su referencia
+       2 los 15 criterios con umbral explícito (6 + 9) y la regla de decisión conjuntiva.
+         Los nueve de la verificabilidad quedan encima del caso que los mide. -->
+  <div class="sw sw21" data-viz="sw21-evaluacion">
+
+    <!-- fila A · pasos 0 y 1: la variable independiente -->
+    <div class="sw21-vi" data-hasta="1">
+      <div class="sw21-tag">Variable independiente<span class="nom">Transparencia del procedimiento de cálculo</span></div>
+      <div class="sw21-niveles">
+        <div class="sw21-pills">
+          <span class="sw21-nivel"><svg viewBox="0 0 64 50" aria-hidden="true"><rect x="3" y="3" width="58" height="44" rx="7" style="fill:var(--texto)"/><text x="32" y="34" text-anchor="middle" style="font:800 24px var(--fuente);fill:var(--fondo)">?</text></svg>Caja negra</span>
+          <span class="sw21-o">o</span>
+          <span class="sw21-nivel"><svg viewBox="0 0 64 50" aria-hidden="true"><rect x="3" y="3" width="58" height="44" rx="7" style="fill:var(--superficie);stroke:var(--h-vi);stroke-width:3"/><g style="fill:var(--h-vi)"><rect x="10" y="10" width="12" height="8" rx="2"/><rect x="26" y="10" width="12" height="8" rx="2"/><rect x="42" y="10" width="12" height="8" rx="2"/><rect x="10" y="21" width="12" height="8" rx="2"/><rect x="26" y="21" width="12" height="8" rx="2"/><rect x="42" y="21" width="12" height="8" rx="2"/><rect x="10" y="32" width="12" height="8" rx="2"/><rect x="26" y="32" width="12" height="8" rx="2"/><rect x="42" y="32" width="12" height="8" rx="2"/></g></svg>Procedimiento a la vista</span>
+        </div>
+        <span class="sw21-nota">dos niveles: presencia frente a ausencia</span>
+      </div>
+    </div>
+
+    <!-- fila A · paso 2: la regla de decisión conjuntiva (§ 2.1.6) -->
+    <div class="sw21-regla" data-paso="2" data-retraso="1700">
+      <div class="sw21-ecu">
+        <span class="sw21-tag">Regla conjuntiva</span>
+        <span class="sw21-term prem">premisas respaldadas</span><span class="sw21-op">+</span>
+        <span class="sw21-term efe">(a) se cumple</span><span class="sw21-op">+</span>
+        <span class="sw21-term efe">(b) se cumple</span><span class="sw21-op">⇒</span>
+        <span class="sw21-term fin">comprobada</span>
+      </div>
+      <div class="sw21-otras">Si se cumple solo una cláusula, <b>parcialmente comprobada</b>; si ninguna, <b>no comprobada</b>. Cada criterio declara qué resultado lo refutaría.</div>
+    </div>
+
+    <!-- fila B · pasos 0 y 1: las dos dimensiones de la variable dependiente -->
+    <div class="sw21-vd" data-hasta="1">
+      <div class="sw21-tag" data-entrada="2">Variable dependiente<span>sus dos dimensiones</span></div>
+      <div class="sw21-dims">
+        <div class="sw21-dim" data-entrada="3">
+          <h3>(a) Trazabilidad<span>· se cuenta lo que queda expuesto</span></h3>
+          <div class="sw21-dibujo sw21-cadena"></div>
+          <div class="sw21-pie sw21-pie-a">Basta una etapa oculta para cortar la cadena: por eso el umbral es <b>todas</b>.</div>
+        </div>
+        <div class="sw21-dim" data-entrada="4">
+          <h3>(b) Verificabilidad<span>· se mide el error</span></h3>
+          <div class="sw21-dibujo sw21-tol"></div>
+          <div class="sw21-pie sw21-pie-b">Frente a referencias de exactitud conocida, con <b>tolerancias explícitas</b>.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- fila B · paso 2: los 15 criterios con umbral (Tabla 2.4) -->
+    <div class="sw21-crit" data-paso="2">
+      <div class="sw21-ccab a"><b>(a) Trazabilidad · 6 criterios</b><span>umbral: la exhaustividad</span></div>
+      <div class="sw21-fa">
+        <div class="sw21-ca"><b>7 de 7</b><span>etapas con módulo</span></div>
+        <div class="sw21-ca"><b>9 de 9</b><span>etapas en la memoria</span></div>
+        <div class="sw21-ca"><b>ambas</b><span>solución y tensiones</span></div>
+        <div class="sw21-ca"><b>3 de 3</b><span>fases en un lienzo</span></div>
+        <div class="sw21-ca"><b>18 de 18</b><span>contenidos de expertos</span></div>
+        <div class="sw21-ca"><b>sin pérdida</b><span>intercambio de datos</span></div>
+      </div>
+      <div class="sw21-ccab b"><b>(b) Verificabilidad · 9 criterios</b><span>los numéricos, escritos en las pruebas del software, que avisan si uno no se cumple</span></div>
+      <div class="sw21-fb">
+        <div class="sw21-colb">
+          <div class="sw21-cb"><span>Tasa L²</span><b>teórica ± 0,5</b></div>
+          <div class="sw21-cb"><span>Tasa H¹</span><b>teórica ± 0,5</b></div>
+        </div>
+        <div class="sw21-colb">
+          <div class="sw21-cb"><span>Flecha central</span><b>&lt; 3 %</b></div>
+          <div class="sw21-cb"><span>σ<sub>x</sub> frente a la analítica</span><b>&lt; 1 %</b></div>
+          <div class="sw21-cb"><span>σ<sub>x</sub> frente a SAP2000</span><b>&lt; 1 %</b></div>
+          <div class="sw21-cb"><span>Equilibrio de reacciones</span><b>&lt; 10<sup>−8</sup></b></div>
+        </div>
+        <div class="sw21-colb">
+          <div class="sw21-cb"><span>Error con Q9, N = 8</span><b>&lt; 1,5 %</b></div>
+          <div class="sw21-cb"><span>Flecha del Q4 &lt; Q9</span><b>se observa</b></div>
+        </div>
+        <div class="sw21-colb">
+          <div class="sw21-cb"><span>Etapas para rehacer a mano</span><b>todas</b></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- fila C · desde el paso 1: los tres casos de estudio y el ejemplo guía (§ 2.1.4) -->
+    <div class="sw21-casos">
+      <div class="sw21-caso" data-paso="1" data-retraso="450">
+        <div class="sw21-img" data-caso="mms"></div>
+        <span class="sw21-insignia">Caso de estudio 1</span>
+        <div class="sw21-ct"><b>Soluciones manufacturadas</b><span class="ref">una solución exacta construida</span><span class="det">4 configuraciones · N = 2 … 32</span></div>
+      </div>
+      <div class="sw21-caso" data-paso="1" data-retraso="750">
+        <div class="sw21-img" data-caso="timoshenko"></div>
+        <span class="sw21-insignia">Caso de estudio 2</span>
+        <div class="sw21-ct"><b>Viga de Timoshenko</b><span class="ref">analítica [14] y SAP2000 [18]</span><span class="det">Q9 56 × 8 · 3842 GDL</span></div>
+      </div>
+      <div class="sw21-caso" data-paso="1" data-retraso="1050">
+        <div class="sw21-img" data-caso="cook"></div>
+        <span class="sw21-insignia">Caso de estudio 3</span>
+        <div class="sw21-ct"><b>Membrana de Cook</b><span class="ref">referencia: 23,96</span><span class="det">distorsión y bloqueo del Q4</span></div>
+      </div>
+      <div class="sw21-caso guia" data-paso="1" data-retraso="1350">
+        <div class="sw21-img" data-caso="guia"></div>
+        <span class="sw21-insignia">Se suma a los tres</span>
+        <div class="sw21-ct"><b>Ejemplo guía</b><span class="ref">su memoria se rehace a mano</span><span class="det">9 nodos · 4 elementos Q4 · Anexo G</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 22_software.html -->
+<section class="lamina" id="software" data-bloque="diseno" data-titulo="EduFEM" data-pasos="2">
+  <!-- grupo: software -->
+  <div class="cabecera">
+    <div class="rotulo" data-auto data-sec="§ 2.2 · Tabla 3.6 · Figura 3.5"></div>
+    <h2 class="titulo">EduFEM: el procedimiento de cálculo, a la vista</h2>
+  </div>
+
+  <!-- EduFEM como lo ve quien lo usa (§ 2.2.6 a § 2.2.9, Tabla 3.6, Figura 3.5), sin tecnicismos de
+       programación. Es también el mapa de la demostración en vivo (lámina 24).
+       Pasos (viz/l4_software.js, «sw22-software»):
+       0 un lienzo, tres fases: las capturas de la Figura 3.5, recortadas a la misma ventana del
+         lienzo (el modelo queda en el mismo lugar en las tres), con su llamada y una pieza de la
+         interfaz: la tabla de nodos, el panel del módulo M3, la sonda del nodo 7
+       1 los ocho módulos, M0 a M7 (capturas de las Figuras B.6 a B.13)
+       2 la memoria de cálculo: las hojas del Anexo G se abren en abanico; libre, en español, un
+         instalador sin requisitos adicionales. -->
+  <div class="sw sw22" data-viz="sw22-software">
+    <div class="sw22-ruta">
+      <div class="sw22-r" data-clase-paso="0:actual;1:hecho"><b>1</b>Un lienzo, tres fases</div>
+      <i class="sw22-fl">→</i>
+      <div class="sw22-r" data-clase-paso="1:actual;2:hecho"><b>2</b>Ocho módulos</div>
+      <i class="sw22-fl">→</i>
+      <div class="sw22-r" data-clase-paso="2:actual"><b>3</b>Una memoria de cálculo</div>
+    </div>
+
+    <!-- ============================== paso 0 · las tres fases sobre el mismo lienzo -->
+    <div class="sw22-esc sw22-fases" data-solo="0">
+      <div class="sw22-fase" data-fase="pre" data-entrada="1" data-retraso="150">
+        <div class="sw22-fcab"><b>1</b>Pre-proceso</div>
+        <div class="sw22-fsub">el modelo se dibuja o se escribe en tablas</div>
+        <div class="sw-cap"><img class="zoomable" src="assets/img/l4/software_pre.png" data-grande="assets/img/fig_app_completa.png" alt="Pre-proceso de EduFEM con el ejemplo guía: el lienzo en modo de dibujo (captura de la aplicación)"></div>
+        <div class="sw22-pop" data-entrada="2" data-retraso="800">
+          <div class="sw-cap" style="width:250px"><img src="assets/img/l4/software_tabla.png" alt="Tabla de nodos del pre-proceso"></div>
+          <p>y un <b>comprobador de salud</b> revisa los datos antes de resolver<br><span class="sw22-sano">✓ Modelo sano</span></p>
+        </div>
+      </div>
+      <div class="sw22-fase" data-fase="proc" data-entrada="3" data-retraso="850">
+        <div class="sw22-fcab"><b>2</b>Proceso</div>
+        <div class="sw22-fsub">los módulos, sobre el elemento elegido</div>
+        <div class="sw-cap"><img class="zoomable" src="assets/img/l4/software_proc.png" data-grande="assets/img/fig_modulo_capa.png" alt="Proceso: el módulo M3 desplegado sobre el elemento E1 (captura de la aplicación)"></div>
+        <div class="sw22-pop" data-entrada="4" data-retraso="1500">
+          <div class="sw-cap" style="width:196px"><img src="assets/img/l4/software_panel_m3.png" alt="Panel del módulo M3"></div>
+          <p>el panel del <b>módulo</b>, con sus fórmulas y los valores de ese elemento</p>
+        </div>
+      </div>
+      <div class="sw22-fase" data-fase="post" data-entrada="5" data-retraso="1550">
+        <div class="sw22-fcab"><b>3</b>Post-proceso</div>
+        <div class="sw22-fsub">tensión en colores, deformada, reacciones</div>
+        <div class="sw-cap"><img class="zoomable" src="assets/img/l4/software_post.png" data-grande="assets/img/fig_postproceso.png" alt="Post-proceso: contorno de von Mises sobre la deformada y reacciones (captura de la aplicación)"></div>
+        <div class="sw22-pop" data-entrada="6" data-retraso="2200">
+          <div class="sw-cap" style="width:290px"><img src="assets/img/l4/software_mohr.png" alt="Sonda en el nodo 7 con su círculo de Mohr"></div>
+          <p>la <b>sonda</b>: el estado de tensión del nodo 7 y su círculo de Mohr</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================== paso 1 · los ocho módulos -->
+    <div class="sw22-esc sw22-modulos" data-solo="1">
+      <div class="sw22-mlin"><b>M0</b> en el pre-proceso; <b>M1 a M7</b> en el proceso, cada uno sobre el elemento elegido y con sus números</div>
+      <div class="sw22-gal">
+        <div class="sw22-mod" data-paso="1" data-retraso="200"><div class="sw-cap"><img class="zoomable" src="assets/img/l4/software_m0.png" data-grande="assets/img/fig_modulo_m0.png" alt="M0 · calidad de malla"></div><div class="sw22-mc"><b>M0</b>Calidad de malla</div></div>
+        <div class="sw22-mod" data-paso="1" data-retraso="340"><div class="sw-cap"><img class="zoomable" src="assets/img/l4/software_m1.png" data-grande="assets/img/fig_modulo_m1.png" alt="M1 · mapeo isoparamétrico"></div><div class="sw22-mc"><b>M1</b>Mapeo isoparamétrico</div></div>
+        <div class="sw22-mod" data-paso="1" data-retraso="480"><div class="sw-cap"><img class="zoomable" src="assets/img/l4/software_m2.png" data-grande="assets/img/fig_modulo_m2.png" alt="M2 · Jacobiano"></div><div class="sw22-mc"><b>M2</b>Jacobiano</div></div>
+        <div class="sw22-mod" data-paso="1" data-retraso="620"><div class="sw-cap"><img class="zoomable" src="assets/img/l4/software_m3.png" data-grande="assets/img/fig_modulo_m3.png" alt="M3 · matriz B"></div><div class="sw22-mc"><b>M3</b>Matriz B</div></div>
+        <div class="sw22-mod" data-paso="1" data-retraso="760"><div class="sw-cap"><img class="zoomable" src="assets/img/l4/software_m4.png" data-grande="assets/img/fig_modulo_m4.png" alt="M4 · matriz D"></div><div class="sw22-mc"><b>M4</b>Matriz D</div></div>
+        <div class="sw22-mod" data-paso="1" data-retraso="900"><div class="sw-cap"><img class="zoomable" src="assets/img/l4/software_m5.png" data-grande="assets/img/fig_modulo_m5.png" alt="M5 · rigidez y puntos de Gauss"></div><div class="sw22-mc"><b>M5</b>Rigidez y puntos de Gauss</div></div>
+        <div class="sw22-mod" data-paso="1" data-retraso="1040"><div class="sw-cap"><img class="zoomable" src="assets/img/l4/software_m6.png" data-grande="assets/img/fig_modulo_m6.png" alt="M6 · fuerzas equivalentes"></div><div class="sw22-mc"><b>M6</b>Fuerzas equivalentes</div></div>
+        <div class="sw22-mod" data-paso="1" data-retraso="1180"><div class="sw-cap"><img class="zoomable" src="assets/img/l4/software_m7.png" data-grande="assets/img/fig_modulo_m7.png" alt="M7 · ensamblaje"></div><div class="sw22-mc"><b>M7</b>Ensamblaje</div></div>
+      </div>
+      <div class="sw22-mnota" data-paso="1" data-retraso="1600">Lo que muestran es lo que EduFEM calcula: una versión del cálculo escrita para leerse paso a paso, que una prueba automática mantiene coincidente con la que resuelve.</div>
+    </div>
+
+    <!-- ============================== paso 2 · la memoria de cálculo -->
+    <div class="sw22-esc sw22-memoria" data-solo="2">
+      <div class="sw22-abanico">
+        <div class="sw22-hoja"><img src="assets/img/l4/anexoG4_p167.png" alt="Anexo G, p. 167"></div>
+        <div class="sw22-hoja"><img src="assets/img/l4/anexoG4_p168.png" alt="Anexo G, p. 168"></div>
+        <div class="sw22-hoja"><img src="assets/img/l4/anexoG4_p169.png" alt="Anexo G, p. 169"></div>
+        <div class="sw22-hoja"><img src="assets/img/l4/anexoG4_p170.png" alt="Anexo G, p. 170"></div>
+        <div class="sw22-hoja"><img src="assets/img/l4/anexoG4_p171.png" alt="Anexo G, p. 171"></div>
+        <div class="sw22-hoja"><img src="assets/img/l4/anexoG4_p172.png" alt="Anexo G, p. 172"></div>
+        <div class="sw22-hoja"><img src="assets/img/l4/anexoG4_p173.png" alt="Anexo G, p. 173"></div>
+        <div class="sw22-hoja"><img src="assets/img/l4/anexoG4_p174.png" alt="Anexo G, p. 174"></div>
+        <div class="sw22-hoja"><img src="assets/img/l4/anexoG4_p175.png" alt="Anexo G, p. 175"></div>
+      </div>
+      <div class="sw22-mtexto">
+        <div class="gran" data-paso="2" data-retraso="400">El cálculo completo en un PDF, con los números del modelo <b>sustituidos paso&nbsp;a&nbsp;paso</b></div>
+        <div class="med" data-paso="2" data-retraso="900">para rehacerlo a mano o en una hoja de cálculo, como la memoria que acompaña a un proyecto</div>
+        <div class="pie" data-paso="2" data-retraso="1300">En las hojas: el Anexo G, la memoria del ejemplo guía en forma condensada (pp.&nbsp;167–175)</div>
+      </div>
+      <div class="sw22-franja">
+        <span data-paso="2" data-retraso="2000"><i>✓</i>Libre: código abierto, licencia MIT</span>
+        <span data-paso="2" data-retraso="2200"><i>✓</i>En español</span>
+        <span data-paso="2" data-retraso="2400"><i>✓</i>Se instala sin requisitos adicionales</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 23_trazabilidad.html -->
+<section class="lamina" id="trazabilidad" data-bloque="diseno" data-titulo="Trazabilidad en acción" data-pasos="3">
+  <!-- grupo: software -->
+  <div class="cabecera">
+    <div class="rotulo" data-auto data-sec="§ 2.1.2 · Anexo G"></div>
+    <h2 class="titulo">Trazabilidad en acción: de una tensión a sus datos</h2>
+  </div>
+
+  <!-- El recorrido hacia atrás sobre el ejemplo guía (definición de trazabilidad: Introducción y
+       § 2.1.2). Cada cifra es la del Anexo G de final4: Tablas G.1 a G.3 (datos, p. 168), D y Xₑ
+       (p. 169), J, det J = 4,7604, B y kₑ (p. 170), K de 18 × 18 y F₇ᵧ = −1000 (p. 171), 12 GDL
+       libres (pp. 171–172), Tablas G.5 y G.6 (p. 174) y Tabla G.7 (p. 174): σVM del nodo 7 = 864,70.
+       El nodo 7 pertenece solo a E3: su tensión es la extrapolada desde los cuatro puntos de Gauss
+       de E3, sin promedio. Pasos (viz/l4_software.js, «sw23-traza»):
+       0 el resultado · 1 el camino hacia atrás, de la etapa 9 a la 1 · 2 los datos del modelo
+       3 la memoria lo deja por escrito: la página del Anexo G de cada etapa; al frente, la p. 174 -->
+  <div class="sw sw23" data-viz="sw23-traza">
+    <div class="sw23-izq">
+      <div class="sw23-lienzo" data-hasta="2"></div>
+      <div class="sw23-ley" data-solo="0">Contorno de von Mises sobre la deformada del ejemplo guía, de 42,47 (azul) a 864,70 (rojo), como en la Figura G.4</div>
+      <div class="sw23-ley" data-solo="1">El nodo 7 solo pertenece a <b>E3</b>: su tensión sale de los cuatro puntos de Gauss de ese elemento</div>
+      <div class="sw23-ley" data-solo="2"><b>Ninguna etapa queda escondida:</b> del resultado se llega a los datos</div>
+      <div class="sw23-hojas" data-paso="3" data-anim="fundido">
+        <div class="sw23-hoja"><img src="assets/img/l4/anexoG4_p167.png" alt="Anexo G, p. 167"></div>
+        <div class="sw23-hoja"><img src="assets/img/l4/anexoG4_p168.png" alt="Anexo G, p. 168"></div>
+        <div class="sw23-hoja"><img src="assets/img/l4/anexoG4_p169.png" alt="Anexo G, p. 169"></div>
+        <div class="sw23-hoja"><img src="assets/img/l4/anexoG4_p170.png" alt="Anexo G, p. 170"></div>
+        <div class="sw23-hoja"><img src="assets/img/l4/anexoG4_p171.png" alt="Anexo G, p. 171"></div>
+        <div class="sw23-hoja"><img src="assets/img/l4/anexoG4_p172.png" alt="Anexo G, p. 172"></div>
+        <div class="sw23-hoja"><img src="assets/img/l4/anexoG4_p173.png" alt="Anexo G, p. 173"></div>
+        <div class="sw23-hoja"><img src="assets/img/l4/anexoG4_p175.png" alt="Anexo G, p. 175"></div>
+        <div class="sw23-hoja"><img class="zoomable" src="assets/img/l4/anexoG4_p174.png" alt="Anexo G, p. 174: Tablas G.5, G.6 y G.7">
+          <!-- 864,70 en la fila del nodo 7 de las Tablas G.6 y G.7 (medido sobre la hoja: px 735–787 × 442–463 y 690–749 × 976–999) -->
+          <i class="sw23-marca" style="left:80.77%;top:34.34%;width:5.71%;height:1.63%"></i>
+          <i class="sw23-marca" style="left:75.82%;top:75.84%;width:6.48%;height:1.79%"></i>
+        </div>
+        <div class="sw23-hpie">La memoria lo deja por escrito: <b>Anexo G</b>, pp. 167–175, con los números sustituidos</div>
+      </div>
+    </div>
+
+    <!-- la escalera: del resultado (arriba) a los datos (abajo) -->
+    <div class="sw23-esc">
+      <div class="sw23-f res" data-n="r">
+        <span class="n">σ</span><span class="nom">Resultado</span>
+        <span class="val">σ<sub>VM</sub> en el nodo 7 =<span class="grande sw-num">864,70</span></span>
+        <span class="pag" data-paso="3" data-retraso="1900">p. 174</span>
+      </div>
+      <div class="sw23-f" data-n="9">
+        <span class="n">9 <i>σ</i></span><span class="nom">Tensiones</span>
+        <span class="val sw-num" data-paso="1" data-retraso="350">σ<sub>7</sub> = (−25,26; −845,06; 134,51)<span class="de" data-hasta="2">← 4 puntos de Gauss</span></span>
+        <span class="pag" data-paso="3" data-retraso="1800">pp. 173–174</span>
+      </div>
+      <div class="sw23-f" data-n="8">
+        <span class="n">8 <i>u</i></span><span class="nom">Solución</span>
+        <span class="val sw-num" data-paso="1" data-retraso="630">u<sub>7y</sub> = −1,308 × 10<sup>−2</sup><span class="de" data-hasta="2">← K u = F, 12 GDL libres</span></span>
+        <span class="pag" data-paso="3" data-retraso="1700">pp. 171–172</span>
+      </div>
+      <div class="sw23-f" data-n="7">
+        <span class="n">7 <i>K</i></span><span class="nom">Ensamblaje</span>
+        <span class="val sw-num" data-paso="1" data-retraso="910">K de 18 × 18<span class="de" data-hasta="2">← las cuatro k<sub>e</sub></span></span>
+        <span class="pag" data-paso="3" data-retraso="1600">p. 171</span>
+      </div>
+      <div class="sw23-f" data-n="6">
+        <span class="n">6 <i>f</i></span><span class="nom">Fuerzas</span>
+        <span class="val sw-num" data-paso="1" data-retraso="1190">F<sub>7y</sub> = −1000<span class="de" data-hasta="2">← la carga del nodo 7</span></span>
+        <span class="pag" data-paso="3" data-retraso="1500">p. 171</span>
+      </div>
+      <div class="sw23-f" data-n="5">
+        <span class="n">5 <i>k<sub>e</sub></i></span><span class="nom">Rigidez de E3</span>
+        <span class="val sw-num" data-paso="1" data-retraso="1470">k<sub>e</sub> de 8 × 8<span class="de" data-hasta="2">← suma en 4 puntos de Gauss</span></span>
+        <span class="pag" data-paso="3" data-retraso="1400">p. 170</span>
+      </div>
+      <div class="sw23-f" data-n="4">
+        <span class="n">4 <i>D</i></span><span class="nom">Matriz D</span>
+        <span class="val sw-num" data-paso="1" data-retraso="1750">E / (1 − ν²) = 234 375<span class="de" data-hasta="2">← el material</span></span>
+        <span class="pag" data-paso="3" data-retraso="1300">p. 169</span>
+      </div>
+      <div class="sw23-f" data-n="3">
+        <span class="n">3 <i>B</i></span><span class="nom">Matriz B</span>
+        <span class="val sw-num" data-paso="1" data-retraso="2030">B de 3 × 8<span class="de" data-hasta="2">← en cada punto de Gauss</span></span>
+        <span class="pag" data-paso="3" data-retraso="1200">p. 170</span>
+      </div>
+      <div class="sw23-f" data-n="2">
+        <span class="n">2 <i>J</i></span><span class="nom">Jacobiano</span>
+        <span class="val sw-num" data-paso="1" data-retraso="2310">det J = 4,7604<span class="de" data-hasta="2">← en el primer punto de Gauss</span></span>
+        <span class="pag" data-paso="3" data-retraso="1100">p. 170</span>
+      </div>
+      <div class="sw23-f" data-n="1">
+        <span class="n">1 <i>N</i></span><span class="nom">Mapeo</span>
+        <span class="val sw-num" data-paso="1" data-retraso="2590">E3: nodos 4, 5, 8 y 7<span class="de" data-hasta="2">← sus coordenadas</span></span>
+        <span class="pag" data-paso="3" data-retraso="1000">p. 169</span>
+      </div>
+      <div class="sw23-f datos" data-n="0">
+        <span class="n">◉</span><span class="nom">Datos</span>
+        <span class="val sw-num" data-paso="2" data-retraso="500">E = 225 000 · ν = 0,2 · t = 0,8 · tensión plana; P = 1000 en el nodo 7; apoyos en los nodos 1, 3 y 6</span>
+        <span class="pag" data-paso="3" data-retraso="900">p. 168</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 24_demo.html -->
+<section class="lamina" id="demo" data-bloque="diseno" data-titulo="Demostración" data-pasos="1">
+  <!-- grupo: software -->
+  <div class="cabecera">
+    <div class="rotulo" data-auto data-sec="Anexo B · Tabla B.1 · Figura 3.5"></div>
+    <h2 class="titulo">Demostración en vivo</h2>
+  </div>
+
+  <!-- El guion de la demostración (Anexo B: Ctrl+E carga el ejemplo guía, F5 resuelve tras el
+       comprobador de salud, Ctrl+1 a Ctrl+7 abren M1 a M7, el clic derecho abre la sonda con su
+       círculo de Mohr, Archivo ▸ Exportar genera la memoria de cálculo) y, por si el equipo de la
+       sala falla y para el video, un recorrido con capturas reales (viz/l4_software.js, «sw24-demo»):
+       0 el guion, con la primera captura quieta · 1 el recorrido: cada captura con un acercamiento
+       lento (4 s cada una, en bucle) y el paso del guion que le corresponde resaltado. -->
+  <div class="sw sw24" data-viz="sw24-demo">
+    <div class="sw24-pasos">
+      <div class="sw24-p" data-entrada="1"><span class="k">1</span><span class="ico"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M8 50 L20 14 L44 14 L56 50 Z M20 14 L32 50 M44 14 L32 50 M14 32 L50 32" style="fill:var(--h-int-suave);stroke:var(--h-int);stroke-width:3.5;stroke-linejoin:round"/><circle cx="32" cy="50" r="5" style="fill:var(--h-int)"/></svg></span><div><b>Cargar el ejemplo guía</b><span>Ayuda ▸ Cargar ejemplo · Ctrl+E</span></div></div>
+      <div class="sw24-p" data-entrada="2"><span class="k">2</span><span class="ico"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 6 L54 14 V30 C54 44 44 54 32 58 C20 54 10 44 10 30 V14 Z" style="fill:var(--h-ok-suave);stroke:var(--h-ok);stroke-width:3.5;stroke-linejoin:round"/><path d="M21 31 L29 39 L43 23" style="fill:none;stroke:var(--h-ok);stroke-width:5;stroke-linecap:round;stroke-linejoin:round"/></svg></span><div><b>Comprobar y resolver</b><span>F5 · primero revisa el comprobador de salud</span></div></div>
+      <div class="sw24-p" data-entrada="3"><span class="k">3</span><span class="ico"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 30 L58 42 L32 54 L6 42 Z" style="fill:var(--superficie-3);stroke:var(--texto-3);stroke-width:3;stroke-linejoin:round"/><path d="M32 12 L58 24 L32 36 L6 24 Z" style="fill:var(--h-int-suave);stroke:var(--h-int);stroke-width:3.5;stroke-linejoin:round"/></svg></span><div><b>Abrir un módulo sobre un elemento</b><span>Ctrl+1 … Ctrl+7 y clic en el elemento</span></div></div>
+      <div class="sw24-p" data-entrada="4"><span class="k">4</span><span class="ico"><svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="20" style="fill:none;stroke:var(--h-int);stroke-width:3.5"/><path d="M32 4 V18 M32 46 V60 M4 32 H18 M46 32 H60" style="stroke:var(--h-int);stroke-width:3.5;stroke-linecap:round"/><circle cx="32" cy="32" r="6" style="fill:var(--h-int)"/></svg></span><div><b>Consultar un nodo con la sonda</b><span>clic derecho: tensiones y círculo de Mohr</span></div></div>
+      <div class="sw24-p" data-entrada="5"><span class="k">5</span><span class="ico"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M14 4 H40 L52 16 V60 H14 Z" style="fill:var(--superficie);stroke:var(--h-int);stroke-width:3.5;stroke-linejoin:round"/><path d="M40 4 V16 H52" style="fill:none;stroke:var(--h-int);stroke-width:3.5;stroke-linejoin:round"/><path d="M21 28 H45 M21 36 H45 M21 44 H37" style="stroke:var(--texto-3);stroke-width:3;stroke-linecap:round"/></svg></span><div><b>Generar la memoria de cálculo</b><span>Archivo ▸ Exportar: un PDF</span></div></div>
+      <div class="sw24-botones grupo-botones solo-vivo">
+        <button class="boton acento" data-ir="demo" data-ir-paso="1" data-sin-historial>▶ Recorrido</button>
+        <button class="boton" data-ir="trazabilidad">◆ Trazabilidad</button>
+        <button class="boton" data-ir="r-calculo-manual">◆ Cálculo a mano</button>
+      </div>
+    </div>
+
+    <div class="sw24-der">
+      <div class="sw24-tit" data-entrada="6">Recorrido de respaldo <b>· capturas reales de EduFEM</b></div>
+      <div class="sw24-marco" data-entrada="6" data-pptx-clip="recorrido:16000:ciclo">
+        <div class="sw24-cuadro" data-rotulo="Pre-proceso: el ejemplo guía cargado, en tablas y en el lienzo"><img src="assets/img/fig_app_completa.png" alt="EduFEM en pre-proceso con el ejemplo guía cargado"></div>
+        <div class="sw24-cuadro" data-rotulo="Proceso: el módulo M3, desplegado sobre el elemento elegido"><img src="assets/img/fig_modulo_capa.png" alt="Módulo M3 sobre el elemento E1"></div>
+        <div class="sw24-cuadro" data-rotulo="Post-proceso: von Mises, reacciones y la sonda en el nodo 7"><img src="assets/img/fig_postproceso.png" alt="Post-proceso con la sonda en el nodo 7"></div>
+        <div class="sw24-cuadro" data-rotulo="La memoria de cálculo del ejemplo guía (Anexo G)"><img src="assets/img/l4/software_hojas.png" alt="Hojas del Anexo G: datos, el elemento E3 y los resultados"></div>
+        <div class="sw24-rot"></div>
+      </div>
+      <div class="sw24-tira" data-entrada="7">
+        <div class="sw24-mini"><div class="im"><img src="assets/img/fig_app_completa.png" alt=""></div><span>Pre-proceso</span></div>
+        <div class="sw24-mini"><div class="im"><img src="assets/img/fig_modulo_capa.png" alt=""></div><span>Módulo M3</span></div>
+        <div class="sw24-mini"><div class="im"><img src="assets/img/fig_postproceso.png" alt=""></div><span>Post-proceso y sonda</span></div>
+        <div class="sw24-mini"><div class="im"><img src="assets/img/l4/software_hojas.png" alt=""></div><span>Memoria de cálculo</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 30_sep-cap3.html -->
+<section class="lamina separador" id="sep-cap3" data-bloque="resultados" data-titulo="Capítulo 3 · Verificar y validar" data-sin-pie>
+  <!-- grupo: intro -->
+  <div class="fondo-malla" data-viz="separador" data-pptx-clip="malla:6000:idavuelta"></div>
+  <div class="contenido-sep">
+    <div class="cap-oe" data-entrada="1"><span class="ficha acento">Objetivo específico 3</span><span><b>Verificar y validar</b></span></div>
+    <div class="numero" data-entrada="1">3</div>
+    <div class="nombre largo" data-entrada="2">Verificación y validación</div>
+    <div class="desc" data-entrada="3">Verificar y validar EduFEM, midiendo la cobertura de su procedimiento de cálculo y la exactitud de su motor frente a soluciones exactas y referencias externas, para establecer si ese procedimiento es trazable y verificable.</div>
+  </div>
+  <div class="cadena" data-entrada="4"></div>
+</section>
+
+<!-- 31_mms.html -->
+<section class="lamina" id="mms" data-bloque="resultados" data-titulo="Verificación (MMS)" data-pasos="3">
+  <!-- grupo: resultados -->
+  <div class="cabecera">
+    <div class="rotulo" data-auto data-sec="§ 3.2 · Tabla 3.1 · Figura 3.1"></div>
+    <h2 class="titulo">Verificación: el error baja como predice la teoría</h2>
+  </div>
+
+  <!-- § 3.2 de final4 (Tabla 3.1, Tabla D.3, Figura 3.1). Pasos (viz/l4_resultados.js, «r31-mms»):
+       0 la idea: una solución exacta fabricada, las mallas N = 2 … 32 y el error de cada una
+       1 Figura 3.1 (a) TAL CUAL (figdoc «mms_l2»): se traza el Q4 y su recta O(h²); el triángulo
+         «h ÷ 2 → error ÷ 4» entre N = 16 y N = 32; ficha «pendiente 2,00, teórica 2»
+       2 se traza el Q9 y su O(h³); triángulo «h ÷ 2 → error ÷ 8»; ficha «3,00, teórica 3»
+       3 Figura 3.1 (b) (figdoc «mms_h1») junto a la (a): 1,00 y 2,00; las cuatro configuraciones
+         (Tabla D.3) dan las mismas tasas; sello «teórica ± 0,5 · se cumple».
+       Sin decir que el MMS verifica la matriz constitutiva (CRITERIOS de final4, H1). -->
+  <div class="r3 r31">
+
+    <!-- ============================== paso 0 · la idea -->
+    <div class="r31-idea" data-solo="0">
+      <div class="r31-preg" data-entrada="1">Verificar: <b>¿resuelve bien sus ecuaciones?</b></div>
+
+      <div class="r31-panel r31-p1" data-entrada="2">
+        <div class="r31-pt"><i>1</i>Una solución exacta, fabricada</div>
+        <div class="r31-campos">
+          <figure><canvas class="r31-cu" width="230" height="230"></canvas><figcaption data-tex="u_M=\sin\pi x\,\sin\pi y"></figcaption></figure>
+          <figure><canvas class="r31-cv" width="230" height="230"></canvas><figcaption data-tex="v_M=\cos\pi x\,\cos\pi y"></figcaption></figure>
+        </div>
+      </div>
+      <div class="r31-fl f1" data-entrada="3">→</div>
+
+      <div class="r31-panel r31-p2" data-entrada="3" data-retraso="420">
+        <div class="r31-pt"><i>2</i>EduFEM la calcula en mallas cada vez más finas</div>
+        <div class="r31-mallas"></div>
+        <div class="r31-h"><b>h</b> = 1/N: el tamaño de los elementos</div>
+      </div>
+      <div class="r31-fl f2" data-entrada="4" data-retraso="1700">→</div>
+
+      <div class="r31-panel r31-p3" data-entrada="4" data-retraso="1800">
+        <div class="r31-pt"><i>3</i>Se mide su error</div>
+        <div class="r31-err" data-tex="\lVert u_h-u_M\rVert"></div>
+        <div class="r31-err-tx">entre lo que calcula EduFEM y la solución exacta</div>
+      </div>
+
+      <div class="r3-remate r31-pred" data-entrada="5" data-retraso="2400"><span class="ico">◆</span><span>Si resuelve bien, el error baja <b>al ritmo que predice la teoría</b>.</span></div>
+    </div>
+
+    <!-- ============================== pasos 1 a 3 · la Figura 3.1 de la tesis, tal cual -->
+    <div class="r3-fig r31-fig r31-fa" data-paso="1">
+      <div class="r3-figdoc" data-viz="figdoc" data-fig="mms_l2" data-fig-escalon="1650"
+           data-fig-pasos='{"1":["serie_q4","pend_q4"],"2":["serie_q9","pend_q9"]}'></div>
+      <svg class="r3-sobre r31-sobre" viewBox="0 0 504 360" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
+      <span class="r3-fuente-fig">Figura 3.1 (a)</span>
+    </div>
+
+    <div class="tarjeta r31-lee" data-paso="1" data-hasta="2">
+      <div class="r3-etq">Cómo se lee la gráfica</div>
+      <div class="r31-item"><i class="r3-ico" data-ico="malla"></i><span><b>Cada punto es una malla</b></span></div>
+      <div class="r31-mini"></div>
+      <div class="r31-item"><i class="r3-ico" data-ico="ejes"></i><span>A la izquierda, <b>mallas más finas</b>; abajo, <b>menos error</b></span></div>
+      <div class="r31-item"><i class="r3-ico" data-ico="pendiente"></i><span><b>Pendiente</b>: cuánto baja el error si h se divide por 2</span></div>
+    </div>
+
+    <div class="r3-fig r31-fig r31-fb" data-paso="3">
+      <div class="r3-figdoc" data-viz="figdoc" data-fig="mms_h1" data-fig-escalon="650"
+           data-fig-pasos='{"3":["serie_q4","serie_q9","pend_q4","pend_q9"]}'></div>
+      <span class="r3-fuente-fig">Figura 3.1 (b)</span>
+    </div>
+
+    <!-- tasas asintóticas (N = 16 → 32), Tabla 3.1: cada una bajo su figura -->
+    <div class="r31-chips r31-ca">
+      <div class="r31-chip q4" data-paso="1" data-retraso="2350"><b>Q4</b><span class="pend">pendiente <strong>2,00</strong></span><span class="teo">teórica 2</span></div>
+      <div class="r31-chip q9" data-paso="2" data-retraso="2250"><b>Q9</b><span class="pend">pendiente <strong>3,00</strong></span><span class="teo">teórica 3</span></div>
+    </div>
+    <div class="r31-chips r31-cb">
+      <div class="r31-chip q4" data-paso="3" data-retraso="1900"><b>Q4</b><span class="pend">pendiente <strong>1,00</strong></span><span class="teo">teórica 1</span></div>
+      <div class="r31-chip q9" data-paso="3" data-retraso="2550"><b>Q9</b><span class="pend">pendiente <strong>2,00</strong></span><span class="teo">teórica 2</span></div>
+    </div>
+
+    <!-- las cuatro configuraciones (Tabla D.3) y el criterio -->
+    <div class="r31-cierre" data-paso="3" data-retraso="2850">
+      <div class="r31-conf">
+        <span class="r31-cfg" data-cfg="cuad"></span><span class="r31-cfg" data-cfg="dist"></span>
+        <span class="r31-conf-tx"><b>Cuadrado y distorsionado, en tensión y en deformación plana:</b> las mismas tasas, con diferencias menores que 0,01 <small>(Tabla D.3)</small></span>
+      </div>
+      <span class="l4-sello">Teórica ± 0,5 · se cumple</span>
+    </div>
+
+    <!-- la animación va al final: actúa después de que «figdoc» deja cada serie en su estado -->
+    <div class="r3-motor" data-viz="r31-mms" aria-hidden="true"></div>
+  </div>
+</section>
+
+<!-- 32_timoshenko.html -->
+<section class="lamina" id="timoshenko" data-bloque="resultados" data-titulo="Viga de Timoshenko" data-pasos="2">
+  <!-- grupo: resultados -->
+  <div class="cabecera">
+    <div class="rotulo" data-auto data-sec="§ 3.4 · Tablas 3.2 y 3.3 · Figura 3.3"></div>
+    <h2 class="titulo">Validación 1: la viga de Timoshenko</h2>
+  </div>
+
+  <!-- § 3.4 de final4. La viga se dibuja con los datos del motor (el campo σx sobre la deformada
+       de la Figura 3.3, malla Q9 56 × 8). Pasos (viz/l4_resultados.js, «r32-viga»):
+       0 el caso y sus dos referencias (analítica de Timoshenko y Goodier; SAP2000 con cáscara)
+       1 σx en A, B y C (Tabla 3.2) con barras frente al umbral del 1 %
+       2 la flecha central (Tabla 3.3: 0,26 %; con Euler-Bernoulli, 1,85 %) y el equilibrio
+         (ΣRy = qL = 70 000 kgf, residuo 1,7 × 10⁻¹³) -->
+  <div class="r3 r32">
+    <div class="r32-viga"></div>
+    <div class="r32-escala">
+      <span class="r32-sx">σ<sub>x</sub> (kgf/cm²)</span>
+      <span class="num">−127,9</span><span class="r32-barra"></span><span class="num">127,9</span>
+      <span class="r32-malla">EduFEM: Q9, 56 × 8 = 448 elementos, 3842 GDL · deformada ampliada × 20</span>
+    </div>
+
+    <!-- ============================== paso 0 · el caso y las dos referencias -->
+    <div class="r32-caso" data-solo="0">
+      <div class="r32-preg" data-entrada="1" data-retraso="1500">Validar: <b>¿coinciden los resultados con referencias externas?</b></div>
+      <div class="tarjeta r32-carta" data-entrada="2" data-retraso="1800">
+        <div class="r3-etq">El caso</div>
+        <p><b>Viga de hormigón simplemente apoyada</b></p>
+        <p class="r32-datos">b&nbsp;=&nbsp;0,40&nbsp;m · E&nbsp;=&nbsp;217&nbsp;370&nbsp;kgf/cm² · ν&nbsp;=&nbsp;0,20</p>
+      </div>
+      <div class="tarjeta r32-carta ref" data-entrada="3" data-retraso="2050">
+        <div class="r3-etq">Referencia 1</div>
+        <p><b>Solución analítica</b>, de la teoría de la elasticidad</p>
+        <p class="r32-datos">Timoshenko y Goodier [14]</p>
+      </div>
+      <div class="tarjeta r32-carta ref" data-entrada="4" data-retraso="2300">
+        <div class="r3-etq">Referencia 2</div>
+        <p><b>SAP2000</b> [18], con elementos de cáscara</p>
+        <p class="r32-datos">patrón de comparación, no de exactitud</p>
+      </div>
+    </div>
+
+    <!-- ============================== paso 1 · la tensión normal en A, B y C (Tabla 3.2) -->
+    <div class="r32-tabla" data-paso="1">
+      <table class="tabla">
+        <thead><tr><th>Punto</th><th class="der">EduFEM</th><th class="der">Analítica</th><th class="der">SAP2000</th><th class="der">Error frente a<br>la analítica</th><th class="der">Diferencia frente<br>a SAP2000</th></tr></thead>
+        <tbody>
+          <tr data-fila="A"><td><span class="r32-p">A</span></td><td class="der">127,8825</td><td class="der">127,8542</td><td class="der">127,8514</td><td class="der r32-pct" data-v="0.0221">0,02 %<i class="r32-pista"><i></i></i></td><td class="der r32-pct" data-v="0.0243">0,02 %<i class="r32-pista"><i></i></i></td></tr>
+          <tr data-fila="B"><td><span class="r32-p">B</span></td><td class="der">−37,3410</td><td class="der">−37,3255</td><td class="der">−37,2640</td><td class="der r32-pct max" data-v="0.0414">0,04 %<i class="r32-pista"><i></i></i></td><td class="der r32-pct max" data-v="0.2067">0,21 %<i class="r32-pista"><i></i></i></td></tr>
+          <tr data-fila="C"><td><span class="r32-p">C</span></td><td class="der">−31,8077</td><td class="der">−31,7992</td><td class="der">−31,7852</td><td class="der r32-pct" data-v="0.0268">0,03 %<i class="r32-pista"><i></i></i></td><td class="der r32-pct" data-v="0.0708">0,07 %<i class="r32-pista"><i></i></i></td></tr>
+        </tbody>
+      </table>
+      <div class="r32-lect">
+        <span class="l4-sello" data-paso="1" data-retraso="2300"><span>σ<sub>x</sub> &lt; 1 % frente a las dos referencias · se cumple</span></span>
+        <span class="r32-pie"><i class="r32-pista muestra"><i></i></i><span>barra entera: el umbral del 1 % · σ<sub>x</sub> en kgf/cm²</span></span>
+      </div>
+    </div>
+
+    <!-- ============================== paso 2 · la flecha (Tabla 3.3) y el equilibrio -->
+    <div class="r32-der" data-paso="2">
+      <div class="r32-bloque">
+        <div class="r32-cab"><span class="r3-etq">Flecha central</span><span class="l4-sello" data-paso="2" data-retraso="1300">&lt; 3 %</span></div>
+        <div class="r32-fl">
+          <span class="et">Frente a la analítica, <b>con cortante</b></span><span class="v ok">0,26 %</span>
+          <i class="r32-pista ancha"><i data-v="0.2633" data-u="3"></i><em>umbral 3 %</em></i>
+        </div>
+        <div class="r32-fl eb">
+          <span class="et">Si se desprecia el cortante (Euler-Bernoulli)</span><span class="v">1,85 %</span>
+          <i class="r32-pista ancha"><i data-v="1.85" data-u="3"></i><em>umbral 3 %</em></i>
+        </div>
+        <div class="r32-pie2">Barra entera: el umbral del 3 %</div>
+      </div>
+      <div class="r32-bloque eq" data-paso="2" data-retraso="1700">
+        <div class="r32-cab"><span class="r3-etq">Equilibrio de las reacciones</span><span class="l4-sello" data-paso="2" data-retraso="2600">&lt; 10⁻⁸</span></div>
+        <div class="r32-eq">ΣR<sub>y</sub> = qL = 70 000 kgf</div>
+        <div class="r32-cifra"><span>residuo relativo</span><b>1,7 × 10⁻¹³</b></div>
+      </div>
+    </div>
+
+    <div class="r3-motor" data-viz="r32-viga" aria-hidden="true"></div>
+  </div>
+</section>
+
+<!-- 33_cook.html -->
+<section class="lamina" id="cook" data-bloque="resultados" data-titulo="Membrana de Cook" data-pasos="3">
+  <!-- grupo: resultados -->
+  <div class="cabecera">
+    <div class="rotulo" data-auto data-sec="§ 3.5 · Tabla 3.4 · Figura 3.4"></div>
+    <h2 class="titulo">Validación 2: la membrana de Cook y el bloqueo del Q4</h2>
+  </div>
+
+  <!-- § 3.5 de final4 (Tabla 3.4, Figura 3.4). Pasos (viz/l4_resultados.js, «r33-cook»):
+       0 la membrana (datos del motor): trapecio empotrado, carga tangencial, u_y en (48; 52);
+         referencia 23,96 (extrapolación ≈ 23,97; publicada 23,965 [26, p. 28])
+       1 Figura 3.4 TAL CUAL (figdoc «cook»): se traza el Q4; la membrana muestra la malla de
+         cada punto que aparece; −50,563 % con N = 2, −0,594 % con N = 32
+       2 se traza el Q9: con N = 8, 23,925 y 0,144 % (umbral 1,5 %); a 578 GDL, más de diez veces menor
+       3 por qué: el bloqueo por cortante (video), la flecha del Q4 menor que la del Q9 en las cinco
+         mallas, y los cinco valores del Q4 iguales a los de Štembera y Füssl [26, p. 28] -->
+  <div class="r3 r33">
+
+    <!-- ============================== columna izquierda: la membrana (pasos 0 a 2) -->
+    <div class="r33-memb" data-hasta="2">
+      <div class="r33-lienzo"></div>
+      <div class="r33-info" data-paso="1">
+        <div class="r33-info-el"></div>
+        <div class="r33-info-gdl"></div>
+        <div class="r33-info-uy"></div>
+        <div class="r33-info-err"></div>
+      </div>
+    </div>
+    <div class="r33-ficha q4" data-solo="1" data-retraso="1900">
+      <div class="r33-ft"><b>Q4</b>: se queda corto y se acerca despacio</div>
+      <div class="r33-fn"><span><b>−50,563 %</b> con N = 2</span><span><b>−0,594 %</b> con N = 32</span></div>
+    </div>
+    <div class="r33-ficha q9" data-solo="2" data-retraso="2000">
+      <div class="r33-ft"><b>Q9</b>: con N = 8, error de <b>0,144 %</b> <span>(umbral 1,5 %)</span></div>
+      <div class="r33-fx">Con 578 GDL, su error es <b>más de diez veces menor</b> que el del Q4 (−0,144 % frente a −2,210 %)</div>
+    </div>
+
+    <!-- ============================== paso 3: por qué, y el contraste externo -->
+    <div class="r33-video" data-paso="3">
+      <div class="r33-vid" data-viz="video" data-src="assets/video/cantilever_q4_q9.mp4" data-cuadros="88" data-fps="22"></div>
+      <div class="r33-vt q4">Q4: sus bordes quedan rectos</div>
+      <div class="r33-vt q9">Q9: sus bordes se curvan</div>
+    </div>
+    <div class="r33-vpie" data-paso="3">En flexión pura, el Q4 resulta demasiado rígido</div>
+    <div class="r33-stem" data-paso="3" data-retraso="700">
+      <div class="r33-st-tit">Contraste externo: Štembera y Füssl [26, p. 28], cuatro nodos</div>
+      <table class="r33-tab">
+        <thead><tr><th>N</th><th>2</th><th>4</th><th>8</th><th>16</th><th>32</th></tr></thead>
+        <tbody>
+          <tr class="edu"><td>EduFEM, Q4</td><td>11,845</td><td>18,299</td><td>22,079</td><td>23,430</td><td>23,818</td></tr>
+          <tr class="pub"><td>Štembera y Füssl</td><td>11,845</td><td>18,299</td><td>22,079</td><td>23,430</td><td>23,818</td></tr>
+        </tbody>
+      </table>
+      <div class="r33-st-rem" data-paso="3" data-retraso="2700">Los mismos valores, hasta la última cifra publicada</div>
+    </div>
+
+    <!-- ============================== columna derecha: el caso (paso 0) y la Figura 3.4 -->
+    <div class="tarjeta r33-caso" data-solo="0">
+      <div class="r3-etq">Un clásico de la literatura [26, p. 27]</div>
+      <p class="r33-c1">Un trapecio que combina <b>flexión, cortante y distorsión</b></p>
+      <div class="r33-ref" data-entrada="1" data-retraso="1700">
+        <span class="r33-ref-n">23,96</span>
+        <span class="r33-ref-t">valor de referencia, de uso extendido, de u<sub>y</sub> en (48; 52)</span>
+      </div>
+      <p class="r33-c2" data-entrada="2" data-retraso="2200">Lo corroboran una extrapolación propia (≈ 23,97) y el valor publicado, 23,965 [26, p. 28]</p>
+    </div>
+
+    <div class="r3-fig r33-fig" data-paso="1">
+      <div class="r3-figdoc" data-viz="figdoc" data-fig="cook" data-fig-pasos='{"1":["serie_q4"],"2":["serie_q9"]}'></div>
+      <svg class="r3-sobre r33-sobre" viewBox="0 0 504 360" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
+      <span class="r3-fuente-fig">Figura 3.4</span>
+    </div>
+    <div class="r33-sellos">
+      <span class="l4-sello" data-paso="2" data-retraso="2300"><span>Exactitud del Q9 · se cumple</span></span>
+      <span class="l4-sello" data-paso="3" data-retraso="1300"><span>Bloqueo del Q4, en las 5 mallas · se cumple</span></span>
+    </div>
+
+    <div class="r3-motor" data-viz="r33-cook" aria-hidden="true"></div>
+  </div>
+</section>
+
+<!-- 34_cobertura.html -->
+<section class="lamina" id="cobertura" data-bloque="resultados" data-titulo="Cobertura" data-pasos="2">
+  <!-- grupo: resultados -->
+  <div class="cabecera">
+    <div class="rotulo" data-auto data-sec="§ 3.3 y § 3.6 · Tablas 3.6 y 3.7"></div>
+    <h2 class="titulo">Trazabilidad: todo el procedimiento, a la vista</h2>
+  </div>
+
+  <!-- § 3.6 de final4 (y § 3.3 para el intercambio de datos): los seis criterios de la cláusula (a),
+       en el orden de la Tabla 3.10. Pasos (viz/l4_resultados.js, «r34-cobertura»):
+       0 el inventario sin huecos: 7 de 7, 9 de 9, ambas, 3 de 3 y sin pérdida (el 18 de 18 queda pendiente)
+       1 los seis criterios pasan a una franja; los 49 contenidos del consenso [3, pp. 1162–1163] se
+         separan: 18 fuera del alcance disciplinar, 12 anteriores al procedimiento, 1 no expuesto
+         (FEM3), y los 18 del universo se marcan uno a uno: 18 de 18 (Tabla 3.7)
+       2 la nota: cobertura, no suficiencia ni efecto sobre quien lo usa; cotejo del autor con regla explícita -->
+  <div class="r3 r34">
+
+    <!-- ============================== paso 0: los seis criterios, grandes -->
+    <div class="r34-grandes" data-solo="0">
+      <div class="r34-g" data-entrada="1">
+        <i class="r3-ico" data-ico="modulos"></i>
+        <div class="r34-n"><b data-contar="7">7</b><span>de 7</span></div>
+        <div class="r34-t">etapas con <b>módulo educativo</b></div>
+        <div class="r34-d">M1 a M7</div>
+        <i class="r34-ok"></i>
+      </div>
+      <div class="r34-g" data-entrada="2">
+        <i class="r3-ico" data-ico="memoria"></i>
+        <div class="r34-n"><b data-contar="9">9</b><span>de 9</span></div>
+        <div class="r34-t">etapas desarrolladas en la <b>memoria de cálculo</b></div>
+        <i class="r34-ok"></i>
+      </div>
+      <div class="r34-g" data-entrada="3">
+        <i class="r3-ico" data-ico="post"></i>
+        <div class="r34-n palabra"><b>Ambas</b></div>
+        <div class="r34-t"><b>solución y tensiones</b> en el post-proceso</div>
+        <div class="r34-d">sin promediar y promediadas</div>
+        <i class="r34-ok"></i>
+      </div>
+      <div class="r34-g" data-entrada="4">
+        <i class="r3-ico" data-ico="lienzo"></i>
+        <div class="r34-n"><b data-contar="3">3</b><span>de 3</span></div>
+        <div class="r34-t">fases sobre <b>un mismo lienzo</b></div>
+        <div class="r34-d">en los casos que la interfaz admite</div>
+        <i class="r34-ok"></i>
+      </div>
+      <div class="r34-g pend" data-entrada="5">
+        <i class="r3-ico" data-ico="expertos"></i>
+        <div class="r34-n"><b>…</b><span>de 18</span></div>
+        <div class="r34-t">contenidos que exige un <b>consenso de expertos</b> [3]</div>
+      </div>
+      <div class="r34-g" data-entrada="6">
+        <i class="r3-ico" data-ico="intercambio"></i>
+        <div class="r34-n palabra"><b>Sin pérdida</b></div>
+        <div class="r34-t"><b>intercambio de datos</b></div>
+        <div class="r34-d">hoja de cálculo de ida y vuelta · importación CAD repetible · memoria para Q4 y Q9</div>
+        <i class="r34-ok"></i>
+      </div>
+    </div>
+
+    <!-- ============================== pasos 1 y 2: los seis criterios, en una franja -->
+    <div class="r34-franja" data-paso="1">
+      <div class="r34-f"><b>7</b><span>de 7</span><em>módulos</em><i class="r34-ok"></i></div>
+      <div class="r34-f"><b>9</b><span>de 9</span><em>memoria</em><i class="r34-ok"></i></div>
+      <div class="r34-f"><b>Ambas</b><em>post-proceso</em><i class="r34-ok"></i></div>
+      <div class="r34-f"><b>3</b><span>de 3</span><em>lienzo</em><i class="r34-ok"></i></div>
+      <div class="r34-f r34-f18" data-clase-paso="1:activo"><b class="r34-n18">…</b><span>de 18</span><em>contenidos</em><i class="r34-ok"></i></div>
+      <div class="r34-f"><b>Sin pérdida</b><em>intercambio</em><i class="r34-ok"></i></div>
+    </div>
+
+    <!-- ============================== paso 1: los 49 contenidos del consenso (la visualización mueve cada ítem) -->
+    <div class="r34-red" data-paso="1">
+      <div class="r34-tit t-ini">15 conceptos teóricos · FEM</div>
+      <div class="r34-tit t-ini">34 destrezas prácticas · FEA</div>
+      <div class="r34-tit t-gru u"><b>18</b> · universo del procedimiento</div>
+      <div class="r34-tit t-gru f"><b>18</b> · fuera del alcance disciplinar</div>
+      <div class="r34-tit t-gru a"><b>12</b> · anteriores al procedimiento</div>
+      <div class="r34-tit t-gru x"><b>1</b> · no expuesto</div>
+      <div class="r34-sub">procedimiento de cálculo y su verificación</div>
+      <div class="r34-sub">resortes, barras y vigas, 3D, placas, térmico, CAD, contacto…</div>
+      <div class="r34-sub">planificar el análisis, materiales, cargas y apoyos</div>
+      <div class="r34-sub">FEM3: una deducción teórica</div>
+      <div class="r34-items"></div>
+      <div class="r34-fuente">Pérez-Santiago y Campos [3, pp. 1162–1163]: 67 expertos de la industria y de la academia; ítems traducidos por el autor</div>
+    </div>
+
+    <div class="r3-remate r34-nota" data-paso="2"><span class="ico">◆</span><span>Prueba <b>cobertura</b>, no suficiencia ni efecto sobre quien lo usa. El cotejo es del autor, con una <b>regla de marcado explícita</b>.</span></div>
+
+    <div class="r3-motor" data-viz="r34-cobertura" aria-hidden="true"></div>
+  </div>
+</section>
+
+<!-- 35_leccion.html -->
+<section class="lamina" id="leccion" data-bloque="resultados" data-titulo="La lección" data-pasos="2">
+  <!-- grupo: resultados -->
+  <div class="cabecera">
+    <div class="rotulo" data-auto data-sec="§ 3.7.2 · Tabla G.5"></div>
+    <h2 class="titulo">Lo que las tasas no vieron, la memoria lo delató</h2>
+  </div>
+
+  <!-- § 3.7.2 de final4 (y § 3.2, sus límites; Anexo G, Tabla G.5 y Ecuación 1.23). Pasos (viz/l4_resultados.js, «r35-leccion»):
+       0 el defecto: la matriz que lleva las tensiones del Q4 de los puntos de Gauss a los nodos
+         estaba escrita para otra numeración de esos puntos (los puntos 3 y 4, intercambiados respecto
+         del orden del motor: (−,−), (−,+), (+,−), (+,+)); las tasas del desplazamiento no lo ven,
+         porque esa matriz actúa después
+       1 la memoria lo delata: en el elemento E3 del ejemplo guía, las tensiones llevadas a los nodos
+         y traídas de vuelta no cierran con las de los puntos de Gauss (σx de la Tabla G.5)
+       2 se corrige, y hoy lo detectaría la prueba de reproducción exacta de campos polinómicos;
+         la lección: exponer no asegura que lo expuesto sea correcto, y la hipótesis no es tautológica -->
+  <div class="r3 r35">
+
+    <!-- ============================== el elemento E3 (lo dibuja la visualización) -->
+    <div class="r35-elem" data-entrada="1">
+      <div class="r3-etq">Ejemplo guía · elemento E3</div>
+      <div class="r35-dibujo"></div>
+      <div class="r35-ley">
+        <span class="r35-ley-t" data-hasta="1"><i class="r35-ley-fl"></i><span>adónde lleva cada valor la matriz <b>anterior</b></span></span>
+        <span class="r35-ley-t ok" data-paso="2"><i class="r35-ley-fl"></i><span>con la matriz corregida, cada valor vuelve a su punto</span></span>
+      </div>
+    </div>
+
+    <!-- ============================== la cadena del cálculo de tensiones -->
+    <div class="r35-cadena" data-entrada="2" data-retraso="500">
+      <div class="r35-vigia" data-entrada="3" data-retraso="1500"><span>✓ lo que miden las tasas del desplazamiento</span></div>
+      <div class="r35-esl ok"><b>Desplazamientos</b></div>
+      <i class="r35-fl">→</i>
+      <div class="r35-esl"><b>Tensiones en los puntos de Gauss</b></div>
+      <i class="r35-fl">→</i>
+      <div class="r35-esl mal" data-clase-paso="2:corregido"><b>Matriz de extrapolación</b><small class="m">otra numeración</small><small class="b">corregida</small></div>
+      <i class="r35-fl">→</i>
+      <div class="r35-esl"><b>Tensiones en los nodos</b></div>
+    </div>
+
+    <!-- ============================== paso 1: el cierre que falla (Tabla G.5: σx en los puntos de Gauss de E3) -->
+    <div class="r35-cierre" data-paso="1">
+      <div class="r35-c-tit">¿Cierran los nodos con los puntos de Gauss? <span>E3 · σ<sub>x</sub></span></div>
+      <table class="tabla r35-tab">
+        <thead><tr><th>Punto de Gauss</th><th class="der">Calculada</th><th class="der">De vuelta<br>desde los nodos</th><th class="der r35-col-b" data-paso="2" data-retraso="1300">Con la matriz<br>corregida</th></tr></thead>
+        <tbody>
+          <tr><td><i class="r35-pg">1</i></td><td class="der r35-g">−41,04</td><td class="der r35-v"></td><td class="der r35-col-b" data-paso="2" data-retraso="1300"></td></tr>
+          <tr><td><i class="r35-pg">2</i></td><td class="der r35-g">−6,76</td><td class="der r35-v"></td><td class="der r35-col-b" data-paso="2" data-retraso="1300"></td></tr>
+          <tr><td><i class="r35-pg">3</i></td><td class="der r35-g">1,82</td><td class="der r35-v"></td><td class="der r35-col-b" data-paso="2" data-retraso="1300"></td></tr>
+          <tr><td><i class="r35-pg">4</i></td><td class="der r35-g">66,82</td><td class="der r35-v"></td><td class="der r35-col-b" data-paso="2" data-retraso="1300"></td></tr>
+        </tbody>
+      </table>
+      <div class="r35-c-pie" data-hasta="1">Llevadas a los nodos y traídas de vuelta, deberían volver iguales · «de vuelta»: reconstrucción con la matriz anterior</div>
+    </div>
+
+    <!-- ============================== paso 2: la prueba que hoy lo detectaría y la lección -->
+    <div class="r35-prueba" data-paso="2" data-retraso="1900"><i class="r3-ico" data-ico="escudo"></i><span>Hoy lo detectaría una prueba propia: <b>reproducción exacta de campos polinómicos</b></span></div>
+    <div class="r3-remate r35-remate" data-paso="2" data-retraso="2500"><span class="ico">◆</span><span>Exponer el procedimiento no asegura que sea correcto: fue la <b>trazabilidad</b> la que hizo visible el defecto. Por eso la hipótesis <b>no es una tautología</b>.</span></div>
+
+    <div class="r3-motor" data-viz="r35-leccion" aria-hidden="true"></div>
+  </div>
+</section>
+
+<!-- 40_sep-conclusiones.html -->
+<section class="lamina separador" id="sep-conclusiones" data-bloque="conclusiones" data-titulo="Conclusiones y recomendaciones" data-sin-pie>
+  <!-- grupo: intro -->
+  <div class="fondo-malla" data-viz="separador" data-pptx-clip="malla:6000:idavuelta"></div>
+  <div class="contenido-sep sin-numero">
+    <div class="cap-oe" data-entrada="1"><span class="ficha acento">Respuesta</span><span>Objetivos · hipótesis · problema · preguntas</span></div>
+    <div class="nombre largo" data-entrada="2">Conclusiones y recomendaciones</div>
+    <div class="desc" data-entrada="3">La respuesta a cada objetivo, el contraste de la hipótesis parte por parte, la respuesta al problema y a las dos preguntas de investigación, y las recomendaciones de cada capítulo.</div>
+  </div>
+  <div class="cadena" data-entrada="4"></div>
+</section>
+
+<!-- 41_objetivos-cumplidos.html -->
+<section class="lamina" id="objetivos-cumplidos" data-bloque="conclusiones" data-titulo="Objetivos" data-pasos="3">
+  <!-- grupo: conclusiones -->
+  <div class="cabecera">
+    <div class="rotulo" data-auto data-sec="Conclusiones · Tabla CR.1"></div>
+    <h2 class="titulo">¿Se cumplieron los objetivos?</h2>
+  </div>
+
+  <!-- Tablero (viz/l4_conclusiones.js, «c41-objetivos»). Pasos:
+       0 el objetivo general: lo que pide → EduFEM, con su sello «Cumplido»
+       1-3 cada objetivo específico (el frente repite la tarjeta de la lámina 06) se da vuelta y
+         muestra su conclusión con la fórmula del documento («De … (Capítulo N) se concluye
+         que…»), su evidencia y su sello; el contador llega a 3 de 3.
+       Textos: Introducción («Objetivos») y Conclusiones de final4. -->
+  <div class="c41" data-viz="c41-objetivos">
+
+    <!-- objetivo general -->
+    <div class="c41-og" data-entrada="1">
+      <div class="c41-og-obj">
+        <div class="c4-etq">Objetivo general</div>
+        <p>Desarrollar un software educativo de elementos finitos … <b>para mejorar la trazabilidad y la verificabilidad</b> del procedimiento de cálculo</p>
+      </div>
+      <div class="c41-og-fl">→</div>
+      <div class="c41-og-res">
+        <img class="c41-logo" src="assets/img/fig_logo_edufem.png" alt="">
+        <div>
+          <div class="c41-og-nom">Edu<b>FEM</b><span>expone su procedimiento de cálculo</span></div>
+          <div class="c41-og-chips"><span>libre</span><span>en español</span><span>escrito en Python</span><span>elasticidad plana con Q4 y Q9</span></div>
+        </div>
+      </div>
+      <div class="c41-og-ver"><span class="l4-sello">Cumplido</span></div>
+    </div>
+
+    <!-- contador de los objetivos específicos -->
+    <div class="c41-fila" data-entrada="2">
+      <span class="c4-etq">Objetivos específicos · uno por capítulo</span>
+      <span class="c41-cuenta"><span class="c41-seg"><i><b></b></i><i><b></b></i><i><b></b></i></span><b class="n">0</b><span>de 3 cumplidos</span></span>
+    </div>
+
+    <div class="c41-oes">
+      <!-- Capítulo 1 · Fundamentar -->
+      <div class="c41-oe" data-entrada="3">
+        <div class="c41-cara c41-frente">
+          <div class="c41-cab"><span class="c41-num">1</span><span class="c41-cap">Capítulo 1</span></div>
+          <div class="c41-verbo">Fundamentar</div>
+          <p class="c41-que">teóricamente el MEF en elasticidad plana con elementos Q4 y Q9, y el estado del arte del software para su enseñanza, <b>para fijar los requisitos de la herramienta</b>.</p>
+          <span class="c41-espera">¿cumplido?</span>
+        </div>
+        <div class="c41-cara c41-dorso">
+          <div class="c41-cab"><span class="c41-num ok">1</span><span class="c41-cap">Capítulo 1 · Fundamentar</span></div>
+          <p class="c41-formula">De la fundamentación teórica (Capítulo 1) se concluye que:</p>
+          <ul class="c41-lista">
+            <li><i class="c4-ico" data-ico="caja"></i><span>el software comercial de análisis opera como una <b>caja negra</b>;</span></li>
+            <li><i class="c4-ico" data-ico="matriz"></i><span><b>ningún recurso educativo revisado</b> documenta a la vez los atributos que harían trazable y verificable el procedimiento de cálculo.</span></li>
+          </ul>
+          <div class="c41-pie">
+            <a class="c41-chip c4-enlace" data-ir="estado-arte"><i class="c4-ico" data-ico="doc"></i>Tabla 1.1 · § 2.2.1</a>
+            <span class="l4-sello">Cumplido</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Capítulo 2 · Desarrollar -->
+      <div class="c41-oe" data-entrada="4">
+        <div class="c41-cara c41-frente">
+          <div class="c41-cab"><span class="c41-num">2</span><span class="c41-cap">Capítulo 2</span></div>
+          <div class="c41-verbo">Desarrollar</div>
+          <p class="c41-que">EduFEM en Python —motor de cálculo, interfaz, módulos educativos y memoria de cálculo— <b>para exponer el procedimiento de cálculo etapa por etapa sobre el modelo del usuario</b>.</p>
+          <span class="c41-espera">¿cumplido?</span>
+        </div>
+        <div class="c41-cara c41-dorso">
+          <div class="c41-cab"><span class="c41-num ok">2</span><span class="c41-cap">Capítulo 2 · Desarrollar</span></div>
+          <p class="c41-formula">Del desarrollo de EduFEM (Capítulo 2) se concluye que el software lleva su procedimiento a la vista:</p>
+          <ul class="c41-lista">
+            <li><i class="c4-ico" data-ico="modulos"></i><span>los <b>módulos educativos</b>, sobre el modelo del usuario, hasta el ensamblaje;</span></li>
+            <li><i class="c4-ico" data-ico="post"></i><span>el <b>post-proceso</b>, con sus medios de comprobación;</span></li>
+            <li><i class="c4-ico" data-ico="memoria"></i><span>la <b>memoria de cálculo</b>, con sustitución numérica.</span></li>
+          </ul>
+          <div class="c41-pie">
+            <a class="c41-chip c4-enlace" data-ir="software"><i class="c4-ico" data-ico="doc"></i>Tabla 3.6 · Figura 3.5</a>
+            <span class="l4-sello">Cumplido</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Capítulo 3 · Verificar y validar -->
+      <div class="c41-oe" data-entrada="5">
+        <div class="c41-cara c41-frente">
+          <div class="c41-cab"><span class="c41-num">3</span><span class="c41-cap">Capítulo 3</span></div>
+          <div class="c41-verbo">Verificar y validar</div>
+          <p class="c41-que">EduFEM, midiendo la cobertura de su procedimiento de cálculo y la exactitud de su motor frente a soluciones exactas y referencias externas, <b>para establecer si ese procedimiento es trazable y verificable</b>.</p>
+          <span class="c41-espera">¿cumplido?</span>
+        </div>
+        <div class="c41-cara c41-dorso">
+          <div class="c41-cab"><span class="c41-num ok">3</span><span class="c41-cap">Capítulo 3 · Verificar y validar</span></div>
+          <p class="c41-formula">De la verificación y la validación (Capítulo 3) se concluye que:</p>
+          <ul class="c41-lista">
+            <li><i class="c4-ico" data-ico="traza"></i><span>ese procedimiento es <b>trazable y verificable</b>;</span></li>
+            <li><i class="c4-ico" data-ico="margen"></i><span>se cumplen los <b>15 de 15 criterios</b>: 6 de trazabilidad y 9 de verificabilidad.</span></li>
+          </ul>
+          <div class="c41-pie">
+            <a class="c41-chip c4-enlace" data-ir="contraste"><i class="c4-ico" data-ico="doc"></i>Tabla 3.10 · Figura CR.2</a>
+            <span class="l4-sello">Cumplido</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 42_contraste.html -->
+<section class="lamina" id="contraste" data-bloque="conclusiones" data-titulo="Contraste de la hipótesis" data-pasos="4">
+  <!-- grupo: hipotesis -->
+  <div class="cabecera">
+    <div class="rotulo" data-auto data-sec="§ 3.8 · Tabla 3.11 · Figura CR.1"></div>
+    <h2 class="titulo">La hipótesis, parte por parte</h2>
+  </div>
+
+  <!-- Figura CR.1 y Tabla 3.11, animadas (viz/l4_hipotesis.js, «c42-contraste»), con el mismo
+       color de cada parte que en la lámina 07. Orden de la Figura CR.1:
+       condición · intervención · efecto (a) · efecto (b) · antecedente.
+       Pasos: 0 las cinco partes · 1 las tres premisas, respaldadas · 2 efecto (a): 6 criterios ·
+       3 efecto (b): 9 criterios · 4 regla conjuntiva y sello «Hipótesis comprobada».
+       Cada evidencia lleva a su lámina con un clic (en vivo, para las preguntas). -->
+  <div class="c42" data-viz="c42-contraste">
+    <div class="c42-cab">
+      <span>Parte de la hipótesis</span>
+      <span>Evidencia <span class="ley"><i></i>antes, con software de caja negra → <b>con EduFEM</b></span></span>
+      <span>Veredicto</span>
+    </div>
+
+    <!-- Condición · premisa -->
+    <div class="c42-fila">
+      <div class="c42-parte l4-parte p-int" data-entrada="1"><div class="c42-rol"><b>Condición</b> · interviniente</div><span>método de diseño de software educativo</span></div>
+      <div class="c42-evid c42-nums" data-paso="1" data-retraso="0">
+        <a class="c42-num c42-enlace" data-ir="metodo"><b>6</b><span>actividades aplicadas de la ciencia del diseño</span></a>
+        <a class="c42-num c42-enlace" data-ir="estado-arte"><b>5</b><span>requisitos tomados de los antecedentes</span></a>
+        <a class="c42-num c42-enlace" data-ir="estado-arte"><b>4</b><span>principios, cada uno con su decisión de diseño</span></a>
+      </div>
+      <div class="c42-ver" data-prem data-paso="1" data-retraso="450" data-anim="escala"><span class="l4-sello">Respaldada</span></div>
+    </div>
+
+    <!-- Intervención · premisa -->
+    <div class="c42-fila">
+      <div class="c42-parte l4-parte p-int" data-entrada="2"><div class="c42-rol"><b>Intervención</b> · interviniente</div><span>desarrollo de EduFEM</span></div>
+      <div class="c42-evid c42-dos">
+        <div class="c42-antes" data-paso="1" data-retraso="750"><i></i><span>Caja negra</span></div>
+        <div class="c42-flecha" data-paso="1" data-retraso="950">→</div>
+        <a class="c42-logro c42-enlace" data-ir="software" data-paso="1" data-retraso="1100"><b>Procedimiento a la vista:</b> módulos M1 a M7, post-proceso y memoria de cálculo sobre el modelo del usuario</a>
+      </div>
+      <div class="c42-ver" data-prem data-paso="1" data-retraso="1500" data-anim="escala"><span class="l4-sello">Respaldada</span></div>
+    </div>
+
+    <!-- Efecto (a) · trazabilidad -->
+    <div class="c42-fila">
+      <div class="c42-parte l4-parte p-vd" data-entrada="3"><div class="c42-rol"><b>Efecto (a)</b> · dependiente</div><span>trazabilidad del análisis</span></div>
+      <div class="c42-evid c42-dos">
+        <div class="c42-antes" data-paso="2"><i></i><span><b>Baja</b> · solo datos y resultados: ningún resultado se sigue etapa por etapa</span></div>
+        <div class="c42-flecha" data-paso="2" data-retraso="250">→</div>
+        <div class="c42-lista l2" data-c="a" data-paso="2" data-retraso="420" data-anim="fundido">
+          <a class="c42-item c42-enlace" data-ir="cobertura"><i class="c42-caja"></i><span>7 de 7 etapas con módulo</span></a>
+          <a class="c42-item c42-enlace" data-ir="cobertura"><i class="c42-caja"></i><span>9 de 9 en la memoria</span></a>
+          <a class="c42-item c42-enlace" data-ir="cobertura"><i class="c42-caja"></i><span>Solución y tensiones: ambas</span></a>
+          <a class="c42-item c42-enlace" data-ir="cobertura"><i class="c42-caja"></i><span>3 de 3 fases en un lienzo</span></a>
+          <a class="c42-item c42-enlace" data-ir="cobertura"><i class="c42-caja"></i><span>18 de 18 contenidos</span></a>
+          <a class="c42-item c42-enlace" data-ir="cobertura"><i class="c42-caja"></i><span>Intercambio sin pérdida</span></a>
+        </div>
+      </div>
+      <div class="c42-ver" data-c="a" data-paso="2" data-retraso="420" data-anim="fundido"><span class="l4-sello">Se cumple</span><span class="c42-cuenta"><b>6</b> de 6 criterios</span><span class="c42-nivel" data-paso="4" data-retraso="900">→ nivel <b>alto</b></span></div>
+    </div>
+
+    <!-- Efecto (b) · verificabilidad -->
+    <div class="c42-fila">
+      <div class="c42-parte l4-parte p-vd" data-entrada="4"><div class="c42-rol"><b>Efecto (b)</b> · dependiente</div><span>verificabilidad del análisis</span></div>
+      <div class="c42-evid c42-dos">
+        <div class="c42-antes" data-paso="3"><i></i><span><b>Baja</b> · solo se comprueban los resultados finales</span></div>
+        <div class="c42-flecha" data-paso="3" data-retraso="250">→</div>
+        <div class="c42-lista l3" data-c="b" data-paso="3" data-retraso="420" data-anim="fundido">
+          <a class="c42-item c42-enlace" data-ir="mms"><i class="c42-caja"></i><span>Tasa L²</span></a>
+          <a class="c42-item c42-enlace" data-ir="mms"><i class="c42-caja"></i><span>Tasa H¹</span></a>
+          <a class="c42-item c42-enlace" data-ir="timoshenko"><i class="c42-caja"></i><span>Flecha central</span></a>
+          <a class="c42-item c42-enlace" data-ir="timoshenko"><i class="c42-caja"></i><span>σ<sub>x</sub> analítica</span></a>
+          <a class="c42-item c42-enlace" data-ir="timoshenko"><i class="c42-caja"></i><span>σ<sub>x</sub> SAP2000</span></a>
+          <a class="c42-item c42-enlace" data-ir="timoshenko"><i class="c42-caja"></i><span>Equilibrio</span></a>
+          <a class="c42-item c42-enlace" data-ir="cook"><i class="c42-caja"></i><span>Membrana de Cook</span></a>
+          <a class="c42-item c42-enlace" data-ir="cook"><i class="c42-caja"></i><span>Bloqueo del Q4</span></a>
+          <a class="c42-item c42-enlace" data-ir="r-calculo-manual"><i class="c42-caja"></i><span>Memoria a mano</span></a>
+        </div>
+      </div>
+      <div class="c42-ver" data-c="b" data-paso="3" data-retraso="420" data-anim="fundido"><span class="l4-sello">Se cumple</span><span class="c42-cuenta"><b>9</b> de 9 criterios</span><span class="c42-nivel" data-paso="4" data-retraso="900">→ nivel <b>alto</b></span></div>
+    </div>
+
+    <!-- Antecedente · premisa -->
+    <div class="c42-fila">
+      <div class="c42-parte l4-parte p-vi" data-entrada="5"><div class="c42-rol"><b>Antecedente</b> · independiente</div><span>escasa transparencia del software de análisis</span></div>
+      <div class="c42-evid c42-cita" data-paso="1" data-retraso="1800">
+        <span class="c42-fuente">Software comercial:</span>
+        <a class="c42-q c42-enlace" data-ir="estado-arte">cálculo paso a paso <b>«Baja (caja negra)»</b></a>
+        <a class="c42-q c42-enlace" data-ir="estado-arte">memoria <b>«Informes de resultados, sin el desarrollo matricial»</b></a>
+      </div>
+      <div class="c42-ver" data-prem data-paso="1" data-retraso="2250" data-anim="escala"><span class="l4-sello">Respaldado</span></div>
+    </div>
+
+    <!-- Paso 4 · regla conjuntiva (§ 2.1.6) y veredicto (Tabla 3.11, última fila) -->
+    <div class="c42-regla" data-paso="4" data-anim="fundido">
+      <div>
+        <div class="c42-etq">Regla de decisión conjuntiva</div>
+        <div class="c42-ecu">
+          <span class="c42-term">premisas respaldadas</span><span class="c42-op">+</span>
+          <span class="c42-term">(a) se cumple</span><span class="c42-op">+</span>
+          <span class="c42-term">(b) se cumple</span><span class="c42-op fin">⇒</span>
+        </div>
+      </div>
+      <div class="c42-sello-caja"><span class="l4-sello grande c42-sello">Hipótesis comprobada</span><span class="c42-anillo"></span></div>
+    </div>
+    <div class="c42-alcance" data-paso="4" data-retraso="2500"><b>Alcance:</b> propiedades del software, no su uso por estudiantes · contraste externo en tensión plana · evaluación del autor</div>
+  </div>
+</section>
+
+<!-- 43_margen.html -->
+<section class="lamina" id="margen" data-bloque="conclusiones" data-titulo="Margen de los criterios" data-pasos="2">
+  <!-- grupo: conclusiones -->
+  <div class="cabecera">
+    <div class="rotulo" data-auto data-sec="Figura CR.2 · Tabla 3.10"></div>
+    <h2 class="titulo">Cada criterio, lejos de su umbral</h2>
+  </div>
+
+  <!-- La Figura CR.2 de la tesis TAL CUAL (viz «figdoc», clave margen_cr2: las mismas funciones de
+       dibujo y los mismos datos del documento). Las llamadas van alrededor, en HTML («c43-margen»).
+       Pasos: 0 la figura sin sus puntos y cómo se lee · 1 los nueve puntos se deslizan desde el
+       umbral hasta su valor · 2 el más ajustado (σx frente a SAP2000: 0,21 % frente a 1 %) y el
+       margen como fundamento del veredicto (§ 2.1.6). -->
+  <div class="c43" data-viz="c43-margen">
+    <div class="c43-fig" data-viz="figdoc" data-fig="margen_cr2" data-fig-escalon="200"
+         data-fig-pasos='{"1":["punto_0","punto_1","punto_2","punto_3","punto_4","punto_5","punto_6","punto_7","punto_8"]}'></div>
+    <div class="c43-capa"><div class="c43-resalte"></div><div class="c43-guia"></div><div class="c43-anillo"></div></div>
+    <div class="c43-pie-fig">Figura CR.2 de la tesis (p. 110)</div>
+
+    <div class="c43-der">
+      <div class="c43-lee" data-entrada="2" data-hasta="0">
+        <div class="c4-etq">Cómo se lee</div>
+        <div class="c43-item"><i class="c4-ico" data-ico="cociente"></i><span>Cada punto: <b>valor observado ÷ umbral</b></span></div>
+        <div class="c43-item"><i class="c4-ico" data-ico="izquierda"></i><span><b>A la izquierda</b> de la línea del umbral, el criterio se cumple</span></div>
+        <div class="c43-item"><i class="c4-ico" data-ico="log"></i><span>Escala logarítmica: de una marca a la siguiente, <b>cien veces menos</b></span></div>
+      </div>
+      <div class="c43-cuenta" data-paso="1"><b class="c43-n">9</b><span>de 9 puntos, a la izquierda del umbral</span></div>
+      <div class="c43-nota" data-paso="1" data-retraso="2500"><b>Tasas y equilibrio:</b> a varios órdenes de magnitud de su umbral</div>
+      <div class="c43-ajust" data-paso="2" data-retraso="650">
+        <div class="c4-etq">El más ajustado</div>
+        <div class="que">σ<sub>x</sub> frente a SAP2000</div>
+        <div class="cifra"><b>0,21 %</b><span>con un umbral de 1 %</span></div>
+        <div class="quinta">Consume cerca de la <b>quinta parte</b> de su umbral.</div>
+      </div>
+    </div>
+
+    <div class="remate c43-remate" data-paso="2" data-retraso="1400"><span class="ico">◆</span><span>El veredicto no descansa en el valor exacto de cada umbral, sino en el <b>margen</b> con que se cumple.</span></div>
+  </div>
+</section>
+
+<!-- 44_respuesta.html -->
+<section class="lamina" id="respuesta" data-bloque="conclusiones" data-titulo="Respuesta al problema" data-pasos="4">
+  <!-- grupo: conclusiones -->
+  <div class="cabecera">
+    <div class="rotulo" data-auto data-sec="§ 3.8 · Conclusiones"></div>
+    <h2 class="titulo">La respuesta al problema y a las dos preguntas</h2>
+  </div>
+
+  <!-- viz/l4_conclusiones.js, «c44-respuesta». Textos: § 3.8 («Respuesta al problema», las dos
+       preguntas) y Conclusiones de final4 (el inconveniente y las tres debilidades, § 3.7.5).
+       Pasos: 0 el problema → por qué incide: la caja oculta las magnitudes intermedias, el camino
+       hacia los datos se corta y solo el resultado final se comprueba · 1 la caja se abre: los tres
+       rasgos que revierten esa situación · 2 PI-1 y PI-2, respondidas · 3 la mejora frente a la
+       situación de partida (§ 3.8): la comprobación que la caja negra impedía · 4 necesario, no
+       suficiente, y las tres debilidades. -->
+  <div class="c44" data-viz="c44-respuesta">
+
+    <!-- escena A · pasos 0 y 1 -->
+    <div class="c44-a" data-hasta="1">
+      <div class="c44-prob" data-entrada="1">
+        <span class="c44-pill">Problema</span>
+        <p>¿De qué manera <span class="vi">la escasa transparencia del procedimiento de cálculo</span> del software de análisis por elementos finitos podrá incidir en la <span class="vd">baja trazabilidad y verificabilidad de ese procedimiento</span>, en la gestión 2026?</p>
+      </div>
+      <div class="c44-diag"></div>
+      <div class="c44-resp" data-entrada="2" data-retraso="1900">
+        <div class="c4-etq">Respuesta al problema</div>
+        <p>Incide porque <b>oculta las magnitudes intermedias</b>: sin ellas, ningún resultado se sigue hasta sus datos y solo se comprueba el resultado final.</p>
+      </div>
+      <div class="c44-rasgos" data-paso="1" data-retraso="1300">
+        <div class="c4-etq">Un software educativo con tres rasgos revierte esa situación</div>
+        <div class="c44-rasgos-fila">
+          <div class="c44-rasgo" data-paso="1" data-retraso="1500"><span class="c44-rn">1</span><div><b>Expone su procedimiento</b><span class="det">etapa por etapa, con los números del modelo</span></div></div>
+          <div class="c44-rasgo" data-paso="1" data-retraso="1850"><span class="c44-rn">2</span><div><b>Muestra la respuesta</b><span class="det">con sus medios de comprobación</span></div></div>
+          <div class="c44-rasgo" data-paso="1" data-retraso="2200"><span class="c44-rn">3</span><div><b>Verifica y valida su motor</b><span class="det">con criterios explícitos</span></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- escena B · pasos 2 y 3 -->
+    <div class="c44-b" data-paso="2">
+      <div class="c44-resumen"><span class="c44-ok">✓</span><span><b>Problema respondido.</b> Y las dos preguntas de investigación:</span></div>
+      <div class="c44-pis">
+        <!-- PI-1 · trazabilidad -->
+        <div class="c44-pi" data-pi="a">
+          <div class="c44-pi-cab"><span class="c44-letra">a</span><span class="c44-pi-tit">PI-1 · trazabilidad</span><span class="l4-sello">Respondida</span></div>
+          <p class="c44-preg">¿Qué organización del software permite seguir cada resultado hasta sus datos, etapa por etapa, sobre el modelo del usuario, y cubrir el contenido que exige un consenso publicado de expertos?</p>
+          <div class="c44-r-etq">Respuesta: la organización de EduFEM</div>
+          <a class="c44-org c4-enlace" data-ir="cobertura">
+            <span class="c44-org-lienzo">un mismo lienzo · tres fases</span>
+            <span class="c44-org-fila">
+              <span class="c44-et">N</span><span class="c44-et">J</span><span class="c44-et">B</span><span class="c44-et">D</span><span class="c44-et">k<sub>e</sub></span><span class="c44-et">f</span><span class="c44-et">K</span><span class="c44-et">u</span><span class="c44-et">σ</span>
+            </span>
+            <span class="c44-org-fila">
+              <span class="c44-mod">M1</span><span class="c44-mod">M2</span><span class="c44-mod">M3</span><span class="c44-mod">M4</span><span class="c44-mod">M5</span><span class="c44-mod">M6</span><span class="c44-mod">M7</span><span class="c44-mod post">post-proceso</span>
+            </span>
+            <span class="c44-mem">memoria de cálculo: las nueve etapas</span>
+          </a>
+          <div class="c44-cob"><b>18 de 18</b> contenidos del consenso, con instrumento</div>
+        </div>
+        <!-- PI-2 · verificabilidad -->
+        <div class="c44-pi" data-pi="b">
+          <div class="c44-pi-cab"><span class="c44-letra">b</span><span class="c44-pi-tit">PI-2 · verificabilidad</span><span class="l4-sello">Respondida</span></div>
+          <p class="c44-preg">¿Reproduce el motor, dentro de tolerancias explícitas, las soluciones exactas, las referencias externas y los fenómenos numéricos que predice la teoría?</p>
+          <div class="c44-r-etq">Respuesta: <b class="si">sí</b>, dentro de las tolerancias declaradas</div>
+          <div class="c44-ref3">
+            <a class="c44-ref c4-enlace" data-ir="mms"><i class="c44-chk"></i><b>Soluciones exactas</b><span>las tasas de convergencia que predice la teoría</span></a>
+            <a class="c44-ref c4-enlace" data-ir="timoshenko"><i class="c44-chk"></i><b>Referencias externas</b><span>la solución analítica, la membrana de Cook y SAP2000</span></a>
+            <a class="c44-ref c4-enlace" data-ir="cook"><i class="c44-chk"></i><b>Fenómenos numéricos</b><span>el bloqueo por cortante del Q4</span></a>
+          </div>
+        </div>
+      </div>
+
+      <!-- paso 3: la mejora frente a la situación de partida (§ 3.8): la comprobación que la caja
+           negra impedía (lámina 02); el paso 4 la reemplaza por las debilidades -->
+      <div class="c44-ind" data-solo="3" data-retraso="200">
+        <div class="c4-etq">La mejora frente a la situación de partida · § 3.8</div>
+        <div class="c44-ind-fila">
+          <div class="c44-ind-antes"><i></i><span><b>Caja negra:</b> no se puede saber si las tensiones de los nodos cierran con las de los elementos</span></div>
+          <div class="c44-ind-fl">→</div>
+          <a class="c44-ind-con c4-enlace" data-ir="leccion"><i class="c44-chk"></i><span><b>EduFEM:</b> puede comprobarse en la memoria de cálculo (§ 3.7.2)</span></a>
+        </div>
+      </div>
+
+      <!-- paso 3 -->
+      <div class="c44-lim" data-paso="4">
+        <a class="c44-nns c4-enlace" data-ir="leccion"><i class="c4-ico" data-ico="lupa"></i><div><b>Necesario, pero no suficiente</b><p>Lo expuesto tenía un defecto —la extrapolación de tensiones del Q4—: la trazabilidad lo hizo visible y se corrigió.</p></div></a>
+        <div class="c44-deb">
+          <div class="c4-etq">Tres debilidades declaradas · § 3.7.5</div>
+          <div class="c44-deb-it" data-paso="4" data-retraso="450"><i class="c4-ico" data-ico="autor"></i><span>La evaluación es del autor</span></div>
+          <div class="c44-deb-it" data-paso="4" data-retraso="700"><i class="c4-ico" data-ico="presa"></i><span>La deformación plana no tiene contraste externo</span></div>
+          <div class="c44-deb-it" data-paso="4" data-retraso="950"><i class="c4-ico" data-ico="ruta"></i><span>La exposición es una posibilidad que el software ofrece, no un recorrido que imponga</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 45_recomendaciones.html -->
+<section class="lamina" id="recomendaciones" data-bloque="conclusiones" data-titulo="Recomendaciones" data-pasos="2">
+  <!-- grupo: conclusiones -->
+  <div class="cabecera">
+    <div class="rotulo" data-auto data-sec="Recomendaciones · Tabla CR.1"></div>
+    <h2 class="titulo">Recomendaciones: una hoja de ruta por capítulo</h2>
+  </div>
+
+  <!-- Hoja de ruta (viz/l4_conclusiones.js, «c45-ruta»): una vía por capítulo, que se dibuja en su
+       paso (0 · Cap. 1, 1 · Cap. 2, 2 · Cap. 3). Cada parada es una recomendación de final4
+       (Conclusiones, «Recomendaciones», con sus citas) y lleva arriba la debilidad o la frontera
+       del alcance de la que nace (§ 3.7.5; Introducción, «Alcance y limitaciones»). -->
+  <div class="c45" data-viz="c45-ruta">
+    <p class="c45-intro" data-entrada="1">Cada una nace de una <b>debilidad señalada</b> o de una <b>frontera del alcance</b>: <span class="c45-nace">así se indica</span></p>
+
+    <!-- Capítulo 1 · fundamentación teórica -->
+    <div class="c45-carril" data-k="0" data-clase-paso="0:activo">
+      <div class="c45-cab" data-entrada="2"><span class="c45-num">1</span><b>Para la fundamentación teórica</b><span class="c45-cap">Capítulo 1</span></div>
+      <div class="c45-via"></div>
+      <div class="c45-paradas c45-p2">
+        <div class="c45-parada" data-entrada="3" data-retraso="700">
+          <div class="c45-nace">el bloqueo del Q4 se muestra, no se corrige</div>
+          <div class="c45-tit"><i class="c4-ico" data-ico="bloqueo"></i><b>Tratamiento del bloqueo</b></div>
+          <p>Integración reducida selectiva o formulación B̄, con un módulo que contraste la respuesta bloqueada y la corregida</p>
+          <span class="c45-cita">[15, pp. 221, 232–234; 4, pp. 476–477]</span>
+        </div>
+        <div class="c45-parada" data-entrada="4" data-retraso="1500">
+          <div class="c45-nace">solo dos tipos de elemento: Q4 y Q9</div>
+          <div class="c45-tit"><i class="c4-ico" data-ico="elementos"></i><b>Más tipos de elemento</b></div>
+          <p>Triángulos lineales y cuadráticos, y cuadriláteros de ocho nodos y de transición</p>
+          <span class="c45-cita">[16, pp. 167–174, 194; 5]</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Capítulo 2 · desarrollo del software -->
+    <div class="c45-carril" data-k="1" data-clase-paso="1:activo">
+      <div class="c45-cab" data-entrada="2"><span class="c45-num">2</span><b>Para el desarrollo del software</b><span class="c45-cap">Capítulo 2</span></div>
+      <div class="c45-via"></div>
+      <div class="c45-paradas c45-p4">
+        <div class="c45-parada" data-paso="1" data-retraso="550">
+          <div class="c45-nace">malla construida a mano</div>
+          <div class="c45-tit"><i class="c4-ico" data-ico="malla"></i><b>Mallado automático</b></div>
+          <p>Sobre el contorno dibujado en el lienzo, controlado por el módulo M0</p>
+        </div>
+        <div class="c45-parada" data-paso="1" data-retraso="1000">
+          <div class="c45-nace">mallas muy grandes</div>
+          <div class="c45-tit"><i class="c4-ico" data-ico="grande"></i><b>Solucionador para mallas muy grandes</b></div>
+          <p>Cholesky y un solucionador iterativo, sin perder la versión legible</p>
+        </div>
+        <div class="c45-parada" data-paso="1" data-retraso="1450">
+          <div class="c45-nace">recorrido no impuesto</div>
+          <div class="c45-tit"><i class="c4-ico" data-ico="guia"></i><b>Guía docente</b></div>
+          <p>Prácticas como rehacer a mano una etapa de la memoria del ejemplo guía</p>
+        </div>
+        <div class="c45-parada" data-paso="1" data-retraso="1900">
+          <div class="c45-nace">solo el plano</div>
+          <div class="c45-tit"><i class="c4-ico" data-ico="cubo"></i><b>Extensión a tres dimensiones</b></div>
+          <p>Hexaedros y tetraedros, con la misma base isoparamétrica</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Capítulo 3 · verificación y validación -->
+    <div class="c45-carril" data-k="2" data-clase-paso="2:activo">
+      <div class="c45-cab" data-entrada="2"><span class="c45-num">3</span><b>Para la verificación y la validación</b><span class="c45-cap">Capítulo 3</span></div>
+      <div class="c45-via"></div>
+      <div class="c45-paradas c45-p3">
+        <div class="c45-parada" data-paso="2" data-retraso="600">
+          <div class="c45-nace">deformación plana sin contraste externo</div>
+          <div class="c45-tit"><i class="c4-ico" data-ico="bateria"></i><b>Ampliación de la batería</b></div>
+          <p>Un caso civil en deformación plana con solución publicada · carga superficial linealmente variable · el cortante de la matriz de deformación plana · tensiones del Q4 sin la franja de contorno</p>
+        </div>
+        <div class="c45-parada" data-paso="2" data-retraso="1150">
+          <div class="c45-nace">la evaluación es del autor</div>
+          <div class="c45-tit"><i class="c4-ico" data-ico="revision"></i><b>Revisión independiente</b></div>
+          <p>La tabla de cobertura, por docentes o especialistas en el MEF; el código del motor, por terceros</p>
+        </div>
+        <div class="c45-salida" data-paso="2" data-retraso="1700">
+          <b>El uso en el aula</b>
+          <span>queda para una investigación educativa distinta</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 46_cierre.html -->
+<section class="lamina cierre" id="cierre" data-titulo="Gracias" data-sin-pie>
+  <!-- grupo: intro -->
+  <div class="fondo-malla" data-viz="separador" data-pptx-clip="malla:6000:idavuelta"></div>
+  <div class="gracias" data-entrada="1">Gracias</div>
+  <div class="sub" data-entrada="2">Del resultado a sus datos, etapa por etapa: un procedimiento de cálculo por el MEF que puede seguirse y comprobarse.</div>
+  <div class="ideas" data-entrada="3">
+    <span class="ficha l4-ficha-vd">✓ Trazable · 6 de 6 criterios</span>
+    <span class="ficha l4-ficha-vd">✓ Verificable · 9 de 9 criterios</span>
+    <span class="ficha l4-ficha-ok" data-pptx-bucle="respirar">✓ Hipótesis comprobada</span>
+  </div>
+  <div class="grupo-botones solo-vivo" data-entrada="4" style="position:absolute;left:136px;bottom:120px">
+    <button class="boton acento" onclick="EF.Deck.alternarCapa('menu')">☰ Preguntas: ir a una lámina</button>
+    <button class="boton" data-ir="contraste">✓ La hipótesis</button>
+    <button class="boton" data-ir="r-calculo-manual">✎ Respaldo</button>
+  </div>
+  <div class="qr" data-entrada="3"><div class="caja"><img src="assets/img/qr_repositorio.svg" alt="Código QR del repositorio" style="width:230px;height:230px;display:block"></div><div class="t">github.com/Sucullani/SoftwareED</div></div>
+</section>
+
+<!-- 90_r-calculo-manual.html -->
+<section class="lamina" id="r-calculo-manual" data-respaldo data-titulo="¿Se puede rehacer a mano?" data-pasos="2">
+  <!-- grupo: respaldo -->
+  <div class="cabecera">
+    <div class="rotulo"><span class="num">R</span><span>Respaldo</span><span class="fuente-sec">· Anexo G, pp. 168–172</span></div>
+    <h2 class="titulo">¿Se puede rehacer a mano? El Jacobiano de E3</h2>
+  </div>
+  <div data-viz="calculo-manual4" style="position:absolute;left:100px;top:226px;width:1720px;height:720px"></div>
+</section>
+
+<!-- 91_r-umbrales.html -->
+<section class="lamina" id="r-umbrales" data-respaldo data-titulo="¿De dónde salen los umbrales?">
+  <!-- grupo: respaldo -->
+  <div class="cabecera">
+    <div class="rotulo"><span class="num">R</span><span>Respaldo</span><span class="fuente-sec">· § 2.1.6 · Tabla 2.4 · Tabla 3.10 · Figura CR.2</span></div>
+    <h2 class="titulo">De dónde sale cada umbral, y su margen</h2>
+  </div>
+  <div class="r-cuerpo" data-viz="margenes4"></div>
+</section>
+
+<!-- 92_r-educativo.html -->
+<section class="lamina" id="r-educativo" data-respaldo data-titulo="¿Educativo sin medir estudiantes?">
+  <!-- grupo: respaldo -->
+  <div class="cabecera">
+    <div class="rotulo"><span class="num">R</span><span>Respaldo</span><span class="fuente-sec">· Introducción · § 1.2 · § 2.1.1 · Recomendaciones</span></div>
+    <h2 class="titulo">«Educativo» califica el propósito de diseño del software</h2>
+  </div>
+  <div class="r-cuerpo">
+    <ul class="vinetas">
+      <li>Es una <b>propiedad del producto</b>: exponer el procedimiento de cálculo además de entregar el resultado, comprobable en el software (Introducción).</li>
+      <li>La evaluación es una <b>validación de laboratorio</b> [25, pp. 30–31]: escenarios controlados, sin sujetos; las métricas de la hipótesis son la cobertura y la exactitud (§ 2.1.1).</li>
+      <li>La tesis <b>no afirma</b> que el estudiante aprenda o comprenda mejor: las fuentes que lo reportan evaluaron otras herramientas, y los cuatro principios describen propiedades del software (§ 1.2).</li>
+      <li>El uso de la herramienta en el aula queda para <b>una investigación educativa distinta</b>, como dicen las recomendaciones.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 93_r-deformacion-plana.html -->
+<section class="lamina" id="r-deformacion-plana" data-respaldo data-titulo="¿Y la deformación plana?">
+  <!-- grupo: respaldo -->
+  <div class="cabecera">
+    <div class="rotulo"><span class="num">R</span><span>Respaldo</span><span class="fuente-sec">· § 3.2 · § 3.7.5 · Tablas D.1 y D.3</span></div>
+    <h2 class="titulo">Deformación plana: qué la verifica hoy</h2>
+  </div>
+  <div class="r-cuerpo" data-viz="dp4"></div>
+</section>
+
+<!-- 94_r-apoyos.html -->
+<section class="lamina" id="r-apoyos" data-respaldo data-titulo="Viga: apoyos y equilibrio">
+  <!-- grupo: respaldo -->
+  <div class="cabecera">
+    <div class="rotulo"><span class="num">R</span><span>Respaldo</span><span class="fuente-sec">· § 3.4 · Tablas 3.2 y 3.3 · Anexo E</span></div>
+    <h2 class="titulo">Viga de Timoshenko: apoyos, carga y equilibrio</h2>
+  </div>
+  <div class="r-cuerpo">
+    <div class="rejilla-2" style="gap:36px">
+      <div class="pila" style="display:flex;flex-direction:column;gap:20px">
+        <div class="tarjeta"><div class="etq">Apoyos (en el eje neutro, y = 0)</div><p>Fijo en x = −7 m: restringe u y v · móvil en x = +7 m: restringe v.</p></div>
+        <div class="tarjeta"><div class="etq">Carga</div><p>q = 5000 kgf/m como carga superficial sobre la arista superior, convertida en fuerzas nodales equivalentes con la formulación de la § 1.10.</p></div>
+        <div class="tarjeta exito"><div class="etq" style="color:var(--h-ok)">Prueba de que la carga entró bien</div><p>ΣR<sub>y</sub> = qL = 70 000 kgf con residuo relativo <b>1,7 × 10⁻¹³</b>; ΣR<sub>x</sub> no pasa de 4 × 10⁻¹² veces la carga: orden del redondeo.</p></div>
+      </div>
+      <div class="pila" style="display:flex;flex-direction:column;gap:20px">
+        <div class="tarjeta plana"><div class="etq">Malla y material</div><p>Q9 56 × 8 (448 elementos, 1921 nodos, 3842 GDL) · E = 217 370 kgf/cm², <span class="nu">ν</span> = 0,20 · b = 0,40 m · elástico lineal, sin fisuración.</p></div>
+        <div class="tarjeta plana"><div class="etq">Puntos de control</div><p>A (0; 0,6), B (−4,5; −0,3), C (−3,5; −0,2) m: tracción y compresión, a distintas alturas del peralte.</p></div>
+        <div class="tarjeta plana"><div class="etq">SAP2000</div><p>Cáscara (<i>shell</i>) cuya membrana es isoparamétrica con giro <i>drilling</i> [18, p. 179] (Anexo E): una segunda aproximación numérica, patrón de comparación y no de exactitud.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 95_r-escalabilidad.html -->
+<section class="lamina" id="r-escalabilidad" data-respaldo data-titulo="Desempeño del motor">
+  <!-- grupo: respaldo -->
+  <div class="cabecera">
+    <div class="rotulo"><span class="num">R</span><span>Respaldo</span><span class="fuente-sec">· § 3.7.4 · Tabla 3.9</span></div>
+    <h2 class="titulo">Mallas grandes: más de 33 000 GDL en menos de un segundo</h2>
+  </div>
+  <div class="r-cuerpo">
+    <div class="r-kpis">
+      <div class="r-kpi"><b>0,721 s</b><span>ensamblar y resolver 33 282 GDL (Cook, Q9)</span></div>
+      <div class="r-kpi"><b>12,77 MB</b><span>la matriz de rigidez guardando solo sus valores no nulos</span></div>
+      <div class="r-kpi"><b>≈ 8,9 GB</b><span>la misma matriz completa, con todos sus ceros</span></div>
+    </div>
+    <table class="tabla r-tabla">
+      <thead><tr><th class="der">GDL</th><th class="der">Ensamblaje (s)</th><th class="der">Solución completa (s)</th><th class="der">K completa (MB)</th><th class="der">K sin ceros (MB)</th></tr></thead>
+      <tbody>
+        <tr><td class="der">578</td><td class="der">0,004</td><td class="der">0,007</td><td class="der">3</td><td class="der">0,21</td></tr>
+        <tr><td class="der">2178</td><td class="der">0,013</td><td class="der">0,026</td><td class="der">38</td><td class="der">0,81</td></tr>
+        <tr><td class="der">4802</td><td class="der">0,028</td><td class="der">0,061</td><td class="der">184</td><td class="der">1,81</td></tr>
+        <tr><td class="der">8450</td><td class="der">0,049</td><td class="der">0,127</td><td class="der">571</td><td class="der">3,20</td></tr>
+        <tr><td class="der">18 818</td><td class="der">0,111</td><td class="der">0,329</td><td class="der">2833</td><td class="der">7,19</td></tr>
+        <tr><td class="der">33 282</td><td class="der">0,191</td><td class="der">0,721</td><td class="der">8862</td><td class="der">12,77</td></tr>
+      </tbody>
+    </table>
+    <p class="mini" style="margin-top:14px">Equipo de escritorio con procesador Intel de 2012, Windows 10; cada tiempo es el menor de tres corridas, y la solución completa incluye el ensamblaje. El límite está en las mallas muy grandes, donde domina la factorización (§ 3.7.5).</p>
+  </div>
+</section>
+
+<!-- 96_r-consistencia.html -->
+<section class="lamina" id="r-consistencia" data-respaldo data-titulo="Matriz de consistencia">
+  <!-- grupo: respaldo -->
+  <div class="cabecera">
+    <div class="rotulo"><span class="num">R</span><span>Respaldo</span><span class="fuente-sec">· § 2.1.3 · Tabla 2.3</span></div>
+    <h2 class="titulo">Matriz de consistencia</h2>
+  </div>
+  <div class="r-cuerpo">
+    <table class="tabla r-cons">
+      <thead><tr><th style="width:21%">Objetivo específico</th><th style="width:8%">PI</th><th style="width:25%">Variable / indicador</th><th style="width:28%">Método / instrumento</th><th>Evidencia</th></tr></thead>
+      <tbody>
+        <tr><td><b>1.</b> Fundamentar el MEF en elasticidad plana y el estado del arte del software para su enseñanza</td><td>PI-1 y PI-2</td><td>Etapas del procedimiento; atributos ausentes en los recursos existentes, que pasan a ser requisitos; criterios de verificación y validación</td><td>Revisión de los antecedentes y de la literatura clásica del MEF, de su verificación y validación y de su enseñanza; análisis comparativo</td><td>Capítulo 1; Tabla 1.1</td></tr>
+        <tr><td><b>2.</b> Desarrollar EduFEM: motor, interfaz, módulos y memoria</td><td>PI-1</td><td>Variable independiente en su nivel de procedimiento a la vista; etapas expuestas; ida y vuelta de los formatos sin pérdida</td><td>Método de la ciencia del diseño (actividad 3): desarrollo iterativo con pruebas automáticas</td><td>§ 2.2; § 3.3; § 3.6.1</td></tr>
+        <tr><td><b>3.</b> Verificar y validar EduFEM</td><td>PI-1 y PI-2</td><td>Variable dependiente: trazabilidad (cobertura del procedimiento y del contenido) y verificabilidad (tasas, errores, equilibrio, bloqueo por cortante)</td><td>Inventario de módulos; tabla de cobertura de contenido; soluciones manufacturadas; viga de Timoshenko; membrana de Cook; SAP2000; ejemplo guía</td><td>Capítulo 3; Anexo G</td></tr>
+      </tbody>
+    </table>
+    <p class="mini" style="margin-top:14px">Cada pregunta corresponde a una cláusula de la hipótesis: PI-1 a la (a), trazabilidad, y PI-2 a la (b), verificabilidad.</p>
+  </div>
+</section>
+
+<!-- 97_r-licencia.html -->
+<section class="lamina" id="r-licencia" data-respaldo data-titulo="Licencia">
+  <!-- grupo: respaldo -->
+  <div class="cabecera">
+    <div class="rotulo"><span class="num">R</span><span>Respaldo</span><span class="fuente-sec">· Tabla 1.1 · § 2.2.1 (requisito 5) · nota de la Tabla 2.5</span></div>
+    <h2 class="titulo">Licencia: código MIT, dependencias libres</h2>
+  </div>
+  <div class="r-cuerpo">
+    <div class="rejilla-2">
+      <div class="tarjeta acentuada"><div class="barra-sup"></div><div class="etq">Código de EduFEM · Tabla 1.1 y requisito 5</div><h3>MIT</h3><p>Repositorio público: cualquiera puede usarlo, modificarlo y redistribuirlo.</p></div>
+      <div class="tarjeta primaria"><div class="barra-sup" style="background:var(--h-neutro)"></div><div class="etq">Paquete binario · nota de la Tabla 2.5</div><h3>+ avisos de terceros</h3><p>Bibliotecas con licencias permisivas; PyInstaller, con una excepción que deja libre el programa empaquetado; TeX Live, invocado como proceso aparte. PyMuPDF (AGPL-3.0) se retiró del instalador (§ 2.1.1). Avisos en LICENCIAS-TERCEROS.txt.</p></div>
+    </div>
+    <div class="remate" style="position:relative;left:auto;right:auto;bottom:auto;margin-top:30px"><span class="ico">✓</span><span>Ninguna licencia condiciona la de EduFEM ni exige pago al estudiante: es lo que pide el requisito 5.</span></div>
+  </div>
+</section>
+
+<!-- 98_r-secundarias.html -->
+<section class="lamina" id="r-secundarias" data-respaldo data-titulo="Viga: componentes secundarias">
+  <!-- grupo: respaldo -->
+  <!-- Pregunta previsible: «¿y el cortante?». Tabla 3.2 completa y su lectura (§ 3.4 y § 3.7.1). -->
+  <div class="cabecera">
+    <div class="rotulo"><span class="num">R</span><span>Respaldo</span><span class="fuente-sec">· § 3.4 · Tabla 3.2 · § 3.7.1 · Tabla D.4</span></div>
+    <h2 class="titulo">Viga de Timoshenko: ¿y el cortante?</h2>
+  </div>
+  <div class="r-cuerpo">
+    <table class="tabla r-tabla">
+      <thead><tr><th>Punto</th><th>Magnitud</th><th class="der">EduFEM</th><th class="der">Analítica</th><th class="der">SAP2000</th><th class="der">Error frente a la analítica</th><th class="der">Diferencia con SAP2000</th></tr></thead>
+      <tbody>
+        <tr><td>A</td><td>σ<sub>x</sub></td><td class="der">127,8825</td><td class="der">127,8542</td><td class="der">127,8514</td><td class="der ok">0,02 %</td><td class="der ok">0,02 %</td></tr>
+        <tr><td>B</td><td>σ<sub>x</sub></td><td class="der">−37,3410</td><td class="der">−37,3255</td><td class="der">−37,2640</td><td class="der ok">0,04 %</td><td class="der ok">0,21 %</td></tr>
+        <tr><td>C</td><td>σ<sub>x</sub></td><td class="der">−31,8077</td><td class="der">−31,7992</td><td class="der">−31,7852</td><td class="der ok">0,03 %</td><td class="der ok">0,07 %</td></tr>
+        <tr class="destacada"><td>B</td><td>σ<sub>y</sub></td><td class="der">−1,0646</td><td class="der">−1,0547</td><td class="der">−1,0182</td><td class="der fuerte">0,94 %</td><td class="der fuerte">4,56 %</td></tr>
+        <tr class="destacada"><td>B</td><td>τ<sub>xy</sub></td><td class="der">5,4257</td><td class="der">5,2734</td><td class="der">5,2818</td><td class="der fuerte">2,89 %</td><td class="der fuerte">2,72 %</td></tr>
+      </tbody>
+    </table>
+    <p class="mini" style="margin-top:10px">Tensiones en kgf/cm². El criterio de aceptación es sobre σ<sub>x</sub>: error &lt; 1 % frente a la analítica y diferencia &lt; 1 % frente a SAP2000, en los tres puntos; las componentes secundarias se reportan, pero no forman parte de él (§ 2.1.6). El signo de τ<sub>xy</sub> de SAP2000 se lleva a la convención de la solución analítica; en la Tabla D.4 conserva el suyo (−5,2818).</p>
+    <div class="rejilla-2" style="margin-top:18px">
+      <div class="tarjeta"><div class="etq">Por qué crecen los porcentajes</div><p>Son entre <b>6 y 35 veces menores</b> que σ<sub>x</sub>: un error absoluto del mismo orden pesa mucho más en términos relativos. Requieren mallas más finas para el mismo error relativo.</p></div>
+      <div class="tarjeta"><div class="etq">En τ<sub>xy</sub> no basta la escala</div><p>Su error absoluto en B (0,15 kgf/cm²) es unas diez veces el de σ<sub>x</sub>, y SAP2000 queda más cerca de la analítica (0,16 %): ese 2,89 % es <b>error numérico de EduFEM</b> en una componente secundaria, y se declara así.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 99_r-antes.html -->
+<section class="lamina" id="r-antes" data-respaldo data-titulo="¿Cómo se afirma la mejora?">
+  <!-- grupo: respaldo -->
+  <!-- Pregunta previsible del metodólogo: sin pretest ni grupo de comparación, ¿cómo se afirma la
+       mejora? Introducción (Variables, Metodología), § 2.1 y § 3.8 («Las premisas», «La mejora
+       frente a la situación de partida»). -->
+  <div class="cabecera">
+    <div class="rotulo"><span class="num">R</span><span>Respaldo</span><span class="fuente-sec">· Introducción · § 2.1 · § 3.8 · Tablas 1.1 y 3.11</span></div>
+    <h2 class="titulo">¿Cómo se afirma la mejora, sin pretest ni grupo de control?</h2>
+  </div>
+  <div class="r-cuerpo">
+    <div class="rejilla-2" style="gap:26px">
+      <div class="tarjeta"><div class="etq">1 · La situación de partida no se mide: se documenta</div><p>La documenta la Tabla 1.1 (§ 2.1.2), que caracteriza el software comercial por los rasgos de su naturaleza, no producto por producto (§ 1.1): entrega resultados sin exponer las matrices intermedias que los produjeron (§ 3.8).</p></div>
+      <div class="tarjeta"><div class="etq">2 · Los dos niveles de la variable dependiente</div><p><b>Baja</b>: el análisis solo puede seguirse y comprobarse en sus datos y en sus resultados finales. <b>Alta</b>: cada resultado puede seguirse hasta sus datos y cada magnitud puede comprobarse. Mejorar es pasar del primero al segundo.</p></div>
+      <div class="tarjeta"><div class="etq">3 · Investigación tecnológica</div><p>La hipótesis es la solución tentativa a un problema concreto, y se aprueba o no construyendo esa solución y poniéndola a prueba [7, p. 85]. En la ciencia del diseño, validar es justificar que la herramienta cumple sus requisitos, exponiéndola a escenarios controlados y explicando su respuesta [25, p. 31].</p></div>
+      <div class="tarjeta"><div class="etq">4 · Lo que se mide, y la comparación</div><p>Se mide el nivel que alcanza EduFEM, con los 15 criterios de la Tabla 2.4. La Tabla 3.11 lo pone frente a la situación de partida, parte por parte, y la regla conjuntiva da el veredicto.</p></div>
+    </div>
+    <div class="remate" style="position:relative;left:auto;right:auto;bottom:auto;margin-top:24px"><span class="ico">◆</span><span>Se midieron propiedades del software y de sus resultados, no su uso por estudiantes: por eso no hay sujetos, pretest ni grupo de control.</span></div>
+  </div>
+</section>
+
+<!-- 99_r-universo.html -->
+<section class="lamina" id="r-universo" data-respaldo data-titulo="¿Por qué 18 de 49?">
+  <!-- grupo: respaldo -->
+  <!-- Pregunta previsible: ¿quién decidió el universo del criterio «18 de 18»? § 2.1.4 y nota de la
+       Tabla 3.7, con los códigos del consenso [3, pp. 1162-1163]. -->
+  <div class="cabecera">
+    <div class="rotulo"><span class="num">R</span><span>Respaldo</span><span class="fuente-sec">· § 2.1.4 · § 2.1.5 · nota de la Tabla 3.7</span></div>
+    <h2 class="titulo">De los 49 contenidos del consenso, ¿por qué 18?</h2>
+  </div>
+  <div class="r-cuerpo">
+    <div class="ru-barra">
+      <div class="ru-seg dentro" style="flex:18"><b>18</b><span>el universo: procedimiento de cálculo y su verificación</span></div>
+      <div class="ru-seg fuera" style="flex:18"><b>18</b><span>fuera del alcance disciplinar</span></div>
+      <div class="ru-seg antes" style="flex:12"><b>12</b><span>anteriores al cálculo</span></div>
+      <div class="ru-seg teo" style="flex:1.6"><b>1</b></div>
+    </div>
+    <p class="mini" style="margin:8px 0 22px">49 ítems de contenido del consenso de 67 expertos [3, pp. 1162–1163]: 15 conceptos teóricos (FEM) y 34 destrezas prácticas (FEA).</p>
+    <table class="tabla r-tabla ru-tabla">
+      <tbody>
+        <tr><td class="fuerte">Fuera del alcance disciplinar (18)</td><td>resortes, barras y vigas (FEM1, FEM4, FEM5) · axisimétricos (FEM6, FEM7) · tridimensional (FEM10–FEM13) · placas y cáscaras (FEM14) · térmicos (FEM15) · modelado en CAD (FEA6–FEA9) · cargas de un análisis previo (FEA21) · elementos rígidos (FEA22) · contacto (FEA23)</td></tr>
+        <tr><td class="fuerte">Anteriores al procedimiento de cálculo (12)</td><td>planificación del análisis, selección de materiales y modelado de cargas y apoyos: FEA1–FEA5, FEA10–FEA12, FEA19, FEA20, FEA24 y FEA25</td></tr>
+        <tr><td class="fuerte">No expuesto por el software (1)</td><td>la deducción de la matriz de rigidez por métodos alternativos (FEM3): un desarrollo teórico</td></tr>
+      </tbody>
+    </table>
+    <p class="mini" style="margin-top:12px">Fuera de los 49 quedan otras dos categorías del mismo consenso: 7 ítems de tipo de análisis (EduFEM resuelve solo el caso estático lineal) y 15 de herramientas de cómputo (valoran programas concretos). Los ítems vienen de un consenso publicado; la selección, con estos tres motivos, y el cotejo ítem por ítem, con la regla de marcado de la § 2.1.5, son del autor: es una de las debilidades declaradas.</p>
+  </div>
+</section>
+
+</div>
+
+<script src="assets/terceros/katex/katex.min.js"></script>
+<script src="assets/data/datos_edufem.js"></script>
+<script src="assets/data/figuras_doc.js"></script>
+<script src="assets/data/narracion.js"></script>
+<script src="assets/js/nucleo.js"></script>
+<script src="assets/js/graficos.js"></script>
+<script src="assets/js/mef.js"></script>
+<!-- biblioteca heredada de final3 (sin cambios): portada, separador, video, mapeo, Gauss, ensamblaje… -->
+<script src="assets/js/viz/comunes.js"></script>
+<script src="assets/js/viz/intro.js"></script>
+<script src="assets/js/viz/teoria.js"></script>
+<script src="assets/js/viz/diseno.js"></script>
+<script src="assets/js/viz/resultados.js"></script>
+<script src="assets/js/viz/analisis.js"></script>
+<!-- final4 -->
+<script src="assets/js/viz/figdoc.js"></script>
+<script src="assets/js/viz/l4_intro.js"></script>
+<script src="assets/js/viz/l4_alcance.js"></script>
+<script src="assets/js/viz/l4_hipotesis.js"></script>
+<script src="assets/js/viz/l4_formulacion.js"></script>
+<script src="assets/js/viz/l4_software.js"></script>
+<script src="assets/js/viz/l4_resultados.js"></script>
+<script src="assets/js/viz/l4_conclusiones.js"></script>
+<script src="assets/js/viz/l4_respaldo.js"></script>
+<script src="assets/js/deck.js"></script>
+</body>
+</html>

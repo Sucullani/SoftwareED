@@ -1,0 +1,22 @@
+[
+ {"id": "evaluacion", "narracion": [
+  "La variable independiente tiene dos niveles: caja negra o procedimiento a la vista. La trazabilidad se mide contando lo que queda expuesto, porque la cadena se rompe en su eslabón más débil: basta una etapa oculta para que el resultado ya no pueda seguirse hasta sus datos. La verificabilidad se mide con el error frente a referencias de exactitud conocida, con tolerancias explícitas.",
+  "Para eso elegí tres casos de estudio, cada uno con un patrón de distinta naturaleza: las soluciones manufacturadas, una solución exacta construida a propósito; la viga de Timoshenko, con su solución analítica clásica; y la membrana de Cook, un caso clásico de la literatura, con un valor de referencia de uso extendido. Se suma el ejemplo guía, cuya memoria se rehace a mano.",
+  "Cada cláusula se juzga con criterios de umbral explícito: seis para la trazabilidad, donde el umbral es la exhaustividad, y nueve para la verificabilidad. Cada criterio dice qué resultado lo refutaría. La regla es conjuntiva: la hipótesis queda comprobada solo si sus premisas se respaldan y se cumplen las dos cláusulas; parcialmente, si se cumple una; y no comprobada, si ninguna. Si una premisa no se respaldara, el efecto ni siquiera llegaría a juzgarse."
+ ]},
+ {"id": "software", "narracion": [
+  "EduFEM organiza el análisis en las tres fases del software profesional, sobre un mismo lienzo. En el pre-proceso, el modelo se dibuja o se escribe en tablas, y un comprobador de salud revisa los datos antes de resolver. En el proceso se abren los módulos educativos. Y en el post-proceso se leen los colores de tensión, la deformada, las reacciones y, con una sonda, el estado de tensión de cualquier punto, con su círculo de Mohr.",
+  "El módulo M0 se abre ya en el pre-proceso y colorea cada elemento de la malla según su calidad; los otros siete, de M1 a M7, se abren sobre el elemento que el usuario elige en su propio modelo y muestran su etapa con los números de ese elemento. Lo que muestran es lo que EduFEM calcula: una prueba automática comprueba que la versión escrita para leerse y la que resuelve coincidan.",
+  "Y la memoria de cálculo reconstruye todo el procedimiento en un PDF, con los números del modelo sustituidos paso a paso, para rehacerlo a mano o en una hoja de cálculo, como la memoria que acompaña a cualquier proyecto. Todo es libre, está en español y se instala sin requisitos adicionales."
+ ]},
+ {"id": "trazabilidad", "narracion": [
+  "Así se ve la trazabilidad en el ejemplo guía. Elijo un resultado: la tensión de von Mises del nodo 7, 864,70.",
+  "Y lo sigo hacia atrás, etapa por etapa. Como el nodo 7 solo pertenece al elemento E3, su tensión sale de los cuatro puntos de Gauss de ese elemento; esas tensiones, de los desplazamientos; los desplazamientos, del sistema resuelto; el sistema, del ensamblaje de las cuatro rigideces y de las fuerzas en los nodos; y la rigidez de E3, de su matriz D, de su matriz B, de su Jacobiano y de su mapeo.",
+  "Al final del camino están los datos del modelo: el material, el espesor, la carga de mil en el nodo 7 y los apoyos en los nodos 1, 3 y 6. Ninguna etapa queda escondida.",
+  "La memoria de cálculo deja ese mismo camino por escrito, con los números sustituidos: es el Anexo G de la tesis, y cada etapa puede rehacerse con lápiz y papel."
+ ]},
+ {"id": "demo", "narracion": [
+  "Este es el recorrido que hago en el propio software, en cinco pasos: cargo el ejemplo guía, lo compruebo y lo resuelvo, abro un módulo sobre un elemento, consulto un nodo con la sonda y genero la memoria de cálculo.",
+  "En las capturas: el ejemplo guía en el pre-proceso; el módulo M3, con la matriz B del elemento elegido y sus propios números; la sonda en el nodo 7, con su estado de tensión y su círculo de Mohr; y las hojas de la memoria de cálculo."
+ ]}
+]

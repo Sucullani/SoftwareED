@@ -1,0 +1,29 @@
+[
+ {"id": "mms", "narracion": [
+  "Verificar es preguntar si el programa resuelve bien sus ecuaciones. Para eso se fabrica una solución exacta, se le pide a EduFEM que la reproduzca en mallas cada vez más finas, de dos a treinta y dos elementos por lado, y se mide cuánto se equivoca. Si resuelve bien, el error baja al ritmo que predice la teoría.",
+  "Esta es la gráfica de la tesis: en el eje horizontal, el tamaño de los elementos; en el vertical, el error en los desplazamientos, los dos en escala logarítmica. Cada punto es una malla, y hacia la izquierda las mallas son más finas. Con el Q4, cada vez que el tamaño se reduce a la mitad, el error se divide por cuatro: la pendiente es dos, la que predice la teoría.",
+  "Con el Q9, el error se divide por ocho: pendiente tres, también la teórica.",
+  "En la segunda gráfica, que mide el error en las deformaciones, las pendientes son uno y dos, otra vez las teóricas. Y las cuatro configuraciones ensayadas, con elementos cuadrados y distorsionados, en tensión y en deformación plana, dan las mismas tasas, con diferencias menores que una centésima. El criterio, la tasa teórica más o menos medio orden, se cumple."
+ ]},
+ {"id": "timoshenko", "narracion": [
+  "Validar es preguntar si los resultados coinciden con referencias externas. La primera validación es una viga de hormigón simplemente apoyada, de 14 metros de luz y 1,20 metros de peralte, con 5000 kilogramos fuerza por metro, modelada con 448 elementos Q9. Se compara con dos referencias: la solución analítica de Timoshenko y Goodier, y un modelo en SAP2000, que sirve de patrón de comparación, no de exactitud, porque su formulación de cáscara no es la de EduFEM.",
+  "En los tres puntos de control, la tensión normal de EduFEM difiere de la analítica, como máximo, un 0,04 %, y de SAP2000, un 0,21 %. El umbral era del 1 %.",
+  "La flecha central difiere un 0,26 % de la solución que incluye la deformación por cortante; frente a la fórmula de Euler-Bernoulli, que la desprecia, la diferencia sería del 1,85 %: la referencia correcta es la que, como el modelo, incluye el cortante. Y las reacciones equilibran la carga total de 70 000 kilogramos fuerza con un residuo del orden de diez a la menos trece: cero, a efectos numéricos."
+ ]},
+ {"id": "cook", "narracion": [
+  "La segunda validación es la membrana de Cook: un trapecio empotrado a la izquierda y cargado en su borde derecho, que combina flexión, cortante y distorsión. Se mide el desplazamiento vertical en el punto medio de su borde derecho, cuyo valor de referencia es 23,96, corroborado por una extrapolación propia y por el valor publicado.",
+  "Esta es la gráfica del documento. El Q4 se queda corto: con la malla más gruesa subestima la respuesta en más de la mitad, y se acerca muy despacio; con treinta y dos elementos por lado todavía le falta más de medio punto porcentual.",
+  "El Q9 llega casi enseguida: con ocho elementos por lado, su error es de 0,144 %, muy por debajo del umbral del 1,5 %. Con esos mismos 578 grados de libertad, que el Q4 alcanza con dieciséis elementos por lado, el error del Q9 es más de diez veces menor que el del Q4.",
+  "La razón es el bloqueo por cortante: los bordes del Q4 se mantienen rectos, no pueden curvarse, y el elemento resulta demasiado rígido en flexión. EduFEM lo reproduce tal como predice la teoría. Además, los cinco valores del Q4 coinciden, hasta la última cifra publicada, con los de Štembera y Füssl para un elemento de cuatro nodos."
+ ]},
+ {"id": "cobertura", "narracion": [
+  "Para la trazabilidad, el resultado es un inventario sin huecos: las siete primeras etapas tienen su módulo educativo; las nueve, su desarrollo en la memoria de cálculo; la solución y las tensiones se muestran en el post-proceso, sin promediar y promediadas; las tres fases comparten un lienzo, y las entidades del modelo —nodos, elementos, material, cargas y restricciones— entran y salen por hoja de cálculo sin pérdida.",
+  "Y frente al consenso de expertos: de sus 49 contenidos, 18 pertenecen al procedimiento de cálculo y a su verificación, dentro de este alcance. Los 18 tienen un instrumento en EduFEM.",
+  "Esto prueba cobertura, no suficiencia ni efecto sobre quien lo usa; y el cotejo lo hice yo, con una regla de marcado explícita."
+ ]},
+ {"id": "leccion", "narracion": [
+  "Hubo un inconveniente que vale la pena contar. La matriz que lleva las tensiones del Q4 de los puntos de Gauss a los nodos estaba escrita para otra numeración de esos puntos. Las pruebas de convergencia del desplazamiento no lo vieron, porque esa matriz no interviene en los desplazamientos.",
+  "Lo delató la memoria de cálculo: al leerla, las tensiones de los nodos no cerraban con las de los puntos de Gauss. Llevadas a los nodos y traídas de vuelta, deberían volver iguales, y no todas volvían.",
+  "Se corrigió, y hoy una prueba propia, la reproducción exacta de campos polinómicos, lo detectaría. La lección es doble: exponer el procedimiento no asegura que lo expuesto sea correcto, y fue precisamente poder leerlo paso a paso lo que hizo visible el error. Por eso la hipótesis no es una tautología: la verificabilidad hubo que medirla, y pudo haber fallado."
+ ]}
+]

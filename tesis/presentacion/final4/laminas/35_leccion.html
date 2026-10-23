@@ -1,0 +1,62 @@
+<section class="lamina" id="leccion" data-bloque="resultados" data-titulo="La lección" data-pasos="2">
+  <!-- grupo: resultados -->
+  <div class="cabecera">
+    <div class="rotulo" data-auto data-sec="§ 3.7.2 · Tabla G.5"></div>
+    <h2 class="titulo">Lo que las tasas no vieron, la memoria lo delató</h2>
+  </div>
+
+  <!-- § 3.7.2 de final4 (y § 3.2, sus límites; Anexo G, Tabla G.5 y Ecuación 1.23). Pasos (viz/l4_resultados.js, «r35-leccion»):
+       0 el defecto: la matriz que lleva las tensiones del Q4 de los puntos de Gauss a los nodos
+         estaba escrita para otra numeración de esos puntos (los puntos 3 y 4, intercambiados respecto
+         del orden del motor: (−,−), (−,+), (+,−), (+,+)); las tasas del desplazamiento no lo ven,
+         porque esa matriz actúa después
+       1 la memoria lo delata: en el elemento E3 del ejemplo guía, las tensiones llevadas a los nodos
+         y traídas de vuelta no cierran con las de los puntos de Gauss (σx de la Tabla G.5)
+       2 se corrige, y hoy lo detectaría la prueba de reproducción exacta de campos polinómicos;
+         la lección: exponer no asegura que lo expuesto sea correcto, y la hipótesis no es tautológica -->
+  <div class="r3 r35">
+
+    <!-- ============================== el elemento E3 (lo dibuja la visualización) -->
+    <div class="r35-elem" data-entrada="1">
+      <div class="r3-etq">Ejemplo guía · elemento E3</div>
+      <div class="r35-dibujo"></div>
+      <div class="r35-ley">
+        <span class="r35-ley-t" data-hasta="1"><i class="r35-ley-fl"></i><span>adónde lleva cada valor la matriz <b>anterior</b></span></span>
+        <span class="r35-ley-t ok" data-paso="2"><i class="r35-ley-fl"></i><span>con la matriz corregida, cada valor vuelve a su punto</span></span>
+      </div>
+    </div>
+
+    <!-- ============================== la cadena del cálculo de tensiones -->
+    <div class="r35-cadena" data-entrada="2" data-retraso="500">
+      <div class="r35-vigia" data-entrada="3" data-retraso="1500"><span>✓ lo que miden las tasas del desplazamiento</span></div>
+      <div class="r35-esl ok"><b>Desplazamientos</b></div>
+      <i class="r35-fl">→</i>
+      <div class="r35-esl"><b>Tensiones en los puntos de Gauss</b></div>
+      <i class="r35-fl">→</i>
+      <div class="r35-esl mal" data-clase-paso="2:corregido"><b>Matriz de extrapolación</b><small class="m">otra numeración</small><small class="b">corregida</small></div>
+      <i class="r35-fl">→</i>
+      <div class="r35-esl"><b>Tensiones en los nodos</b></div>
+    </div>
+
+    <!-- ============================== paso 1: el cierre que falla (Tabla G.5: σx en los puntos de Gauss de E3) -->
+    <div class="r35-cierre" data-paso="1">
+      <div class="r35-c-tit">¿Cierran los nodos con los puntos de Gauss? <span>E3 · σ<sub>x</sub></span></div>
+      <table class="tabla r35-tab">
+        <thead><tr><th>Punto de Gauss</th><th class="der">Calculada</th><th class="der">De vuelta<br>desde los nodos</th><th class="der r35-col-b" data-paso="2" data-retraso="1300">Con la matriz<br>corregida</th></tr></thead>
+        <tbody>
+          <tr><td><i class="r35-pg">1</i></td><td class="der r35-g">−41,04</td><td class="der r35-v"></td><td class="der r35-col-b" data-paso="2" data-retraso="1300"></td></tr>
+          <tr><td><i class="r35-pg">2</i></td><td class="der r35-g">−6,76</td><td class="der r35-v"></td><td class="der r35-col-b" data-paso="2" data-retraso="1300"></td></tr>
+          <tr><td><i class="r35-pg">3</i></td><td class="der r35-g">1,82</td><td class="der r35-v"></td><td class="der r35-col-b" data-paso="2" data-retraso="1300"></td></tr>
+          <tr><td><i class="r35-pg">4</i></td><td class="der r35-g">66,82</td><td class="der r35-v"></td><td class="der r35-col-b" data-paso="2" data-retraso="1300"></td></tr>
+        </tbody>
+      </table>
+      <div class="r35-c-pie" data-hasta="1">Llevadas a los nodos y traídas de vuelta, deberían volver iguales · «de vuelta»: reconstrucción con la matriz anterior</div>
+    </div>
+
+    <!-- ============================== paso 2: la prueba que hoy lo detectaría y la lección -->
+    <div class="r35-prueba" data-paso="2" data-retraso="1900"><i class="r3-ico" data-ico="escudo"></i><span>Hoy lo detectaría una prueba propia: <b>reproducción exacta de campos polinómicos</b></span></div>
+    <div class="r3-remate r35-remate" data-paso="2" data-retraso="2500"><span class="ico">◆</span><span>Exponer el procedimiento no asegura que sea correcto: fue la <b>trazabilidad</b> la que hizo visible el defecto. Por eso la hipótesis <b>no es una tautología</b>.</span></div>
+
+    <div class="r3-motor" data-viz="r35-leccion" aria-hidden="true"></div>
+  </div>
+</section>

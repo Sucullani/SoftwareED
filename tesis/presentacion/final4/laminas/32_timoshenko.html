@@ -1,0 +1,81 @@
+<section class="lamina" id="timoshenko" data-bloque="resultados" data-titulo="Viga de Timoshenko" data-pasos="2">
+  <!-- grupo: resultados -->
+  <div class="cabecera">
+    <div class="rotulo" data-auto data-sec="§ 3.4 · Tablas 3.2 y 3.3 · Figura 3.3"></div>
+    <h2 class="titulo">Validación 1: la viga de Timoshenko</h2>
+  </div>
+
+  <!-- § 3.4 de final4. La viga se dibuja con los datos del motor (el campo σx sobre la deformada
+       de la Figura 3.3, malla Q9 56 × 8). Pasos (viz/l4_resultados.js, «r32-viga»):
+       0 el caso y sus dos referencias (analítica de Timoshenko y Goodier; SAP2000 con cáscara)
+       1 σx en A, B y C (Tabla 3.2) con barras frente al umbral del 1 %
+       2 la flecha central (Tabla 3.3: 0,26 %; con Euler-Bernoulli, 1,85 %) y el equilibrio
+         (ΣRy = qL = 70 000 kgf, residuo 1,7 × 10⁻¹³) -->
+  <div class="r3 r32">
+    <div class="r32-viga"></div>
+    <div class="r32-escala">
+      <span class="r32-sx">σ<sub>x</sub> (kgf/cm²)</span>
+      <span class="num">−127,9</span><span class="r32-barra"></span><span class="num">127,9</span>
+      <span class="r32-malla">EduFEM: Q9, 56 × 8 = 448 elementos, 3842 GDL · deformada ampliada × 20</span>
+    </div>
+
+    <!-- ============================== paso 0 · el caso y las dos referencias -->
+    <div class="r32-caso" data-solo="0">
+      <div class="r32-preg" data-entrada="1" data-retraso="1500">Validar: <b>¿coinciden los resultados con referencias externas?</b></div>
+      <div class="tarjeta r32-carta" data-entrada="2" data-retraso="1800">
+        <div class="r3-etq">El caso</div>
+        <p><b>Viga de hormigón simplemente apoyada</b></p>
+        <p class="r32-datos">b&nbsp;=&nbsp;0,40&nbsp;m · E&nbsp;=&nbsp;217&nbsp;370&nbsp;kgf/cm² · ν&nbsp;=&nbsp;0,20</p>
+      </div>
+      <div class="tarjeta r32-carta ref" data-entrada="3" data-retraso="2050">
+        <div class="r3-etq">Referencia 1</div>
+        <p><b>Solución analítica</b>, de la teoría de la elasticidad</p>
+        <p class="r32-datos">Timoshenko y Goodier [14]</p>
+      </div>
+      <div class="tarjeta r32-carta ref" data-entrada="4" data-retraso="2300">
+        <div class="r3-etq">Referencia 2</div>
+        <p><b>SAP2000</b> [18], con elementos de cáscara</p>
+        <p class="r32-datos">patrón de comparación, no de exactitud</p>
+      </div>
+    </div>
+
+    <!-- ============================== paso 1 · la tensión normal en A, B y C (Tabla 3.2) -->
+    <div class="r32-tabla" data-paso="1">
+      <table class="tabla">
+        <thead><tr><th>Punto</th><th class="der">EduFEM</th><th class="der">Analítica</th><th class="der">SAP2000</th><th class="der">Error frente a<br>la analítica</th><th class="der">Diferencia frente<br>a SAP2000</th></tr></thead>
+        <tbody>
+          <tr data-fila="A"><td><span class="r32-p">A</span></td><td class="der">127,8825</td><td class="der">127,8542</td><td class="der">127,8514</td><td class="der r32-pct" data-v="0.0221">0,02 %<i class="r32-pista"><i></i></i></td><td class="der r32-pct" data-v="0.0243">0,02 %<i class="r32-pista"><i></i></i></td></tr>
+          <tr data-fila="B"><td><span class="r32-p">B</span></td><td class="der">−37,3410</td><td class="der">−37,3255</td><td class="der">−37,2640</td><td class="der r32-pct max" data-v="0.0414">0,04 %<i class="r32-pista"><i></i></i></td><td class="der r32-pct max" data-v="0.2067">0,21 %<i class="r32-pista"><i></i></i></td></tr>
+          <tr data-fila="C"><td><span class="r32-p">C</span></td><td class="der">−31,8077</td><td class="der">−31,7992</td><td class="der">−31,7852</td><td class="der r32-pct" data-v="0.0268">0,03 %<i class="r32-pista"><i></i></i></td><td class="der r32-pct" data-v="0.0708">0,07 %<i class="r32-pista"><i></i></i></td></tr>
+        </tbody>
+      </table>
+      <div class="r32-lect">
+        <span class="l4-sello" data-paso="1" data-retraso="2300"><span>σ<sub>x</sub> &lt; 1 % frente a las dos referencias · se cumple</span></span>
+        <span class="r32-pie"><i class="r32-pista muestra"><i></i></i><span>barra entera: el umbral del 1 % · σ<sub>x</sub> en kgf/cm²</span></span>
+      </div>
+    </div>
+
+    <!-- ============================== paso 2 · la flecha (Tabla 3.3) y el equilibrio -->
+    <div class="r32-der" data-paso="2">
+      <div class="r32-bloque">
+        <div class="r32-cab"><span class="r3-etq">Flecha central</span><span class="l4-sello" data-paso="2" data-retraso="1300">&lt; 3 %</span></div>
+        <div class="r32-fl">
+          <span class="et">Frente a la analítica, <b>con cortante</b></span><span class="v ok">0,26 %</span>
+          <i class="r32-pista ancha"><i data-v="0.2633" data-u="3"></i><em>umbral 3 %</em></i>
+        </div>
+        <div class="r32-fl eb">
+          <span class="et">Si se desprecia el cortante (Euler-Bernoulli)</span><span class="v">1,85 %</span>
+          <i class="r32-pista ancha"><i data-v="1.85" data-u="3"></i><em>umbral 3 %</em></i>
+        </div>
+        <div class="r32-pie2">Barra entera: el umbral del 3 %</div>
+      </div>
+      <div class="r32-bloque eq" data-paso="2" data-retraso="1700">
+        <div class="r32-cab"><span class="r3-etq">Equilibrio de las reacciones</span><span class="l4-sello" data-paso="2" data-retraso="2600">&lt; 10⁻⁸</span></div>
+        <div class="r32-eq">ΣR<sub>y</sub> = qL = 70 000 kgf</div>
+        <div class="r32-cifra"><span>residuo relativo</span><b>1,7 × 10⁻¹³</b></div>
+      </div>
+    </div>
+
+    <div class="r3-motor" data-viz="r32-viga" aria-hidden="true"></div>
+  </div>
+</section>

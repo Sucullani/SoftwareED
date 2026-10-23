@@ -1,0 +1,98 @@
+<section class="lamina" id="software" data-bloque="diseno" data-titulo="EduFEM" data-pasos="2">
+  <!-- grupo: software -->
+  <div class="cabecera">
+    <div class="rotulo" data-auto data-sec="§ 2.2 · Tabla 3.6 · Figura 3.5"></div>
+    <h2 class="titulo">EduFEM: el procedimiento de cálculo, a la vista</h2>
+  </div>
+
+  <!-- EduFEM como lo ve quien lo usa (§ 2.2.6 a § 2.2.9, Tabla 3.6, Figura 3.5), sin tecnicismos de
+       programación. Es también el mapa de la demostración en vivo (lámina 24).
+       Pasos (viz/l4_software.js, «sw22-software»):
+       0 un lienzo, tres fases: las capturas de la Figura 3.5, recortadas a la misma ventana del
+         lienzo (el modelo queda en el mismo lugar en las tres), con su llamada y una pieza de la
+         interfaz: la tabla de nodos, el panel del módulo M3, la sonda del nodo 7
+       1 los ocho módulos, M0 a M7 (capturas de las Figuras B.6 a B.13)
+       2 la memoria de cálculo: las hojas del Anexo G se abren en abanico; libre, en español, un
+         instalador sin requisitos adicionales. -->
+  <div class="sw sw22" data-viz="sw22-software">
+    <div class="sw22-ruta">
+      <div class="sw22-r" data-clase-paso="0:actual;1:hecho"><b>1</b>Un lienzo, tres fases</div>
+      <i class="sw22-fl">→</i>
+      <div class="sw22-r" data-clase-paso="1:actual;2:hecho"><b>2</b>Ocho módulos</div>
+      <i class="sw22-fl">→</i>
+      <div class="sw22-r" data-clase-paso="2:actual"><b>3</b>Una memoria de cálculo</div>
+    </div>
+
+    <!-- ============================== paso 0 · las tres fases sobre el mismo lienzo -->
+    <div class="sw22-esc sw22-fases" data-solo="0">
+      <div class="sw22-fase" data-fase="pre" data-entrada="1" data-retraso="150">
+        <div class="sw22-fcab"><b>1</b>Pre-proceso</div>
+        <div class="sw22-fsub">el modelo se dibuja o se escribe en tablas</div>
+        <div class="sw-cap"><img class="zoomable" src="assets/img/l4/software_pre.png" data-grande="assets/img/fig_app_completa.png" alt="Pre-proceso de EduFEM con el ejemplo guía: el lienzo en modo de dibujo (captura de la aplicación)"></div>
+        <div class="sw22-pop" data-entrada="2" data-retraso="800">
+          <div class="sw-cap" style="width:250px"><img src="assets/img/l4/software_tabla.png" alt="Tabla de nodos del pre-proceso"></div>
+          <p>y un <b>comprobador de salud</b> revisa los datos antes de resolver<br><span class="sw22-sano">✓ Modelo sano</span></p>
+        </div>
+      </div>
+      <div class="sw22-fase" data-fase="proc" data-entrada="3" data-retraso="850">
+        <div class="sw22-fcab"><b>2</b>Proceso</div>
+        <div class="sw22-fsub">los módulos, sobre el elemento elegido</div>
+        <div class="sw-cap"><img class="zoomable" src="assets/img/l4/software_proc.png" data-grande="assets/img/fig_modulo_capa.png" alt="Proceso: el módulo M3 desplegado sobre el elemento E1 (captura de la aplicación)"></div>
+        <div class="sw22-pop" data-entrada="4" data-retraso="1500">
+          <div class="sw-cap" style="width:196px"><img src="assets/img/l4/software_panel_m3.png" alt="Panel del módulo M3"></div>
+          <p>el panel del <b>módulo</b>, con sus fórmulas y los valores de ese elemento</p>
+        </div>
+      </div>
+      <div class="sw22-fase" data-fase="post" data-entrada="5" data-retraso="1550">
+        <div class="sw22-fcab"><b>3</b>Post-proceso</div>
+        <div class="sw22-fsub">tensión en colores, deformada, reacciones</div>
+        <div class="sw-cap"><img class="zoomable" src="assets/img/l4/software_post.png" data-grande="assets/img/fig_postproceso.png" alt="Post-proceso: contorno de von Mises sobre la deformada y reacciones (captura de la aplicación)"></div>
+        <div class="sw22-pop" data-entrada="6" data-retraso="2200">
+          <div class="sw-cap" style="width:290px"><img src="assets/img/l4/software_mohr.png" alt="Sonda en el nodo 7 con su círculo de Mohr"></div>
+          <p>la <b>sonda</b>: el estado de tensión del nodo 7 y su círculo de Mohr</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================== paso 1 · los ocho módulos -->
+    <div class="sw22-esc sw22-modulos" data-solo="1">
+      <div class="sw22-mlin"><b>M0</b> en el pre-proceso; <b>M1 a M7</b> en el proceso, cada uno sobre el elemento elegido y con sus números</div>
+      <div class="sw22-gal">
+        <div class="sw22-mod" data-paso="1" data-retraso="200"><div class="sw-cap"><img class="zoomable" src="assets/img/l4/software_m0.png" data-grande="assets/img/fig_modulo_m0.png" alt="M0 · calidad de malla"></div><div class="sw22-mc"><b>M0</b>Calidad de malla</div></div>
+        <div class="sw22-mod" data-paso="1" data-retraso="340"><div class="sw-cap"><img class="zoomable" src="assets/img/l4/software_m1.png" data-grande="assets/img/fig_modulo_m1.png" alt="M1 · mapeo isoparamétrico"></div><div class="sw22-mc"><b>M1</b>Mapeo isoparamétrico</div></div>
+        <div class="sw22-mod" data-paso="1" data-retraso="480"><div class="sw-cap"><img class="zoomable" src="assets/img/l4/software_m2.png" data-grande="assets/img/fig_modulo_m2.png" alt="M2 · Jacobiano"></div><div class="sw22-mc"><b>M2</b>Jacobiano</div></div>
+        <div class="sw22-mod" data-paso="1" data-retraso="620"><div class="sw-cap"><img class="zoomable" src="assets/img/l4/software_m3.png" data-grande="assets/img/fig_modulo_m3.png" alt="M3 · matriz B"></div><div class="sw22-mc"><b>M3</b>Matriz B</div></div>
+        <div class="sw22-mod" data-paso="1" data-retraso="760"><div class="sw-cap"><img class="zoomable" src="assets/img/l4/software_m4.png" data-grande="assets/img/fig_modulo_m4.png" alt="M4 · matriz D"></div><div class="sw22-mc"><b>M4</b>Matriz D</div></div>
+        <div class="sw22-mod" data-paso="1" data-retraso="900"><div class="sw-cap"><img class="zoomable" src="assets/img/l4/software_m5.png" data-grande="assets/img/fig_modulo_m5.png" alt="M5 · rigidez y puntos de Gauss"></div><div class="sw22-mc"><b>M5</b>Rigidez y puntos de Gauss</div></div>
+        <div class="sw22-mod" data-paso="1" data-retraso="1040"><div class="sw-cap"><img class="zoomable" src="assets/img/l4/software_m6.png" data-grande="assets/img/fig_modulo_m6.png" alt="M6 · fuerzas equivalentes"></div><div class="sw22-mc"><b>M6</b>Fuerzas equivalentes</div></div>
+        <div class="sw22-mod" data-paso="1" data-retraso="1180"><div class="sw-cap"><img class="zoomable" src="assets/img/l4/software_m7.png" data-grande="assets/img/fig_modulo_m7.png" alt="M7 · ensamblaje"></div><div class="sw22-mc"><b>M7</b>Ensamblaje</div></div>
+      </div>
+      <div class="sw22-mnota" data-paso="1" data-retraso="1600">Lo que muestran es lo que EduFEM calcula: una versión del cálculo escrita para leerse paso a paso, que una prueba automática mantiene coincidente con la que resuelve.</div>
+    </div>
+
+    <!-- ============================== paso 2 · la memoria de cálculo -->
+    <div class="sw22-esc sw22-memoria" data-solo="2">
+      <div class="sw22-abanico">
+        <div class="sw22-hoja"><img src="assets/img/l4/anexoG4_p167.png" alt="Anexo G, p. 167"></div>
+        <div class="sw22-hoja"><img src="assets/img/l4/anexoG4_p168.png" alt="Anexo G, p. 168"></div>
+        <div class="sw22-hoja"><img src="assets/img/l4/anexoG4_p169.png" alt="Anexo G, p. 169"></div>
+        <div class="sw22-hoja"><img src="assets/img/l4/anexoG4_p170.png" alt="Anexo G, p. 170"></div>
+        <div class="sw22-hoja"><img src="assets/img/l4/anexoG4_p171.png" alt="Anexo G, p. 171"></div>
+        <div class="sw22-hoja"><img src="assets/img/l4/anexoG4_p172.png" alt="Anexo G, p. 172"></div>
+        <div class="sw22-hoja"><img src="assets/img/l4/anexoG4_p173.png" alt="Anexo G, p. 173"></div>
+        <div class="sw22-hoja"><img src="assets/img/l4/anexoG4_p174.png" alt="Anexo G, p. 174"></div>
+        <div class="sw22-hoja"><img src="assets/img/l4/anexoG4_p175.png" alt="Anexo G, p. 175"></div>
+      </div>
+      <div class="sw22-mtexto">
+        <div class="gran" data-paso="2" data-retraso="400">El cálculo completo en un PDF, con los números del modelo <b>sustituidos paso&nbsp;a&nbsp;paso</b></div>
+        <div class="med" data-paso="2" data-retraso="900">para rehacerlo a mano o en una hoja de cálculo, como la memoria que acompaña a un proyecto</div>
+        <div class="pie" data-paso="2" data-retraso="1300">En las hojas: el Anexo G, la memoria del ejemplo guía en forma condensada (pp.&nbsp;167–175)</div>
+      </div>
+      <div class="sw22-franja">
+        <span data-paso="2" data-retraso="2000"><i>✓</i>Libre: código abierto, licencia MIT</span>
+        <span data-paso="2" data-retraso="2200"><i>✓</i>En español</span>
+        <span data-paso="2" data-retraso="2400"><i>✓</i>Se instala sin requisitos adicionales</span>
+      </div>
+    </div>
+  </div>
+</section>

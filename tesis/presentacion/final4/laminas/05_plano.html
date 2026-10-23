@@ -1,0 +1,46 @@
+<section class="lamina" id="plano" data-bloque="intro" data-titulo="¿Por qué el plano?" data-pasos="2">
+  <!-- grupo: alcance -->
+  <div class="cabecera">
+    <div class="rotulo" data-auto data-sec="Introducción · Alcance y limitaciones"></div>
+    <h2 class="titulo">¿Por qué el plano?</h2>
+  </div>
+
+  <!-- Introducción, «Alcance y limitaciones»: la elección del dominio bidimensional como decisión
+       de diseño. La visualización dibuja los tres elementos, las matrices a escala y el puente. -->
+  <div class="pla" data-viz="alc-plano">
+    <!-- Paso 0 · barra, plano y sólido frente a los conceptos de la formulación -->
+    <div class="pla-col barra" data-solo="0" data-entrada="1"><div class="pla-cab"><b>Barra</b> · 1D</div><div class="pla-sub">punto de partida habitual</div></div>
+    <div class="pla-col plano" data-solo="0" data-entrada="2"><div class="pla-cab"><b>Plano</b> · 2D</div><div class="pla-sub"><span class="pla-edufem">EduFEM</span></div></div>
+    <div class="pla-col solido" data-solo="0" data-entrada="3"><div class="pla-cab"><b>Sólido</b> · 3D</div><div class="pla-sub">hexaedro de ocho nodos</div></div>
+    <div class="pla-fila" data-solo="0" data-entrada="4" style="top:436px">Mapeo de un cuadrado de referencia al elemento</div>
+    <div class="pla-fila" data-solo="0" data-entrada="4" style="top:524px">Jacobiano como matriz</div>
+    <div class="pla-fila" data-solo="0" data-entrada="4" style="top:612px">Cuadratura en dos direcciones</div>
+    <span class="pla-marca no" data-solo="0" style="left:642px;top:452px">✗</span>
+    <span class="pla-marca no" data-solo="0" style="left:642px;top:540px">✗</span>
+    <span class="pla-marca no" data-solo="0" style="left:642px;top:628px">✗</span>
+    <span class="pla-marca si" data-solo="0" style="left:1067px;top:452px">✓</span>
+    <span class="pla-marca si" data-solo="0" style="left:1067px;top:540px">✓</span>
+    <span class="pla-marca si" data-solo="0" style="left:1067px;top:628px">✓</span>
+    <span class="pla-marca si" data-solo="0" style="left:1492px;top:452px">✓</span>
+    <span class="pla-marca si" data-solo="0" style="left:1492px;top:540px">✓</span>
+    <span class="pla-marca si" data-solo="0" style="left:1492px;top:628px">✓</span>
+
+    <!-- Paso 1 · el tamaño real de las matrices, a escala (una celda = un término) [2, p. 218] -->
+    <div class="pla-tit" data-paso="1" data-retraso="150" style="left:88px"><b>Plano</b> · Q4 <span class="pla-edufem">EduFEM</span></div>
+    <div class="pla-tit" data-paso="1" data-retraso="250" style="left:690px"><b>Sólido</b> · hexaedro de ocho nodos <span class="pla-cita">[2, p. 218]</span></div>
+    <div class="pla-mat" data-paso="1" data-retraso="450" data-m="qD" style="left:0"><b>D</b> <span>3 × 3</span></div>
+    <div class="pla-mat" data-paso="1" data-retraso="650" data-m="qB" style="left:130px"><b>B</b> <span>3 × 8</span></div>
+    <div class="pla-mat" data-paso="1" data-retraso="850" data-m="qK" style="left:310px"><b>k<sub>e</sub></b> <span>8 × 8</span></div>
+    <div class="pla-mat" data-paso="1" data-retraso="1150" data-m="sD" style="left:600px"><b>D</b> <span>6 × 6</span></div>
+    <div class="pla-mat" data-paso="1" data-retraso="1150" data-m="sB" style="left:730px"><b>B</b> <span>6 × 24</span></div>
+    <div class="pla-mat" data-paso="1" data-retraso="1150" data-m="sK" style="left:1212px"><b>k<sub>e</sub></b> <span>24 × 24</span></div>
+    <div class="pla-fantasma" data-paso="1" data-retraso="1300">8 × 8</div>
+    <div class="pla-ver ok" data-paso="1" data-retraso="1250"><span class="pla-marca si chica">✓</span>Matrices de tamaño legible: cada operación puede exhibirse</div>
+    <div class="pla-ver mal" data-paso="1" data-retraso="2600"><b>k<sub>e</sub></b> de 24 × 24: impracticable seguirla paso a paso</div>
+
+    <!-- Paso 2 · el plano como puente hacia el caso tridimensional [1, 4] -->
+    <div class="pla-pila izq" data-paso="2" data-retraso="0"><b>Plano (2D): la dimensión mínima</b><span>toda la formulación, con matrices que todavía se leen</span></div>
+    <div class="pla-tablero" data-paso="2" data-retraso="500"><b>La misma formulación en 2D y en 3D <span class="pla-cita">[1, 4]</span></b><span>mapeo isoparamétrico · cuadratura de Gauss · ensamblaje</span></div>
+    <div class="pla-pila der" data-paso="2" data-retraso="900"><b>Sólido (3D)</b><span>línea de continuación del proyecto</span></div>
+  </div>
+</section>

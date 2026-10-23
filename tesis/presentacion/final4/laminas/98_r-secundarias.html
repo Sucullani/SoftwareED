@@ -1,0 +1,25 @@
+<section class="lamina" id="r-secundarias" data-respaldo data-titulo="Viga: componentes secundarias">
+  <!-- grupo: respaldo -->
+  <!-- Pregunta previsible: «¿y el cortante?». Tabla 3.2 completa y su lectura (§ 3.4 y § 3.7.1). -->
+  <div class="cabecera">
+    <div class="rotulo"><span class="num">R</span><span>Respaldo</span><span class="fuente-sec">· § 3.4 · Tabla 3.2 · § 3.7.1 · Tabla D.4</span></div>
+    <h2 class="titulo">Viga de Timoshenko: ¿y el cortante?</h2>
+  </div>
+  <div class="r-cuerpo">
+    <table class="tabla r-tabla">
+      <thead><tr><th>Punto</th><th>Magnitud</th><th class="der">EduFEM</th><th class="der">Analítica</th><th class="der">SAP2000</th><th class="der">Error frente a la analítica</th><th class="der">Diferencia con SAP2000</th></tr></thead>
+      <tbody>
+        <tr><td>A</td><td>σ<sub>x</sub></td><td class="der">127,8825</td><td class="der">127,8542</td><td class="der">127,8514</td><td class="der ok">0,02 %</td><td class="der ok">0,02 %</td></tr>
+        <tr><td>B</td><td>σ<sub>x</sub></td><td class="der">−37,3410</td><td class="der">−37,3255</td><td class="der">−37,2640</td><td class="der ok">0,04 %</td><td class="der ok">0,21 %</td></tr>
+        <tr><td>C</td><td>σ<sub>x</sub></td><td class="der">−31,8077</td><td class="der">−31,7992</td><td class="der">−31,7852</td><td class="der ok">0,03 %</td><td class="der ok">0,07 %</td></tr>
+        <tr class="destacada"><td>B</td><td>σ<sub>y</sub></td><td class="der">−1,0646</td><td class="der">−1,0547</td><td class="der">−1,0182</td><td class="der fuerte">0,94 %</td><td class="der fuerte">4,56 %</td></tr>
+        <tr class="destacada"><td>B</td><td>τ<sub>xy</sub></td><td class="der">5,4257</td><td class="der">5,2734</td><td class="der">5,2818</td><td class="der fuerte">2,89 %</td><td class="der fuerte">2,72 %</td></tr>
+      </tbody>
+    </table>
+    <p class="mini" style="margin-top:10px">Tensiones en kgf/cm². El criterio de aceptación es sobre σ<sub>x</sub>: error &lt; 1 % frente a la analítica y diferencia &lt; 1 % frente a SAP2000, en los tres puntos; las componentes secundarias se reportan, pero no forman parte de él (§ 2.1.6). El signo de τ<sub>xy</sub> de SAP2000 se lleva a la convención de la solución analítica; en la Tabla D.4 conserva el suyo (−5,2818).</p>
+    <div class="rejilla-2" style="margin-top:18px">
+      <div class="tarjeta"><div class="etq">Por qué crecen los porcentajes</div><p>Son entre <b>6 y 35 veces menores</b> que σ<sub>x</sub>: un error absoluto del mismo orden pesa mucho más en términos relativos. Requieren mallas más finas para el mismo error relativo.</p></div>
+      <div class="tarjeta"><div class="etq">En τ<sub>xy</sub> no basta la escala</div><p>Su error absoluto en B (0,15 kgf/cm²) es unas diez veces el de σ<sub>x</sub>, y SAP2000 queda más cerca de la analítica (0,16 %): ese 2,89 % es <b>error numérico de EduFEM</b> en una componente secundaria, y se declara así.</p></div>
+    </div>
+  </div>
+</section>

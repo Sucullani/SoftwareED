@@ -1,7 +1,7 @@
 # Defensa metodológica: tesis tecnológica frente al molde experimental
 
-Material de estudio y de respaldo para la defensa de la tesis final (`tesis/main_final.pdf`).
-**No forma parte de la tesis** ni de la presentación principal (`tesis/presentacion/final/`).
+Material de estudio y de respaldo para la defensa de la tesis final (`tesis/archivo/final/main_final.pdf`); no sigue a final3 ni a final4, la vigente.
+**No forma parte de la tesis** ni de la presentación principal (`tesis/presentacion/final4/`).
 
 | Archivo | Qué es |
 |---|---|
@@ -12,7 +12,7 @@ Material de estudio y de respaldo para la defensa de la tesis final (`tesis/main
 ## Cómo usar las láminas
 
 Abrir `respaldo_diferencia.html` con doble clic: funciona **sin internet** (toma la fuente Inter
-de `../presentacion/final/assets/terceros/`). Teclas: `→`, espacio o `PageDown` avanzan paso a
+de `../presentacion/final4/assets/terceros/`). Teclas: `→`, espacio o `PageDown` avanzan paso a
 paso; `←` retrocede; `1`-`6` saltan a una lámina; `N` muestra el guion de lo que conviene decir;
 `T` cambia entre tema oscuro y claro; `F` pantalla completa. Un clic en una tarjeta de la lámina 1
 la gira sola; el interruptor gira todas. En la lámina 3, «Ver datos» muestra la tabla de la gráfica.

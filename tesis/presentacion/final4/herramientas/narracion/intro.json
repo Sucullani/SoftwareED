@@ -1,0 +1,43 @@
+[
+ {"id": "portada", "narracion": [
+  "Buenos días, señores miembros del tribunal. Mi nombre es Hedy Yhassmany Oyola Sucullani y presento la tesis «Desarrollo de software educativo de elementos finitos para el análisis estructural empleando el lenguaje de programación Python». Su producto es EduFEM: un software libre y en español que muestra, etapa por etapa, cómo calcula el método de los elementos finitos un sólido plano, en tensión o en deformación plana."
+ ]},
+ {"id": "sep-intro", "narracion": [
+  "La exposición sigue los capítulos del documento: primero planteo el problema y su alcance, los objetivos y la hipótesis; después, un capítulo por cada objetivo específico; y al final, las conclusiones."
+ ]},
+ {"id": "caja-negra", "narracion": [
+  "Hoy, el software comercial de análisis funciona como una caja negra. Se le dan la geometría, el material y las cargas, y devuelve un resultado: un mapa de colores con las tensiones. Lo que pasa en medio no se ve.",
+  "Mirando el programa no se puede saber de dónde sale la tensión de un nodo, ni comprobar si coincide con la que se calculó dentro de los elementos.",
+  "El antecedente educativo más cercano, ED-Elas2D, lo señalaba ya en 1998: con los programas comerciales, el estudiante solo introduce datos e interpreta resultados. Y un consenso de 67 expertos pide egresados que sepan verificar y validar sus análisis, no solo ejecutarlos.",
+  "En la práctica profesional, todo cálculo estructural se entrega con su memoria de cálculo, para que otro ingeniero pueda seguirlo y comprobarlo. Este trabajo abre la caja: deja a la vista las nueve etapas del cálculo."
+ ]},
+ {"id": "problema", "narracion": [
+  "De esa situación nace el problema científico: ¿de qué manera la escasa transparencia del procedimiento de cálculo del software de análisis por elementos finitos podrá incidir en la baja trazabilidad y verificabilidad de ese procedimiento, en la gestión 2026?",
+  "La causa, en azul, es la transparencia del procedimiento de cálculo. El efecto, en violeta, es su trazabilidad y su verificabilidad. Esos colores vuelven en toda la exposición.",
+  "Trazable quiere decir que cada resultado puede seguirse hacia atrás, etapa por etapa, hasta los datos. Verificable, que cada magnitud, intermedia o final, puede compararse con un patrón independiente —un cálculo a mano, una solución analítica u otro programa— y queda dentro de una tolerancia explícita, que no depende del valor observado."
+ ]},
+ {"id": "objetivos", "narracion": [
+  "Con el problema y su alcance fijados, el objetivo general responde a cuatro preguntas: qué, desarrollar un software educativo de elementos finitos para el análisis estructural; cómo, empleando el lenguaje de programación Python; por qué, debido a la escasa transparencia del procedimiento de cálculo del software de análisis; y para qué, para mejorar la trazabilidad y la verificabilidad del procedimiento de cálculo.",
+  "Su primera parte es, casi palabra por palabra, el título de la tesis.",
+  "Tres objetivos específicos lo concretan, uno por capítulo: fundamentar el método y el estado del arte, para fijar los requisitos; desarrollar EduFEM, para exponer el procedimiento etapa por etapa; y verificarlo y validarlo, para establecer si ese procedimiento es trazable y verificable."
+ ]},
+ {"id": "metodo", "narracion": [
+  "Por su finalidad, el trabajo es propositivo; por su naturaleza, una investigación tecnológica; su enfoque es cuantitativo y su nivel, descriptivo y comparativo.",
+  "El método es el de la ciencia del diseño: el conocimiento se obtiene construyendo el producto y evaluándolo con rigor. Sus seis actividades ordenan el trabajo, de identificar el problema a comunicar el resultado, y las cuatro centrales responden a los objetivos específicos: definir los objetivos de la solución, al primero; diseñar y desarrollar, al segundo; demostrar y evaluar, al tercero. Es una validación de laboratorio: escenarios controlados, sin sujetos."
+ ]},
+ {"id": "sep-cap1", "narracion": [
+  "El primer capítulo cumple el primer objetivo: fundamentar el método y el estado del arte, para fijar los requisitos de la herramienta."
+ ]},
+ {"id": "sep-cap2", "narracion": [
+  "El segundo capítulo cumple el segundo objetivo: desarrollar EduFEM. Primero, cómo se iba a contrastar la hipótesis; después, el software."
+ ]},
+ {"id": "sep-cap3", "narracion": [
+  "El tercer capítulo cumple el tercer objetivo: verificar y validar EduFEM, para establecer si su procedimiento es trazable y verificable."
+ ]},
+ {"id": "sep-conclusiones", "narracion": [
+  "Paso a las conclusiones, donde respondo a los objetivos, a la hipótesis, al problema y a las preguntas de investigación."
+ ]},
+ {"id": "cierre", "narracion": [
+  "EduFEM deja a la vista lo que el software comercial oculta: cada resultado puede seguirse hasta sus datos y comprobarse paso a paso. Seis de seis criterios de trazabilidad, nueve de nueve de verificabilidad: la hipótesis queda comprobada, dentro de su alcance. Muchas gracias por su atención; quedo a disposición del tribunal para sus preguntas."
+ ]}
+]
