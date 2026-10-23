@@ -1,0 +1,285 @@
+/* l4_formulacion.css — láminas del grupo «formulacion» (final4).
+   11 · estado-arte: la matriz de la Tabla 1.1, el vacío, los cinco requisitos y los cuatro principios.
+   12 · formulacion: del pórtico a la chapa, la forma fuerte, los trabajos virtuales y la cadena hasta K u = F.
+   13 · procedimiento: las nueve etapas sobre el elemento E3 del ejemplo guía.
+   Coordenadas en px de diseño (lámina de 1920 × 1080); el cuerpo útil va de y = 214 a y = 990.
+   Colores siempre con variables del tema: la versión oscura y la PowerPoint se leen igual. */
+
+/* ===================================================================== 11 · estado-arte */
+#estado-arte .ea { position: absolute; left: 100px; top: 212px; width: 1720px; height: 778px; }
+#estado-arte .ea-mat { position: absolute; left: 0; top: 0; width: 1720px; display: flex; flex-direction: column; gap: 6px; transform-origin: 50% 0; }
+/* la columna EduFEM toma los 28 px que sobraban (1720 justos): con Inter (versión oscura) sus rótulos
+   largos caben en dos y tres renglones sin desbordar la fila */
+#estado-arte .ea-fila { display: grid; grid-template-columns: 236px 232px 220px 236px 212px 262px 286px; gap: 6px; height: 64px; }
+#estado-arte .ea-fila.ea-cab { height: 92px; }
+#estado-arte .ea-fila.alta { height: 80px; }
+#estado-arte .ea-esq { align-self: end; padding: 0 0 8px; font-size: 22px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--texto-3); }
+#estado-arte .ea-rec { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; text-align: center; padding: 0 4px 6px; }
+#estado-arte .ea-rec b { font-size: 25px; font-weight: 750; line-height: 1.14; color: var(--texto); }
+#estado-arte .ea-rec small { margin-top: 4px; font-size: 22px; font-weight: 600; line-height: 1.1; color: var(--texto-3); }
+#estado-arte .ea-rec.edu { border-radius: 12px 12px 0 0; background: var(--acento-suave); box-shadow: inset 0 3px 0 var(--acento); }
+#estado-arte .ea-rec.edu b { font-size: 34px; font-weight: 800; color: var(--acento); }
+#estado-arte .ea-attr { display: flex; align-items: center; gap: 10px; font-size: 24px; font-weight: 700; line-height: 1.1; color: var(--texto); }
+#estado-arte .ea-attr i { flex: 0 0 auto; font-style: normal; font-size: 24px; font-weight: 800; color: var(--acento); min-width: 18px; }
+
+/* celdas: ícono de estado (en línea con el texto) + rótulo breve */
+#estado-arte .ea-c {
+  display: flex; align-items: center; padding: 0 8px 0 9px; border-radius: 10px;
+  font-size: 22px; line-height: 1.1; color: var(--texto); background: var(--superficie-2);
+}
+#estado-arte .ea-c > span { display: block; min-width: 0; }
+#estado-arte .ea-i {
+  display: inline-grid; place-items: center; width: 30px; height: 30px; margin: -4px 7px 0 0; vertical-align: middle;
+  border-radius: 50%; font: 900 22px/1 'Segoe UI Symbol', 'Segoe UI', var(--fuente); font-style: normal; box-sizing: border-box;
+}
+#estado-arte .ea-c.si { background: var(--ok-suave); }
+#estado-arte .ea-c.si .ea-i, #estado-arte .ea-i.si { background: var(--ok); color: var(--fondo); }
+#estado-arte .ea-c.parcial { background: color-mix(in srgb, var(--aviso) 13%, transparent); }
+#estado-arte .ea-c.parcial .ea-i, #estado-arte .ea-i.parcial { border: 3px solid var(--aviso); background: linear-gradient(90deg, var(--aviso) 50%, transparent 50%); }
+#estado-arte .ea-c.no { background: var(--mal-suave); }
+#estado-arte .ea-c.no .ea-i, #estado-arte .ea-i.no { background: var(--mal); color: var(--fondo); font-size: 22px; }
+#estado-arte .ea-c.nc { background: repeating-linear-gradient(135deg, var(--superficie-2) 0 10px, var(--superficie-3) 10px 20px); color: var(--texto-3); font-style: italic; }
+#estado-arte .ea-c.nc .ea-i, #estado-arte .ea-i.nc { border: 2.5px dashed var(--texto-3); color: var(--texto-3); font: 800 22px/1 var(--fuente); }
+#estado-arte .ea-c.raya { color: var(--texto-3); }
+#estado-arte .ea-c.raya .ea-i, #estado-arte .ea-i.raya { color: var(--texto-3); font: 800 24px/1 var(--fuente); }
+#estado-arte .ea-c.edu { position: relative; padding-left: 46px; line-height: 1.04; box-shadow: inset 0 0 0 2px var(--acento); font-weight: 650; }
+/* en la columna EduFEM el ícono sale del flujo: el rótulo de tres renglones (fila 7) cabe sin montarse */
+#estado-arte .ea-c.edu .ea-i { position: absolute; left: 9px; top: 50%; margin: -15px 0 0 0; }
+#estado-arte .ea-fila:last-child .ea-c.edu { border-radius: 10px 10px 12px 12px; }
+
+/* paso 2: el vacío (filas 6 y 8) */
+#estado-arte .ea-fila.vacio .ea-attr { color: var(--acento); }
+#estado-arte .ea-fila.vacio .ea-c:not(.edu) { box-shadow: inset 0 0 0 3px color-mix(in srgb, var(--acento) 80%, transparent); }
+
+/* leyenda (pasos 0 y 1) y nota del vacío (paso 2) */
+#estado-arte .ea-ley {
+  position: absolute; left: 0; top: 708px; width: 1720px; display: flex; flex-wrap: wrap; gap: 10px 34px; align-items: center;
+  font-size: 24px; color: var(--texto-2);
+}
+#estado-arte .ea-ley span { display: inline-flex; align-items: center; gap: 10px; }
+#estado-arte .ea-vacio {
+  position: absolute; left: 0; top: 692px; width: 1720px; padding: 8px 26px; border-radius: 0 12px 12px 0;
+  border-left: 8px solid var(--acento); background: var(--acento-suave); font-size: 27px; line-height: 1.25; color: var(--texto);
+}
+#estado-arte .ea-vacio b { color: var(--acento); }
+
+/* paso 3: requisitos y principios */
+#estado-arte .ea-req-tit, #estado-arte .ea-princ-tit { position: absolute; left: 0; font-size: 25px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+#estado-arte .ea-req-tit { top: 0; color: var(--acento); }
+#estado-arte .ea-req-tit span, #estado-arte .ea-princ-tit span { letter-spacing: 0; text-transform: none; font-weight: 650; color: var(--texto-3); }
+#estado-arte .ea-reqs { position: absolute; left: 0; top: 42px; width: 1720px; display: flex; flex-direction: column; gap: 12px; }
+/* la tercera columna se ajusta a su píldora: el texto del requisito usa todo el ancho que sobra */
+#estado-arte .ea-req {
+  display: grid; grid-template-columns: 64px 1fr auto; gap: 24px; align-items: center; height: 88px; padding: 0 22px;
+  border-radius: 14px; background: var(--superficie-2); border: 1px solid var(--linea);
+}
+#estado-arte .ea-req .n { width: 60px; height: 60px; border-radius: 14px; display: grid; place-items: center; background: var(--acento); color: var(--fondo); font: 800 32px/1 var(--fuente); }
+#estado-arte .ea-req .t { font-size: 36px; font-weight: 700; line-height: 1.12; color: var(--texto); }
+#estado-arte .ea-req .d {
+  justify-self: end; display: inline-flex; align-items: center; gap: 12px; padding: 10px 18px; border-radius: 999px;
+  font: 750 24px/1.12 var(--fuente); color: var(--h-vd); background: var(--h-vd-suave); border: 2px solid var(--h-vd);
+}
+#estado-arte .ea-req.quinto .d { color: var(--texto-2); background: var(--superficie-3); border-color: var(--linea-2); }
+#estado-arte .ea-dim { flex: 0 0 auto; width: 34px; height: 34px; display: inline-block; }
+#estado-arte .ea-dim svg, #estado-arte .ea-pi svg { display: block; width: 100%; height: 100%; overflow: visible; }
+/* los principios no son una variable: van en el neutro (el azul es la variable independiente).
+   La franja termina en y ≈ 950 de la lámina, a más de 30 px del pie. */
+#estado-arte .ea-princ-tit { top: 560px; color: var(--h-neutro); }
+#estado-arte .ea-princ { position: absolute; left: 0; top: 602px; width: 1720px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+#estado-arte .ea-p {
+  display: flex; align-items: center; gap: 14px; height: 136px; padding: 0 18px; border-radius: 14px;
+  background: var(--h-neutro-suave); border: 1px solid color-mix(in srgb, var(--h-neutro) 35%, transparent);
+}
+#estado-arte .ea-p b { display: block; font-size: 27px; font-weight: 750; line-height: 1.12; color: var(--texto); }
+#estado-arte .ea-p small { display: block; margin-top: 6px; font-size: 22px; font-weight: 600; color: var(--texto-3); }
+#estado-arte .ea-pi { flex: 0 0 auto; width: 64px; height: 64px; display: inline-block; }
+
+/* ===================================================================== 12 · formulacion */
+#formulacion .f12 { position: absolute; left: 100px; top: 212px; width: 1720px; height: 778px; }
+#formulacion .f12 svg.f12-svg { position: absolute; left: 0; top: 0; overflow: visible; }
+
+/* el recorrido de la lámina (cuatro hitos) */
+#formulacion .f12-ruta { position: absolute; left: 0; top: 0; width: 1720px; height: 46px; display: flex; align-items: center; gap: 8px; }
+#formulacion .f12-hito {
+  flex: 1 1 0; height: 46px; display: flex; align-items: center; gap: 10px; padding: 0 16px; border-radius: 999px;
+  font-size: 23px; font-weight: 650; white-space: nowrap; color: var(--texto-3); background: var(--superficie-2); border: 1px solid var(--linea);
+}
+#formulacion .f12-hito b { flex: 0 0 auto; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 22px; background: var(--superficie-3); color: var(--texto-3); }
+#formulacion .f12-hito.actual { background: var(--acento); border-color: transparent; color: var(--fondo); font-weight: 750; }
+#formulacion .f12-hito.actual b { background: var(--fondo); color: var(--acento); }
+/* lo ya recorrido va en el neutro: el verde queda para los veredictos («se cumple») */
+#formulacion .f12-hito.hecho { background: var(--h-neutro-suave); border-color: transparent; color: var(--texto-2); font-weight: 650; }
+#formulacion .f12-hito.hecho b { background: var(--h-neutro); color: var(--fondo); }
+#formulacion .f12-sep { font-style: normal; font-size: 30px; font-weight: 700; color: var(--texto-3); }
+#formulacion .f12-kuf { font-family: 'KaTeX_Main', 'Times New Roman', serif; font-weight: 700; }
+
+/* escenas: una por paso, debajo del recorrido */
+#formulacion .f12-esc { position: absolute; left: 0; top: 62px; width: 1720px; height: 716px; }
+#formulacion .f12-esc > * { position: absolute; }
+#formulacion .f12-etq { font-size: 24px; font-weight: 650; line-height: 1.2; color: var(--texto-2); }
+#formulacion .f12-ec { color: var(--texto); }
+#formulacion .f12-ec .katex { font-size: 30px; }
+#formulacion .f12-ec.grande .katex { font-size: 50px; }
+#formulacion .f12-ec.mediana .katex { font-size: 30px; }
+#formulacion .f12-cita { font-size: 22px; font-weight: 600; color: var(--texto-3); }
+#formulacion .f12-tit { font-size: 30px; font-weight: 650; line-height: 1.2; color: var(--texto-2); }
+#formulacion .f12-tit b { color: var(--texto); }
+
+/* paso 0 · del pórtico a la chapa */
+#formulacion .f12-panel { top: 0; width: 820px; }
+#formulacion .f12-panel.izq { left: 0; }
+#formulacion .f12-panel.der { left: 900px; }
+#formulacion .f12-pt { font-size: 28px; line-height: 1.22; color: var(--texto-2); }
+#formulacion .f12-pt b { display: block; font-size: 36px; color: var(--texto); }
+#formulacion .e0-kbarra { left: 438px; top: 128px; }
+#formulacion .e0-kbarra-ec { left: 430px; top: 160px; }
+#formulacion .e0-kbarra-ec .katex { font-size: 24px; }
+#formulacion .e0-kchapa { left: 1390px; top: 128px; }
+#formulacion .e0-kchapa-ec { left: 1390px; top: 164px; }
+#formulacion .e0-kchapa-ec .katex { font-size: 30px; }
+/* bajo la integral que se evalúa en esos puntos, fuera del recorrido de la flecha de K */
+#formulacion .e0-gauss { left: 1390px; top: 262px; padding-left: 1.05em; text-indent: -1.05em; font-size: 22px; color: var(--texto-3); }
+#formulacion .e0-gauss::first-letter { color: var(--aviso); }
+#formulacion .e0-kp { left: 520px; top: 552px; }
+#formulacion .e0-kc { left: 1480px; top: 552px; }
+#formulacion .f12-kuf-caja {
+  left: 660px; top: 600px; width: 400px; height: 108px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  border-radius: 14px; background: var(--acento-suave); border: 3px solid var(--acento); color: var(--texto);
+}
+#formulacion .f12-kuf-caja .katex { font-size: 46px; }
+#formulacion .f12-kuf-caja small { font-size: 24px; font-weight: 650; color: var(--texto-2); }
+
+/* paso 1 · la forma fuerte */
+#formulacion .e1-punto { left: 40px; top: 470px; width: 460px; text-align: center; }
+#formulacion .e1-dif { left: 540px; top: 470px; width: 560px; text-align: center; }
+#formulacion .e1-dif i { font-family: 'KaTeX_Main', 'Times New Roman', serif; font-weight: 700; font-style: normal; }
+#formulacion .e1-ecs { left: 1140px; top: 40px; width: 580px; display: flex; flex-direction: column; gap: 14px; }
+#formulacion .e1-nota {
+  left: 0; top: 538px; width: 1720px; height: 176px; border-radius: 14px;
+  background: var(--mal-suave); border: 1px solid color-mix(in srgb, var(--mal) 30%, transparent);
+}
+#formulacion .e1-nota > * { position: absolute; }
+#formulacion .e1-nota-tx { left: 720px; top: 0; width: 970px; height: 172px; display: flex; align-items: center; font-size: 34px; line-height: 1.25; color: var(--texto); }
+#formulacion .e1-nota-tx b { color: var(--mal); }
+#formulacion .e1-u { left: 26px; top: 4px; font-size: 22px; color: var(--texto-3); }
+#formulacion .e1-ddu { left: 26px; top: 136px; font-size: 22px; font-weight: 700; color: var(--mal); }
+
+/* paso 2 · el desplazamiento virtual */
+#formulacion .e2-anim { left: 0; top: 0; width: 1720px; height: 520px; }
+/* la chapa, su rótulo y la ecuación suben 30 px: la cita de la Ecuación 1.2 entra en un renglón debajo */
+#formulacion .e2-dv { left: 40px; top: 484px; width: 760px; font-size: 25px; line-height: 1.25; text-align: center; }
+#formulacion .e2-dv b { color: var(--texto); }
+#formulacion .e2-med { top: 420px; width: 260px; text-align: center; font-size: 22px; font-weight: 600; line-height: 1.15; color: var(--texto-2); }
+#formulacion .e2-med b { display: block; font-size: 27px; font-weight: 750; }
+#formulacion .e2-med.int { left: 870px; }
+#formulacion .e2-med.int b { color: var(--cian); }
+#formulacion .e2-med.ext { left: 1430px; }
+#formulacion .e2-med.ext b { color: var(--carga); }
+#formulacion .e2-regla {
+  left: 860px; top: 492px; width: 860px; padding: 8px 18px; border-radius: 10px; text-align: center;
+  font-size: 28px; line-height: 1.22; color: var(--texto); background: var(--ok-suave); border: 2px solid var(--ok);
+}
+#formulacion .e2-regla b { color: var(--ok); }
+#formulacion .e2-ec { left: 0; top: 562px; width: 1280px; height: 120px; display: flex; align-items: flex-start; gap: 14px; }
+#formulacion .e2-miembro { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 16px 6px; border-radius: 12px; color: var(--texto); }
+#formulacion .e2-miembro .katex { font-size: 30px; }
+#formulacion .e2-miembro small { font-size: 22px; font-weight: 700; }
+#formulacion .e2-miembro.int { background: color-mix(in srgb, var(--cian) 12%, transparent); border: 3px solid var(--cian); }
+#formulacion .e2-miembro.int small { color: var(--cian); }
+#formulacion .e2-miembro.ext { background: color-mix(in srgb, var(--carga) 10%, transparent); border: 3px solid var(--carga); }
+#formulacion .e2-miembro.ext small { color: var(--carga); }
+#formulacion .e2-igual { align-self: center; margin-top: -26px; font: 700 48px/1 'KaTeX_Main', 'Times New Roman', serif; color: var(--texto); }
+#formulacion .e2-cita { left: 2px; top: 688px; white-space: nowrap; line-height: 1.1; }
+#formulacion .e2-palanca { left: 1300px; top: 590px; width: 420px; height: 126px; }
+#formulacion .e2-pal-tit { position: absolute; left: 0; top: 0; font-size: 23px; color: var(--texto-3); white-space: nowrap; }
+#formulacion .e2-pal-ec { position: absolute; left: 236px; top: 64px; }
+#formulacion .e2-pal-ec .katex { font-size: 28px; }
+
+/* paso 3 · la cadena hasta K u = F */
+#formulacion .e3-lema { left: 470px; top: 6px; width: 1250px; font-size: 32px; line-height: 1.25; color: var(--texto-2); }
+#formulacion .e3-lema b { color: var(--texto); }
+#formulacion .e3-ok { left: 20px; top: 104px; font-size: 23px; font-weight: 700; color: var(--ok); }
+#formulacion .e3-eslabon {
+  top: 438px; width: 250px; height: 252px; padding: 14px 12px 12px; border-radius: 14px; text-align: center;
+  background: var(--superficie-2); border: 2px solid var(--linea-2);
+}
+#formulacion .e3-eslabon.ancho { width: 330px; }
+#formulacion .e3-eslabon.fin { background: var(--acento-suave); border: 3px solid var(--acento); }
+#formulacion .e3-ec { height: 76px; display: flex; align-items: center; justify-content: center; color: var(--texto); }
+#formulacion .e3-ec .katex { font-size: 31px; }
+#formulacion .e3-eslabon.fin .e3-ec .katex { font-size: 38px; }
+#formulacion .e3-tx { margin-top: 8px; font-size: 22px; font-weight: 600; line-height: 1.2; color: var(--texto-2); }
+#formulacion .e3-tx b { display: block; margin-bottom: 4px; font-size: 24px; font-weight: 750; line-height: 1.15; color: var(--texto); }
+
+/* ===================================================================== 13 · procedimiento */
+#procedimiento .f13 { position: absolute; left: 100px; top: 212px; width: 1720px; height: 778px; }
+#procedimiento .f13 svg.f13-svg { position: absolute; left: 0; top: 0; overflow: visible; }
+#procedimiento .f13-esc { position: absolute; left: 0; top: 0; width: 1720px; height: 470px; }
+#procedimiento .f13-esc > * { position: absolute; }
+#procedimiento .f13-pt { top: 0; display: flex; align-items: center; gap: 12px; white-space: nowrap; font-size: 28px; font-weight: 750; color: var(--texto); }
+#procedimiento .f13-pt b { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; background: var(--acento); color: var(--fondo); font-size: 24px; font-weight: 800; }
+#procedimiento .f13-pt .f13-y { color: var(--texto-3); }
+#procedimiento .f13-pt .f13-comp { font: italic 700 30px 'KaTeX_Main', 'Times New Roman', serif; color: var(--texto-2); }
+#procedimiento .f13-cap { top: 414px; width: 560px; font-size: 24px; line-height: 1.22; color: var(--texto-2); }
+#procedimiento .f13-etq { font-size: 24px; font-weight: 650; line-height: 1.2; color: var(--texto-2); }
+#procedimiento .f13-nota { font-size: 22px; font-weight: 600; color: var(--texto-3); }
+#procedimiento .f13-ec { color: var(--texto); }
+#procedimiento .f13-ec .katex { font-size: 28px; }
+
+/* paso 0 */
+#procedimiento .e0-mapeo { left: 150px; top: 52px; }
+#procedimiento .e0-mapeo .katex { font-size: 26px; }
+#procedimiento .e0-dA { left: 886px; top: 92px; }
+#procedimiento .e0-dA .katex { font-size: 27px; }
+/* paso 1 */
+#procedimiento .e1-chips { left: 0; top: 56px; display: flex; gap: 10px; }
+#procedimiento .f13-chip { padding: 6px 14px; border-radius: 999px; font-size: 22px; font-weight: 700; color: var(--texto-3); background: var(--superficie-2); border: 1.5px dashed var(--linea-2); white-space: nowrap; }
+#procedimiento .f13-chip.sel { color: var(--acento); background: var(--acento-suave); border: 2px solid var(--acento); }
+#procedimiento .e1-D { left: 6px; top: 110px; }
+#procedimiento .e1-D .katex { font-size: 29px; }
+#procedimiento .e1-Dnum { left: 16px; top: 246px; }
+#procedimiento .e1-Dnum .katex { font-size: 26px; }
+#procedimiento .e1-datos { left: 24px; top: 372px; }
+#procedimiento .e1-ke { left: 960px; top: 354px; }
+#procedimiento .e1-cont { left: 1250px; top: 74px; width: 470px; font-size: 30px; font-weight: 750; color: var(--aviso); }
+#procedimiento .e1-q4 { left: 1262px; top: 340px; width: 170px; text-align: center; }
+#procedimiento .e1-q9 { left: 1478px; top: 340px; width: 170px; text-align: center; }
+/* paso 2 */
+#procedimiento .e2-K { left: 1372px; top: 64px; width: 348px; }
+#procedimiento .e2-libres { left: 1372px; top: 162px; width: 348px; color: var(--texto-3); }
+#procedimiento .e2-u { left: 1372px; top: 288px; width: 348px; color: var(--acento); font-weight: 750; }
+
+/* la pista de las nueve etapas */
+#procedimiento .f13-grupos { position: absolute; left: 0; top: 484px; width: 1720px; height: 34px; }
+#procedimiento .f13-grupo {
+  position: absolute; top: 0; height: 32px; text-align: center; border-bottom: 3px solid var(--linea-2);
+  font-size: 22px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--texto-3); white-space: nowrap;
+}
+#procedimiento .f13-grupo.actual { color: var(--acento); border-color: var(--acento); }
+/* lo ya recorrido va en el neutro: el verde queda para los veredictos («se cumple») */
+#procedimiento .f13-grupo.hecho { color: var(--texto-2); border-color: var(--h-neutro); }
+#procedimiento .f13-pista { position: absolute; left: 0; top: 526px; width: 1720px; height: 118px; display: grid; grid-template-columns: repeat(9, 182px); gap: 10px; }
+#procedimiento .f13-et { position: relative; border-radius: 14px; background: var(--superficie-2); border: 2px solid var(--linea); }
+#procedimiento .f13-et .n { position: absolute; left: 12px; top: 10px; font: 800 28px/1 var(--fuente); color: var(--texto-3); }
+#procedimiento .f13-et .s { position: absolute; right: 14px; top: 6px; font: italic 700 34px/1 'KaTeX_Math', 'Times New Roman', serif; color: var(--texto-3); }
+#procedimiento .f13-et .s sub { font-size: 60%; }
+#procedimiento .f13-et .t { position: absolute; left: 10px; right: 4px; bottom: 9px; font-size: 22px; font-weight: 650; line-height: 1.12; color: var(--texto-2); }
+#procedimiento .f13-et.actual { background: var(--acento-suave); border-color: var(--acento); }
+#procedimiento .f13-et.actual .n, #procedimiento .f13-et.actual .s { color: var(--acento); }
+#procedimiento .f13-et.actual .t { color: var(--texto); }
+#procedimiento .f13-et.hecho { background: var(--h-neutro-suave); border-color: transparent; }
+#procedimiento .f13-et.hecho .n, #procedimiento .f13-et.hecho .s { color: var(--texto-2); }
+#procedimiento .f13-fichas { position: absolute; left: 0; top: 654px; width: 1720px; height: 42px; }
+#procedimiento .f13-ficha {
+  position: absolute; top: 0; width: 182px; height: 40px; border-radius: 999px; display: grid; place-items: center;
+  font-size: 22px; font-weight: 750; white-space: nowrap;
+}
+#procedimiento .f13-ficha.mod { color: var(--primario); background: var(--primario-suave); border: 2px solid color-mix(in srgb, var(--primario) 45%, transparent); }
+#procedimiento .f13-ficha.post { width: 374px; color: var(--cian); background: color-mix(in srgb, var(--cian) 12%, transparent); border: 2px solid color-mix(in srgb, var(--cian) 55%, transparent); }
+#procedimiento .f13-memoria {
+  position: absolute; left: 0; top: 708px; width: 1718px; height: 46px; border-radius: 12px; overflow: hidden;
+  display: flex; align-items: center; justify-content: center; border: 2px solid var(--acento);
+  font-size: 24px; font-weight: 750; color: var(--texto);
+}
+#procedimiento .f13-mem-barra { position: absolute; left: 0; top: 0; width: 100%; height: 100%; background: var(--acento-suave); transform-origin: 0 50%; }
+#procedimiento .f13-memoria span { position: relative; }

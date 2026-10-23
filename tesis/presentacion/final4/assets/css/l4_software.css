@@ -1,0 +1,318 @@
+/* l4_software.css — láminas del grupo «software» (final4), Capítulo 2.
+   21 · evaluacion     cómo se contrasta la hipótesis: qué se mide, los casos de estudio, los criterios
+   22 · software       EduFEM como lo ve quien lo usa: un lienzo, tres fases, ocho módulos, una memoria
+   23 · trazabilidad   de la tensión de von Mises del nodo 7 a los datos del ejemplo guía (Anexo G)
+   24 · demo           el guion de la demostración en vivo y su recorrido de respaldo con capturas reales
+   Coordenadas en px de diseño. Contenedor de cada lámina (.sw): versión 1 (oscura) 1720 × 772 desde
+   y = 214; versión 2 (PowerPoint) 1742 × 790 desde y = 200. Colores siempre con variables del tema;
+   el código de color de las variables es el de l4_comun.css (--h-vi, --h-vd, --h-int, --h-ok, --h-mal). */
+
+/* ---------------------------------------------------------------- tokens del grupo */
+:root {
+  /* las capturas de EduFEM tienen la interfaz oscura: su marco no cambia con el tema */
+  --sw-ui: #1e2127;
+  --sw-ui-borde: rgba(148, 170, 210, 0.30);
+  --sw-ui-texto: #e8edf6;
+  --sw-anillo: #ffd23f;          /* llamadas sobre las capturas: el amarillo de selección de EduFEM */
+  --sw-mesa: #3a3f47;            /* fondo neutro bajo las hojas del Anexo G */
+  --sw-papel: #ffffff;           /* las hojas del Anexo G son blancas en los dos temas */
+  --sw-sano: #46d38a;            /* el verde de «Modelo sano» en la barra de estado de EduFEM */
+  --sw-rot-fondo: rgba(10, 14, 22, .86);
+  --sw-rot-texto: #f1f3f5;
+  --sw-malla-campo: rgba(255, 255, 255, .55);  /* líneas de malla sobre un campo de colores */
+  --sw-malla-fina: rgba(0, 0, 0, .22);
+  --sw-marca: rgba(183, 156, 255, .20);
+  --sw-sombra-hoja: 0 10px 26px rgba(0, 0, 0, .32);
+}
+:root[data-tema="claro"],
+:root[data-estilo="ppt"] {
+  --sw-ui-borde: #c3cddc;
+  --sw-anillo: #e8a600;
+  --sw-marca: rgba(111, 66, 193, .14);
+  --sw-sombra-hoja: 0 8px 22px rgba(27, 42, 74, .22);
+}
+
+/* ---------------------------------------------------------------- piezas comunes */
+.sw { position: absolute; left: 100px; top: 214px; width: 1720px; height: 772px; }
+:root[data-estilo="ppt"] .sw { left: 89px; top: 200px; width: 1742px; height: 790px; }
+.sw .sw-svg { display: block; overflow: visible; }
+.sw .sw-num { font-variant-numeric: tabular-nums; }
+/* marco de una captura de la interfaz */
+.sw .sw-cap { position: relative; border-radius: 10px; overflow: hidden; background: var(--sw-ui); border: 1px solid var(--sw-ui-borde); }
+.sw .sw-cap > img { display: block; width: 100%; height: auto; }
+/* llamada: anillo sobre la captura (lo anima la visualización) */
+.sw .sw-anillo { position: absolute; border-radius: 50%; border: 4px solid var(--sw-anillo); box-shadow: 0 0 0 4px rgba(0, 0, 0, .28), 0 0 18px rgba(255, 210, 63, .55); pointer-events: none; }
+.sw .sw-anillo::after { content: ''; position: absolute; inset: -10px; border-radius: 50%; border: 2px solid var(--sw-anillo); opacity: .55; }
+
+/* =====================================================================
+   21 · evaluacion
+   Fila A (y 0–92): la variable independiente (pasos 0–1) / la regla conjuntiva (paso 2).
+   Fila B (y 104–446): lo que se mide de la dependiente (pasos 0–1) / los 15 criterios (paso 2).
+   Fila C (y 460–772): los cuatro casos (desde el paso 1).
+   ===================================================================== */
+#evaluacion .sw21-vi,
+#evaluacion .sw21-regla { position: absolute; left: 0; right: 0; top: 0; height: 92px; }
+#evaluacion .sw21-vi {
+  display: flex; align-items: center; justify-content: space-between; gap: 24px;
+  padding: 0 26px; border-radius: 14px; border: 2px solid var(--h-vi); background: var(--h-vi-suave);
+}
+#evaluacion .sw21-tag { font-size: 22px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; line-height: 1.1; }
+#evaluacion .sw21-vi .sw21-tag { color: var(--h-vi); white-space: nowrap; }
+#evaluacion .sw21-vi .nom { display: block; margin-top: 4px; font-size: 30px; font-weight: 750; letter-spacing: 0; text-transform: none; color: var(--texto); }
+:root[data-estilo="ppt"] #evaluacion .sw21-vi .nom { color: var(--navy); }
+#evaluacion .sw21-niveles { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+#evaluacion .sw21-pills { display: flex; align-items: center; gap: 16px; }
+#evaluacion .sw21-nivel { display: inline-flex; align-items: center; gap: 12px; font-size: 28px; font-weight: 750; color: var(--texto); white-space: nowrap; }
+#evaluacion .sw21-nivel svg { width: 52px; height: 40px; flex: 0 0 auto; }
+#evaluacion .sw21-o { font-size: 26px; font-style: italic; font-weight: 650; color: var(--texto-3); }
+#evaluacion .sw21-nota { font-size: 23px; font-style: italic; color: var(--h-vi); font-weight: 650; white-space: nowrap; }
+
+/* regla conjuntiva (paso 2): el mismo dibujo de pastillas que en la lámina del contraste */
+#evaluacion .sw21-regla { display: flex; flex-direction: column; justify-content: center; gap: 8px; }
+#evaluacion .sw21-ecu { display: flex; align-items: center; gap: 14px; flex-wrap: nowrap; }
+#evaluacion .sw21-ecu .sw21-tag { color: var(--texto-3); margin-right: 8px; }
+#evaluacion .sw21-term {
+  display: inline-flex; align-items: center; padding: 6px 18px; border-radius: 999px;
+  border: 2px solid var(--h-ok); background: var(--h-ok-suave); color: var(--h-ok);
+  font-size: 26px; font-weight: 750; white-space: nowrap;
+}
+#evaluacion .sw21-term.prem { border-color: var(--h-int); background: var(--h-int-suave); color: var(--h-int); }
+#evaluacion .sw21-term.efe { border-color: var(--h-vd); background: var(--h-vd-suave); color: var(--h-vd); }
+#evaluacion .sw21-op { font-size: 30px; font-weight: 800; color: var(--texto-2); }
+#evaluacion .sw21-term.fin { font-size: 28px; padding: 6px 22px; }
+#evaluacion .sw21-otras { font-size: 24px; color: var(--texto-2); }
+#evaluacion .sw21-otras b { color: var(--texto); font-weight: 700; }
+
+/* fila B, pasos 0–1: las dos dimensiones de la variable dependiente */
+#evaluacion .sw21-vd { position: absolute; left: 0; right: 0; top: 104px; height: 342px; }
+#evaluacion .sw21-vd > .sw21-tag { position: absolute; left: 0; top: 0; color: var(--h-vd); }
+#evaluacion .sw21-vd > .sw21-tag span { color: var(--texto-2); font-weight: 650; letter-spacing: 0; text-transform: none; font-size: 25px; margin-left: 10px; }
+#evaluacion .sw21-dims { position: absolute; left: 0; right: 0; top: 40px; bottom: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+#evaluacion .sw21-dim {
+  position: relative; border-radius: 14px; border: 2px solid var(--h-vd); background: var(--h-vd-suave);
+  padding: 16px 24px 0;
+}
+#evaluacion .sw21-dim h3 { margin: 0; font-size: 34px; line-height: 1.1; color: var(--h-vd); font-weight: 800; }
+#evaluacion .sw21-dim h3 span { font-size: 27px; font-weight: 650; color: var(--texto); margin-left: 6px; }
+#evaluacion .sw21-dibujo { position: absolute; left: 20px; right: 20px; top: 66px; height: 158px; }
+#evaluacion .sw21-dibujo svg { width: 100%; height: 100%; }
+#evaluacion .sw21-pie { position: absolute; left: 24px; right: 20px; bottom: 16px; font-size: 26px; line-height: 1.25; color: var(--texto); }
+#evaluacion .sw21-pie b { color: var(--h-vd); }
+
+/* fila B, paso 2: los 15 criterios con umbral (Tabla 2.4) */
+#evaluacion .sw21-crit { position: absolute; left: 0; right: 0; top: 104px; height: 342px; }
+#evaluacion .sw21-ccab { position: absolute; left: 0; right: 0; height: 30px; display: flex; align-items: baseline; gap: 14px; white-space: nowrap; }
+#evaluacion .sw21-ccab b { font-size: 26px; font-weight: 800; color: var(--h-vd); }
+#evaluacion .sw21-ccab span { font-size: 24px; color: var(--texto-2); }
+#evaluacion .sw21-ccab.a { top: 0; }
+#evaluacion .sw21-ccab.b { top: 118px; }
+#evaluacion .sw21-fa { position: absolute; left: 0; right: 0; top: 36px; height: 70px; display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
+#evaluacion .sw21-ca {
+  display: flex; flex-direction: column; justify-content: center; padding: 4px 14px; border-radius: 12px;
+  border: 2px solid var(--h-vd); background: var(--superficie);
+}
+#evaluacion .sw21-ca b { font-size: 29px; line-height: 1.05; font-weight: 800; color: var(--h-vd); }
+#evaluacion .sw21-ca span { font-size: 22px; line-height: 1.15; color: var(--texto-2); white-space: nowrap; }
+#evaluacion .sw21-fb { position: absolute; left: 0; right: 0; top: 154px; bottom: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px; }
+#evaluacion .sw21-colb { display: flex; flex-direction: column; justify-content: flex-end; gap: 6px; }
+#evaluacion .sw21-cb {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 42px; padding: 0 10px 0 14px;
+  border-radius: 10px; border: 2px solid var(--h-vd); background: var(--superficie); white-space: nowrap;
+}
+#evaluacion .sw21-cb span { font-size: 23px; color: var(--texto); }
+#evaluacion .sw21-cb b { font-size: 23px; font-weight: 800; color: var(--h-vd); }
+:root:not([data-estilo="ppt"]) #evaluacion .sw21-cb span,
+:root:not([data-estilo="ppt"]) #evaluacion .sw21-cb b { font-size: 22px; }
+
+/* fila C: los cuatro casos */
+#evaluacion .sw21-casos { position: absolute; left: 0; right: 0; top: 460px; bottom: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px; }
+#evaluacion .sw21-caso { position: relative; border-radius: 14px; border: 1px solid var(--linea-2); background: var(--superficie-2); overflow: hidden; }
+#evaluacion .sw21-caso.guia { border: 2px dashed var(--linea-2); }
+#evaluacion .sw21-img { height: 168px; background: var(--lienzo); border-bottom: 1px solid var(--linea); }
+#evaluacion .sw21-ct { padding: 10px 16px 0; }
+#evaluacion .sw21-ct b { display: block; font-size: 29px; line-height: 1.1; color: var(--texto); }
+#evaluacion .sw21-ct .ref { display: block; margin-top: 6px; font-size: 24px; line-height: 1.2; color: var(--h-vd); font-weight: 700; }
+#evaluacion .sw21-ct .det { display: block; margin-top: 4px; font-size: 22px; line-height: 1.2; color: var(--texto-3); }
+#evaluacion .sw21-insignia {
+  position: absolute; left: 10px; top: 10px; padding: 4px 12px; border-radius: 8px;
+  font-size: 22px; font-weight: 750; color: var(--texto); background: var(--superficie); border: 1px solid var(--linea-2);
+}
+:root[data-estilo="ppt"] #evaluacion .sw21-ct b { color: var(--navy); }
+/* versión 1: Inter es más ancha que Calibri; el nombre del caso cabe en una línea */
+:root:not([data-estilo="ppt"]) #evaluacion .sw21-ct b { font-size: 26px; letter-spacing: -0.01em; }
+
+/* =====================================================================
+   22 · software
+   Ruta (y 0–60) y una escena por paso (y 80–772).
+   ===================================================================== */
+#software .sw22-ruta { position: absolute; left: 0; right: 0; top: 0; height: 58px; display: flex; align-items: center; gap: 16px; }
+#software .sw22-r {
+  display: inline-flex; align-items: center; gap: 14px; height: 58px; padding: 0 24px 0 10px; border-radius: 999px;
+  border: 2px solid var(--linea-2); background: var(--superficie-2); color: var(--texto-3);
+  font-size: 28px; font-weight: 750; white-space: nowrap;
+}
+#software .sw22-r b {
+  display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%;
+  background: var(--superficie-3); color: var(--texto-3); font-size: 24px; font-weight: 850;
+}
+#software .sw22-r.actual { border-color: var(--h-int); background: var(--h-int-suave); color: var(--h-int); }
+#software .sw22-r.actual b { background: var(--h-int); color: var(--fondo); }
+#software .sw22-r.hecho { color: var(--texto-2); }
+#software .sw22-r.hecho b { background: var(--texto-3); color: var(--fondo); }
+#software .sw22-fl { font-size: 30px; font-weight: 800; color: var(--texto-3); font-style: normal; }
+#software .sw22-esc { position: absolute; left: 0; right: 0; top: 80px; bottom: 0; }
+
+/* escena 0: las tres fases sobre el mismo lienzo */
+#software .sw22-fases { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+#software .sw22-fase { position: relative; }
+#software .sw22-fcab { display: flex; align-items: center; gap: 12px; font-size: 32px; font-weight: 800; color: var(--texto); line-height: 1; }
+:root[data-estilo="ppt"] #software .sw22-fcab { color: var(--navy); }
+#software .sw22-fcab b {
+  display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px;
+  background: var(--h-int); color: var(--fondo); font-size: 24px; font-weight: 850;
+}
+#software .sw22-fsub { margin-top: 8px; height: 32px; font-size: 26px; line-height: 1.2; color: var(--texto-2); white-space: nowrap; }
+#software .sw22-fase .sw-cap { margin-top: 10px; }
+#software .sw22-pop { position: absolute; left: 0; right: 0; top: 476px; display: flex; gap: 12px; align-items: flex-start; }
+#software .sw22-pop .sw-cap { margin-top: 0; flex: 0 0 auto; box-shadow: var(--sombra-s); }
+#software .sw22-pop p { margin: 0; font-size: 24px; line-height: 1.25; color: var(--texto); }
+#software .sw22-pop p b { color: var(--h-int); }
+#software .sw22-sano {
+  display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 8px;
+  background: var(--sw-ui); color: var(--sw-sano); font-size: 24px; font-weight: 750; border: 1px solid var(--sw-ui-borde);
+}
+#software .sw22-unir { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+
+/* escena 1: los ocho módulos */
+#software .sw22-modulos .sw22-mlin { font-size: 27px; line-height: 1.25; color: var(--texto-2); }
+#software .sw22-modulos .sw22-mlin b { color: var(--texto); }
+#software .sw22-gal { position: absolute; left: 0; right: 0; top: 84px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 30px 22px; }
+#software .sw22-mod .sw-cap { border-radius: 10px; }
+#software .sw22-mod .sw22-mc { margin-top: 8px; font-size: 25px; line-height: 1.15; color: var(--texto); white-space: nowrap; }
+#software .sw22-mod .sw22-mc b { color: var(--h-int); font-weight: 850; margin-right: 6px; }
+#software .sw22-mnota {
+  position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 16px;
+  padding: 12px 24px; border-radius: 0 12px 12px 0; border-left: 8px solid var(--h-int); background: var(--superficie-3);
+  font-size: 25px; line-height: 1.25; color: var(--texto);
+}
+
+/* escena 2: la memoria de cálculo */
+#software .sw22-abanico { position: absolute; left: 0; top: 0; width: 960px; bottom: 0; }
+#software .sw22-hoja {
+  position: absolute; left: 0; top: 0; width: 300px; height: 424px; background: var(--sw-papel); border-radius: 4px; overflow: hidden;
+  box-shadow: var(--sw-sombra-hoja); transform-origin: 50% 100%;
+}
+#software .sw22-hoja img { display: block; width: 100%; height: 100%; }
+#software .sw22-mtexto { position: absolute; left: 1000px; right: 0; top: 30px; }
+:root[data-estilo="ppt"] #software .sw22-mtexto { left: 1010px; }
+#software .sw22-mtexto .gran { font-size: 38px; line-height: 1.22; font-weight: 750; color: var(--texto); }
+:root:not([data-estilo="ppt"]) #software .sw22-mtexto .gran { font-size: 35px; }
+:root:not([data-estilo="ppt"]) #software .sw22-mtexto .med { font-size: 30px; }
+:root[data-estilo="ppt"] #software .sw22-mtexto .gran { color: var(--navy); }
+#software .sw22-mtexto .gran b { color: var(--h-int); }
+#software .sw22-mtexto .med { margin-top: 22px; font-size: 32px; line-height: 1.3; color: var(--texto-2); }
+#software .sw22-mtexto .pie { margin-top: 18px; font-size: 24px; line-height: 1.3; color: var(--texto-3); }
+#software .sw22-franja { position: absolute; left: 1000px; right: 0; bottom: 6px; display: flex; flex-direction: column; gap: 12px; }
+:root[data-estilo="ppt"] #software .sw22-franja { left: 1010px; }
+#software .sw22-franja span {
+  display: flex; align-items: center; gap: 14px; padding: 10px 20px; border-radius: 12px;
+  background: var(--h-int-suave); border: 2px solid var(--h-int); color: var(--texto); font-size: 28px; font-weight: 700;
+}
+#software .sw22-franja span i { font-style: normal; font-weight: 900; color: var(--h-int); }
+
+/* =====================================================================
+   23 · trazabilidad
+   Izquierda (x 0–640): el ejemplo guía (pasos 0–2) / las hojas del Anexo G (paso 3).
+   Derecha (x 680–): la escalera, del resultado (arriba) a los datos (abajo).
+   ===================================================================== */
+#trazabilidad .sw23-izq { position: absolute; left: 0; top: 0; width: 640px; height: 772px; }
+#trazabilidad .sw23-lienzo { position: absolute; left: 0; top: 0; width: 640px; height: 590px; border-radius: 14px; overflow: hidden; border: 1px solid var(--linea-2); background: var(--lienzo); }
+#trazabilidad .sw23-ley { position: absolute; left: 0; top: 604px; width: 640px; font-size: 25px; line-height: 1.3; color: var(--texto-2); }
+#trazabilidad .sw23-ley b { color: var(--texto); }
+#trazabilidad .sw23-hojas { position: absolute; left: 0; top: 0; width: 640px; height: 772px; }
+#trazabilidad .sw23-hoja {
+  position: absolute; left: 0; top: 0; width: 418px; height: 591px; background: var(--sw-papel); border-radius: 4px; overflow: hidden;
+  box-shadow: var(--sw-sombra-hoja); transform-origin: 50% 50%;
+}
+#trazabilidad .sw23-hoja img { display: block; width: 100%; height: 100%; }
+#trazabilidad .sw23-marca { position: absolute; border: 3px solid var(--h-vd); border-radius: 4px; background: var(--sw-marca); box-shadow: 0 0 0 4px var(--sw-marca); }
+#trazabilidad .sw23-hpie { position: absolute; left: 0; width: 640px; top: 690px; font-size: 25px; line-height: 1.3; color: var(--texto-2); z-index: 20; }
+#trazabilidad .sw23-hpie b { color: var(--h-vd); }
+
+#trazabilidad .sw23-esc { position: absolute; left: 680px; right: 0; top: 0; height: 772px; display: flex; flex-direction: column; gap: 5px; }
+:root[data-estilo="ppt"] #trazabilidad .sw23-esc { height: 790px; }
+#trazabilidad .sw23-f {
+  position: relative; flex: 0 0 auto; height: 57px; display: grid; grid-template-columns: 92px 196px 1fr auto; align-items: center; gap: 14px;
+  padding: 0 14px 0 8px; border-radius: 12px; border: 1px solid var(--linea); background: var(--superficie-2);
+  color: var(--texto-3);
+}
+#trazabilidad .sw23-f .n {
+  display: flex; align-items: baseline; justify-content: center; gap: 8px; height: 42px; padding-top: 4px; border-radius: 10px;
+  background: var(--superficie-3); color: var(--texto-3); font-size: 24px; font-weight: 850;
+}
+#trazabilidad .sw23-f .n i { font-family: 'KaTeX_Math', 'Times New Roman', serif; font-style: italic; font-weight: 700; font-size: 27px; }
+#trazabilidad .sw23-f .nom { font-size: 25px; font-weight: 750; line-height: 1.1; }
+#trazabilidad .sw23-f .val { font-size: 25px; line-height: 1.15; color: var(--texto); white-space: nowrap; }
+#trazabilidad .sw23-f .val .de { color: var(--texto-3); font-size: 23px; margin-left: 6px; }
+#trazabilidad .sw23-f .pag {
+  justify-self: end; padding: 4px 12px; border-radius: 8px; font-size: 22px; font-weight: 750; white-space: nowrap;
+  color: var(--h-vd); background: var(--h-vd-suave); border: 1px solid var(--h-vd);
+}
+#trazabilidad .sw23-f.on { border-color: var(--h-vd); background: var(--superficie); color: var(--texto); }
+#trazabilidad .sw23-f.on .n { background: var(--h-vd); color: var(--fondo); }
+#trazabilidad .sw23-f.foco { box-shadow: 0 0 0 4px var(--h-vd-suave); }
+#trazabilidad .sw23-f.res { height: 92px; border: 2px solid var(--h-int); background: var(--h-int-suave); color: var(--texto); }
+#trazabilidad .sw23-f.res .n { background: var(--h-int); color: var(--fondo); }
+#trazabilidad .sw23-f.res .val { font-size: 30px; }
+#trazabilidad .sw23-f.res .val .grande { font-size: 50px; font-weight: 850; color: var(--h-int); margin-left: 10px; letter-spacing: -0.01em; }
+#trazabilidad .sw23-f.datos { height: 74px; }
+#trazabilidad .sw23-f.datos.on { border: 2px solid var(--h-vi); background: var(--h-vi-suave); }
+#trazabilidad .sw23-f.datos.on .n { background: var(--h-vi); }
+#trazabilidad .sw23-f.datos .val { white-space: normal; font-size: 24px; line-height: 1.2; }
+#trazabilidad .sw23-flecha { position: absolute; left: 646px; top: 0; width: 28px; height: 772px; pointer-events: none; overflow: visible; }
+:root[data-estilo="ppt"] #trazabilidad .sw23-flecha { height: 790px; }
+
+/* =====================================================================
+   24 · demo
+   Izquierda (x 0–620): los cinco pasos de la demostración.
+   Derecha (x 660–): el recorrido de respaldo, con capturas reales.
+   ===================================================================== */
+#demo .sw24-pasos { position: absolute; left: 0; top: 44px; width: 680px; height: 728px; display: flex; flex-direction: column; gap: 14px; }
+#demo .sw24-p {
+  position: relative; display: grid; grid-template-columns: 50px 64px 1fr; align-items: center; gap: 14px; min-height: 106px;
+  padding: 8px 16px 8px 14px; border-radius: 14px; border: 1px solid var(--linea); background: var(--superficie-2);
+}
+#demo .sw24-p .k {
+  display: grid; place-items: center; width: 46px; height: 46px; border-radius: 12px;
+  background: var(--h-int-suave); color: var(--h-int); font-size: 26px; font-weight: 850;
+}
+#demo .sw24-p .ico { width: 64px; height: 64px; }
+#demo .sw24-p .ico svg { width: 64px; height: 64px; }
+#demo .sw24-p b { display: block; font-size: 30px; line-height: 1.12; color: var(--texto); }
+:root[data-estilo="ppt"] #demo .sw24-p b { color: var(--navy); }
+#demo .sw24-p span { display: block; margin-top: 4px; font-size: 23px; line-height: 1.2; color: var(--texto-3); }
+/* versión 1: Inter es más ancha; cada paso del guion cabe en dos líneas */
+:root:not([data-estilo="ppt"]) #demo .sw24-p b { font-size: 27px; }
+:root:not([data-estilo="ppt"]) #demo .sw24-p span { font-size: 22px; }
+#demo .sw24-p.foco { border: 2px solid var(--h-int); background: var(--h-int-suave); }
+#demo .sw24-p.foco .k { background: var(--h-int); color: var(--fondo); }
+#demo .sw24-botones { position: absolute; left: 0; bottom: 0; width: 680px; display: flex; flex-wrap: wrap; gap: 10px; }
+#demo .sw24-botones .boton { font-size: 22px; padding: 10px 16px; }
+
+#demo .sw24-der { position: absolute; left: 720px; right: 0; top: 0; height: 772px; }
+#demo .sw24-tit { height: 40px; font-size: 26px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--texto-3); }
+#demo .sw24-tit b { color: var(--h-int); }
+#demo .sw24-marco { position: absolute; left: 0; right: 0; top: 44px; height: 530px; border-radius: 12px; overflow: hidden; background: var(--sw-ui); border: 1px solid var(--sw-ui-borde); }
+#demo .sw24-cuadro { position: absolute; inset: 0; opacity: 0; }
+#demo .sw24-cuadro img { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+#demo .sw24-rot {
+  position: absolute; z-index: 5; left: 18px; bottom: 18px; max-width: 900px; padding: 8px 18px; border-radius: 10px;
+  background: var(--sw-rot-fondo); color: var(--sw-rot-texto); font-size: 26px; font-weight: 700; line-height: 1.2;
+}
+#demo .sw24-tira { position: absolute; left: 0; right: 0; top: 592px; height: 180px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+#demo .sw24-mini { position: relative; border-radius: 10px; border: 2px solid var(--linea-2); background: var(--superficie-2); overflow: hidden; }
+#demo .sw24-mini .im { height: 118px; overflow: hidden; background: var(--sw-ui); }
+#demo .sw24-mini .im img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 30% 40%; }
+#demo .sw24-mini span { display: block; padding: 8px 12px 0; font-size: 22px; line-height: 1.15; font-weight: 700; color: var(--texto-2); }
+#demo .sw24-mini.foco { border-color: var(--h-int); box-shadow: 0 0 0 4px var(--h-int-suave); }
+#demo .sw24-mini.foco span { color: var(--h-int); }

@@ -1,0 +1,219 @@
+/* =====================================================================
+   l4_hipotesis.css — láminas del grupo «hipotesis» (final4):
+     07 · hipotesis  enunciado → cuatro partes → Figura 2.1 → PI-1 y PI-2
+     42 · contraste  Figura CR.1 y Tabla 3.11, parte por parte, hasta el sello
+   Todo va dentro de #hipotesis o #contraste. Colores: tokens de l4_comun.css
+   (--h-vi azul, --h-vd violeta, --h-int naranja, --h-ok verde, --h-mal rojo),
+   los mismos en las dos láminas, para que cada parte se reconozca cuando vuelve.
+   Sin transiciones ni animaciones CSS: todo lo que se mueve lo anima
+   viz/l4_hipotesis.js con EF.tween.
+   ===================================================================== */
+
+/* ====================================================================
+   07 · Hipótesis
+   ==================================================================== */
+#hipotesis .h7 { position: absolute; left: 100px; right: 100px; top: 226px; bottom: 92px; }
+:root[data-estilo="ppt"] #hipotesis .h7 { left: 89px; right: 89px; top: 202px; bottom: 82px; }
+
+/* paso 0: el enunciado, entero */
+#hipotesis .h7-enun {
+  position: absolute; left: 0; right: 0; top: 226px; margin: 0;
+  padding: 36px 44px 40px 108px; border-radius: 18px;
+  background: var(--superficie-2); border: 1px solid var(--linea);
+  font-size: 44px; line-height: 1.5; font-weight: 500; color: var(--texto);
+}
+#hipotesis .h7-comilla {
+  position: absolute; left: 26px; top: 18px; width: 56px; height: 56px; border-radius: 14px;
+  display: grid; place-items: center; background: var(--acento); color: var(--fondo);
+  font: 800 52px/1 var(--fuente);
+}
+#hipotesis .h7-tit-enun {
+  position: absolute; left: 0; top: 176px; font: 800 24px/1 var(--fuente);
+  letter-spacing: .12em; text-transform: uppercase; color: var(--texto-3);
+}
+
+/* paso 1: las cuatro partes, una por fila */
+#hipotesis .h7-partes { position: absolute; left: 0; right: 0; top: 116px; }
+#hipotesis .h7-filas { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 30px; }
+#hipotesis .h7-fila { display: grid; grid-template-columns: 318px 1fr; gap: 34px; align-items: start; }
+#hipotesis .h7-rot {
+  display: flex; flex-direction: column; gap: 3px;
+  padding: 10px 18px 12px 18px; border-radius: 14px; border: 3px solid currentColor;
+}
+#hipotesis .h7-rot b { font-size: 32px; font-weight: 800; line-height: 1.08; }
+#hipotesis .h7-rot span { font-size: 23px; font-weight: 650; line-height: 1.15; }
+#hipotesis .h7-rot.h-int { background: var(--h-int-suave); }
+#hipotesis .h7-rot.h-vd { background: var(--h-vd-suave); }
+#hipotesis .h7-rot.h-vi { background: var(--h-vi-suave); }
+#hipotesis .h7-txt { font-size: 40px; line-height: 1.5; font-weight: 500; color: var(--texto); padding-top: 2px; }
+/* el «subrayado» de cada parte: resaltado suave con una raya de su color */
+#hipotesis .h7-frag {
+  padding: 0 5px; border-radius: 7px; border-bottom: 5px solid transparent;
+  -webkit-box-decoration-break: clone; box-decoration-break: clone;
+}
+#hipotesis .h7-frag.p-int { background: var(--h-int-suave); border-bottom-color: var(--h-int); }
+#hipotesis .h7-frag.p-vd { background: var(--h-vd-suave); border-bottom-color: var(--h-vd); }
+#hipotesis .h7-frag.p-vi { background: var(--h-vi-suave); border-bottom-color: var(--h-vi); }
+#hipotesis .h7-glosa { text-decoration: underline dotted 3px; text-underline-offset: 7px; }
+#hipotesis .h7-nota { margin-top: 10px; font-size: 27px; line-height: 1.3; color: var(--texto-3); }
+#hipotesis .h7-nota b { color: var(--h-vi); font-weight: 700; }
+/* las dos cláusulas del efecto */
+#hipotesis .h7-letra {
+  display: inline-grid; place-items: center; width: 42px; height: 42px; margin: 0 3px; border-radius: 50%;
+  vertical-align: 4px; background: var(--h-vd); color: var(--fondo); font: 800 26px/1 var(--fuente);
+}
+/* barras del subrayado mientras se dibujan (las quita la animación al terminar) */
+#hipotesis .h7-barra {
+  position: absolute; z-index: 0; border-radius: 7px; border-bottom: 5px solid transparent; box-sizing: border-box;
+}
+#hipotesis .h7-barra.p-int { background: var(--h-int-suave); border-bottom-color: var(--h-int); }
+#hipotesis .h7-barra.p-vd { background: var(--h-vd-suave); border-bottom-color: var(--h-vd); }
+#hipotesis .h7-barra.p-vi { background: var(--h-vi-suave); border-bottom-color: var(--h-vi); }
+/* palabras en vuelo del enunciado a sus filas */
+#hipotesis .h7-vuelo { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
+#hipotesis .h7-clon { position: absolute; white-space: nowrap; font-weight: 500; color: var(--texto); }
+
+/* paso 2: Figura 2.1 */
+#hipotesis .h7-fig { position: absolute; left: 0; right: 0; top: 4px; height: 716px; }
+#hipotesis .h7-fig svg { position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: visible; }
+
+/* paso 3: las preguntas cuelgan de las cláusulas (a) y (b) */
+#hipotesis .h7-efe3 { position: absolute; left: 0; right: 0; top: 34px; }
+#hipotesis .h7-efe3 .h7-txt { font-size: 37px; white-space: nowrap; padding-top: 10px; }
+#hipotesis .h7-pis { position: absolute; left: 0; right: 0; top: 262px; display: grid; grid-template-columns: 1.12fr 0.88fr; gap: 50px; align-items: stretch; }
+#hipotesis .h7-pi {
+  position: relative; padding: 22px 30px 26px; border-radius: 18px;
+  background: var(--superficie-2); border: 2px solid var(--h-vd);
+}
+#hipotesis .h7-pi .cab { display: flex; align-items: center; gap: 14px; font: 800 29px/1.1 var(--fuente); color: var(--h-vd); }
+#hipotesis .h7-pi .cab .h7-letra { margin: 0; vertical-align: 0; }
+#hipotesis .h7-pi p { margin: 14px 0 0; font-size: 32px; line-height: 1.34; color: var(--texto); }
+#hipotesis .h7-conect { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+#hipotesis .h7-conect svg { position: absolute; left: 0; top: 0; overflow: visible; }
+
+/* ====================================================================
+   42 · Contraste: la hipótesis, parte por parte
+   ==================================================================== */
+#contraste .c42 { position: absolute; left: 100px; right: 100px; top: 220px; bottom: 86px; }
+:root[data-estilo="ppt"] #contraste .c42 { left: 89px; right: 89px; top: 198px; bottom: 80px; }
+
+#contraste .c42-cab,
+#contraste .c42-fila { display: grid; grid-template-columns: 352px 1fr 232px; column-gap: 24px; }
+#contraste .c42-cab {
+  padding: 0 0 9px; border-bottom: 2px solid var(--linea-2);
+  font: 800 22px/1.1 var(--fuente); letter-spacing: .1em; text-transform: uppercase; color: var(--texto-3);
+}
+#contraste .c42-cab .ley { margin-left: 12px; letter-spacing: 0; text-transform: none; font-weight: 650; }
+#contraste .c42-cab .ley i { display: inline-block; width: 18px; height: 18px; margin: 0 6px -2px 0; border-radius: 4px; background: var(--texto); }
+:root[data-estilo="ppt"] #contraste .c42-cab .ley i { background: var(--navy); }
+#contraste .c42-cab .ley b { color: var(--h-int); font-weight: 800; }
+#contraste .c42-fila { align-items: center; padding: 3px 0; border-bottom: 1px solid var(--linea); }
+
+/* columna 1: la parte, con el color de su variable (como en la lámina 07 y la Figura CR.1) */
+#contraste .c42-parte { display: block; padding: 8px 16px 10px; border-radius: 12px; border: 2px solid currentColor; }
+#contraste .c42-parte.p-int { color: var(--h-int); background: var(--h-int-suave); }
+#contraste .c42-parte.p-vd { color: var(--h-vd); background: var(--h-vd-suave); }
+#contraste .c42-parte.p-vi { color: var(--h-vi); background: var(--h-vi-suave); }
+#contraste .c42-rol { font-size: 22px; line-height: 1.2; font-weight: 650; white-space: nowrap; }
+#contraste .c42-rol b { font-size: 28px; font-weight: 800; }
+#contraste .c42-parte > span { display: block; margin-top: 2px; font-size: 24px; line-height: 1.22; font-weight: 500; color: var(--texto); }
+
+/* columna 2: la evidencia */
+#contraste .c42-evid { min-width: 0; font-size: 25px; line-height: 1.3; color: var(--texto); }
+#contraste .c42-enlace { color: inherit; text-decoration: none; cursor: pointer; border-radius: 8px; }
+/* en vivo, cada evidencia lleva a su lámina (para las preguntas del tribunal) */
+#contraste .c42-enlace:hover { outline: 2px solid var(--acento); outline-offset: 3px; }
+#contraste .c42-nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+#contraste .c42-num {
+  display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center;
+  padding: 7px 14px; border-radius: 12px; background: var(--superficie-2); border: 1px solid var(--linea);
+}
+#contraste .c42-num b { font: 800 40px/1 var(--fuente); color: var(--h-int); }
+#contraste .c42-num span { font-size: 24px; line-height: 1.2; }
+#contraste .c42-dos { display: grid; grid-template-columns: 262px 40px 1fr; column-gap: 12px; align-items: center; }
+#contraste .c42-antes {
+  display: grid; grid-template-columns: 22px 1fr; gap: 10px; align-items: start;
+  font-size: 24px; line-height: 1.24; color: var(--texto-2);
+}
+#contraste .c42-antes i { width: 22px; height: 22px; margin-top: 4px; border-radius: 5px; background: var(--texto); }
+:root[data-estilo="ppt"] #contraste .c42-antes i { background: var(--navy); }
+#contraste .c42-flecha { font: 800 36px/1 var(--fuente); color: var(--texto-3); text-align: center; }
+#contraste .c42-logro { font-size: 25px; line-height: 1.3; }
+#contraste .c42-logro b { color: var(--h-int); }
+#contraste .c42-lista { display: grid; gap: 6px 14px; }
+#contraste .c42-lista.l2 { grid-template-columns: 1fr 1fr; }
+#contraste .c42-lista.l3 { grid-template-columns: 1fr 1fr 1fr; }
+#contraste .c42-item {
+  display: grid; grid-template-columns: 30px 1fr; gap: 10px; align-items: center;
+  font-size: 24px; line-height: 1.15; color: var(--texto-2); white-space: nowrap;
+}
+#contraste .c42-caja {
+  width: 30px; height: 30px; border-radius: 8px; border: 2px solid var(--linea-2); background: var(--superficie);
+  display: grid; place-items: center; font: 900 20px/1 var(--fuente); color: var(--fondo);
+}
+#contraste .c42-item.hecho { color: var(--texto); font-weight: 650; }
+#contraste .c42-item.hecho .c42-caja { background: var(--h-ok); border-color: var(--h-ok); }
+#contraste .c42-item.hecho .c42-caja::after { content: "✓"; }
+#contraste .c42-cita { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+#contraste .c42-fuente { font-size: 24px; color: var(--texto-2); }
+#contraste .c42-q {
+  padding: 5px 14px; border-radius: 10px; background: var(--superficie-2); border: 1px dashed var(--linea-2);
+  font-size: 24px; line-height: 1.25; color: var(--texto-2);
+}
+#contraste .c42-q b { color: var(--texto); font-weight: 700; }
+
+/* columna 3: el veredicto */
+#contraste .c42-ver { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+#contraste .c42-ver .l4-sello { font-size: 25px; padding: 7px 18px; gap: 10px; }
+#contraste .c42-cuenta { font: 700 23px/1.1 var(--fuente); color: var(--h-ok); padding-left: 4px; white-space: nowrap; }
+#contraste .c42-cuenta b { font-size: 26px; }
+#contraste .c42-nivel { font: 700 22px/1.1 var(--fuente); color: var(--h-vd); padding-left: 4px; white-space: nowrap; }
+#contraste .c42-nivel b { font-weight: 850; }
+#contraste .c42-antes b { color: var(--h-vd); }
+
+/* paso 4: la regla conjuntiva y el sello */
+#contraste .c42-regla {
+  position: absolute; left: 0; right: 0; bottom: 36px; display: flex; align-items: center; justify-content: space-between; gap: 22px;
+}
+#contraste .c42-ecu { display: flex; flex-wrap: nowrap; align-items: center; gap: 10px; margin-top: 6px; }
+#contraste .c42-etq { font: 800 22px/1.1 var(--fuente); letter-spacing: .1em; text-transform: uppercase; color: var(--texto-3); }
+#contraste .c42-term {
+  display: inline-flex; align-items: center; gap: 8px; padding: 7px 16px; border-radius: 999px;
+  border: 2px solid var(--linea-2); background: var(--superficie); color: var(--texto-3);
+  font: 700 25px/1.1 var(--fuente);
+}
+#contraste .c42-term.encendido { color: var(--h-ok); border-color: var(--h-ok); background: var(--h-ok-suave); }
+#contraste .c42-term.encendido::before { content: "✓"; font-weight: 900; }
+#contraste .c42-op { font: 800 30px/1 var(--fuente); color: var(--texto-3); }
+#contraste .c42-op.fin { font-size: 40px; color: var(--h-ok); }
+#contraste .c42-sello-caja { position: relative; flex: 0 0 auto; }
+#contraste .c42-sello { font-size: 62px; padding: 14px 38px; white-space: nowrap; transform-origin: 84% 55%; }
+#contraste .c42-vuelo { position: absolute; inset: 0; z-index: 6; pointer-events: none; }
+#contraste .c42-volador { position: absolute; transform-origin: 50% 50%; }
+#contraste .c42-anillo {
+  position: absolute; inset: -6px; border-radius: 999px; border: 5px solid var(--h-ok); opacity: 0; pointer-events: none;
+}
+#contraste .c42-alcance {
+  position: absolute; left: 0; right: 0; bottom: 0; font-size: 24px; line-height: 1.2; color: var(--texto-2);
+}
+#contraste .c42-alcance b { color: var(--texto); }
+
+/* versión 1 (Inter, más ancha que Calibri): la misma tabla, un punto más compacta */
+:root:not([data-estilo="ppt"]) #contraste .c42 { top: 208px; }
+:root:not([data-estilo="ppt"]) #contraste .c42-cab,
+:root:not([data-estilo="ppt"]) #contraste .c42-fila { grid-template-columns: 374px 1fr 224px; column-gap: 20px; }
+:root:not([data-estilo="ppt"]) #contraste .c42-rol b { font-size: 25px; }
+:root:not([data-estilo="ppt"]) #contraste .c42-parte > span,
+:root:not([data-estilo="ppt"]) #contraste .c42-num span,
+:root:not([data-estilo="ppt"]) #contraste .c42-antes,
+:root:not([data-estilo="ppt"]) #contraste .c42-logro,
+:root:not([data-estilo="ppt"]) #contraste .c42-fuente,
+:root:not([data-estilo="ppt"]) #contraste .c42-q,
+:root:not([data-estilo="ppt"]) #contraste .c42-item,
+:root:not([data-estilo="ppt"]) #contraste .c42-alcance { font-size: 22px; }
+:root:not([data-estilo="ppt"]) #contraste .c42-num b { font-size: 36px; }
+:root:not([data-estilo="ppt"]) #contraste .c42-dos { grid-template-columns: 250px 34px 1fr; }
+:root:not([data-estilo="ppt"]) #contraste .c42-ver .l4-sello { font-size: 23px; padding: 6px 16px; }
+:root:not([data-estilo="ppt"]) #contraste .c42-cuenta { font-size: 22px; }
+:root:not([data-estilo="ppt"]) #contraste .c42-term { font-size: 23px; padding: 6px 14px; }
+:root:not([data-estilo="ppt"]) #contraste .c42-sello { font-size: 50px; padding: 12px 30px; }

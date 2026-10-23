@@ -1,0 +1,524 @@
+/* l4_resultados.css — láminas del grupo «resultados» (final4), Capítulo 3.
+   31 · mms          la verificación: la Figura 3.1 de la tesis, tal cual, con sus llamadas.
+   32 · timoshenko   la viga: el caso, la tensión normal en A, B y C, la flecha y el equilibrio.
+   33 · cook         la membrana: la Figura 3.4 de la tesis, el bloqueo del Q4 y el contraste externo.
+   34 · cobertura    la trazabilidad: el inventario sin huecos y los 18 contenidos de los expertos.
+   35 · leccion      lo que las tasas no vieron y la memoria delató.
+   Coordenadas en px de diseño. Contenedor de cada lámina: versión 1 (oscura) 1720 × 772 desde
+   y = 214; versión 2 (PowerPoint) 1742 × 796 desde y = 200. Colores siempre con variables. */
+
+/* ---------------------------------------------------------------- tokens del grupo */
+:root {
+  /* las figuras de la tesis se muestran sobre su propia hoja blanca, en los dos temas */
+  --r-papel: #ffffff;
+  --r-tinta: #212529;
+  --r-tinta-2: #5b6575;
+  --r-fq4: #0d6efd;          /* azul del Q4 en las figuras de la tesis */
+  --r-fq9: #fd7e14;          /* naranja del Q9 en las figuras de la tesis */
+  --r-fq4-tinta: #0a58ca;    /* rótulos sobre la hoja */
+  --r-fq9-tinta: #b4500a;
+  --r-anillo: #e8741a;
+  --r-malla-campo: rgba(0, 0, 0, 0.16);   /* líneas de malla sobre un campo de colores */
+  /* rótulos del Q4 y del Q9 fuera de la figura, sobre el fondo de la lámina */
+  --r-q4: #7fb2ff;
+  --r-q9: #ffab66;
+  --r-q4-suave: rgba(127, 178, 255, 0.14);
+  --r-q9-suave: rgba(255, 171, 102, 0.14);
+  /* fondo del video del software (Manim) */
+  --r-video: #212529;
+  --r-video-texto: #f1f3f5;
+}
+:root[data-tema="claro"],
+:root[data-estilo="ppt"] {
+  --r-q4: #0a58ca;
+  --r-q9: #b4500a;
+  --r-q4-suave: #e9f1ff;
+  --r-q9-suave: #fff1e6;
+}
+
+/* ---------------------------------------------------------------- piezas comunes */
+.r3 { position: absolute; left: 100px; right: 100px; top: 214px; bottom: 94px; }
+:root[data-estilo="ppt"] .r3 { left: 89px; right: 89px; top: 200px; bottom: 84px; }
+.r3-motor { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+/* figura de la tesis, tal cual: su hoja blanca, sin redibujar */
+.r3-fig {
+  position: absolute; border-radius: 12px; overflow: hidden; background: var(--r-papel);
+  border: 1px solid var(--linea-2); box-shadow: var(--sombra-s);
+}
+.r3-figdoc, .r3-figdoc .figdoc { position: absolute; inset: 0; }
+.r3-sobre { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.r3-fuente-fig {
+  position: absolute; right: 12px; top: 8px; padding: 2px 10px; border-radius: 8px;
+  font: 600 22px/1.2 var(--fuente); color: var(--r-tinta-2); background: var(--r-papel);
+}
+
+.r3-etq { font: 800 24px/1.15 var(--fuente); letter-spacing: .1em; text-transform: uppercase; color: var(--texto-3); }
+.r3-ico { display: inline-block; flex: 0 0 auto; width: 58px; height: 58px; }
+.r3-ico svg { display: block; width: 100%; height: 100%; overflow: visible; }
+
+.r3-remate {
+  position: absolute; left: 0; right: 0; display: flex; align-items: center; gap: 20px;
+  padding: 16px 28px; border-radius: 0 14px 14px 0; border-left: 8px solid var(--acento);
+  background: var(--acento-suave); font-size: 34px; font-weight: 650; line-height: 1.24; color: var(--texto);
+}
+:root[data-estilo="ppt"] .r3-remate { background: var(--superficie-3); color: var(--navy); font-weight: 700; }
+.r3-remate .ico { color: var(--acento); font-size: 34px; }
+.r3-remate b { color: var(--acento); }
+:root[data-estilo="ppt"] .r3-remate b { color: var(--acento-2); }
+
+/* ====================================================================
+   31 · mms
+   ==================================================================== */
+/* ---------- paso 0: la idea */
+#mms .r31-idea { position: absolute; inset: 0; }
+#mms .r31-preg { position: absolute; left: 0; top: 0; font-size: 42px; font-weight: 600; line-height: 1.2; color: var(--texto-2); }
+#mms .r31-preg b { color: var(--texto); font-weight: 750; }
+:root[data-estilo="ppt"] #mms .r31-preg b { color: var(--navy); }
+#mms .r31-panel {
+  position: absolute; top: 92px; height: 470px; padding: 22px 26px; border-radius: 16px;
+  background: var(--superficie-2); border: 1px solid var(--linea);
+}
+#mms .r31-p1 { left: 0; width: 548px; }
+#mms .r31-p2 { left: 616px; width: 662px; }
+#mms .r31-p3 { left: 1346px; right: 0; }
+#mms .r31-pt { display: flex; gap: 14px; align-items: flex-start; font-size: 31px; font-weight: 750; line-height: 1.15; color: var(--texto); min-height: 76px; }
+:root[data-estilo="ppt"] #mms .r31-pt { color: var(--navy); }
+#mms .r31-pt i {
+  flex: 0 0 auto; width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--acento); color: var(--fondo); font: 800 25px/1 var(--fuente); font-style: normal;
+}
+#mms .r31-fl { position: absolute; top: 290px; width: 64px; text-align: center; font: 800 54px/1 var(--fuente); color: var(--texto-3); }
+#mms .r31-fl.f1 { left: 550px; }
+#mms .r31-fl.f2 { left: 1280px; }
+#mms .r31-campos { display: flex; justify-content: space-between; gap: 10px; margin-top: 18px; }
+#mms .r31-campos figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+#mms .r31-campos canvas { width: 230px; height: 230px; border-radius: 8px; box-shadow: 0 0 0 1px var(--linea-2); }
+#mms .r31-campos figcaption { font-size: 24px; color: var(--texto); min-height: 40px; white-space: nowrap; }
+#mms .r31-mallas { display: flex; gap: 16px; margin-top: 30px; }
+#mms .r31-m { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+#mms .r31-m svg { width: 108px; height: 108px; display: block; overflow: visible; }
+#mms .r31-m span { font: 700 26px/1 var(--fuente); color: var(--texto-2); white-space: nowrap; }
+#mms .r31-h { margin-top: 34px; font-size: 29px; line-height: 1.3; color: var(--texto-2); }
+#mms .r31-h b { font-style: italic; color: var(--texto); }
+#mms .r31-err { margin-top: 44px; text-align: center; font-size: 48px; color: var(--texto); }
+#mms .r31-err .katex { font-size: 1em; }
+#mms .r31-err-tx { margin-top: 34px; font-size: 28px; line-height: 1.32; color: var(--texto-2); }
+#mms .r31-pred { top: 612px; }
+
+/* ---------- pasos 1 a 3: las dos figuras, la lectura y las tasas */
+#mms .r31-fig { top: 0; width: 849px; height: 606px; }
+#mms .r31-fa { left: 0; }
+#mms .r31-fb { left: 871px; }
+:root[data-estilo="ppt"] #mms .r31-fig { width: 860px; height: 614px; }
+:root[data-estilo="ppt"] #mms .r31-fb { left: 882px; }
+
+#mms .r31-lee { position: absolute; left: 871px; top: 0; width: 849px; height: 606px; padding: 34px 38px; display: flex; flex-direction: column; gap: 34px; }
+:root[data-estilo="ppt"] #mms .r31-lee { left: 882px; width: 860px; height: 614px; }
+#mms .r31-item { display: grid; grid-template-columns: 64px 1fr; column-gap: 24px; align-items: center; font-size: 32px; line-height: 1.28; color: var(--texto-2); }
+#mms .r31-item .r3-ico { width: 64px; height: 64px; }
+#mms .r31-item b { color: var(--texto); }
+:root[data-estilo="ppt"] #mms .r31-item b { color: var(--navy); }
+#mms .r31-mini { display: flex; align-items: flex-end; gap: 16px; margin: -14px 0 0 88px; }
+#mms .r31-mini .r31-m svg { width: 70px; height: 70px; }
+#mms .r31-mini .r31-m span { font-size: 23px; }
+#mms .r31-mini .r31-flecha { align-self: center; margin-left: 10px; font: 700 24px/1.2 var(--fuente); color: var(--texto-3); white-space: nowrap; }
+
+#mms .r31-chips { position: absolute; top: 620px; display: flex; gap: 16px; }
+#mms .r31-ca { left: 0; width: 849px; }
+#mms .r31-cb { left: 871px; width: 849px; }
+:root[data-estilo="ppt"] #mms .r31-chips { top: 630px; }
+:root[data-estilo="ppt"] #mms .r31-ca { width: 860px; }
+:root[data-estilo="ppt"] #mms .r31-cb { left: 882px; width: 860px; }
+#mms .r31-chip {
+  flex: 1 1 0; display: flex; align-items: baseline; gap: 14px; padding: 8px 20px; border-radius: 12px;
+  border: 2px solid currentColor; font-size: 28px; line-height: 1.2; white-space: nowrap;
+}
+#mms .r31-chip.q4 { color: var(--r-q4); background: var(--r-q4-suave); }
+#mms .r31-chip.q9 { color: var(--r-q9); background: var(--r-q9-suave); }
+#mms .r31-chip > b { font-size: 30px; font-weight: 800; }
+#mms .r31-chip .pend { color: var(--texto); }
+#mms .r31-chip .pend strong { font-size: 34px; font-weight: 800; }
+#mms .r31-chip .teo { margin-left: auto; font-size: 26px; color: var(--texto-2); }
+/* versión 1 (Inter, más ancha) */
+:root:not([data-estilo="ppt"]) #mms .r31-chip { gap: 10px; padding: 8px 16px; font-size: 25px; }
+:root:not([data-estilo="ppt"]) #mms .r31-chip > b { font-size: 27px; }
+:root:not([data-estilo="ppt"]) #mms .r31-chip .pend strong { font-size: 30px; }
+:root:not([data-estilo="ppt"]) #mms .r31-chip .teo { font-size: 23px; }
+:root:not([data-estilo="ppt"]) #mms .r31-conf-tx { font-size: 24px; }
+:root:not([data-estilo="ppt"]) #mms .r31-cierre .l4-sello { font-size: 27px; }
+:root:not([data-estilo="ppt"]) #mms .r31-item { font-size: 29px; }
+:root:not([data-estilo="ppt"]) #mms .r31-pt { font-size: 29px; }
+
+#mms .r31-cierre { position: absolute; left: 0; right: 0; top: 688px; height: 84px; display: flex; align-items: center; gap: 24px; }
+:root[data-estilo="ppt"] #mms .r31-cierre { top: 702px; height: 92px; }
+#mms .r31-conf {
+  flex: 1 1 auto; height: 100%; display: flex; align-items: center; gap: 14px; padding: 6px 22px; border-radius: 14px;
+  background: var(--h-ok-suave); border: 1px solid color-mix(in srgb, var(--h-ok) 40%, transparent);
+}
+#mms .r31-cfg { flex: 0 0 auto; width: 52px; height: 52px; }
+#mms .r31-cfg svg { display: block; width: 100%; height: 100%; overflow: visible; }
+#mms .r31-conf-tx { margin-left: 6px; font-size: 28px; line-height: 1.22; color: var(--texto-2); }
+#mms .r31-conf-tx b { color: var(--texto); }
+#mms .r31-conf-tx small { font-size: 22px; color: var(--texto-3); }
+#mms .r31-cierre .l4-sello { flex: 0 0 auto; font-size: 30px; white-space: nowrap; }
+
+/* ====================================================================
+   32 · timoshenko   (la viga arriba, de 280 px; abajo, desde y = 350: el caso, la tabla y la columna derecha)
+   ==================================================================== */
+#timoshenko .r32-viga {
+  position: absolute; left: 0; right: 0; top: 0; height: 280px; border-radius: 14px; overflow: hidden;
+  border: 1px solid var(--linea-2); background: var(--lienzo);
+}
+#timoshenko .r32-escala {
+  position: absolute; left: 0; right: 0; top: 290px; height: 36px; display: flex; align-items: center; gap: 14px;
+  font: 650 24px/1 var(--fuente); color: var(--texto-2);
+}
+#timoshenko .r32-escala .num { font-variant-numeric: tabular-nums; color: var(--texto); }
+#timoshenko .r32-barra { flex: 0 0 300px; height: 16px; border-radius: 8px; }
+#timoshenko .r32-malla { margin-left: auto; color: var(--texto-3); }
+
+/* paso 0: el caso y las dos referencias */
+#timoshenko .r32-caso { position: absolute; left: 0; right: 0; top: 352px; bottom: 0; }
+#timoshenko .r32-preg { position: absolute; left: 0; top: 0; font-size: 38px; font-weight: 600; line-height: 1.2; color: var(--texto-2); }
+#timoshenko .r32-preg b { color: var(--texto); font-weight: 750; }
+:root[data-estilo="ppt"] #timoshenko .r32-preg b { color: var(--navy); }
+#timoshenko .r32-carta { position: absolute; top: 74px; width: calc((100% - 48px) / 3); height: 250px; padding: 24px 28px; }
+#timoshenko .r32-carta:nth-of-type(2) { left: 0; }
+#timoshenko .r32-carta:nth-of-type(3) { left: calc((100% - 48px) / 3 + 24px); }
+#timoshenko .r32-carta:nth-of-type(4) { left: calc(2 * (100% - 48px) / 3 + 48px); }
+#timoshenko .r32-carta .r3-etq { margin-bottom: 14px; }
+#timoshenko .r32-carta.ref .r3-etq { color: var(--primario); }
+#timoshenko .r32-carta p { margin: 0 0 12px; font-size: 32px; line-height: 1.26; color: var(--texto); }
+#timoshenko .r32-carta p b { font-weight: 750; }
+:root[data-estilo="ppt"] #timoshenko .r32-carta p b { color: var(--navy); }
+#timoshenko .r32-carta p.r32-datos { font-size: 28px; color: var(--texto-2); }
+
+/* paso 1: la tensión normal en A, B y C */
+#timoshenko .r32-tabla { position: absolute; left: 0; top: 350px; width: 1066px; }
+#timoshenko .r32-tabla table.tabla { font-size: 30px; }
+#timoshenko .r32-tabla th { font-size: 23px; line-height: 1.15; padding: 8px 14px; vertical-align: bottom; }
+#timoshenko .r32-tabla td { padding: 8px 14px; }
+#timoshenko .r32-tabla td.r32-pct { font-weight: 750; color: var(--h-ok); width: 210px; }
+#timoshenko .r32-tabla td.r32-pct.max { color: var(--texto); }
+:root[data-estilo="ppt"] #timoshenko .r32-tabla td.r32-pct.max { color: var(--navy); }
+#timoshenko .r32-pista { position: relative; display: block; height: 14px; margin-top: 6px; border-radius: 7px; background: var(--superficie-3); box-shadow: inset 0 0 0 1px var(--linea-2); }
+#timoshenko .r32-pista > i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 7px; background: var(--h-ok); }
+#timoshenko .r32-p {
+  display: inline-grid; place-items: center; width: 46px; height: 46px; border-radius: 50%;
+  border: 3px solid var(--texto); font: 800 26px/1 var(--fuente); color: var(--texto); background: var(--superficie);
+}
+#timoshenko .r32-lect { display: flex; align-items: center; gap: 26px; margin-top: 18px; }
+#timoshenko .r32-lect .l4-sello { flex: 0 0 auto; font-size: 28px; padding: 8px 20px; white-space: nowrap; }
+#timoshenko .r32-pie { display: flex; align-items: center; gap: 12px; font-size: 24px; line-height: 1.25; color: var(--texto-3); }
+#timoshenko .r32-pista.muestra { flex: 0 0 84px; margin-top: 0; }
+#timoshenko .r32-pista.muestra > i { width: 22%; }
+
+/* paso 2: la flecha y el equilibrio */
+#timoshenko .r32-der { position: absolute; left: 1110px; right: 0; top: 350px; display: flex; flex-direction: column; gap: 14px; }
+#timoshenko .r32-bloque { padding: 12px 24px 16px; border-radius: 14px; background: var(--superficie-2); border: 1px solid var(--linea); }
+#timoshenko .r32-cab { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 2px; }
+#timoshenko .r32-cab .l4-sello { flex: 0 0 auto; font-size: 24px; padding: 4px 14px; gap: 8px; border-width: 2px; white-space: nowrap; }
+#timoshenko .r32-fl { display: grid; grid-template-columns: 1fr auto; column-gap: 14px; align-items: baseline; margin-top: 8px; }
+#timoshenko .r32-fl .et { font-size: 26px; line-height: 1.2; color: var(--texto-2); }
+#timoshenko .r32-fl .et b { color: var(--texto); }
+#timoshenko .r32-fl .v { font: 800 36px/1.1 var(--fuente); color: var(--texto-2); font-variant-numeric: tabular-nums; }
+#timoshenko .r32-fl .v.ok { color: var(--h-ok); }
+#timoshenko .r32-fl .r32-pista { grid-column: 1 / -1; height: 18px; margin-top: 6px; border-radius: 9px; }
+#timoshenko .r32-fl .r32-pista > i { border-radius: 9px; }
+#timoshenko .r32-fl.eb .r32-pista > i { background: var(--texto-3); }
+#timoshenko .r32-pista em { display: none; }
+#timoshenko .r32-pie2 { margin-top: 8px; font-size: 22px; color: var(--texto-3); }
+#timoshenko .r32-cifra { display: flex; align-items: baseline; gap: 16px; }
+#timoshenko .r32-cifra b { font: 800 42px/1.1 var(--fuente); color: var(--h-ok); font-variant-numeric: tabular-nums; }
+#timoshenko .r32-cifra span { font-size: 27px; line-height: 1.2; color: var(--texto-2); }
+#timoshenko .r32-eq { margin: 2px 0 2px; font-size: 31px; font-weight: 650; color: var(--texto); }
+:root[data-estilo="ppt"] #timoshenko .r32-eq { color: var(--navy); }
+
+/* versión 1: contenedor de 1720 × 772, letra Inter (más ancha) */
+:root:not([data-estilo="ppt"]) #timoshenko .r32-tabla { width: 1046px; }
+:root:not([data-estilo="ppt"]) #timoshenko .r32-der { left: 1080px; }
+:root:not([data-estilo="ppt"]) #timoshenko .r32-tabla table.tabla { font-size: 28px; }
+:root:not([data-estilo="ppt"]) #timoshenko .r32-tabla th { font-size: 22px; }
+:root:not([data-estilo="ppt"]) #timoshenko .r32-lect .l4-sello { font-size: 25px; }
+:root:not([data-estilo="ppt"]) #timoshenko .r32-pie { font-size: 22px; }
+:root:not([data-estilo="ppt"]) #timoshenko .r32-carta p { font-size: 29px; }
+:root:not([data-estilo="ppt"]) #timoshenko .r32-carta p.r32-datos { font-size: 26px; }
+:root:not([data-estilo="ppt"]) #timoshenko .r32-cab .r3-etq { font-size: 22px; letter-spacing: .06em; }
+:root:not([data-estilo="ppt"]) #timoshenko .r32-cab .l4-sello { font-size: 22px; }
+:root:not([data-estilo="ppt"]) #timoshenko .r32-fl .et { font-size: 23px; }
+:root:not([data-estilo="ppt"]) #timoshenko .r32-fl .v { font-size: 32px; }
+:root:not([data-estilo="ppt"]) #timoshenko .r32-cifra b { font-size: 36px; }
+:root:not([data-estilo="ppt"]) #timoshenko .r32-der { gap: 10px; }
+:root:not([data-estilo="ppt"]) #timoshenko .r32-bloque { padding: 10px 20px 12px; }
+:root:not([data-estilo="ppt"]) #timoshenko .r32-fl { margin-top: 4px; }
+:root:not([data-estilo="ppt"]) #timoshenko .r32-fl .r32-pista { height: 16px; margin-top: 4px; }
+:root:not([data-estilo="ppt"]) #timoshenko .r32-tabla td { padding: 6px 12px; }
+:root:not([data-estilo="ppt"]) #timoshenko .r32-cifra span { font-size: 23px; }
+:root:not([data-estilo="ppt"]) #timoshenko .r32-eq { font-size: 27px; }
+
+/* ====================================================================
+   33 · cook   (versión 1: columna izquierda 708, derecha 972; versión 2: 720 y 980)
+   ==================================================================== */
+#cook .r33-memb {
+  position: absolute; left: 0; top: 0; width: 708px; height: 630px; border-radius: 14px; overflow: hidden;
+  background: var(--lienzo); border: 1px solid var(--linea-2);
+}
+:root[data-estilo="ppt"] #cook .r33-memb { width: 720px; height: 640px; }
+#cook .r33-lienzo { position: absolute; inset: 0; }
+#cook .r33-info { position: absolute; right: 22px; bottom: 20px; text-align: right; line-height: 1.15; }
+#cook .r33-info-el { font: 800 36px/1.1 var(--fuente); }
+#cook .r33-info-gdl { margin-top: 4px; font: 650 26px/1.2 var(--fuente); color: var(--texto-2); }
+#cook .r33-info-uy { margin-top: 12px; font: 800 38px/1.1 var(--fuente); color: var(--texto); font-variant-numeric: tabular-nums; }
+#cook .r33-info-err { margin-top: 4px; font: 750 30px/1.1 var(--fuente); font-variant-numeric: tabular-nums; }
+#cook .r33-info.q4 .r33-info-el, #cook .r33-info.q4 .r33-info-err { color: var(--r-q4); }
+#cook .r33-info.q9 .r33-info-el, #cook .r33-info.q9 .r33-info-err { color: var(--r-q9); }
+
+#cook .r33-ficha {
+  position: absolute; left: 0; top: 644px; width: 708px; height: 128px; padding: 12px 22px; border-radius: 0 14px 14px 0;
+  background: var(--superficie-2); border: 1px solid var(--linea); border-left: 8px solid currentColor;
+}
+:root[data-estilo="ppt"] #cook .r33-ficha { top: 654px; width: 720px; height: 142px; padding: 14px 24px; }
+#cook .r33-ficha.q4 { color: var(--r-q4); }
+#cook .r33-ficha.q9 { color: var(--r-q9); }
+#cook .r33-ft { font-size: 30px; line-height: 1.22; color: var(--texto); }
+#cook .r33-ft b { color: currentColor; }
+#cook .r33-ficha.q4 .r33-ft b, #cook .r33-ficha.q4 .r33-fn b { color: var(--r-q4); }
+#cook .r33-ficha.q9 .r33-ft b, #cook .r33-ficha.q9 .r33-fx b { color: var(--r-q9); }
+#cook .r33-ft span { font-size: 25px; color: var(--texto-3); }
+#cook .r33-fn { display: flex; gap: 40px; margin-top: 10px; font-size: 28px; color: var(--texto-2); }
+#cook .r33-fn b { font-size: 38px; font-weight: 800; font-variant-numeric: tabular-nums; }
+#cook .r33-fn span { white-space: nowrap; }
+#cook .r33-fx { margin-top: 8px; font-size: 27px; line-height: 1.25; color: var(--texto-2); }
+
+#cook .r33-video { position: absolute; left: 0; top: 0; width: 708px; height: 444px; border-radius: 14px; overflow: hidden; background: var(--r-video); }
+:root[data-estilo="ppt"] #cook .r33-video { width: 720px; height: 480px; }
+#cook .r33-vid { position: absolute; inset: 0; }
+#cook .r33-vid video, #cook .r33-vid img { border-radius: 0 !important; }
+#cook .r33-vt { position: absolute; top: 16px; width: 50%; text-align: center; font: 750 27px/1.2 var(--fuente); }
+#cook .r33-vt.q4 { left: 0; color: var(--r-video-texto); }
+#cook .r33-vt.q9 { left: 50%; color: var(--r-video-texto); }
+#cook .r33-vpie { position: absolute; left: 0; top: 452px; width: 708px; font-size: 25px; line-height: 1.25; color: var(--texto-2); }
+:root[data-estilo="ppt"] #cook .r33-vpie { top: 490px; width: 720px; }
+
+#cook .r33-stem { position: absolute; left: 0; top: 500px; width: 708px; }
+:root[data-estilo="ppt"] #cook .r33-stem { top: 540px; width: 720px; }
+#cook .r33-st-tit { font-size: 25px; line-height: 1.25; color: var(--texto-2); margin-bottom: 8px; }
+#cook table.r33-tab { width: 100%; border-collapse: separate; border-spacing: 0 4px; font-size: 27px; font-variant-numeric: tabular-nums; }
+#cook .r33-tab th { font: 750 24px/1 var(--fuente); color: var(--texto-3); text-align: right; padding: 4px 10px; }
+#cook .r33-tab th:first-child { text-align: left; }
+#cook .r33-tab td { padding: 6px 10px; text-align: right; background: var(--superficie-2); color: var(--texto); }
+#cook .r33-tab td:first-child { text-align: left; font-size: 25px; font-weight: 700; border-radius: 10px 0 0 10px; white-space: nowrap; }
+#cook .r33-tab td:last-child { border-radius: 0 10px 10px 0; }
+#cook .r33-tab tr.edu td:first-child { color: var(--r-q4); }
+#cook .r33-tab td.igual { background: var(--h-ok-suave); color: var(--h-ok); font-weight: 750; }
+#cook .r33-st-rem { margin-top: 6px; display: flex; align-items: center; gap: 10px; font: 750 28px/1.2 var(--fuente); color: var(--h-ok); }
+#cook .r33-st-rem::before { content: '✓'; font-weight: 900; }
+
+#cook .r33-caso {
+  position: absolute; left: 748px; top: 0; width: 972px; height: 694px; padding: 48px 56px;
+  display: flex; flex-direction: column; justify-content: center; gap: 44px;
+}
+:root[data-estilo="ppt"] #cook .r33-caso { left: 762px; width: 980px; height: 700px; }
+#cook .r33-caso p { margin: 0; color: var(--texto-2); }
+#cook .r33-c1 { font-size: 40px; line-height: 1.28; }
+#cook .r33-c1 b { color: var(--texto); }
+:root[data-estilo="ppt"] #cook .r33-c1 b { color: var(--navy); }
+#cook .r33-ref { display: flex; flex-direction: column; gap: 8px; padding: 30px 36px; border-radius: 16px; background: var(--h-ok-suave); border: 2px solid var(--h-ok); }
+#cook .r33-ref-n { font: 800 140px/1.1 var(--fuente); color: var(--h-ok); font-variant-numeric: tabular-nums; }
+#cook .r33-ref-t { font-size: 34px; line-height: 1.25; color: var(--texto); }
+#cook .r33-c2 { font-size: 31px; line-height: 1.32; }
+
+#cook .r33-fig { left: 748px; top: 0; width: 972px; height: 694px; }
+:root[data-estilo="ppt"] #cook .r33-fig { left: 762px; width: 980px; height: 700px; }
+#cook .r33-sellos { position: absolute; left: 748px; top: 706px; width: 972px; display: flex; gap: 14px; }
+:root[data-estilo="ppt"] #cook .r33-sellos { left: 762px; top: 714px; width: 980px; }
+#cook .r33-sellos .l4-sello { font-size: 25px; padding: 8px 16px; gap: 10px; white-space: nowrap; }
+:root:not([data-estilo="ppt"]) #cook .r33-sellos .l4-sello { font-size: 22px; }
+:root:not([data-estilo="ppt"]) #cook .r33-ft { font-size: 27px; }
+:root:not([data-estilo="ppt"]) #cook .r33-fn { font-size: 25px; gap: 28px; }
+:root:not([data-estilo="ppt"]) #cook .r33-fn b { font-size: 30px; }
+:root:not([data-estilo="ppt"]) #cook .r33-fx { font-size: 24px; }
+:root:not([data-estilo="ppt"]) #cook .r33-tab td { font-size: 24px; padding: 6px 8px; }
+:root:not([data-estilo="ppt"]) #cook .r33-tab th { font-size: 22px; padding: 4px 8px; }
+:root:not([data-estilo="ppt"]) #cook .r33-tab td:first-child { font-size: 22px; }
+:root:not([data-estilo="ppt"]) #cook .r33-st-rem { font-size: 25px; }
+:root:not([data-estilo="ppt"]) #cook .r33-vpie, :root:not([data-estilo="ppt"]) #cook .r33-st-tit { font-size: 23px; }
+:root:not([data-estilo="ppt"]) #cook .r33-vt { font-size: 24px; }
+
+/* ====================================================================
+   34 · cobertura   (paso 0: seis tarjetas grandes; pasos 1 y 2: la franja y los 49 contenidos)
+   ==================================================================== */
+#cobertura .r34-grandes { position: absolute; left: 0; right: 0; top: 0; height: 768px; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 1fr); gap: 24px; }
+#cobertura .r34-g {
+  position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 10px;
+  padding: 26px 30px; border-radius: 16px; background: var(--superficie-2); border: 1px solid var(--linea);
+}
+#cobertura .r34-g .r3-ico { width: 62px; height: 62px; margin-bottom: 2px; }
+#cobertura .r34-n { display: flex; align-items: baseline; gap: 12px; color: var(--h-vd); }
+#cobertura .r34-n b { font: 800 96px/1.16 var(--fuente); font-variant-numeric: tabular-nums; }
+#cobertura .r34-n span { font: 750 38px/1 var(--fuente); color: var(--texto-2); }
+#cobertura .r34-n.palabra b { font-size: 70px; line-height: 1.12; white-space: nowrap; }
+#cobertura .r34-t { font-size: 32px; line-height: 1.22; color: var(--texto-2); }
+#cobertura .r34-t b { color: var(--texto); }
+:root[data-estilo="ppt"] #cobertura .r34-t b { color: var(--navy); }
+#cobertura .r34-d { font-size: 26px; line-height: 1.25; color: var(--texto-3); }
+#cobertura .r34-ok {
+  position: absolute; right: 20px; top: 20px; width: 46px; height: 46px; border-radius: 50%;
+  display: grid; place-items: center; background: var(--h-ok); color: var(--fondo); font: 900 26px/1 var(--fuente); font-style: normal;
+}
+#cobertura .r34-ok::before { content: '✓'; }
+/* el sexto criterio, pendiente hasta el paso 1 */
+#cobertura .r34-g.pend { background: transparent; border: 2px dashed var(--linea-2); }
+#cobertura .r34-g.pend .r34-n { color: var(--texto-3); }
+
+/* la franja de los pasos 1 y 2 */
+#cobertura .r34-franja { position: absolute; left: 0; right: 0; top: 0; height: 92px; display: flex; gap: 14px; }
+#cobertura .r34-f {
+  position: relative; flex: 1 1 0; display: grid; grid-template-columns: auto auto 1fr; grid-template-rows: auto auto;
+  column-gap: 8px; row-gap: 4px; align-content: center; padding: 6px 54px 6px 18px;
+  border-radius: 12px; background: var(--superficie-2); border: 1px solid var(--linea);
+}
+#cobertura .r34-f b { grid-row: 1; font: 800 38px/1 var(--fuente); color: var(--h-vd); white-space: nowrap; font-variant-numeric: tabular-nums; }
+#cobertura .r34-f span { grid-row: 1; align-self: end; font: 750 24px/1.3 var(--fuente); color: var(--texto-2); }
+#cobertura .r34-f em { grid-row: 2; grid-column: 1 / -1; font: 600 24px/1.2 var(--fuente); font-style: normal; color: var(--texto-3); }
+#cobertura .r34-f .r34-ok { right: 12px; top: 50%; margin-top: -17px; width: 34px; height: 34px; font-size: 20px; }
+#cobertura .r34-f18 .r34-ok { opacity: 0; }
+#cobertura .r34-f18 b { color: var(--texto-3); }
+#cobertura .r34-f18.activo { border: 2px solid var(--h-vd); background: var(--h-vd-suave); }
+#cobertura .r34-f18.activo b { color: var(--h-vd); }
+#cobertura .r34-f18.listo { border: 2px solid var(--h-ok); background: var(--h-ok-suave); }
+#cobertura .r34-f18.listo b { color: var(--h-ok); }
+
+/* los 49 contenidos del consenso: la visualización fija la posición y el tamaño de cada ítem */
+#cobertura .r34-red { position: absolute; left: 0; right: 0; top: 118px; height: 476px; }
+#cobertura .r34-items { position: absolute; inset: 0; }
+#cobertura .r34-tit { position: absolute; top: 0; font: 750 27px/1.15 var(--fuente); color: var(--texto-2); white-space: nowrap; }
+#cobertura .r34-tit b { font-size: 31px; font-weight: 800; }
+#cobertura .r34-tit.u { color: var(--h-ok); }
+#cobertura .r34-tit.f { color: var(--texto-3); }
+#cobertura .r34-tit.a { color: var(--primario); }
+#cobertura .r34-tit.x { color: var(--h-mal); }
+#cobertura .r34-sub { position: absolute; font: 600 23px/1.25 var(--fuente); color: var(--texto-3); }
+#cobertura .r34-it {
+  position: absolute; border-radius: 9px; display: grid; place-items: center;
+  font-weight: 750; line-height: 1; letter-spacing: -0.01em; color: var(--texto-2);
+  background: var(--superficie-2); border: 1px solid var(--linea-2);
+}
+#cobertura .r34-it.u { color: var(--h-ok); background: var(--superficie); border: 2px dashed var(--h-ok); }
+#cobertura .r34-it.u.ok { color: var(--fondo); background: var(--h-ok); border: 2px solid var(--h-ok); }
+#cobertura .r34-it.f { color: var(--texto-3); background: var(--superficie-2); border-color: var(--linea); opacity: .62; }
+#cobertura .r34-it.a { color: var(--primario); background: var(--primario-suave); border-color: color-mix(in srgb, var(--primario) 35%, transparent); }
+#cobertura .r34-it.x { color: var(--h-mal); background: var(--h-mal-suave); border-color: color-mix(in srgb, var(--h-mal) 45%, transparent); }
+#cobertura .r34-fuente { position: absolute; left: 0; right: 0; bottom: 0; font-size: 23px; line-height: 1.25; color: var(--texto-3); }
+#cobertura .r34-nota { top: 686px; font-size: 32px; padding: 14px 26px; }
+
+/* versión 1: contenedor de 1720 × 772 */
+:root:not([data-estilo="ppt"]) #cobertura .r34-grandes { height: 744px; gap: 20px; }
+:root:not([data-estilo="ppt"]) #cobertura .r34-g { padding: 22px 26px; gap: 8px; }
+:root:not([data-estilo="ppt"]) #cobertura .r34-n b { font-size: 84px; }
+:root:not([data-estilo="ppt"]) #cobertura .r34-n.palabra b { font-size: 58px; }
+:root:not([data-estilo="ppt"]) #cobertura .r34-t { font-size: 28px; }
+:root:not([data-estilo="ppt"]) #cobertura .r34-d { font-size: 24px; }
+:root:not([data-estilo="ppt"]) #cobertura .r34-f { padding: 6px 50px 6px 14px; }
+:root:not([data-estilo="ppt"]) #cobertura .r34-f b { font-size: 32px; }
+:root:not([data-estilo="ppt"]) #cobertura .r34-f span, :root:not([data-estilo="ppt"]) #cobertura .r34-f em { font-size: 22px; }
+:root:not([data-estilo="ppt"]) #cobertura .r34-tit { font-size: 24px; }
+:root:not([data-estilo="ppt"]) #cobertura .r34-tit b { font-size: 28px; }
+:root:not([data-estilo="ppt"]) #cobertura .r34-sub { font-size: 22px; }
+:root:not([data-estilo="ppt"]) #cobertura .r34-fuente { font-size: 22px; }
+:root:not([data-estilo="ppt"]) #cobertura .r34-nota { top: 664px; font-size: 29px; }
+
+/* ====================================================================
+   35 · leccion   (columna izquierda: el elemento E3; derecha: la cadena, el cierre y la prueba)
+   ==================================================================== */
+#leccion .r35-elem {
+  position: absolute; left: 0; top: 0; width: 720px; height: 640px; border-radius: 14px;
+  background: var(--superficie-2); border: 1px solid var(--linea);
+}
+#leccion .r35-elem > .r3-etq { position: absolute; left: 26px; top: 20px; }
+#leccion .r35-dibujo { position: absolute; left: 10px; right: 10px; top: 58px; bottom: 66px; }
+#leccion .r35-dibujo svg { display: block; width: 100%; height: 100%; overflow: visible; }
+#leccion .r35-ley { position: absolute; left: 26px; right: 20px; bottom: 16px; height: 40px; }
+#leccion .r35-ley-t { position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 12px; font-size: 25px; line-height: 1.2; color: var(--texto-2); }
+#leccion .r35-ley-t b { color: var(--h-mal); font-weight: 800; }
+#leccion .r35-ley-fl { flex: 0 0 auto; position: relative; width: 44px; height: 4px; border-radius: 2px; background: var(--texto-3); }
+#leccion .r35-ley-fl::after { content: ''; position: absolute; right: -2px; top: -7px; border-left: 13px solid var(--texto-3); border-top: 9px solid transparent; border-bottom: 9px solid transparent; }
+#leccion .r35-ley-t.ok { color: var(--h-ok); font-weight: 700; }
+#leccion .r35-ley-t.ok .r35-ley-fl { background: var(--h-ok); }
+#leccion .r35-ley-t.ok .r35-ley-fl::after { border-left-color: var(--h-ok); }
+
+/* la cadena del cálculo de tensiones: lo que miden las tasas del desplazamiento, y lo que queda después */
+#leccion .r35-cadena { position: absolute; left: 770px; right: 0; top: 58px; height: 150px; display: flex; align-items: stretch; gap: 0; }
+#leccion .r35-esl {
+  flex: 1 1 0; display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 10px 14px;
+  border-radius: 12px; background: var(--superficie-2); border: 2px solid var(--linea-2);
+  font-size: 27px; line-height: 1.15; color: var(--texto);
+}
+#leccion .r35-esl b { font-weight: 750; }
+:root[data-estilo="ppt"] #leccion .r35-esl b { color: var(--navy); }
+#leccion .r35-esl small { font-size: 23px; color: var(--texto-3); }
+#leccion .r35-esl.ok { border-color: var(--h-ok); background: var(--h-ok-suave); }
+#leccion .r35-esl.mal { border-color: var(--h-mal); background: var(--h-mal-suave); }
+#leccion .r35-esl.mal small.m { color: var(--h-mal); font-weight: 750; }
+#leccion .r35-esl small.b { display: none; }
+#leccion .r35-esl.mal.corregido { border-color: var(--h-ok); background: var(--h-ok-suave); }
+#leccion .r35-esl.mal.corregido small.m { display: none; }
+#leccion .r35-esl.mal.corregido small.b { display: block; color: var(--h-ok); font-weight: 750; }
+#leccion .r35-fl { flex: 0 0 34px; align-self: center; text-align: center; font: 800 34px/1 var(--fuente); font-style: normal; color: var(--texto-3); }
+#leccion .r35-vigia { position: absolute; left: 0; top: -52px; height: 40px; display: flex; align-items: center; }
+#leccion .r35-vigia span {
+  padding: 4px 16px; border-radius: 999px; white-space: nowrap;
+  background: var(--h-ok-suave); border: 2px solid var(--h-ok);
+  font: 750 24px/1.2 var(--fuente); color: var(--h-ok);
+}
+#leccion .r35-vigia::after {
+  content: ''; position: absolute; left: 44px; bottom: -11px;
+  border-top: 11px solid var(--h-ok); border-left: 10px solid transparent; border-right: 10px solid transparent;
+}
+
+/* paso 1: el cierre que falla */
+#leccion .r35-cierre { position: absolute; left: 770px; right: 0; top: 246px; }
+#leccion .r35-c-tit { font-size: 31px; font-weight: 750; line-height: 1.2; color: var(--texto); }
+:root[data-estilo="ppt"] #leccion .r35-c-tit { color: var(--navy); }
+#leccion .r35-c-tit span { margin-left: 10px; font-size: 26px; font-weight: 650; color: var(--texto-3); }
+#leccion table.r35-tab { margin-top: 10px; font-size: 30px; }
+#leccion .r35-tab th { font-size: 23px; line-height: 1.15; padding: 8px 14px; vertical-align: bottom; }
+#leccion .r35-tab td { padding: 6px 14px; height: 50px; }
+#leccion .r35-tab td.r35-v, #leccion .r35-tab td.r35-col-b { font-weight: 750; white-space: nowrap; }
+#leccion .r35-tab td.r35-v.ok, #leccion .r35-tab td.r35-col-b { color: var(--h-ok); }
+#leccion .r35-tab td.r35-v.mal { color: var(--h-mal); background: var(--h-mal-suave); }
+#leccion .r35-tab td .marca { display: inline-block; width: 30px; margin-left: 8px; text-align: center; font-weight: 900; }
+#leccion .r35-pg {
+  display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 50%;
+  background: var(--primario); color: var(--fondo); font: 800 24px/1 var(--fuente); font-style: normal;
+}
+#leccion .r35-c-pie { margin-top: 8px; font-size: 25px; line-height: 1.25; color: var(--texto-3); }
+
+/* paso 2: la prueba de hoy y la lección */
+#leccion .r35-prueba {
+  position: absolute; left: 770px; right: 0; top: 590px; height: 66px; display: flex; align-items: center; gap: 16px;
+  padding: 0 20px; border-radius: 12px; background: var(--h-ok-suave); border: 2px solid var(--h-ok);
+  font-size: 27px; line-height: 1.2; color: var(--texto);
+}
+#leccion .r35-prueba b { color: var(--h-ok); }
+#leccion .r35-prueba .r3-ico { width: 46px; height: 46px; }
+#leccion .r35-remate { top: 682px; font-size: 32px; padding: 14px 26px; }
+
+/* versión 1: contenedor de 1720 × 772 */
+:root:not([data-estilo="ppt"]) #leccion .r35-elem { width: 700px; height: 620px; }
+:root:not([data-estilo="ppt"]) #leccion .r35-cadena,
+:root:not([data-estilo="ppt"]) #leccion .r35-cierre,
+:root:not([data-estilo="ppt"]) #leccion .r35-prueba { left: 740px; }
+:root:not([data-estilo="ppt"]) #leccion .r35-esl { font-size: 24px; padding: 8px 12px; }
+:root:not([data-estilo="ppt"]) #leccion .r35-esl small { font-size: 22px; }
+:root:not([data-estilo="ppt"]) #leccion .r35-vigia span { font-size: 22px; }
+:root:not([data-estilo="ppt"]) #leccion .r35-cierre { top: 236px; }
+:root:not([data-estilo="ppt"]) #leccion .r35-c-tit { font-size: 28px; }
+:root:not([data-estilo="ppt"]) #leccion table.r35-tab { font-size: 27px; }
+:root:not([data-estilo="ppt"]) #leccion .r35-tab th { font-size: 22px; }
+:root:not([data-estilo="ppt"]) #leccion .r35-tab td { height: 46px; }
+:root:not([data-estilo="ppt"]) #leccion .r35-c-pie { font-size: 23px; }
+:root:not([data-estilo="ppt"]) #leccion .r35-prueba { top: 572px; height: 60px; font-size: 24px; }
+:root:not([data-estilo="ppt"]) #leccion .r35-ley-t { font-size: 23px; }
+:root:not([data-estilo="ppt"]) #leccion .r35-remate { top: 656px; font-size: 29px; }

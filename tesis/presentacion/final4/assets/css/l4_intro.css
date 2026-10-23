@@ -1,0 +1,103 @@
+/* l4_intro.css — introducción, separadores y cierre (final4). */
+
+/* ---------- Agenda (separador de la introducción) ---------- */
+.agenda .agenda-cab { position: absolute; left: 150px; right: 150px; top: 200px; }
+.agenda .agenda-etq { font: 800 26px/1 var(--fuente); letter-spacing: .16em; text-transform: uppercase; color: var(--acento); }
+.agenda .agenda-tit { margin-top: 22px; font-size: 66px; font-weight: 800; line-height: 1.08; letter-spacing: -0.02em; max-width: 1450px; }
+.agenda .ruta { position: absolute; left: 150px; right: 150px; top: 520px; height: 340px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 26px; }
+.agenda .ruta-linea { position: absolute; left: 40px; right: 40px; top: 46px; height: 6px; border-radius: 3px; background: var(--linea-2); }
+.agenda .ruta-linea > i { display: block; height: 100%; width: 0; border-radius: 3px; background: var(--acento); }
+.agenda .estacion { position: relative; padding: 108px 24px 24px; border-radius: 20px; background: var(--superficie); border: 1px solid var(--linea-2); box-shadow: var(--sombra-s); }
+.agenda .estacion .n { position: absolute; left: 22px; top: 14px; width: 66px; height: 66px; border-radius: 50%; display: grid; place-items: center; background: var(--superficie-3); border: 3px solid var(--linea-2); font: 850 28px/1 var(--fuente); color: var(--texto-2); }
+.agenda .estacion.actual { border: 3px solid var(--acento); }
+.agenda .estacion.actual .n { background: var(--acento); border-color: var(--acento); color: #fff; }
+.agenda .estacion .nom { font-size: 34px; font-weight: 800; line-height: 1.1; }
+.agenda .estacion .verbo { margin-top: 6px; font-size: 30px; font-weight: 750; color: var(--acento); }
+.agenda .estacion.final .verbo { color: var(--h-ok); }
+.agenda .estacion .que { margin-top: 12px; font-size: 24px; line-height: 1.3; color: var(--texto-2); }
+:root[data-estilo="ppt"] .agenda .agenda-tit { color: #fff; }
+:root[data-estilo="ppt"] .agenda .estacion { background: var(--navy-suave); border-color: rgba(199, 210, 232, .28); box-shadow: none; }
+:root[data-estilo="ppt"] .agenda .estacion .nom { color: #fff; }
+:root[data-estilo="ppt"] .agenda .estacion .que { color: var(--sobre-oscuro); }
+:root[data-estilo="ppt"] .agenda .estacion .n { background: #22335a; border-color: rgba(199, 210, 232, .35); color: #e6ecf7; }
+:root[data-estilo="ppt"] .agenda .estacion.actual { border: 3px solid var(--acento); }
+:root[data-estilo="ppt"] .agenda .estacion.actual .n { background: var(--acento); border-color: var(--acento); color: #fff; }
+.agenda .agenda-tit { text-wrap: balance; }
+
+/* ---------- Separadores: número del capítulo; las conclusiones, sin número ---------- */
+.separador .contenido-sep.sin-numero .cap-oe { left: 0; }
+:root[data-estilo="ppt"] .separador .contenido-sep.sin-numero { grid-template-columns: 1fr; }
+:root[data-estilo="ppt"] .separador .contenido-sep.sin-numero .nombre,
+:root[data-estilo="ppt"] .separador .contenido-sep.sin-numero .desc { padding-left: 56px; }
+/* la cadena del hilo conductor: lo recorrido lleva ✓ y un borde naranja tenue */
+.separador .cadena > .hecho { border-color: var(--acento-suave); }
+:root[data-estilo="ppt"] .separador .cadena > .hecho { background: #22335a; border: 1px solid rgba(232, 116, 26, .55); color: #ffffff; }
+
+/* ---------- Carátula: rótulos legibles al proyectar ---------- */
+.portada .port-der .etq-campo { font-size: 24px; }
+.portada .autor .etq { font-size: 24px; }
+:root[data-estilo="ppt"] .agenda .ruta-linea { background: rgba(199, 210, 232, .28); }
+
+/* ---------- Caja negra ---------- */
+#caja-negra .cita { bottom: 150px; }
+#caja-negra .cn-remate { left: 100px; right: 100px; bottom: 150px; top: auto; font-size: 32px; }
+#caja-negra .cn-remate b { color: var(--acento); }
+/* en el paso 3 el remate ocupa el lugar de las citas */
+#caja-negra .cita[data-paso="2"] { z-index: 1; }
+
+/* ---------- Problema: VI en azul, VD en violeta (código de color de la hipótesis) ---------- */
+#problema .l4-enunciado { font-size: 46px; padding: 34px 46px 34px 88px; line-height: 1.32; }
+/* sin relleno lateral: el enunciado debe leerse idéntico al documento, sin huecos; el resaltado crece con una sombra */
+#problema .enunciado .vi, #problema .enunciado .vd { padding: 0; }
+#problema .enunciado.marcar .vi { background: var(--h-vi-suave); box-shadow: 0 0 0 4px var(--h-vi-suave); color: var(--h-vi); font-weight: 700; }
+#problema .enunciado.marcar .vd { background: var(--h-vd-suave); box-shadow: 0 0 0 4px var(--h-vd-suave); color: var(--h-vd); font-weight: 700; }
+#problema .l4-vars { margin-top: 28px; }
+#problema .var-chip.vi { background: var(--h-vi-suave); color: var(--h-vi); }
+#problema .var-chip.vd { background: var(--h-vd-suave); color: var(--h-vd); }
+#problema .l4-defs { margin-top: 28px; }
+#problema .definicion.compacta { grid-template-columns: 120px 1fr; align-items: start; }
+#problema .definicion.compacta p { font-size: 29px; }
+#problema .ico-anim { width: 120px; height: 120px; }
+
+/* ---------- Objetivos ---------- */
+#objetivos .l4-og .tarjeta p { font-size: 33px; }
+#objetivos .og-vi .etq { color: var(--h-vi); }
+#objetivos .og-vd .etq { color: var(--h-vd); }
+#objetivos .og-vi { border-top: 5px solid var(--h-vi); }
+#objetivos .og-vd { border-top: 5px solid var(--h-vd); }
+#objetivos .l4-og-enunciado { margin-top: 34px; padding: 28px 36px; }
+#objetivos .l4-og-enunciado p { font-size: 36px; line-height: 1.42; color: var(--texto); margin: 0; }
+#objetivos .l4-og-enunciado.marcar .og-vi { color: var(--h-vi); font-weight: 700; }
+#objetivos .l4-og-enunciado.marcar .og-vd { color: var(--h-vd); font-weight: 700; }
+#objetivos .l4-og-remate { left: 100px; right: 100px; bottom: 120px; top: auto; font-size: 32px; }
+#objetivos .l4-og-remate b { color: var(--acento); }
+#objetivos .l4-oe { position: absolute; left: 100px; right: 100px; top: 236px; display: grid; grid-template-columns: 1fr 56px 1fr 56px 1fr; align-items: stretch; }
+#objetivos .l4-oe-col { padding: 26px 28px 30px; border-radius: 20px; background: var(--superficie); border: 1px solid var(--linea-2); box-shadow: var(--sombra-s); border-top: 6px solid var(--acento); }
+#objetivos .l4-oe-col .cab { display: flex; align-items: center; justify-content: space-between; }
+#objetivos .l4-oe-col .num { width: 60px; height: 60px; border-radius: 50%; display: grid; place-items: center; background: var(--acento); color: #fff; font: 850 30px/1 var(--fuente); }
+#objetivos .l4-oe-col .cap { font: 750 24px/1 var(--fuente); color: var(--primario); background: var(--superficie-3); border: 1px solid var(--linea-2); padding: 9px 16px; border-radius: 999px; }
+#objetivos .l4-oe-col .verbo { margin-top: 20px; font-size: 48px; font-weight: 800; line-height: 1.05; }
+#objetivos .l4-oe-col .que { margin-top: 16px; font-size: 28px; line-height: 1.36; color: var(--texto-2); }
+#objetivos .l4-oe-col .que b { color: var(--texto); }
+#objetivos .l4-oe-flecha { display: grid; place-items: center; font: 800 46px/1 var(--fuente); color: var(--acento); }
+#objetivos .l4-oe-remate { left: 100px; right: 100px; bottom: 120px; top: auto; font-size: 31px; }
+
+/* ---------- Metodología ---------- */
+#metodo .l4-metodo { margin-top: 34px; }
+#metodo .l4-metodo-etq { font-weight: 700; letter-spacing: .02em; font-size: 26px; margin-bottom: 16px; color: var(--texto-2); }
+#metodo .ciclo .act { min-height: 236px; }
+#metodo .ciclo .act .t { font-size: 29px; }
+#metodo .ciclo .act .d { font-size: 25px; }
+#metodo .ciclo .act .oe { font-size: 24px; padding: 7px 12px; }
+#metodo .ciclo .act:not(:last-child)::after { font-size: 46px; right: -19px; color: var(--acento); }
+#metodo .ciclo .act.encendida { background: var(--superficie); border-color: var(--acento); }
+#metodo .ciclo .act.foco { box-shadow: 0 0 0 4px var(--acento-suave), var(--sombra-s); transform: translateY(-6px); }
+#metodo .base-conoc { font-size: 25px; }
+#metodo .remate { left: 100px; right: 100px; bottom: 120px; top: auto; font-size: 30px; }
+
+/* ---------- Cierre ---------- */
+.cierre .ideas .ficha { min-width: 430px; }
+.cierre .ideas .ficha.l4-ficha-vd { background: var(--h-vd-suave); color: var(--h-vd); border: 1px solid var(--h-vd); font-weight: 750; }
+.cierre .ideas .ficha.l4-ficha-ok { background: var(--h-ok-suave); color: var(--h-ok); border: 2px solid var(--h-ok); font-weight: 800; font-size: 32px; }
+:root[data-estilo="ppt"] .cierre .ideas .ficha.l4-ficha-vd { background: #3b2a6b; color: #fff; border-color: rgba(199, 210, 232, .3); }
+:root[data-estilo="ppt"] .cierre .ideas .ficha.l4-ficha-ok { background: #1f7a4f; color: #fff; border-color: #7fd7aa; }

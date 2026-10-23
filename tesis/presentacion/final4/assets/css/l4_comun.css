@@ -1,0 +1,75 @@
+/* =====================================================================
+   l4_comun.css — piezas compartidas de la presentación final4.
+
+   Código de color de la hipótesis y de las variables: el MISMO de las figuras
+   de la tesis (Figura 2.1 y Figura CR.1, tesis/figuras/generar_figuras_formulacion.py):
+     --h-vi   azul     variable independiente (transparencia) · antecedente
+     --h-vd   violeta  variable dependiente (trazabilidad y verificabilidad) · efecto
+     --h-int  naranja  variable interviniente (EduFEM) · condición e intervención
+     --h-ok   verde    «se cumple» / «respaldada»
+     --h-mal  rojo     el problema (caja negra)
+   Toda lámina que hable de variables o de la hipótesis usa estos tokens, así el
+   público reconoce cada parte de la hipótesis cuando vuelve en las conclusiones.
+   ===================================================================== */
+:root {
+  --h-vi: #6aa8ff;
+  --h-vd: #b79cff;
+  --h-int: #ff9a4a;
+  --h-ok: #3ddc97;
+  --h-mal: #ff7b84;
+  --h-vi-suave: rgba(106, 168, 255, 0.16);
+  --h-vd-suave: rgba(183, 156, 255, 0.16);
+  --h-int-suave: rgba(255, 154, 74, 0.16);
+  --h-ok-suave: rgba(61, 220, 151, 0.16);
+  --h-mal-suave: rgba(255, 123, 132, 0.16);
+  /* neutro: lo que no es una variable (objeto de estudio, principios, lo ya recorrido) */
+  --h-neutro: #a9bbd9;
+  --h-neutro-suave: rgba(169, 187, 217, 0.14);
+}
+:root[data-tema="claro"],
+:root[data-estilo="ppt"] {
+  --h-vi: #0d6efd;
+  --h-vd: #6f42c1;
+  --h-int: #d9650b;
+  --h-ok: #198754;
+  --h-mal: #b02a37;
+  --h-vi-suave: #eaf2ff;
+  --h-vd-suave: #f3eefb;
+  --h-int-suave: #fff3e8;
+  --h-ok-suave: #e8f5ee;
+  --h-mal-suave: #fbeaec;
+  --h-neutro: #3e5a86;
+  --h-neutro-suave: #eef2f8;
+}
+
+/* ν (coeficiente de Poisson) en letra matemática: en Calibri se confunde con una «v» */
+.nu { font-family: KaTeX_Math, 'Cambria Math', 'Times New Roman', serif; font-style: italic; }
+
+/* texto coloreado por parte de la hipótesis */
+.h-vi { color: var(--h-vi); }
+.h-vd { color: var(--h-vd); }
+.h-int { color: var(--h-int); }
+.h-ok { color: var(--h-ok); }
+.h-mal { color: var(--h-mal); }
+
+/* sello de veredicto («Se cumple», «Respaldada», «Comprobada») */
+.l4-sello {
+  display: inline-flex; align-items: center; gap: 12px;
+  padding: 10px 22px; border-radius: 999px;
+  font-weight: 800; letter-spacing: .01em;
+  color: var(--h-ok); background: var(--h-ok-suave);
+  border: 3px solid var(--h-ok);
+}
+.l4-sello::before { content: '✓'; font-weight: 900; }
+.l4-sello.grande {
+  font-size: 54px; padding: 18px 44px; border-width: 5px;
+  box-shadow: 0 10px 40px rgba(25, 135, 84, .25);
+}
+
+/* rótulo de una parte de la hipótesis (condición, intervención, efecto, antecedente) */
+.l4-parte {
+  display: inline-flex; flex-direction: column; gap: 2px;
+  padding: 8px 16px; border-radius: 12px; border: 2px solid currentColor;
+  font-weight: 750; font-size: 24px; line-height: 1.15; background: var(--superficie);
+}
+.l4-parte small { font-weight: 600; font-size: 18px; opacity: .85; }
